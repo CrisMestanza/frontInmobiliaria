@@ -15,7 +15,7 @@ export default function Principal() {
   useEffect(() => {
     const fetchInmobiliarias = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/listInmobiliaria/");
+        const res = await fetch("https://apiinmo.y0urs.com/api/listInmobiliaria/");
         const data = await res.json();
         setInmobiliarias(data);
       } catch (err) {
@@ -37,7 +37,7 @@ export default function Principal() {
     if (confirm) {
       try {
         const res = await fetch(
-          `http://127.0.0.1:8000/api/deleteInmobiliaria/${idinmobiliaria}/`,
+          `https://apiinmo.y0urs.com/api/deleteInmobiliaria/${idinmobiliaria}/`,
           {
             method: "PUT",
           }
@@ -71,6 +71,10 @@ export default function Principal() {
     );
   };
 
+  const verInmo = (idinmobiliaria) => {
+    console.log(idinmobiliaria)
+    navigate(`/proyectos/${idinmobiliaria}`);
+  }
   return (
     <div className={style.principal}>
       <Aside />
@@ -157,7 +161,7 @@ export default function Principal() {
                 <td style={{ textAlign: "center", color: "black" }}>
                   <button
                     onClick={() =>
-                      navigate(`/proyectos/${item.idinmobiliaria}`)
+                      verInmo(item.idinmobiliaria)
                     }
                     className={style.addBtn}
                   >

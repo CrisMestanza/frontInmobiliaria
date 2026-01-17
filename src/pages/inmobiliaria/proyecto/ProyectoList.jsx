@@ -5,16 +5,21 @@ import ProyectoModal from "./agregarProyecto";
 import style from "../agregarInmo.module.css";
 
 export default function ProyectosList() {
-  const { idinmobilaria } = useParams();
+  const { idinmobiliaria } = useParams();
   const navigate = useNavigate();
   const [proyectos, setProyectos] = useState([]);
   const [showModal, setShowModal] = useState(false);
-
+  const token = localStorage.getItem("access");
   useEffect(() => {
     const fetchProyectos = async () => {
       try {
         const res = await fetch(
-          `http://127.0.0.1:8000/api/getProyectoInmo/${idinmobilaria}`
+          `https://apiinmo.y0urs.com/api/getProyectoInmo/${idinmobiliaria}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         const data = await res.json();
         setProyectos(data);
@@ -23,8 +28,11 @@ export default function ProyectosList() {
       }
     };
     fetchProyectos();
-  }, [idinmobilaria]);
-
+  }, [idinmobiliaria, token]);
+  const verLotes = (idproyecto) => {
+    console.log(idproyecto);
+    navigate(`/lotes/${idproyecto}`);
+  };
   return (
     <div className={style.principal}>
       <Aside />
@@ -129,7 +137,7 @@ export default function ProyectosList() {
                 </td>
                 <td style={{ textAlign: "center", color: "black" }}>
                   <button
-                    onClick={() => navigate(`/lotes/${proyecto.idproyecto}`)}
+                    onClick={() => verLotes(proyecto.idproyecto)}
                     className={style.addBtn}
                   >
                     👁️ Ver
@@ -151,9 +159,12 @@ export default function ProyectosList() {
                         )
                       ) {
                         await fetch(
-                          `http://127.0.0.1:8000/api/deleteProyecto/${proyecto.idproyecto}/`,
+                          `https://apiinmo.y0urs.com/api/deleteProyecto/${proyecto.idproyecto}/`,
                           {
                             method: "PUT",
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                            },
                           }
                         );
                         setProyectos(
@@ -176,7 +187,7 @@ export default function ProyectosList() {
         {showModal && (
           <ProyectoModal
             onClose={() => setShowModal(false)}
-            idinmobilaria={idinmobilaria}
+            idinmobiliaria={idinmobiliaria}
           />
         )}
       </div>

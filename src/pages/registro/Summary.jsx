@@ -1,11 +1,52 @@
 // src/components/Registro/Summary.jsx
-import React from "react";
-
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "./Summary.css";
 const Summary = ({ onBack, formData }) => {
-  const handleSubmit = (e) => {
+  const [loading] = useState(false);
+  const navigate = useNavigate();
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Aquí iría la lógica para enviar el formulario a la API o base de datos
-    alert("Formulario enviado con éxito!");
+
+    const payload = {
+      usuario: {
+        correo: formData.correo,
+        password: formData.password,
+        nombre: formData.nombre,
+        estado: 1,
+      },
+      nombreinmobiliaria: formData.companyName,
+      telefono: formData.phoneNumber,
+      RUC: formData.companyRuc,
+      correo: formData.email,
+      descripcion: formData.descripcion,
+      pagina: formData.portfolioLink,
+      facebook: formData.facebookLink,
+      whatsapp: formData.whatsappNumber,
+      tiktok: formData.tiktokUsername,
+      estado: 1,
+    };
+
+    try {
+      const response = await fetch(
+        "https://apiinmo.y0urs.com/api/register_inmobiliaria_usuario/",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (response.ok) {
+        alert("Registro exitoso!");
+        navigate("/login");
+      } else {
+        alert("Error al registrar. Revisa la consola.");
+      }
+    } catch (error) {
+      console.error("❌ Error de red:", error);
+      alert("Error de conexión con el servidor");
+    }
   };
 
   return (
@@ -24,6 +65,9 @@ const Summary = ({ onBack, formData }) => {
         <h4>Información de Contacto</h4>
         <p>
           <strong>Razón Social:</strong> {formData.companyName}
+        </p>
+        <p>
+          <strong>RUC:</strong> {formData.companyRuc}
         </p>
         <p>
           <strong>Teléfono:</strong> {formData.phoneNumber}
@@ -61,8 +105,13 @@ const Summary = ({ onBack, formData }) => {
         <button type="button" className="back-btn" onClick={onBack}>
           Editar
         </button>
-        <button type="submit" className="submit-btn" onClick={handleSubmit}>
-          Registrarme
+        <button
+          type="submit"
+          className="submit-btn"
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? "Registrando..." : "Registrarme"}
         </button>
       </div>
     </div>

@@ -31,7 +31,17 @@ const PersonalDetails = ({ onNext, formData }) => {
         />
       </div>
       <div className="form-row">
-        <label>Teléfono</label>
+        <label htmlFor="companyRuc">RUC</label>
+        <input
+          type="text"
+          name="companyRuc"
+          value={data.companyRuc}
+          onChange={handleChange}
+          required
+        />
+      </div>
+      <div className="form-row">
+        <label>Código del país y Teléfono</label>
         <div className="input-group whatsapp-input-group">
           <span className="plus-sign">+</span>
           <input

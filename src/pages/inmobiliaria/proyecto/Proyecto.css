@@ -1,0 +1,186 @@
+/* ===== MODAL OVERLAY ===== */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* ===== CONTENIDO DEL MODAL ===== */
+.modalContent {
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.3s ease;
+}
+
+.searchBox {
+  position: absolute;
+  top: 10px;
+  left: 80%;
+  /* transform: translateX(-60%); */
+  z-index: 10;
+  /* width: 70%; */
+  max-width: 200px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+  background: white;
+  /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); */
+}
+
+/* 🔧 Corrige visibilidad del Autocomplete en modales o mapas */
+.pac-container {
+  z-index: 99999 !important;
+  position: absolute !important;
+}
+
+.gm-style-mtc button,
+.gm-style-mtc div {
+  font-size: 10px !important; /* Letra más pequeña */
+  padding: 2px 6px !important; /* Menos padding interno */
+}
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ===== BOTÓN CERRAR ===== */
+.closeBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #0077ff;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== FORMULARIO ===== */
+.formContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.formContainer h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: #003366;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.formContainer label {
+  margin: 10px 0 5px;
+  color: #000;
+  font-weight: bold;
+}
+
+.input {
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fff;
+  color: rgb(0, 0, 0);
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.input:focus {
+  border: 1px solid #0077ff;
+  outline: none;
+  box-shadow: 0 0 6px rgba(0, 119, 255, 0.3);
+}
+
+textarea.input {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* ===== MAPA ===== */
+.mapContainer {
+  height: 400px;
+  margin-bottom: 20px;
+}
+
+.help-text {
+  font-size: 14px;
+  color: gray;
+}
+
+/* ===== PREVIEW DE IMÁGENES ===== */
+.previewContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.previewItem {
+  position: relative;
+}
+
+.previewItem img {
+  width: 100px;
+  height: auto;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.previewItem .removeBtn {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid #e03131;
+  cursor: pointer;
+}
+
+/* ===== BOTONES ===== */
+.submitBtn {
+  margin-top: 20px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #0077ff, #00c6ff);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.submitBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}

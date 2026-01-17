@@ -32,14 +32,29 @@ body {
   zoom: 0.75;
 }
 
-.steps-sidebar {
-  flex-basis: 350px; /* Ancho ajustado para centrar mejor los círculos */
+/* .steps-sidebar {
+  flex-basis: 350px;
   background: linear-gradient(135deg, #008080, #006666);
   color: #fff;
   padding: 60px 40px;
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Centrado verticalmente */
+  justify-content: center;
+  align-items: flex-start;
+  position: sticky;
+  overflow: hidden;
+} */
+
+.steps-sidebar {
+  flex: 0 0 350px;
+  /* max-width: 350px;
+  min-width: 350px; */
+  background: linear-gradient(135deg, #008080, #006666);
+  color: #fff;
+  padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: flex-start;
   position: relative;
   overflow: hidden;
@@ -132,12 +147,13 @@ body {
 
 .form-content {
   flex: 1;
-  /* padding: 20px 60px 20px 20px; */
   padding: 60px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .form-title {

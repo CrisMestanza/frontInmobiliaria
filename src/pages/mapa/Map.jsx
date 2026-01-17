@@ -1,28 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  GoogleMap,
-  useJsApiLoader,
-  Marker,
-  DirectionsRenderer,
-} from "@react-google-maps/api";
-
+import { GoogleMap, Marker, DirectionsRenderer } from "@react-google-maps/api";
 import ProyectoSidebar from "./MapSidebarProyecto";
 import MapSidebar from "./MapSidebar";
 import MapMarker from "./MapMarker";
 import PolygonOverlay from "./PolygonOverlay";
 import styles from "./Mapa.module.css";
+import ChatBotPanel from "../mybot/ChatBotPanel";
+import loader from "../../components/loader";
+import { useParams } from "react-router-dom";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const LIBRARIES = ["places"];
 
-
 const RANGOS_PRECIO = [
-  { label: "S/. 5,000 - 15,000", value: "5000-15000" },
-  { label: "S/. 15,001 - 35,000", value: "15001-35000" },
-  { label: "S/. 35,001 - 80,000", value: "35001-80000" },
-  { label: "S/. 80,001 - 150,000", value: "80001-150000" },
-  { label: "S/. 150,001 - 250,000", value: "150001-250000" },
-  { label: "S/. 250,001 - más", value: "250001-999999999" },
+  { label: "$. 5,000 - 15,000", value: "5000-15000" },
+  { label: "$. 15,001 - 35,000", value: "15001-35000" },
+  { label: "$. 35,001 - 80,000", value: "35001-80000" },
+  { label: "$. 80,001 - 150,000", value: "80001-150000" },
+  { label: "$. 150,001 - 250,000", value: "150001-250000" },
+  { label: "$. 250,001 - más", value: "250001-999999999" },
 ];
 
 const LotesOverlay = ({
@@ -92,7 +88,8 @@ const LotesOverlay = ({
                 clickable: isLibre,
                 draggable: false,
                 editable: false,
-                strokeWeight: 1,
+                strokeWeight: 2,
+                strokeColor: "black",
               }}
             />
           );
@@ -102,13 +99,8 @@ const LotesOverlay = ({
 };
 
 function MyMap() {
-  // const [mapType, setMapType] = useState("roadmap");
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: "AIzaSyA0dsaDHTO3rx48cyq61wbhItaZ_sWcV94",
-    libraries:LIBRARIES,
-  });
-
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(defaultCenter);
   const [tiposInmo, setTiposInmo] = useState([]);
   const [selectedTipo, setSelectedTipo] = useState("");
@@ -123,30 +115,110 @@ function MyMap() {
   const [imagenesProyecto, setImagenesProyecto] = useState([]);
   const [imagenesLote, setImagenesLote] = useState([]);
   const [puntos, setPuntos] = useState([]);
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
   const [hoveredLote, setHoveredLote] = useState(null);
   const [iconosProyecto, setIconosProyecto] = useState([]);
-
   const [walkingInfo, setWalkingInfo] = useState(null);
   const [drivingInfo, setDrivingInfo] = useState(null);
 
   const mapRef = useRef(null);
   const inputRef = useRef(null);
+  const autocompleteRef = useRef(null);
+  // const inmoId = null;
+  const { inmoId } = useParams();
+  const [filtroBotActivo, setFiltroBotActivo] = useState(false);
+
+  // Usuario
+  const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
+
+
+  // ✅ FIX: Load Google Maps API properly with all required libraries
+  useEffect(() => {
+    const loadGoogleMaps = async () => {
+      try {
+        // Check if already loaded
+        if (
+          window.google?.maps?.places?.Autocomplete &&
+          window.google?.maps?.Map
+        ) {
+          console.log("Google Maps API ya está cargada");
+          setIsLoaded(true);
+          return;
+        }
+
+        console.log("Cargando Google Maps API...");
+        await loader.load();
+
+        // Wait a bit to ensure all libraries are initialized
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Verify critical APIs are available
+        if (!window.google?.maps?.Map) {
+          throw new Error("google.maps.Map no está disponible");
+        }
+        if (!window.google?.maps?.places?.Autocomplete) {
+          throw new Error("google.maps.places.Autocomplete no está disponible");
+        }
+
+        console.log("Google Maps API cargada correctamente");
+        setIsLoaded(true);
+      } catch (error) {
+        console.error("Error al cargar Google Maps API:", error);
+        setLoadError(error);
+      }
+    };
+
+    loadGoogleMaps();
+  }, []);
+
+useEffect(() => {
+  // ❗ Si el usuario ya buscó una ubicación, NO usar GPS
+  if (hasSearchedLocation) return;
+
+  if (inmoId || selectedProyecto) return;
+
+  navigator.geolocation?.getCurrentPosition(
+    (pos) =>
+      setCurrentPosition({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      }),
+    () => console.warn("Permiso de ubicación denegado.")
+  );
+}, [inmoId, selectedProyecto, hasSearchedLocation]);
+
 
   useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      (pos) =>
-        setCurrentPosition({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        }),
-      () => console.warn("Permiso de ubicación denegado.")
-    );
-  }, []);
+    if (inmoId) {
+      setSelectedTipo("");
+      setSelectedRango("");
+      setFiltroBotActivo(false);
+
+      const apiUrl = `https://apiinmo.y0urs.com/api/listProyectosInmobiliaria/${inmoId}`;
+
+      fetch(apiUrl)
+        .then((res) => res.json())
+        .then((data) => {
+          setProyecto(data);
+          if (data.length > 0 && mapRef.current && window.google?.maps) {
+            const bounds = new window.google.maps.LatLngBounds();
+            data.forEach((p) =>
+              bounds.extend({
+                lat: parseFloat(p.latitud),
+                lng: parseFloat(p.longitud),
+              })
+            );
+            mapRef.current.fitBounds(bounds);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [inmoId, isLoaded]);
 
   useEffect(() => {
     if (selectedLote) {
-      fetch(`http://127.0.0.1:8000/api/list_imagen/${selectedLote.lote.idlote}`)
+      fetch(`https://apiinmo.y0urs.com/api/list_imagen/${selectedLote.lote.idlote}`)
         .then((res) => res.json())
         .then((data) => setImagenesLote(data))
         .catch((err) => console.error("Error cargando imágenes:", err));
@@ -158,7 +230,7 @@ function MyMap() {
   useEffect(() => {
     if (selectedProyecto?.idproyecto) {
       fetch(
-        `http://127.0.0.1:8000/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`
+        `https://apiinmo.y0urs.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`
       )
         .then((res) => res.json())
         .then((data) => setImagenesProyecto(data))
@@ -168,136 +240,133 @@ function MyMap() {
     }
   }, [selectedProyecto]);
 
-useEffect(() => {
-  if (!selectedProyecto) return;
+  useEffect(() => {
+    if (!selectedProyecto) return;
 
-  const cargarLotes = async () => {
-    let dataLotes;
-
-    if (selectedRango) {
-      // Usamos los lotes filtrados que ya guardamos en "lotes"
-      dataLotes = lotes.filter(
-        (l) => l.idproyecto === selectedProyecto.idproyecto
-      );
-    } else {
-      // Si no hay rango → pedimos todos los lotes del proyecto
+    const cargarLotes = async () => {
+      //  UNA sola llamada
       const res = await fetch(
-        `http://127.0.0.1:8000/api/getLoteProyecto/${selectedProyecto.idproyecto}`
+        `https://apiinmo.y0urs.com/api/getLotesConPuntos/${selectedProyecto.idproyecto}`
       );
-      dataLotes = await res.json();
-    }
+      const data = await res.json();
 
-    // A cada lote le agregamos sus puntos
-    const lotesConPuntos = await Promise.all(
-      dataLotes.map(async (lote) => {
-        const resPuntos = await fetch(
-          `http://127.0.0.1:8000/api/listPuntos/${lote.idlote}`
+      // 👉 Si hay filtros, filtras en memoria (rápido)
+      let lotesFiltrados = data;
+
+      if (selectedRango || filtroBotActivo) {
+        lotesFiltrados = data.filter(
+          (l) => l.idproyecto === selectedProyecto.idproyecto
         );
-        const puntos = await resPuntos.json();
-        return { ...lote, puntos };
-      })
-    );
+      }
 
-    setLotesProyecto(lotesConPuntos);
-  };
+      setLotesProyecto(lotesFiltrados);
+    };
 
-  cargarLotes().catch(console.error);
-}, [selectedProyecto, selectedRango, lotes]);
-
+    cargarLotes().catch(console.error);
+  }, [selectedProyecto, selectedRango, filtroBotActivo]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/listTipoInmobiliaria/")
+    fetch("https://apiinmo.y0urs.com/api/listTipoInmobiliaria/")
       .then((res) => res.json())
       .then(setTiposInmo)
       .catch(console.error);
   }, []);
 
-const handleTipoChange = (tipoId) => {
-  if (selectedTipo === tipoId) {
-    setSelectedTipo(""); // desmarcar si ya estaba seleccionado
-  } else {
-    setSelectedTipo(tipoId);
-  }
-};
+  const handleTipoChange = (tipoId) => {
+    if (selectedTipo === tipoId) {
+      // Si vuelve a hacer clic en el mismo tipo → deseleccionar
+      setSelectedTipo("");
+    } else {
+      setSelectedTipo(tipoId);
+      // 🔹 Cuando se selecciona un tipo, se borra el rango
+      setSelectedRango("");
+    }
 
-const handleRangoChange = (rango) => {
-  if (selectedRango === rango) {
-    console.log("Desmarcado:", rango);
-    setSelectedRango(""); // desmarcar si ya estaba seleccionado
-  } else {
-    setSelectedRango(rango);
-  }
-};
+    // 🔹 Además, desactivar el filtro del bot
+    setFiltroBotActivo(false);
+  };
 
-useEffect(() => {
+
+  const handleRangoChange = (rango) => {
+    if (selectedRango === rango) {
+      // Si vuelve a hacer clic en el mismo rango → deseleccionar
+      setSelectedRango("");
+    } else {
+      setSelectedRango(rango);
+      // 🔹 Cuando se selecciona un rango, se borra el tipo
+      setSelectedTipo("");
+    }
+
+    // 🔹 Además, desactivar el filtro del bot
+    setFiltroBotActivo(false);
+  };
+
+
+  useEffect(() => {
+    if (inmoId) return;
     if (selectedTipo) {
-    // Detectar si es casa o lote
-    const tipo = tiposInmo.find((t) => t.idtipoinmobiliaria === selectedTipo);
+      const tipo = tiposInmo.find((t) => t.idtipoinmobiliaria === selectedTipo);
 
-    if (tipo) {
-      if (tipo.idtipoinmobiliaria === 2) {
-        // CASAS
-        fetch(`http://127.0.0.1:8000/api/filtroCasaProyecto/${selectedTipo}`)
-          .then((res) => res.json())
-          .then((data) => {
-            setProyecto(data); // API ya devuelve proyectos
-          })
-          .catch(console.error);
-      } else if (tipo.idtipoinmobiliaria === 1) {
-        // LOTES
-        fetch(`http://127.0.0.1:8000/api/filtroCasaProyecto/${selectedTipo}`)
-          .then((res) => res.json())
-          .then((data) => {
-            setProyecto(data);
-          })
-          .catch(console.error);
-      }
-    }
-  } else if (selectedRango) {
-  // Filtro por rango de precio
-fetch(`http://127.0.0.1:8000/api/rangoPrecio/${selectedRango}`)
-  .then((res) => res.json())
-  .then((data) => {
-    // Ahora data = { lotes: [...], proyectos: [...] }
-    setLotes(data.lotes || []);
-
-    // Extraer proyectos de los lotes
-    const proyectosUnicos = [];
-    const ids = new Set();
-    data.lotes.forEach((lote) => {
-      const p = lote.proyectos;
-      if (p && !ids.has(p.idproyecto)) {
-        ids.add(p.idproyecto);
-        proyectosUnicos.push(p);
-      }
-    });
-
-    // Además agregamos los proyectos que vienen directo en data.proyectos
-    if (Array.isArray(data.proyectos)) {
-      data.proyectos.forEach((p) => {
-        if (!ids.has(p.idproyecto)) {
-          ids.add(p.idproyecto);
-          proyectosUnicos.push(p);
+      if (tipo) {
+        if (tipo.idtipoinmobiliaria === 2) {
+          fetch(`https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`)
+            .then((res) => res.json())
+            .then((data) => {
+              setProyecto(data);
+            })
+            .catch(console.error);
+        } else if (tipo.idtipoinmobiliaria === 1) {
+          fetch(`https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`)
+            .then((res) => res.json())
+            .then((data) => {
+              setProyecto(data);
+            })
+            .catch(console.error);
         }
-      });
+      }
+    } else if (selectedRango) {
+      fetch(`https://apiinmo.y0urs.com/api/rangoPrecio/${selectedRango}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setLotes(data.lotes || []);
+
+          const proyectosUnicos = [];
+          const ids = new Set();
+          data.lotes.forEach((lote) => {
+            const p = lote.proyectos;
+            if (p && !ids.has(p.idproyecto)) {
+              ids.add(p.idproyecto);
+              proyectosUnicos.push(p);
+            }
+          });
+
+          if (Array.isArray(data.proyectos)) {
+            data.proyectos.forEach((p) => {
+              if (!ids.has(p.idproyecto)) {
+                ids.add(p.idproyecto);
+                proyectosUnicos.push(p);
+              }
+            });
+          }
+
+          setProyecto(proyectosUnicos);
+          console.log(proyectosUnicos);
+        })
+        .catch(console.error);
+    } else {
+      fetch("https://apiinmo.y0urs.com/api/listProyectos/")
+        .then((res) => res.json())
+        .then(setProyecto)
+        .catch(console.error);
     }
-
-    setProyecto(proyectosUnicos);
-    console.log(proyectosUnicos)
-  })
-  .catch(console.error);
-
-}
- else {
-    // Sin filtros → lista de proyectos
-    fetch("http://127.0.0.1:8000/api/listProyectos/")
-      .then((res) => res.json())
-      .then(setProyecto)
-      .catch(console.error);
-  }
-}, [selectedTipo, selectedRango]);
+  }, [selectedTipo, selectedRango, tiposInmo, inmoId]);
 
   const calculateInfo = (mode, proyecto) => {
+    if (!window.google?.maps?.DirectionsService) {
+      console.warn("DirectionsService no disponible");
+      return;
+    }
+
     const service = new window.google.maps.DirectionsService();
     service.route(
       {
@@ -322,101 +391,115 @@ fetch(`http://127.0.0.1:8000/api/rangoPrecio/${selectedRango}`)
     );
   };
 
-  const handleLoteClick = async (lote) => {
-    const resLote = await fetch(
-      `http://127.0.0.1:8000/api/getLoteProyecto/${lote.idproyecto}`
-    );
-    const lotes = await resLote.json();
-    const loteCompleto = lotes.find((l) => l.idlote === lote.idlote);
-
-    const resPuntos = await fetch(
-      `http://127.0.0.1:8000/api/listPuntos/${lote.idlote}`
-    );
-    const puntos = await resPuntos.json();
+  const handleLoteClick = (lote) => {
+    if (isMobile()) {
+      setShowFilters(false);
+    }
 
     if (mapRef.current) {
       mapRef.current.panTo({
         lat: parseFloat(lote.latitud),
         lng: parseFloat(lote.longitud),
       });
-      mapRef.current.setZoom(22);
+      mapRef.current.setZoom(18);
     }
+
     setSelectedLote({
-      lote: { ...loteCompleto, puntos },
+      lote: lote, // ✅ YA incluye puntos
       inmo: selectedProyecto?.inmo ?? null,
     });
   };
 
-const handleMarkerClick = async (proyecto) => {
-  try {
-    setRouteMode(null);
-    setDirections(null);
-    setWalkingInfo(null);
-    setDrivingInfo(null);
-    setLotesProyecto([]);
-    setPuntos([]);
-    setIconosProyecto([]);
+  const isMobile = () => window.innerWidth <= 768;
 
-    calculateInfo("WALKING", proyecto);
-    calculateInfo("DRIVING", proyecto);
-
-    const resPuntos = await fetch(
-      `http://127.0.0.1:8000/api/listPuntosProyecto/${proyecto.idproyecto}`
-    );
-    const dataPuntos = await resPuntos.json();
-    setPuntos(dataPuntos);
-    if (dataPuntos.length > 0 && mapRef.current) {
-      const bounds = new window.google.maps.LatLngBounds();
-      dataPuntos.forEach((p) =>
-        bounds.extend({
-          lat: parseFloat(p.latitud),
-          lng: parseFloat(p.longitud),
-        })
-      );
-      mapRef.current.fitBounds(bounds);
+  const handleMarkerClick = async (proyecto) => {
+    if (isMobile()) {
+      setShowFilters(false);
     }
+    try {
+      setRouteMode(null);
+      setDirections(null);
+      setWalkingInfo(null);
+      setDrivingInfo(null);
+      setLotesProyecto([]);
+      setPuntos([]);
+      setIconosProyecto([]);
 
-    let dataLotes;
-    if (selectedRango) {
-      // Si hay un rango, usamos los lotes filtrados
-      dataLotes = lotes.filter(
-        (l) => l.idproyecto === proyecto.idproyecto
+      const fecha = new Date().toISOString().split("T")[0];
+      const hora = new Date().toLocaleTimeString("en-GB", { hour12: false });
+
+      await fetch("https://apiinmo.y0urs.com/api/registerClickProyecto/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idproyecto: proyecto.idproyecto,
+          fecha: fecha,
+          hora: hora,
+        }),
+      });
+
+      calculateInfo("WALKING", proyecto);
+      calculateInfo("DRIVING", proyecto);
+
+      const resPuntos = await fetch(
+        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${proyecto.idproyecto}`
       );
-    } else {
-      // Si no, traemos todos los lotes del proyecto
+      const dataPuntos = await resPuntos.json();
+      setPuntos(dataPuntos);
+
+      if (dataPuntos.length > 0 && mapRef.current) {
+        const bounds = new window.google.maps.LatLngBounds();
+        dataPuntos.forEach((p) =>
+          bounds.extend({
+            lat: parseFloat(p.latitud),
+            lng: parseFloat(p.longitud),
+          })
+        );
+        mapRef.current.fitBounds(bounds);
+      }
       const resLotes = await fetch(
-        `http://127.0.0.1:8000/api/getLoteProyecto/${proyecto.idproyecto}`
+        `https://apiinmo.y0urs.com/api/getLotesConPuntos/${proyecto.idproyecto}`
       );
-      dataLotes = await resLotes.json();
+      const lotesConPuntos = await resLotes.json();
+
+      setLotesProyecto(lotesConPuntos);
+
+
+      const resInmo = await fetch(
+        `https://apiinmo.y0urs.com/api/getInmobiliaria/${proyecto.idinmobiliaria}`
+      );
+      const inmoData = await resInmo.json();
+
+      const resIconos = await fetch(
+        `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${proyecto.idproyecto}`
+      );
+      const dataIconos = await resIconos.json();
+      setIconosProyecto(dataIconos);
+
+      setselectedProyecto({
+        ...proyecto,
+        inmo: inmoData[0] ?? null,
+      });
+    } catch (err) {
+      console.error("Error cargando inmobiliaria:", err);
     }
-    setLotesProyecto(dataLotes);
+  };
 
-    const resInmo = await fetch(
-      `http://127.0.0.1:8000/api/getInmobiliaria/${proyecto.idinmobiliaria}`
-    );
-    const inmoData = await resInmo.json();
-
-    const resIconos = await fetch(
-      `http://127.0.0.1:8000/api/list_iconos_proyecto/${proyecto.idproyecto}`
-    );
-    const dataIconos = await resIconos.json();
-    setIconosProyecto(dataIconos);
-
-    setselectedProyecto({
-      ...proyecto,
-      inmo: inmoData[0] ?? null,
-    });
-  } catch (err) {
-    console.error("Error cargando inmobiliaria:", err);
-  }
-};
-
-
+  // ✅ FIX: Initialize Autocomplete only when Google Maps is fully loaded
   useEffect(() => {
-    if (isLoaded && inputRef.current) {
+    if (!isLoaded || !inputRef.current || autocompleteRef.current) return;
+
+    try {
+      if (!window.google?.maps?.places?.Autocomplete) {
+        console.error("Autocomplete no está disponible");
+        return;
+      }
+
       const autocomplete = new window.google.maps.places.Autocomplete(
         inputRef.current
       );
+      autocompleteRef.current = autocomplete;
+
       autocomplete.addListener("place_changed", () => {
         const place = autocomplete.getPlace();
         if (place.geometry) {
@@ -424,83 +507,165 @@ const handleMarkerClick = async (proyecto) => {
             lat: place.geometry.location.lat(),
             lng: place.geometry.location.lng(),
           };
+
           setCurrentPosition(location);
+          setHasSearchedLocation(true); // ✅ CLAVE
+
           if (mapRef.current) {
             if (place.geometry.viewport) {
               mapRef.current.fitBounds(place.geometry.viewport);
             } else {
               mapRef.current.panTo(location);
-              mapRef.current.setZoom(18);
+              mapRef.current.setZoom(17);
             }
           }
         }
       });
+
+    } catch (error) {
+      console.error("Error inicializando Autocomplete:", error);
     }
   }, [isLoaded]);
 
-  if (loadError) return <h2>Error: {JSON.stringify(loadError)}</h2>;
-  if (!isLoaded) return <h2>Cargando mapa...</h2>;
+  if (loadError) {
+    return (
+      <div style={{ padding: "20px", textAlign: "center" }}>
+        <h2>Error al cargar Google Maps</h2>
+        <p>{loadError.message || JSON.stringify(loadError)}</p>
+        <button onClick={() => window.location.reload()}>
+          Recargar página
+        </button>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div style={{ padding: "20px", textAlign: "center" }}>
+        <h2>Cargando mapa...</h2>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
-      <input
-        type="text"
-        placeholder="Buscar ubicación..."
-        ref={inputRef}
-        className={styles.searchBox}
-      />
+      <div className={styles.cabecera}>
+        <div className={styles.logoContainer}>
+          <img
+            src="/habita.png"   // 👈 ruta correcta
+            alt="Habita"
+            className={styles.logo}
+          />
+        </div>
+        <div className={styles.topBar}>
+          <div className={styles.authButtonContainer}>
+            <button className={styles.authButton}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className={styles.authIcon}
+              >
+                <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4Z" />
+              </svg>
+            </button>
+            <div className={styles.authTooltip}>
+              <p>¿Quieres registrar un Proyecto o Lote?</p>
+              <div className={styles.authLinks}>
+                <a href="/login" className={styles.authLink}>
+                  Inicia Sesión
+                </a>
+                <p>¿No tienes una cuenta?</p>
+                <a href="/register" className={styles.authLink}>
+                  Regístrate
+                </a>
+              </div>
+            </div>
+          </div>
+          <input
+            type="text"
+            placeholder="Buscar ubicación..."
+            ref={inputRef}
+            className={styles.searchBox}
+          />
+
+          <button
+            className={styles.filterToggle}
+            onClick={() => setShowFilters(prev => !prev)}
+            title="Filtros"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="4" y1="5" x2="20" y2="5" />
+              <circle cx="8" cy="5" r="2" />
+
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <circle cx="14" cy="12" r="2" />
+
+              <line x1="4" y1="19" x2="20" y2="19" />
+              <circle cx="10" cy="19" r="2" />
+            </svg>
+
+          </button>
+
+        </div>
+      </div>
 
       {showFilters && (
         <div className={styles.filterPanel}>
-  <button
-    className={styles.closeBtn}
-    onClick={() => setShowFilters(false)}
-  >
-    ✖
-  </button>
+          <button
+            className={styles.closeBtn}
+            onClick={() => setShowFilters(false)}
+          >
+            ✖
+          </button>
 
-  <div className={styles.filterGroup}>
-    <h4>Quiero ver:</h4>
-    <div className={styles.filterOptions}>
-      {tiposInmo.map((tipo) => (
-        <button
-          key={tipo.idtipoinmobiliaria}
-          className={`${styles.filterChip} ${
-            selectedTipo === tipo.idtipoinmobiliaria ? styles.active : ""
-          }`}
-          onClick={() => handleTipoChange(tipo.idtipoinmobiliaria)}
-        >
-          {tipo.nombre}
-        </button>
-      ))}
-    </div>
-  </div>
+          <div className={styles.filterGroup}>
+            <h4>Quiero ver:</h4>
+            <div className={styles.filterOptions}>
+              {tiposInmo.map((tipo) => (
+                <button
+                  key={tipo.idtipoinmobiliaria}
+                  className={`${styles.filterChip} ${selectedTipo === tipo.idtipoinmobiliaria
+                    ? styles.active
+                    : ""
+                    }`}
+                  onClick={() => handleTipoChange(tipo.idtipoinmobiliaria)}
+                >
+                  {tipo.nombre}
+                </button>
+              ))}
+            </div>
+          </div>
 
-  <div className={styles.filterGroup}>
-    <h4>Rango de precios:</h4>
-    <div className={styles.filterOptions}>
-      {RANGOS_PRECIO.map((rango) => (
-        <button
-          key={rango.value}
-          className={`${styles.filterChip} ${
-            selectedRango === rango.value ? styles.active : ""
-          }`}
-          onClick={() => handleRangoChange(rango.value)}
-        >
-          {rango.label}
-        </button>
-      ))}
-    </div>
-  </div>
-</div>
-
+          <div className={styles.filterGroup}>
+            <h4>Rango de precios:</h4>
+            <div className={styles.filterOptions}>
+              {RANGOS_PRECIO.map((rango) => (
+                <button
+                  key={rango.value}
+                  className={`${styles.filterChip} ${selectedRango === rango.value ? styles.active : ""
+                    }`}
+                  onClick={() => handleRangoChange(rango.value)}
+                >
+                  {rango.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
-      {!showFilters && (
-        <button className={styles.openBtn} onClick={() => setShowFilters(true)}>
-          -➤
-        </button>
-      )}
+
 
       <GoogleMap
         mapContainerClassName={styles.map}
@@ -513,27 +678,55 @@ const handleMarkerClick = async (proyecto) => {
           mapTypeControl: true,
           streetViewControl: false,
           fullscreenControl: false,
-          // mapTypeId: mapType,
         }}
       >
         {puntos.length === 0 && <Marker position={currentPosition} />}
 
-        {proyecto
-          .filter(
-            (p) =>
-              !(
-                selectedProyecto &&
-                puntos.length > 0 &&
-                selectedProyecto.idproyecto === p.idproyecto
-              )
-          )
-          .map((p) => (
-            <MapMarker
-              key={p.idproyecto}
-              proyecto={p}
-              onClick={handleMarkerClick}
-            />
-          ))}
+        {!filtroBotActivo &&
+          proyecto
+            .filter(
+              (p) =>
+                !(
+                  selectedProyecto &&
+                  puntos.length > 0 &&
+                  selectedProyecto.idproyecto === p.idproyecto
+                )
+            )
+            .map((p) => (
+              <MapMarker
+                key={p.idproyecto}
+                proyecto={p}
+                onClick={handleMarkerClick}
+              />
+            ))}
+
+        {filtroBotActivo &&
+          proyecto
+            .filter(
+              (p) =>
+                !(
+                  selectedProyecto &&
+                  selectedProyecto.idproyecto === p.idproyecto
+                )
+            )
+            .map((p) => (
+              <Marker
+                key={p.idproyecto}
+                position={{
+                  lat: parseFloat(p.latitud),
+                  lng: parseFloat(p.longitud),
+                }}
+                icon={{
+                  url:
+                    p.iconoTipo === "casa"
+                      ? "https://cdn-icons-png.freepik.com/512/11130/11130373.png"
+                      : "/proyectoicono.png",
+                  scaledSize: new window.google.maps.Size(40, 40),
+                }}
+                title={p.nombreproyecto}
+                onClick={() => handleMarkerClick(p)}
+              />
+            ))}
 
         {iconosProyecto.map((ico) => (
           <Marker
@@ -543,7 +736,7 @@ const handleMarkerClick = async (proyecto) => {
               lng: parseFloat(ico.longitud),
             }}
             icon={{
-              url: `http://127.0.0.1:8000${ico.icono_detalle.imagen}`,
+              url: `https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`,
               scaledSize: new window.google.maps.Size(40, 40),
             }}
             title={ico.icono_detalle.nombre}
@@ -563,16 +756,17 @@ const handleMarkerClick = async (proyecto) => {
           />
         )}
 
-        {lotesProyecto.length > 0 && (
-          <LotesOverlay
-            lotes={lotesProyecto}
-            selectedLote={selectedLote}
-            hoveredLote={hoveredLote}
-            onLoteClick={handleLoteClick}
-            onLoteMouseOver={setHoveredLote}
-            onLoteMouseOut={() => setHoveredLote(null)}
-          />
-        )}
+        {selectedProyecto && lotesProyecto.length > 0 && (
+  <LotesOverlay
+    lotes={lotesProyecto}
+    selectedLote={selectedLote}
+    hoveredLote={hoveredLote}
+    onLoteClick={handleLoteClick}
+    onLoteMouseOver={setHoveredLote}
+    onLoteMouseOut={() => setHoveredLote(null)}
+  />
+)}
+
         {directions && <DirectionsRenderer directions={directions} />}
       </GoogleMap>
 
@@ -583,7 +777,8 @@ const handleMarkerClick = async (proyecto) => {
           imagenes={imagenesProyecto}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
-          onClose={() => {
+          mapRef={mapRef}
+          onClose={async () => {
             setselectedProyecto(null);
             setDirections(null);
             setWalkingInfo(null);
@@ -593,6 +788,47 @@ const handleMarkerClick = async (proyecto) => {
             setPuntos([]);
             setLotesProyecto([]);
             setIconosProyecto([]);
+            setSelectedLote(null); // 🔥 CLAVE
+
+            try {
+              if (selectedRango) {
+                const res = await fetch(
+                  `https://apiinmo.y0urs.com/api/rangoPrecio/${selectedRango}`
+                );
+                const data = await res.json();
+                setLotes(data.lotes || []);
+                const proyectosUnicos = [];
+                const ids = new Set();
+                (data.lotes || []).forEach((lote) => {
+                  const p = lote.proyectos;
+                  if (p && !ids.has(p.idproyecto)) {
+                    ids.add(p.idproyecto);
+                    proyectosUnicos.push(p);
+                  }
+                });
+                (data.proyectos || []).forEach((p) => {
+                  if (!ids.has(p.idproyecto)) {
+                    ids.add(p.idproyecto);
+                    proyectosUnicos.push(p);
+                  }
+                });
+                setProyecto(proyectosUnicos);
+              } else if (inmoId) {
+                const res = await fetch(
+                  `https://apiinmo.y0urs.com/api/listProyectosInmobiliaria/${inmoId}`
+                );
+                const data = await res.json();
+                setProyecto(data);
+              } else {
+                const res = await fetch(
+                  "https://apiinmo.y0urs.com/api/listProyectos/"
+                );
+                const data = await res.json();
+                setProyecto(data);
+              }
+            } catch (err) {
+              console.error("Error recargando proyectos al cerrar:", err);
+            }
           }}
         />
       )}
@@ -604,6 +840,7 @@ const handleMarkerClick = async (proyecto) => {
           imagenes={imagenesLote}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
+          mapRef={mapRef}
           onClose={() => {
             setSelectedLote(null);
             setImagenesLote([]);
@@ -611,30 +848,6 @@ const handleMarkerClick = async (proyecto) => {
           }}
         />
       )}
-      <div className={styles.authButtonContainer}>
-        <button className={styles.authButton}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={styles.authIcon}
-          >
-            <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4Z" />
-          </svg>
-        </button>
-        <div className={styles.authTooltip}>
-          <p>¿Quieres registrar un Proyecto o Lote?</p>
-          <div className={styles.authLinks}>
-            <a href="/login" className={styles.authLink}>
-              Inicia Sesión
-            </a>
-            <p>¿No tienes una cuenta?</p>
-            <a href="/register" className={styles.authLink}>
-              Regístrate
-            </a>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

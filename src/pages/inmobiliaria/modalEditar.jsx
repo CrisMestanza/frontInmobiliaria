@@ -20,7 +20,7 @@ export default function InmobiliariaEdit({
     const fetchInmobiliaria = async () => {
       try {
         const res = await fetch(
-          `http://127.0.0.1:8000/api/getImobiliaria/${idinmobiliaria}`
+          `https://apiinmo.y0urs.com/api/getImobiliaria/${idinmobiliaria}`
         );
         const data = await res.json();
         if (data.length > 0) {
@@ -45,7 +45,7 @@ export default function InmobiliariaEdit({
 
     try {
       const res = await axios.put(
-        `http://127.0.0.1:8000/api/updateInmobiliaria/${idinmobiliaria}/`,
+        `https://apiinmo.y0urs.com/api/updateInmobiliaria/${idinmobiliaria}/`,
         {
           nombreinmobiliaria,
           facebook,

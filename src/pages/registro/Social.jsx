@@ -48,7 +48,7 @@ const Social = ({ onNext, onBack, formData }) => {
         />
       </div>
       <div className="form-row">
-        <label>Número de WhatsApp</label>
+        <label>Código del país y Número de WhatsApp</label>
         <div className="input-group whatsapp-input-group">
           <span className="plus-sign">+</span>
           <input

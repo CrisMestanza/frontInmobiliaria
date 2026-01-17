@@ -1,0 +1,182 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 30px;
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90%;
+  overflow-y: auto;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.title {
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th {
+  background: #0077b6;
+  color: white;
+  padding: 10px;
+  text-align: center;
+}
+
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  text-align: center;
+  color: #333;
+}
+
+/* .table tr:hover {
+  background: #f1f1f1;
+} */
+
+.table tr:hover {
+  filter: brightness(0.95);
+}
+
+.vendido-0 {
+  background-color: #d4edda !important;
+}
+
+.vendido-1 {
+  background-color: #f8d7da !important;
+}
+
+.vendido-2 {
+  background-color: #fff3cd !important;
+}
+
+.vendido-default {
+  background-color: #e2e3e5;
+}
+
+.btnAdd {
+  background-color: #0931e796;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  gap: 50px;
+  margin-right: 32px;
+}
+
+.btnAdd:hover {
+  background-color: #0056b3;
+}
+
+.btnAdd1 {
+  background-color: #1fcf45d0;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  gap: 50px;
+  margin-right: 32px;
+}
+.btnAdd2 {
+  background-color: #17c6d3d0;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  gap: 50px;
+  margin-right: 32px;
+}
+
+.btnAdd1:hover {
+  background-color: #0056b3;
+}
+.btnAdd:hover {
+  background-color: #0056b3;
+}
+.btnAdd2:hover {
+  background-color: #0056b3;
+}
+
+select {
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  background-color: #fcfcfca2;
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  /* appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none; */
+}
+
+select:focus {
+  outline: none;
+  border-color: #0077b6;
+  box-shadow: 0 0 4px rgba(0, 119, 182, 0.6);
+  background-color: #fff;
+}
+
+select:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+  color: #777;
+}
+
+.select-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.select-wrapper select {
+  width: 100%;
+  padding-right: 30px; /* espacio para la flecha */
+}
+
+.select-wrapper::after {
+  content: "▼";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #0077b6;
+  font-size: 12px;
+}

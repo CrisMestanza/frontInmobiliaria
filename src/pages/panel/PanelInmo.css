@@ -1,163 +1,458 @@
+/* Paleta de Colores
+   - Primario: #003366 (Azul Marino)
+   - Secundario: #004d99 (Azul Ligeramente más claro)
+   - Fondo: #f0f4f8 (Gris muy claro/Blanquecino)
+   - Contenedores: #ffffff (Blanco puro)
+   - Texto: #333333 (Gris oscuro)
+*/
+
 .panel-container {
   padding: 30px;
-  background: #f7f9fc;
+  background: #f0f4f8; /* Fondo claro y suave */
   min-height: 100vh;
-  font-family: Arial, sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; /* Tipografía más formal */
+  color: #333333;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #e0e6ed; /* Separador sutil */
 }
 
 .panel-title {
-  font-size: 28px;
-  font-weight: bold;
-  margin-bottom: 20px;
-  color: #222;
+  font-size: 26px;
+  font-weight: 600;
+  color: #003366; /* Color primario */
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-/* Resumen */
+.home-icon {
+  color: #004d99; /* Tono de azul para el ícono principal */
+}
+
+.loading-text {
+  padding: 50px;
+  text-align: center;
+  font-size: 20px;
+  color: #666;
+}
+
+/* Controles de Usuario */
+.user-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.welcome-message {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Botones */
+.btn {
+  border: none;
+  padding: 8px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.btn-primary {
+  /* Botón principal (ej: Nuevo Proyecto) */
+  background: #004d99;
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #003366;
+  box-shadow: 0 4px 8px rgba(0, 51, 102, 0.3);
+}
+
+/* .btn-secondary {
+  background: transparent;
+  border: 1px solid #004d99;
+  color: #990000;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+.btn-secondary:hover {
+  background: #e6f0fa;
+} */
+
+.btn-terciary {
+  background: rgb(255, 0, 0);
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+.btn-terciary:hover {
+  background: #e6f0fa;
+}
+
+.btn-logout {
+  background: #cc3333; /* Rojo formal para la acción de salir */
+  color: #fff;
+}
+.btn-logout:hover {
+  background: #a32929;
+}
+
+/* Resumen (Estadísticas) */
 .resumen-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 25px;
   margin-bottom: 40px;
 }
 
 .resumen-card {
   background: #fff;
-  padding: 20px;
-  border-radius: 16px;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* Sombra más suave */
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-left: 5px solid; /* Borde izquierdo para color */
 }
 .resumen-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
+
 .resumen-card h3 {
-  margin: 10px 0;
+  margin: 8px 0;
+  font-size: 16px;
   color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .resumen-card p {
-  font-size: 24px;
-  font-weight: bold;
-  color: #333;
+  font-size: 32px;
+  font-weight: 700;
+  color: #003366; /* Color de número principal */
+  margin: 0;
 }
-.icon {
-  width: 40px;
-  height: 40px;
+.resumen-card .icon {
+  width: 32px;
+  height: 32px;
+  color: inherit; /* Hereda el color del borde */
 }
-.icon.blue {
-  color: #2563eb;
+
+/* Colores de las tarjetas */
+.active-projects {
+  border-left-color: #004d99;
 }
-.icon.green {
-  color: #16a34a;
+.active-projects .icon {
+  color: #004d99;
 }
-.icon.yellow {
-  color: #ca8a04;
+
+.available-lots {
+  border-left-color: #28a745;
+} /* Verde para disponibilidad */
+.available-lots .icon {
+  color: #28a745;
 }
-.icon.red {
-  color: #dc2626;
+
+.reserved-lots {
+  border-left-color: #ffc107;
+} /* Amarillo/Naranja para reservas */
+.reserved-lots .icon {
+  color: #ffc107;
+}
+
+.sold-lots {
+  border-left-color: #dc3545;
+} /* Rojo para ventas */
+.sold-lots .icon {
+  color: #dc3545;
 }
 
 /* Secciones */
 .section {
-  margin-bottom: 40px;
-}
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
+  margin-top: 20px;
+  margin-bottom: 50px;
+  padding: 30px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
-/* Botones */
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
+.section-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #003366;
+  margin: 0;
+  margin-bottom: 5px;
+  line-height: 1;
+}
+
+.section-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-.btn-outline {
-  border: 1px solid #2563eb;
-  color: #2563eb;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: transparent;
-  cursor: pointer;
-}
-.btn-outline:hover {
-  background: #eff6ff;
+  justify-content: space-between;
+  margin-bottom: 1rem;
 }
 
 /* Proyectos */
-.proyectos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-}
-.proyecto-card {
-  background: #fff;
-  padding: 18px;
-  border-radius: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-.proyecto-card h4 {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 8px;
+.proyectos-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* centra la sección completa */
+  width: 100%;
 }
 
-/* Tabla */
-.table-container {
-  overflow-x: auto;
+.proyectos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  max-width: 1100px; /* limita a 3 cards por fila */
+  width: 100%;
+  justify-items: center; /* centra las cards en su columna */
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.proyecto-card {
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #0077b6;
+}
+
+.card-description {
+  margin: 10px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.card-location {
+  font-size: 13px;
+  color: #555;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.estado-badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.estado-badge.activo {
+  background: #4caf50;
+}
+
+.estado-badge.inactivo {
+  background: #f44336;
+}
+
+.btn-secondary,
+.btn-edit {
+  background: #0077b6;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.3s ease;
+}
+
+.btn-secondary:hover,
+.btn-edit:hover {
+  background: #005f8a;
+}
+
+.btn-edit {
+  background: #ff9800;
+}
+
+.btn-edit:hover {
+  background: #e68900;
+}
+
+/* Tabla de Lotes */
+.table-container {
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
-}
-thead {
-  background: #f1f5f9;
-}
-th,
-td {
-  padding: 12px 16px;
-  text-align: left;
-}
-tr.even {
-  background: #fff;
-}
-tr.odd {
-  background: #f9fafb;
-}
-tr:hover {
-  background: #f1f5f9;
+  margin-top: 15px;
 }
 
-/* Estados */
-.estado {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+th,
+td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+tr.even {
+  background: #f9f9f9;
+}
+
+tr.odd {
+  background: #fff;
+}
+
+.price-cell {
   font-weight: bold;
+  color: #0077b6;
 }
+
+/* Estados de Lotes en Tabla */
+.estado {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: white;
+}
+
 .estado.disponible {
-  background: #dcfce7;
-  color: #166534;
+  background: #4caf50;
 }
-.estado.reservado {
-  background: #fef9c3;
-  color: #854d0e;
-}
+
 .estado.vendido {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #f44336;
+}
+
+.btn-secondary,
+.btn-edit,
+.btn-danger {
+  margin: 2px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-add {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #2d89ef; /* azul llamativo */
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.btn-add:hover {
+  transform: scale(1.1);
+  color: #1b5cbf;
+}
+
+.btn-secondary {
+  background: #0077b6;
+  color: white;
+}
+
+.btn-edit {
+  background: #ff9800;
+  color: white;
+}
+
+.btn-edit:hover:not(:disabled) {
+  background: #138496;
+}
+
+.btn-edit:disabled {
+  background: #fac77b !important;
+  color: #ffffff !important;
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
+.btn-danger {
+  background: #e53535;
+  color: white;
+}
+
+.link-compartir-section {
+  background-color: var(--color-card-bg);
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
+  border-left: 5px solid var(--color-primary); /* Acento de color */
+  box-shadow: var(--shadow-subtle);
+}
+
+.link-compartir-section h3 {
+  color: var(--color-primary-dark);
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.link-compartir-section p {
+  color: var(--color-secondary);
+  margin-bottom: 15px;
+}
+
+.link-compartir-section input[type="text"] {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-background);
+  cursor: text;
+  font-family: monospace; /* Para que el link se vea mejor */
+}
+
+/* Media Queries para Responsive */
+@media (max-width: 768px) {
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  .user-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .panel-title {
+    font-size: 24px;
+  }
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
 }

@@ -1,241 +1,193 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  FaFacebook,
-  FaWhatsapp,
-  FaGlobe,
-  FaMapMarkedAlt,
-  FaHome,
+  FaRulerCombined, FaRulerHorizontal, FaRulerVertical,
+  FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe,
+  FaMapMarkerAlt, FaCheckCircle, FaTimesCircle,
+  // ESTOS SON LOS QUE FALTABAN:
+  FaBed, FaBath, FaHome, FaChair, FaUtensils, FaCar, 
+  FaCampground, FaTree, FaSun, FaBuilding 
 } from "react-icons/fa";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import styles from "./Mapa.module.css";
-import ModalCuota from "../inmobiliaria/lote/modalCuota";
+import styles from "./Lote.module.css";
 
-const MapSidebar = ({
-  inmo,
-  lote,
-  imagenes,
-  onClose,
-  walkingInfo,
-  drivingInfo,
-}) => {
-  const [showAll, setShowAll] = useState(false);
+const LoteSidebarOverlay = ({ inmo, lote, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
-  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const contentRef = useRef(null);
+
+  const hasValue = (val) => val !== null && val !== undefined && val > 0;
+
+  const nextSlide = (e) => {
+    e.stopPropagation();
+    setCurrentImg((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevSlide = (e) => {
+    e.stopPropagation();
+    setCurrentImg((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+  };
+
+  const cerrarSidebar = () => {
+    onClose();
+    if (mapRef?.current) mapRef.current.setZoom(18);
+  };
 
   useEffect(() => {
-    if (fullscreenImgIndex !== null) {
-      const handleKeyDown = (e) => {
-        if (e.key === "ArrowLeft") {
-          setFullscreenImgIndex(
-            (fullscreenImgIndex - 1 + imagenes.length) % imagenes.length
-          );
-        } else if (e.key === "ArrowRight") {
-          setFullscreenImgIndex((fullscreenImgIndex + 1) % imagenes.length);
-        } else if (e.key === "Escape") {
-          setFullscreenImgIndex(null);
-        }
-      };
+    const esc = (e) => e.key === "Escape" && cerrarSidebar();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, []);
 
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }
-  }, [fullscreenImgIndex, imagenes.length]);
+  const handleScroll = () => {
+    if (!contentRef.current) return;
+    const { scrollTop } = contentRef.current;
+    if (!expanded && scrollTop > 200) setExpanded(true);
+    if (expanded && scrollTop < 5) setExpanded(false);
+  };
 
-  if (!inmo || !lote) return null;
-
-  const visibleImages = showAll ? imagenes : imagenes.slice(0, 3);
+  if (!lote) return null;
 
   return (
     <>
-      {/* Botón móvil para mostrar más información */}
-      <button
-        className={styles.showInfoBtn}
-        onClick={() => setShowSidebarMobile(true)}
-      >
-        Mostrar más información
-      </button>
-
       <div
-        className={`${styles.sidebar} ${
-          showSidebarMobile ? styles.sidebarMobileOpen : ">"
-        } ${collapsed ? styles.sidebarCollapsed : "<"}`}
-      >
-        {/* Botón flecha para ocultar/mostrar */}
-        <button
-          className={styles.toggleArrow}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? "<" : ">"}
-        </button>
+        className={styles.overlay}
+        style={{
+          opacity: expanded ? 1 : 0,
+          pointerEvents: expanded ? "auto" : "none"
+        }}
+        onClick={cerrarSidebar}
+      />
 
-        {/* Botón para cerrar todo el sidebar */}
-        <button
-          onClick={() => {
-            onClose();
-            setShowSidebarMobile(false);
-          }}
-          className={styles.closeBtn}
-        >
-          X
-        </button>
+      <div className={`${styles.sidebar} ${expanded ? styles.expanded : ""}`}>
+        <button className={styles.closeBtn} onClick={cerrarSidebar} aria-label="Cerrar">✕</button>
 
-        {/* Contenido colapsable */}
-        {!collapsed && (
-          <>
-            <h2>{inmo.nombreinmobiliaria}</h2>
-            <p className={styles.descripcion}>{inmo.descripcion}</p>
-            <div className={styles.links}>
-              <a
-                href={inmo.facebook}
-                target="_blank"
-                rel="noreferrer"
-                className={`${styles.link} ${styles.facebook}`}
-              >
-                <FaFacebook size={40} />
-              </a>
-              <a
-                href={`https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
-                  `¡Hola! Me interesa ${
-                    lote.idtipoinmobiliaria === 1
-                      ? "el *lote/terreno*"
-                      : "la *casa*"
-                  } "${
-                    lote.nombre
-                  }".\nVengo de la página *Habita* y me gustaría recibir más información.`
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className={`${styles.link} ${styles.whatsapp}`}
-              >
-                <FaWhatsapp style={{ color: "green" }} size={40} />
-              </a>
-              <a
-                href={inmo.pagina}
-                target="_blank"
-                rel="noreferrer"
-                className={`${styles.link} ${styles.web}`}
-              >
-                <FaGlobe size={40} />
-              </a>
-            </div>
-
-            <h3>{lote.nombre}</h3>
-            <p className={styles.tipo}>
-              <FaMapMarkedAlt size={20} color="#2c3e50" />{" "}
-              <span>Lote / Terreno</span>
-            </p>
-            <p className={styles.descripcion}>{lote.descripcion}</p>
-            <h3 style={{ color: "black" }}>Distancia:</h3>
-            <div className={styles.distancia}>
-              <p>
-                🚶 <strong className={styles.label}>Caminando:</strong>{" "}
-                {walkingInfo ? (
-                  <span className={styles.value}>
-                    {`${walkingInfo.distance} • ${walkingInfo.duration}`}
-                  </span>
-                ) : (
-                  "Cargando..."
+        <div className={styles.splitLayout}>
+          <div className={styles.imageSection}>
+            {imagenes.length > 0 ? (
+              <>
+                <img
+                  src={`https://apiinmo.y0urs.com${imagenes[currentImg].imagen}`}
+                  alt="Lote"
+                  className={styles.mainImage}
+                  onClick={() => setFullscreenImgIndex(currentImg)}
+                />
+                {imagenes.length > 1 && (
+                  <div className={styles.sliderControls}>
+                    <button onClick={prevSlide} className={styles.navArrow}><FaChevronLeft /></button>
+                    <button onClick={nextSlide} className={styles.navArrow}><FaChevronRight /></button>
+                  </div>
                 )}
-              </p>
+                <div className={styles.imageBadge}>{currentImg + 1} / {imagenes.length} FOTOS</div>
+              </>
+            ) : (
+              <div className={styles.noImage}>No hay imagenes referenciales</div>
+            )}
+          </div>
 
-              <p>
-                🛵 <strong className={styles.label}>Vehículo:</strong>{" "}
-                {drivingInfo ? (
-                  <span className={styles.value}>
-                    {`${drivingInfo.distance} • ${drivingInfo.duration}`}
-                  </span>
+          <div className={styles.infoSection} ref={contentRef} onScroll={handleScroll}>
+            <div className={styles.primeInfo}>
+              <span className={styles.legalLabel}>
+                {lote.titulo_propiedad === 1 ? (
+                  <><FaCheckCircle /> Con título de propiedad</>
                 ) : (
-                  "Cargando..."
+                  <><FaTimesCircle /> Sin título de propiedad</>
                 )}
-              </p>
-            </div>
+              </span>
 
-            <h3>Precio al Contado:</h3>
-            <h2 className={styles.descripcion}>S/.{lote.precio}</h2>
-            <h3>¿Quieres cotizar un crédito?</h3>
-            <button onClick={() => setIsModalOpen(true)}>Cotizar</button>
+              <h1 className={styles.nombreLote}>{lote.nombre}</h1>
+              <p className={styles.ubicacion}><FaMapMarkerAlt /> Ubicación referencial</p>
 
-            <ModalCuota
-              isOpen={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-              lote={lote}
-            />
-
-            {imagenes.length > 0 && (
-              <div className={styles.imagenesContainer}>
-                <h3 style={{ color: "black" }}>Imágenes</h3>
-                <div className={styles.imagenesGrid}>
-                  {visibleImages.map((img) => (
-                    <img
-                      key={img.idimagenes}
-                      src={`http://127.0.0.1:8000${img.imagen}`}
-                      alt="Inmobiliaria"
-                      className={styles.thumbnail}
-                      onClick={() =>
-                        setFullscreenImgIndex(imagenes.indexOf(img))
-                      }
-                    />
-                  ))}
+              <div className={styles.priceContainer}>
+                <div>
+                  <span className={styles.labelSmall}>Precio del Lote</span>
+                  <span className={styles.priceValue}>$. {lote.precio}</span>
                 </div>
-                {imagenes.length > 3 && !showAll && (
-                  <button
-                    onClick={() => setShowAll(true)}
-                    className={styles.verMas}
-                  >
-                    Ver más imágenes
-                  </button>
+                <a href={`https://wa.me/${inmo.whatsapp}`} target="_blank" rel="noreferrer" className={styles.contactMiniBtn}>
+                  <FaWhatsapp /> Contactar
+                </a>
+              </div>
+
+              <div className={styles.quickGrid}>
+                {hasValue(lote.area_total_m2) && (
+                  <div className={styles.qBadge}>
+                    <FaRulerCombined />
+                    <div>
+                      <strong>{lote.area_total_m2} m²</strong>
+                      <span>Área Total</span>
+                    </div>
+                  </div>
+                )}
+                {hasValue(lote.ancho) && (
+                  <div className={styles.qBadge}>
+                    <FaRulerHorizontal />
+                    <div>
+                      <strong>{lote.ancho} m</strong>
+                      <span>Ancho</span>
+                    </div>
+                  </div>
+                )}
+                {hasValue(lote.largo) && (
+                  <div className={styles.qBadge}>
+                    <FaRulerVertical />
+                    <div>
+                      <strong>{lote.largo} m</strong>
+                      <span>Largo</span>
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
-          </>
-        )}
+            </div>
 
-        {fullscreenImgIndex !== null && (
-          <div className={styles.fullscreenOverlay}>
-            <button
-              className={`${styles.navButton} ${styles.prevButton}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                const prevIndex =
-                  (fullscreenImgIndex - 1 + imagenes.length) % imagenes.length;
-                setFullscreenImgIndex(prevIndex);
-              }}
-            >
-              &lt;
-            </button>
+            <div className={styles.extraContent}>
+              <h3 className={styles.sectionTitle}>Descripción</h3>
+              <p className={styles.fullDescription}>{lote.descripcion}</p>
 
-            <img
-              src={`http://127.0.0.1:8000${imagenes[fullscreenImgIndex].imagen}`}
-              alt="Pantalla completa"
-              className={styles.fullscreenImg}
-            />
+              {/* Aquí es donde fallaban los iconos si no se importaban */}
+              {lote.idtipoinmobiliaria === 2 && (
+                <>
+                  <h3 className={styles.sectionTitle}>Características</h3>
+                  <div className={styles.featuresGrid}>
+                    <div className={styles.fItem}><FaBed /> {lote.dormitorios} Dorm.</div>
+                    <div className={styles.fItem}><FaBath /> {lote.banos} Baños</div>
+                    <div className={styles.fItem}><FaHome /> {lote.cuartos} Cuartos</div>
+                    <div className={styles.fItem}><FaChair /> {lote.sala} Sala</div>
+                    <div className={styles.fItem}><FaUtensils /> {lote.cocina} Cocina</div>
+                    <div className={styles.fItem}><FaCar /> {lote.cochera} Cochera</div>
+                    {lote.patio > 0 && <div className={styles.fItem}><FaCampground /> {lote.patio} Patio</div>}
+                    {lote.jardin > 0 && <div className={styles.fItem}><FaTree /> {lote.jardin} Jardín</div>}
+                    {lote.terraza > 0 && <div className={styles.fItem}><FaSun /> {lote.terraza} Terraza</div>}
+                    {lote.azotea > 0 && <div className={styles.fItem}><FaBuilding /> {lote.azotea} Azotea</div>}
+                  </div>
+                </>
+              )}
 
-            {/* Botón SIGUIENTE */}
-            <button
-              className={`${styles.navButton} ${styles.nextButton}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                const nextIndex = (fullscreenImgIndex + 1) % imagenes.length;
-                setFullscreenImgIndex(nextIndex);
-              }}
-            >
-              &gt;
-            </button>
+              <h3 className={styles.sectionTitle}>Cercanía</h3>
+              <div className={styles.distanciaBox}>
+                <span>🚶 {walkingInfo?.duration || "---"} ({walkingInfo?.distance || ""})</span>
+                <span>🚗 {drivingInfo?.duration || "---"} ({drivingInfo?.distance || ""})</span>
+              </div>
 
-            {/* Botón para cerrar */}
-            <button
-              className={styles.closeFullscreen}
-              onClick={() => setFullscreenImgIndex(null)}
-            >
-              ❌ Cerrar
-            </button>
+              <div className={styles.socialFooter}>
+                <a href={inmo.facebook} target="_blank" rel="noreferrer" className={styles.fb}><FaFacebook /></a>
+                <a href={inmo.pagina} target="_blank" rel="noreferrer" className={styles.web}><FaGlobe /></a>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
+
+      {fullscreenImgIndex !== null && (
+        <div className={styles.fullscreenOverlay} onClick={() => setFullscreenImgIndex(null)}>
+          <img
+            src={`https://apiinmo.y0urs.com${imagenes[fullscreenImgIndex].imagen}`}
+            className={styles.fullscreenImg}
+            alt="Zoom"
+          />
+          <div className={styles.fsBadge}>{fullscreenImgIndex + 1} / {imagenes.length}</div>
+        </div>
+      )}
     </>
   );
 };
 
-export default MapSidebar;
+export default LoteSidebarOverlay;

@@ -26,7 +26,7 @@ export default function InmobiliariaModal({ onClose, onAdded }) {
 
     try {
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/registerInmobiliaria/",
+        "https://apiinmo.y0urs.com/api/registerInmobiliaria/",
         data
       );
 

@@ -1,212 +1,225 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  FaFacebook,
-  FaWhatsapp,
-  FaGlobe,
-  FaMapMarkedAlt,
-  FaHome,
+  FaBed, FaBath, FaCar, FaTree, FaHome, FaUtensils,
+  FaChair, FaSun, FaBuilding, FaBorderAll, FaCampground,
+  FaRulerHorizontal, FaRulerVertical, FaRulerCombined,
+  FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe
 } from "react-icons/fa";
-import styles from "./Mapa.module.css";
+import styles from "./Proyecto.module.css";
 
-const ProyectoSidebar = ({
-  inmo,
-  proyecto,
-  imagenes,
-  onClose,
-  walkingInfo,
-  drivingInfo,
-}) => {
-  const [showAll, setShowAll] = useState(false);
+const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
-  const [showSidebarMobile, setShowSidebarMobile] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const contentRef = useRef(null);
+
+  const nextSlide = (e) => {
+    e.stopPropagation();
+    setCurrentImg((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+  };
+
+  const prevSlide = (e) => {
+    e.stopPropagation();
+    setCurrentImg((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+  };
+
+  const cerrarSidebar = () => {
+    onClose();
+    if (mapRef?.current) mapRef.current.setZoom(13);
+  };
 
   useEffect(() => {
-    if (fullscreenImgIndex !== null) {
-      const handleKeyDown = (e) => {
-        if (e.key === "ArrowLeft") {
-          setFullscreenImgIndex(
-            (fullscreenImgIndex - 1 + imagenes.length) % imagenes.length
-          );
-        } else if (e.key === "ArrowRight") {
-          setFullscreenImgIndex((fullscreenImgIndex + 1) % imagenes.length);
-        } else if (e.key === "Escape") {
-          setFullscreenImgIndex(null);
-        }
-      };
+    const esc = (e) => e.key === "Escape" && cerrarSidebar();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, []);
 
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }
-  }, [fullscreenImgIndex, imagenes.length]);
+  const handleScroll = () => {
+    if (!contentRef.current) return;
+    const { scrollTop } = contentRef.current;
+    if (!expanded && scrollTop > 400) setExpanded(true);
+    if (expanded && scrollTop < 5) setExpanded(false);
+  };
 
   if (!proyecto) return null;
 
-  const visibleImages = showAll ? imagenes : imagenes.slice(0, 10);
-
   return (
     <>
-      <button
-        className={styles.showInfoBtn}
-        onClick={() => setShowSidebarMobile(true)}
-      >
-        Mostrar más información
-      </button>
 
       <div
-        className={`${styles.sidebar} ${
-          showSidebarMobile ? styles.sidebarMobileOpen : ">"
-        } ${collapsed ? styles.sidebarCollapsed : "<"}`}
-      >
-        <button
-          className={styles.toggleArrow}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? "<" : ">"}
-        </button>
+        className={styles.overlay}
+        style={{
+          opacity: expanded ? 1 : 0,
+          background: "rgba(15, 23, 42, 0.2)", // Más transparente para ver el fondo
+          pointerEvents: (proyecto.idtipoinmobiliaria === 2 || expanded) ? "auto" : "none"
+        }}
+        onClick={cerrarSidebar} // Permitimos cerrar al tocar la parte de arriba
+      />
 
-        <button
-          onClick={() => {
-            onClose();
-            setShowSidebarMobile(false);
-          }}
-          className={styles.closeBtn2}
-        >
-          X
-        </button>
+      <div className={`${styles.sidebar} ${expanded ? styles.expanded : ""}`}>
+        <button className={styles.closeBtn} onClick={cerrarSidebar} aria-label="Cerrar">✕</button>
 
-        {!collapsed && (
-          <>
-            <h2>{inmo.nombreinmobiliaria}</h2>
-            <p className={styles.descripcion}>{inmo.descripcion}</p>
-
-            <div className={styles.links}>
-              <a
-                href={inmo.facebook}
-                target="_blank"
-                rel="noreferrer"
-                className={`${styles.link} ${styles.facebook}`}
-              >
-                <FaFacebook size={40} />
-              </a>
-              <a
-                href={`https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
-                  `¡Hola! Me interesa el *proyecto* "${proyecto.nombreproyecto}".\nVengo de la página *Habita* y me gustaría recibir más información.`
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className={`${styles.link} ${styles.whatsapp}`}
-              >
-                <FaWhatsapp style={{ color: "green" }} size={40} />
-              </a>
-              <a
-                href={inmo.pagina}
-                target="_blank"
-                rel="noreferrer"
-                className={`${styles.link} ${styles.web}`}
-              >
-                <FaGlobe size={40} />
-              </a>
-            </div>
-
-            <h3> {proyecto.nombreproyecto}</h3>
-            <p className={styles.tipo}>
-              <FaMapMarkedAlt size={20} color="#2c3e50" />{" "}
-              <span>Proyecto inmobiliario</span>
-            </p>
-            <p className={styles.descripcion}>{proyecto.descripcion}</p>
-
-            <h3>Distancia:</h3>
-            <div className={styles.distancia}>
-              <p>
-                🚶 <strong className={styles.label}>Caminando:</strong>{" "}
-                {walkingInfo ? (
-                  <span className={styles.value}>
-                    {`${walkingInfo.distance} • ${walkingInfo.duration}`}
-                  </span>
-                ) : (
-                  "Cargando..."
+        <div className={styles.splitLayout}>
+          {/* SECCIÓN IMAGEN / SLIDER */}
+          <div className={styles.imageSection}>
+            {imagenes.length > 0 ? (
+              <>
+                <img
+                  src={`https://apiinmo.y0urs.com${imagenes[currentImg].imagenproyecto}`}
+                  alt="Propiedad"
+                  className={styles.mainImage}
+                  onClick={() => setFullscreenImgIndex(currentImg)}
+                />
+                {imagenes.length > 1 && (
+                  <div className={styles.sliderControls}>
+                    <button onClick={prevSlide} className={styles.navArrow}><FaChevronLeft /></button>
+                    <button onClick={nextSlide} className={styles.navArrow}><FaChevronRight /></button>
+                  </div>
                 )}
-              </p>
-
-              <p>
-                🛵 <strong className={styles.label}>Vehículo:</strong>{" "}
-                {drivingInfo ? (
-                  <span className={styles.value}>
-                    {`${drivingInfo.distance} • ${drivingInfo.duration}`}
-                  </span>
-                ) : (
-                  "Cargando..."
-                )}
-              </p>
-            </div>
-
-            {imagenes.length > 0 && (
-              <div className={styles.imagenesContainer}>
-                <h3>Imágenes</h3>
-                <div className={styles.imagenesGrid}>
-                  {visibleImages.map((img) => (
-                    <img
-                      key={img.idimagenesp}
-                      src={`http://127.0.0.1:8000${img.imagenproyecto}`}
-                      alt="Proyecto"
-                      className={styles.thumbnail}
-                      onClick={() =>
-                        setFullscreenImgIndex(imagenes.indexOf(img))
-                      }
-                    />
-                  ))}
-                </div>
-                {/* {imagenes.length > 3 && !showAll && (
-                  <button
-                    onClick={() => setShowAll(true)}
-                    className={styles.verMas}
-                  >
-                    Ver más imágenes
-                  </button>
-                )} */}
-              </div>
+                <div className={styles.imageBadge}>{currentImg + 1} / {imagenes.length} FOTOS</div>
+              </>
+            ) : (
+              <div className={styles.noImage}>No hay imagenes referenciales</div>
             )}
-          </>
-        )}
-
-        {fullscreenImgIndex !== null && (
-          <div className={styles.fullscreenOverlay}>
-            <button
-              className={`${styles.navButton} ${styles.prevButton}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                const prevIndex =
-                  (fullscreenImgIndex - 1 + imagenes.length) % imagenes.length;
-                setFullscreenImgIndex(prevIndex);
-              }}
-            >
-              &lt;
-            </button>
-            <img
-              src={`http://127.0.0.1:8000${imagenes[fullscreenImgIndex].imagenproyecto}`}
-              alt="Pantalla completa"
-              className={styles.fullscreenImg}
-            />
-            <button
-              className={`${styles.navButton} ${styles.nextButton}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                const nextIndex = (fullscreenImgIndex + 1) % imagenes.length;
-                setFullscreenImgIndex(nextIndex);
-              }}
-            >
-              &gt;
-            </button>
-            <button
-              className={styles.closeFullscreen}
-              onClick={() => setFullscreenImgIndex(null)}
-            >
-              Cerrar
-            </button>
           </div>
-        )}
+
+          {/* SECCIÓN INFORMACIÓN */}
+          <div className={styles.infoSection} ref={contentRef} onScroll={handleScroll}>
+            <div className={styles.primeInfo}>
+              {proyecto.idtipoinmobiliaria === 2 && (
+                <span className={styles.legalLabel}>
+                  {proyecto.titulo_propiedad ? "✓ Cuenta con titulo" : "• No cuenta con titulo"}
+                </span>
+              )}
+              <h1 className={styles.nombreProyecto}>{proyecto.nombreproyecto}</h1>
+              <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p>
+
+              <div className={styles.priceContainer}>
+                {proyecto.idtipoinmobiliaria === 2 && (
+
+                  <div>
+                    <span className={styles.labelSmall}>Inversión</span>
+                    <span className={styles.priceValue}>${proyecto.precio}</span>
+                  </div>
+                )}
+                <a href={`https://wa.me/${inmo.whatsapp}`} target="_blank" rel="noreferrer" className={styles.contactMiniBtn}>
+                  <FaWhatsapp /> Contactar
+                </a>
+              </div>
+              {proyecto.idtipoinmobiliaria === 2 && (
+                <div className={styles.quickGrid}>
+                  <div className={styles.qBadge}>
+                    <FaRulerCombined />
+                    <div>
+                      <strong>{proyecto.area_total_m2} m²</strong>
+                      <span>Extensión</span>
+                    </div>
+                  </div>
+                  <div className={styles.qBadge}>
+                    <FaRulerCombined />
+                    <div>
+                      <strong>{proyecto.ancho} m</strong>
+                      <span>Ancho</span>
+                    </div>
+                  </div>
+                  <div className={styles.qBadge}>
+                    <FaRulerCombined />
+                    <div>
+                      <strong>{proyecto.largo} m</strong>
+                      <span>Largo</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className={styles.extraContent}>
+              {/* <hr className={styles.divider} /> */}
+              <br></br>
+              <h3 className={styles.sectionTitle}>Descripción</h3>
+              <p className={styles.fullDescription}>{proyecto.descripcion}</p>
+
+              {proyecto.idtipoinmobiliaria === 2 && (
+                <>
+                  <h3 className={styles.sectionTitle}>Características</h3>
+                  <div className={styles.featuresGrid}>
+                    {/* Habitaciones y Baños */}
+                    <div className={styles.fItem}><FaBed /> {proyecto.dormitorios} Dorm.</div>
+                    <div className={styles.fItem}><FaBath /> {proyecto.banos} Baños</div>
+                    <div className={styles.fItem}><FaHome /> {proyecto.cuartos} Cuartos</div>
+
+                    {/* Áreas Internas */}
+                    <div className={styles.fItem}><FaChair /> {proyecto.sala} Sala</div>
+                    <div className={styles.fItem}><FaUtensils /> {proyecto.cocina} Cocina</div>
+                    <div className={styles.fItem}><FaCar /> {proyecto.cochera} Cochera</div>
+
+                    {/* Exteriores y extras (Se muestran solo si el valor es >= 1) */}
+                    {proyecto.patio > 0 && <div className={styles.fItem}><FaCampground /> {proyecto.patio} Patio</div>}
+                    {proyecto.jardin > 0 && <div className={styles.fItem}><FaTree /> {proyecto.jardin} Jardín</div>}
+                    {proyecto.terraza > 0 && <div className={styles.fItem}><FaSun /> {proyecto.terraza} Terraza</div>}
+                    {proyecto.azotea > 0 && <div className={styles.fItem}><FaBuilding /> {proyecto.azotea} Azotea</div>}
+                  </div>
+                </>
+              )}
+
+              <h3 className={styles.sectionTitle}>Distancia de tu ubicación o de la ubicación buscada</h3>
+              <div className={styles.distanciaBox}>
+                <span>🚶 {walkingInfo?.duration || "Calc..."}</span>
+                <span>🚗 {drivingInfo?.duration || "Calc..."}</span>
+              </div>
+
+              <div className={styles.socialFooter}>
+                <a href={inmo.facebook} target="_blank" rel="noreferrer"><FaFacebook /></a>
+                <a href={inmo.pagina} target="_blank" rel="noreferrer"><FaGlobe /></a>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+
+
+      {fullscreenImgIndex !== null && (
+        <div className={styles.fullscreenOverlay} onClick={() => setFullscreenImgIndex(null)}>
+          {/* Botón Cerrar (opcional, ya que el fondo cierra) */}
+          <button className={styles.closeFS} onClick={() => setFullscreenImgIndex(null)}>✕</button>
+
+          {imagenes.length > 1 && (
+            <>
+              {/* Navegación Pantalla Completa */}
+              <button
+                className={`${styles.navArrowFS} ${styles.prevFS}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFullscreenImgIndex(prev => (prev === 0 ? imagenes.length - 1 : prev - 1));
+                }}
+              >
+                <FaChevronLeft />
+              </button>
+
+              <button
+                className={`${styles.navArrowFS} ${styles.nextFS}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFullscreenImgIndex(prev => (prev === imagenes.length - 1 ? 0 : prev + 1));
+                }}
+              >
+                <FaChevronRight />
+              </button>
+            </>
+          )}
+
+          <img
+            src={`https://apiinmo.y0urs.com${imagenes[fullscreenImgIndex].imagenproyecto}`}
+            className={styles.fullscreenImg}
+            alt="Zoom"
+            onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen misma
+          />
+
+          <div className={styles.fsBadge}>
+            {fullscreenImgIndex + 1} / {imagenes.length}
+          </div>
+        </div>
+      )}
     </>
   );
 };

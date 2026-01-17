@@ -1,36 +1,56 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Login.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 const LoginLayout = () => {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const correo = e.target.email.value;
-    const contrasena = e.target.password.value;
+    const password = e.target.password.value;
 
-    if (!correo || !contrasena) {
+    if (!correo || !password) {
       alert("Por favor ingresa correo y contraseña");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/login_inmobiliaria/", {
+      const res = await fetch("https://apiinmo.y0urs.com/api/login/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo, contrasena }),
-        credentials: "include", // manda cookie
+        body: JSON.stringify({ correo, password }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        // opcional: guardar inmobiliaria en localStorage para mostrar nombre
-        localStorage.setItem("inmobiliaria", data.inmobiliaria);
-        window.location.href = "/dashboard";
+        localStorage.setItem("access", data.access);
+        localStorage.setItem("refresh", data.refresh);
+
+        localStorage.setItem("idusuario", data.usuario.idusuario);
+        localStorage.setItem("correo", data.usuario.correo);
+        localStorage.setItem("nombre", data.usuario.nombre);
+
+        if (data.inmobiliaria) {
+          localStorage.setItem(
+            "idinmobiliaria",
+            data.inmobiliaria.idinmobiliaria
+          );
+          localStorage.setItem(
+            "nombreinmobiliaria",
+            data.inmobiliaria.nombreinmobiliaria
+          );
+        } else {
+          localStorage.setItem("idinmobiliaria", "");
+          localStorage.setItem("nombreinmobiliaria", "");
+        }
+
+        navigate("/dashboard");
       } else {
-        alert(data.error || "Credenciales incorrectas");
+        alert(data.detail || "Credenciales incorrectas");
       }
     } catch (err) {
       console.error("Error:", err);

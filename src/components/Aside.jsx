@@ -2,8 +2,13 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import styles from "./aside.module.css";
-import { FaMapMarkedAlt } from "react-icons/fa";
-import { FaUser } from "react-icons/fa";
+import {
+  FaMapMarkedAlt,
+  FaUser,
+  FaPlus,
+  FaSignInAlt,
+  FaHome,
+} from "react-icons/fa";
 
 export default function Aside() {
   return (
@@ -16,27 +21,30 @@ export default function Aside() {
 
         <nav className={styles.nav}>
           <Link to="/agregar" className={styles.link}>
-            <FaUser style={{ marginRight: "10px", fontSize: "30px" }} />
-            Agregar
+            <FaPlus className={styles.linkIcon} />
+            <span>Agregar</span>
           </Link>
 
           <Link to="/login" className={styles.link}>
-            <FaUser style={{ marginRight: "10px", fontSize: "30px" }} />
-            Login
+            <FaSignInAlt className={styles.linkIcon} />
+            <span>Login</span>
           </Link>
 
           <Link to="/" className={styles.link}>
-            <FaMapMarkedAlt style={{ marginRight: "10px", fontSize: "30px" }} />
-            Ver Mapa
+            <FaMapMarkedAlt className={styles.linkIcon} />
+            <span>Ver Mapa</span>
           </Link>
 
           <Link to="/panel" className={styles.link}>
-            <FaUser style={{ marginRight: "10px", fontSize: "30px" }} />
-            Panel
+            <FaHome className={styles.linkIcon} />
+            <span>Panel</span>
           </Link>
         </nav>
       </div>
-      <div className={styles.footer}>&copy; 2025 y0urs</div>
+
+      <div className={styles.footer}>
+        &copy; 2025 <span className={styles.brand}>y0urs</span>
+      </div>
     </aside>
   );
 }

@@ -5,8 +5,8 @@ const UserDetails = ({ onNext, onBack, formData }) => {
   const [data, setData] = useState({
     nombre: "",
     correo: "",
-    contrasena: "",
-    confirmarContrasena: "",
+    password: "",
+    confirmarpassword: "",
     ...formData,
   });
   const [errors, setErrors] = useState({});
@@ -17,9 +17,9 @@ const UserDetails = ({ onNext, onBack, formData }) => {
   const isFormValid =
     data.nombre &&
     data.correo &&
-    data.contrasena &&
-    data.confirmarContrasena &&
-    data.contrasena === data.confirmarContrasena &&
+    data.password &&
+    data.confirmarpassword &&
+    data.password === data.confirmarpassword &&
     Object.keys(errors).every((key) => !errors[key]);
 
   const validateEmail = (email) => {
@@ -56,24 +56,20 @@ const UserDetails = ({ onNext, onBack, formData }) => {
       else newErrors.correo = "";
     }
 
-    if (name === "contrasena") {
-      newErrors.contrasena = checkPasswordValidity(value);
-      if (
-        newData.confirmarContrasena &&
-        value !== newData.confirmarContrasena
-      ) {
-        newErrors.confirmarContrasena = "Las contraseñas no coinciden";
+    if (name === "password") {
+      newErrors.password = checkPasswordValidity(value);
+      if (newData.confirmarpassword && value !== newData.confirmarpassword) {
+        newErrors.confirmarpassword = "Las contraseñas no coinciden";
       } else {
-        newErrors.confirmarContrasena = "";
+        newErrors.confirmarpassword = "";
       }
     }
 
-    if (name === "confirmarContrasena") {
-      if (!value)
-        newErrors.confirmarContrasena = "Debe confirmar la contraseña";
-      else if (newData.contrasena !== value)
-        newErrors.confirmarContrasena = "Las contraseñas no coinciden";
-      else newErrors.confirmarContrasena = "";
+    if (name === "confirmarpassword") {
+      if (!value) newErrors.confirmarpassword = "Debe confirmar la contraseña";
+      else if (newData.password !== value)
+        newErrors.confirmarpassword = "Las contraseñas no coinciden";
+      else newErrors.confirmarpassword = "";
     }
 
     setErrors(newErrors);
@@ -85,7 +81,7 @@ const UserDetails = ({ onNext, onBack, formData }) => {
       const userData = {
         nombre: data.nombre,
         correo: data.correo,
-        contrasena: data.contrasena,
+        password: data.password,
         estado: 1,
       };
       onNext(userData);
@@ -127,15 +123,15 @@ const UserDetails = ({ onNext, onBack, formData }) => {
       </div>
 
       <div className="form-row">
-        <label htmlFor="contrasena">Contraseña</label>
+        <label htmlFor="password">Contraseña</label>
         <div className="password-input-wrapper">
           <input
             type={showPassword ? "text" : "password"}
-            name="contrasena"
-            value={data.contrasena}
+            name="password"
+            value={data.password}
             onChange={handleChange}
             required
-            className={errors.contrasena ? "error" : ""}
+            className={errors.password ? "error" : ""}
           />
           <span
             className="toggle-password"
@@ -144,21 +140,21 @@ const UserDetails = ({ onNext, onBack, formData }) => {
             {showPassword ? "👁️" : "🙈"}
           </span>
         </div>
-        {errors.contrasena && (
-          <span className="error-message">{errors.contrasena}</span>
+        {errors.password && (
+          <span className="error-message">{errors.password}</span>
         )}
       </div>
 
       <div className="form-row">
-        <label htmlFor="confirmarContrasena">Confirmar Contraseña</label>
+        <label htmlFor="confirmarpassword">Confirmar Contraseña</label>
         <div className="password-input-wrapper">
           <input
             type={showConfirmPassword ? "text" : "password"}
-            name="confirmarContrasena"
-            value={data.confirmarContrasena}
+            name="confirmarpassword"
+            value={data.confirmarpassword}
             onChange={handleChange}
             required
-            className={errors.confirmarContrasena ? "error" : ""}
+            className={errors.confirmarpassword ? "error" : ""}
           />
           <span
             className="toggle-password"
@@ -167,8 +163,8 @@ const UserDetails = ({ onNext, onBack, formData }) => {
             {showConfirmPassword ? "👁️" : "🙈"}
           </span>
         </div>
-        {errors.confirmarContrasena && (
-          <span className="error-message">{errors.confirmarContrasena}</span>
+        {errors.confirmarpassword && (
+          <span className="error-message">{errors.confirmarpassword}</span>
         )}
       </div>
 

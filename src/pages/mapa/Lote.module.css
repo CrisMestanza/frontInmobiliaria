@@ -1,0 +1,258 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  transition: opacity 0.4s ease;
+}
+
+.sidebar {
+  position: fixed;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92%;
+  max-width: 950px;
+  height: 380px;
+  background: white;
+  border-radius: 30px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+  overflow: hidden;
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.expanded {
+  height: 85vh;
+  bottom: 30px;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1010;
+  background: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.splitLayout {
+  display: flex;
+  height: 100%;
+}
+
+.imageSection {
+  width: 45%;
+  position: relative;
+  background: #f1f5f9;
+}
+
+.mainImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+
+.sliderControls {
+  position: absolute;
+  top: 50%;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 15px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.navArrow {
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.imageBadge {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 5px 12px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.infoSection {
+  width: 55%;
+  padding: 35px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.infoSection::-webkit-scrollbar { display: none; }
+
+.legalLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.nombreLote {
+  font-size: 28px;
+  margin: 10px 0;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.ubicacion {
+  color: #64748b;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 15px;
+}
+
+.priceContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 15px 20px;
+  border-radius: 20px;
+  margin: 20px 0;
+}
+
+.labelSmall { font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; display: block; }
+.priceValue { font-size: 24px; font-weight: 800; color: #1e293b; }
+
+.contactMiniBtn {
+  background: #25d366;
+  color: white;
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.2);
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.qBadge {
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qBadge svg { color: #10b981; font-size: 18px; }
+.qBadge strong { display: block; font-size: 14px; color: #1e293b; }
+.qBadge span { font-size: 10px; color: #94a3b8; }
+
+.sectionTitle { font-size: 16px; font-weight: 700; margin: 30px 0 15px; color: #334155; }
+.fullDescription { line-height: 1.6; color: #475569; font-size: 14px; }
+
+.distanciaBox {
+  background: #eff6ff;
+  padding: 15px;
+  border-radius: 15px;
+  display: flex;
+  justify-content: space-around;
+  color: #1e40af;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.socialFooter {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.socialFooter a { 
+  width: 45px; height: 45px; background: #f1f5f9; 
+  border-radius: 50%; display: flex; align-items: center; 
+  justify-content: center; color: #64748b; font-size: 20px;
+  transition: all 0.3s;
+}
+
+.socialFooter a.fb:hover { color: #1877F2; background: #e7f0ff; }
+.socialFooter a.web:hover { color: #00bcd4; background: #e0f7fa; }
+
+.fullscreenOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.featuresGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+.fItem {
+  background: #f8fafc;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.noImage{
+  margin-left: 30px;
+  margin-top: 30px;
+}
+
+.fullscreenImg { max-width: 90%; max-height: 85%; border-radius: 10px; }
+.fsBadge { position: absolute; bottom: 30px; color: white; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; }
+
+@media (max-width: 768px) {
+  .sidebar { height: 320px; width: 100%; bottom: 0; border-radius: 25px 25px 0 0; display: block; overflow-y: auto; }
+  .expanded { height: 75vh; }
+  .splitLayout { display: block; height: auto; }
+  .imageSection { width: 100%; height: 250px; }
+  .infoSection { width: 100%; padding: 20px; overflow-y: visible; height: auto; }
+  .closeBtn { position: fixed; top: 15px; right: 15px; }
+}

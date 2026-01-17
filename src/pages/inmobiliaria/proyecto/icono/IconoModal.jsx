@@ -1,8 +1,7 @@
 // components/IconoModal.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import style from "../../agregarInmo.module.css";
-
-let googleMapsLoader = null;
+import loader from "../../../../components/loader";
 
 export default function IconoModal({ onClose, idproyecto }) {
   const mapRef = useRef(null);
@@ -11,24 +10,17 @@ export default function IconoModal({ onClose, idproyecto }) {
   const [iconosDisponibles, setIconosDisponibles] = useState([]);
   const [iconosMapa, setIconosMapa] = useState([]);
   const [draggedIcono, setDraggedIcono] = useState(null);
-
+  const token = localStorage.getItem("access");
   const loadGoogleMapsScript = useCallback(() => {
-    if (googleMapsLoader) return googleMapsLoader;
-    googleMapsLoader = new Promise((resolve, reject) => {
-      if (window.google?.maps) return resolve(window.google.maps);
-      const script = document.createElement("script");
-      script.src =
-        "https://maps.googleapis.com/maps/api/js?key=AIzaSyA0dsaDHTO3rx48cyq61wbhItaZ_sWcV94&libraries=drawing,geometry&loading=async";
-      script.async = true;
-      script.defer = true;
-      script.onload = () =>
-        window.google?.maps
-          ? resolve(window.google.maps)
-          : reject(new Error("Google Maps API not available."));
-      script.onerror = reject;
-      document.body.appendChild(script);
-    });
-    return googleMapsLoader;
+    return loader
+      .load()
+      .then(() => {
+        return window.google.maps;
+      })
+      .catch((error) => {
+        console.error("Error al cargar la API con tu loader:", error);
+        throw error; // Propaga el error para que initMap falle
+      });
   }, []);
 
   const initMap = useCallback(async () => {
@@ -36,7 +28,12 @@ export default function IconoModal({ onClose, idproyecto }) {
       await loadGoogleMapsScript();
       if (!mapRef.current) return;
       const resProyecto = await fetch(
-        `http://127.0.0.1:8000/api/listPuntosProyecto/${idproyecto}`
+        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       const puntosProyecto = await resProyecto.json();
       if (!puntosProyecto.length) return;
@@ -47,6 +44,7 @@ export default function IconoModal({ onClose, idproyecto }) {
           lat: parseFloat(puntosProyecto[0].latitud),
           lng: parseFloat(puntosProyecto[0].longitud),
         },
+        gestureHandling: "greedy",
       });
 
       const overlay = new window.google.maps.OverlayView();
@@ -59,14 +57,19 @@ export default function IconoModal({ onClose, idproyecto }) {
     } catch (error) {
       console.error("Error initializing the map:", error);
     }
-  }, [idproyecto, loadGoogleMapsScript]);
+  }, [idproyecto, loadGoogleMapsScript, token]);
 
   useEffect(() => {
     if (!map) return;
     const loadProjectGeometries = async () => {
       try {
         const resProyecto = await fetch(
-          `http://127.0.0.1:8000/api/listPuntosProyecto/${idproyecto}`
+          `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         const puntosProyecto = await resProyecto.json();
         const proyectoCoords = puntosProyecto.map((p) => ({
@@ -85,13 +88,23 @@ export default function IconoModal({ onClose, idproyecto }) {
         proyectoPolygonRef.current = proyectoPolygon;
 
         const resLotes = await fetch(
-          `http://127.0.0.1:8000/api/getLoteProyecto/${idproyecto}`
+          `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         const lotes = await resLotes.json();
 
         for (const lote of lotes) {
           const resPuntos = await fetch(
-            `http://127.0.0.1:8000/api/listPuntos/${lote.idlote}`
+            `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
           );
           const puntos = await resPuntos.json();
           if (!puntos.length) continue;
@@ -130,7 +143,12 @@ export default function IconoModal({ onClose, idproyecto }) {
 
         // 👉 Ahora cargamos los íconos ya registrados
         const resIconosProyecto = await fetch(
-          `http://127.0.0.1:8000/api/list_iconos_proyecto/${idproyecto}`
+          `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${idproyecto}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         const iconosRegistrados = await resIconosProyecto.json();
         const nuevosIconos = iconosRegistrados.map((ico) => {
@@ -141,7 +159,7 @@ export default function IconoModal({ onClose, idproyecto }) {
             },
             map: map.mapInstance,
             icon: {
-              url: `http://127.0.0.1:8000${ico.icono_detalle.imagen}`,
+              url: `https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`,
               scaledSize: new window.google.maps.Size(40, 40),
             },
             draggable: true,
@@ -167,7 +185,7 @@ export default function IconoModal({ onClose, idproyecto }) {
       }
     };
     loadProjectGeometries();
-  }, [map, idproyecto]);
+  }, [map, idproyecto, token]);
 
   useEffect(() => {
     initMap();
@@ -200,7 +218,7 @@ export default function IconoModal({ onClose, idproyecto }) {
       position: latLng,
       map: map.mapInstance,
       icon: {
-        url: `http://127.0.0.1:8000${draggedIcono.imagen}`,
+        url: `https://apiinmo.y0urs.com${draggedIcono.imagen}`,
         scaledSize: new window.google.maps.Size(40, 40),
       },
       draggable: true,
@@ -271,7 +289,7 @@ export default function IconoModal({ onClose, idproyecto }) {
 
   useEffect(() => {
     const fetchIconos = async () => {
-      const res = await fetch("http://127.0.0.1:8000/api/listIconos/");
+      const res = await fetch("https://apiinmo.y0urs.com/api/listIconos/");
       const data = await res.json();
       setIconosDisponibles(data);
     };
@@ -299,9 +317,12 @@ export default function IconoModal({ onClose, idproyecto }) {
           )
       );
 
-    await fetch("http://127.0.0.1:8000/api/add_iconos_proyecto/", {
+    await fetch("https://apiinmo.y0urs.com/api/add_iconos_proyecto/", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -326,7 +347,7 @@ export default function IconoModal({ onClose, idproyecto }) {
           {iconosDisponibles.map((ico) => (
             <img
               key={ico.idicono}
-              src={`http://127.0.0.1:8000${ico.imagen}`}
+              src={`https://apiinmo.y0urs.com${ico.imagen}`}
               alt={ico.nombre}
               title={ico.nombre}
               draggable
@@ -355,7 +376,7 @@ export default function IconoModal({ onClose, idproyecto }) {
               return (
                 //   <img
                 //     key={idx}
-                //     src={`http://127.0.0.1:8000${imagen}`}
+                //     src={`https://apiinmo.y0urs.com${imagen}`}
                 //     alt={nombre}
                 //     title={nombre}
                 //     style={{ width: 30, height: 30 }}
@@ -363,7 +384,7 @@ export default function IconoModal({ onClose, idproyecto }) {
                 // );
                 <img
                   key={idx}
-                  src={`http://127.0.0.1:8000${ico.icono_detalle.imagen}`}
+                  src={`https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`}
                   alt={ico.icono_detalle.nombre}
                   title={ico.icono_detalle.nombre}
                   style={{ width: 30, height: 30 }}
