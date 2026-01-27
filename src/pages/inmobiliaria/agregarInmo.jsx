@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Aside from "../../components/Aside";
-import InmobiliariaModal from "./modalAgregar";
-import InmobiliariaEdit from "./modalEditar";
 import style from "./agregarInmo.module.css";
 
 export default function Principal() {
@@ -15,7 +12,9 @@ export default function Principal() {
   useEffect(() => {
     const fetchInmobiliarias = async () => {
       try {
-        const res = await fetch("https://apiinmo.y0urs.com/api/listInmobiliaria/");
+        const res = await fetch(
+          "https://apiinmo.y0urs.com/api/listInmobiliaria/",
+        );
         const data = await res.json();
         setInmobiliarias(data);
       } catch (err) {
@@ -32,7 +31,7 @@ export default function Principal() {
 
   const handleDelete = async (idinmobiliaria) => {
     const confirm = window.confirm(
-      "¿Estás seguro de eliminar esta inmobiliaria?"
+      "¿Estás seguro de eliminar esta inmobiliaria?",
     );
     if (confirm) {
       try {
@@ -40,14 +39,14 @@ export default function Principal() {
           `https://apiinmo.y0urs.com/api/deleteInmobiliaria/${idinmobiliaria}/`,
           {
             method: "PUT",
-          }
+          },
         );
         if (res.ok) {
           alert("Eliminado correctamente ✅");
           setInmobiliarias(
             inmobiliarias.filter(
-              (item) => item.idinmobiliaria !== idinmobiliaria
-            )
+              (item) => item.idinmobiliaria !== idinmobiliaria,
+            ),
           );
         } else {
           alert("Error al eliminar ❌");
@@ -66,15 +65,15 @@ export default function Principal() {
   const handleInmobiliariaUpdated = (actualizada) => {
     setInmobiliarias((prev) =>
       prev.map((item) =>
-        item.idinmobiliaria === actualizada.idinmobiliaria ? actualizada : item
-      )
+        item.idinmobiliaria === actualizada.idinmobiliaria ? actualizada : item,
+      ),
     );
   };
 
   const verInmo = (idinmobiliaria) => {
-    console.log(idinmobiliaria)
+    console.log(idinmobiliaria);
     navigate(`/proyectos/${idinmobiliaria}`);
-  }
+  };
   return (
     <div className={style.principal}>
       <Aside />
@@ -160,9 +159,7 @@ export default function Principal() {
                 </td>
                 <td style={{ textAlign: "center", color: "black" }}>
                   <button
-                    onClick={() =>
-                      verInmo(item.idinmobiliaria)
-                    }
+                    onClick={() => verInmo(item.idinmobiliaria)}
                     className={style.addBtn}
                   >
                     👁️ Ver

@@ -1,7 +1,4 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import InmobiliariaForm from "./pages/inmobiliaria/agregarInmo.jsx";
-import LotesList from "./pages/inmobiliaria/lote/LotesList.jsx";
-import ProyectoList from "./pages/inmobiliaria/proyecto/ProyectoList.jsx";
 import MyMap from "./pages/mapa/Map.jsx";
 import LoginLayout from "./pages/login/LoginLayout.jsx";
 import Register from "./pages/registro/Registro.jsx";

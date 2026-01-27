@@ -4,39 +4,59 @@ import InmobiliariaModal from "./agregarLoteBlock";
 import LoteBlockModal from "./agregarLote";
 import EditLote from "./editLote";
 import LotePDF from "./agregarLotePDF";
-
+import Loader from "../../../components/Loading";
 const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
   const [lotes, setLotes] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [showModalBlock, setShowModalBlock] = useState(false);
   const [showModalLote, setShowModalLote] = useState(false);
   const [showModalLotePDF, setShowModalLotePDF] = useState(false);
   const [showModalEdit, setShowModalEdit] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
   const token = localStorage.getItem("access");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    // Bloquear scroll al abrir
     document.body.style.overflow = "hidden";
-
-    // Restaurar scroll al cerrar
     return () => {
       document.body.style.overflow = "auto";
     };
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const resLotes = await fetch(
-          `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`
-        );
-        const dataLotes = await resLotes.json();
-        setLotes(dataLotes);
-      } catch (err) {
-        console.error("Error cargando proyecto/lotes:", err);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const resLotes = await fetch(
+        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
+      );
+      if (!resLotes.ok) {
+        throw new Error("Error al obtener lotes");
       }
-    };
+      const dataLotes = await resLotes.json();
+      setLotes(Array.isArray(dataLotes) ? dataLotes : []);
+    } catch (err) {
+      console.error("Error cargando lotes:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [idproyecto]);
+
+  // Cálculos de estadísticas
+  const stats = {
+    total: lotes.length,
+    disponibles: lotes.filter((l) => Number(l.vendido) === 0).length,
+    reservados: lotes.filter((l) => Number(l.vendido) === 2).length,
+    vendidos: lotes.filter((l) => Number(l.vendido) === 1).length,
+  };
+
+  const filteredLotes = lotes.filter(
+    (l) =>
+      l.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()),
+  );
 
   const handleEstadoChange = async (idlote, nuevoEstado) => {
     try {
@@ -49,212 +69,275 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ vendido: nuevoEstado }),
-        }
+        },
       );
       if (res.ok) {
-        const data = await res.json();
-        setLotes((prev) =>
-          prev.map((l) =>
-            l.idlote === idlote ? { ...l, vendido: data.vendido } : l
-          )
-        );
+        fetchData();
       } else {
         alert("Error al cambiar estado ❌");
       }
     } catch (err) {
-      console.error("Error:", err);
-      alert("Error de red ❌");
+      console.error(err);
     }
   };
 
   const handleDelete = async (idlote) => {
     if (!window.confirm("¿Seguro que deseas eliminar este lote?")) return;
-    const token = localStorage.getItem("access");
     try {
       const res = await fetch(
         `https://apiinmo.y0urs.com/api/deleteLote/${idlote}/`,
         {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
-      if (res.ok) {
-        setLotes((prev) => prev.filter((l) => l.idlote !== idlote));
-      } else {
-        alert("Error al eliminar ❌");
-      }
+      if (res.ok) fetchData();
     } catch (err) {
-      console.error("Error:", err);
+      console.error(err);
     }
   };
 
-  const opcionesEstado = [
-    { value: 0, label: "Disponible" },
-    { value: 1, label: "Vendido" },
-    { value: 2, label: "Reservado" },
-  ];
-
-  const refreshLotes = async () => {
-    try {
-      const resLotes = await fetch(
-        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      const dataLotes = await resLotes.json();
-      setLotes(dataLotes);
-    } catch (err) {
-      console.error("Error recargando lotes:", err);
-    }
-  };
+  if (loading) return <Loader />;
 
   return (
-    <div className={style.overlay}>
-      <div className={style.modal}>
-        <button className={style.closeBtn} onClick={onClose}>
-          ❌
-        </button>
-        <h2 className={style.title}>{proyectoNombre}</h2>
-        <button
-          className={style.btnAdd}
-          onClick={() => setShowModalBlock(true)}
-        >
-          + Agregar Lotes por Bloques
-        </button>
-        <button
-          className={style.btnAdd1}
-          onClick={() => setShowModalLote(true)}
-        >
-          + Agregar Lotes Irregulares
-        </button>
-        <button
-          className={style.btnAdd2}
-          onClick={() => setShowModalLotePDF(true)}
-        >
-          + Agregar Lotes PDF
-        </button>
+    <div className={style.modalTheme}>
+      <div className={style.overlay}>
+        <div className={style.modal}>
+          {/* HEADER */}
+          <header className={style.header}>
+            <nav className={style.breadcrumb}>
+              Proyectos <span>/</span> <strong>{proyectoNombre}</strong>
+            </nav>
+            <div className={style.titleContainer}>
+              <span style={{ fontSize: "2rem" }}>🏠</span>
+              <h1 className={style.title}>{proyectoNombre}</h1>
+            </div>
+            <button className={style.closeBtn} onClick={onClose}>
+              ✕
+            </button>
+          </header>
 
-        <table className={style.table}>
-          <thead>
-            <tr>
-              <th>N°</th>
-              <th>Nombre</th>
-              <th>Descripción</th>
-              <th>Precio</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lotes.length > 0 ? (
-              lotes.map((lote, index) => (
-                <tr
-                  key={lote.idlote}
-                  className={
-                    Number(lote.vendido) === 0
-                      ? style["vendido-0"]
-                      : Number(lote.vendido) === 1
-                      ? style["vendido-1"]
-                      : Number(lote.vendido) === 2
-                      ? style["vendido-2"]
-                      : style["vendido-default"]
-                  }
+          {/* STATS CARDS */}
+          <div className={style.statsGrid}>
+            <div className={style.statCard}>
+              <p className={style.statLabel}>Total de Lotes</p>
+              <div className={style.statValue}>
+                {stats.total}{" "}
+                <span
+                  className={`${style.statBadge}`}
+                  style={{ background: "#eff6ff", color: "#1e40af" }}
                 >
-                  <td>{index + 1}</td>
-                  <td>{lote.nombre}</td>
-                  <td>{lote.descripcion}</td>
-                  <td>S/.{lote.precio}</td>
-                  <td>
-                    <div className="select-wrapper">
+                  100%
+                </span>
+              </div>
+            </div>
+            <div className={style.statCard}>
+              <p className={style.statLabel}>Disponibles</p>
+              <div className={style.statValue}>
+                {stats.disponibles}{" "}
+                <span
+                  className={`${style.statBadge}`}
+                  style={{ background: "#ecfdf5", color: "#065f46" }}
+                >
+                  Activos
+                </span>
+              </div>
+            </div>
+            <div className={style.statCard}>
+              <p className={style.statLabel}>Reservados</p>
+              <div className={style.statValue}>
+                {stats.reservados}{" "}
+                <span
+                  className={`${style.statBadge}`}
+                  style={{ background: "#fffbeb", color: "#92400e" }}
+                >
+                  En proceso
+                </span>
+              </div>
+            </div>
+            <div className={style.statCard}>
+              <p className={style.statLabel}>Vendidos</p>
+              <div className={style.statValue}>
+                {stats.vendidos}{" "}
+                <span
+                  className={`${style.statBadge}`}
+                  style={{ background: "#f1f5f9", color: "#475569" }}
+                >
+                  Cerrados
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ACTIONS BAR */}
+          <div className={style.actionsBar}>
+            <div className={style.btnGroup}>
+              <button
+                className={`${style.actionBtn} ${style.btnPrimary}`}
+                onClick={() => setShowModalBlock(true)}
+              >
+                <span>+</span> Agregar Bloque
+              </button>
+              <button
+                className={`${style.actionBtn} ${style.btnSecondary}`}
+                onClick={() => setShowModalLote(true)}
+              >
+                Irregulares
+              </button>
+              <button
+                className={`${style.actionBtn} ${style.btnSecondary}`}
+                onClick={() => setShowModalLotePDF(true)}
+              >
+                Importar PDF
+              </button>
+            </div>
+
+            <div className={style.searchContainer}>
+              <input
+                className={style.searchInput}
+                placeholder="Buscar lote..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* TABLE */}
+          <div className={style.tableContainer}>
+            <table className={style.table}>
+              <thead>
+                <tr>
+                  <th>Nº</th>
+                  <th>Lote / Descripción</th>
+                  <th>Precio</th>
+                  <th style={{ textAlign: "center" }}>Estado</th>
+                  <th style={{ textAlign: "right" }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLotes.map((lote, index) => (
+                  <tr key={lote.idlote} className={style.rowHover}>
+                    <td style={{ color: "#94a3b8", fontWeight: "500" }}>
+                      {index + 1}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: "600", color: "#1e293b" }}>
+                        {lote.nombre}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                        {lote.descripcion}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: "600" }}>S/. {lote.precio}</td>
+                    <td style={{ textAlign: "center" }}>
                       <select
+                        className={`${style.badge} ${style["badge-" + lote.vendido]}`}
                         value={lote.vendido}
                         onChange={(e) =>
                           handleEstadoChange(
                             lote.idlote,
-                            parseInt(e.target.value)
+                            parseInt(e.target.value),
                           )
                         }
                         disabled={lote.vendido === 1}
+                        style={{
+                          border: "none",
+                          cursor: "pointer",
+                          appearance: "none",
+                        }}
                       >
-                        {opcionesEstado.map((op) => (
-                          <option key={op.value} value={op.value}>
-                            {op.label}
-                          </option>
-                        ))}
+                        <option value={0}>Disponible</option>
+                        <option value={1}>Vendido</option>
+                        <option value={2}>Reservado</option>
                       </select>
-                    </div>
-                  </td>
-                  <td>
-                    <button
-                      className="btn-edit"
-                      onClick={() => {
-                        setSelectedLote(lote);
-                        setShowModalEdit(true);
-                      }}
-                      disabled={lote.vendido === 1}
-                    >
-                      ✏️ Editar
-                    </button>
-                    <button
-                      className="btn-danger"
-                      onClick={() => handleDelete(lote.idlote)}
-                    >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="7" style={{ textAlign: "center" }}>
-                  No hay lotes registrados
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        {showModalBlock && (
-          <InmobiliariaModal
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        className={`${style.iconBtn} ${style.iconBtnEdit}`}
+                        onClick={() => {
+                          setSelectedLote(lote);
+                          setShowModalEdit(true);
+                        }}
+                        disabled={lote.vendido === 1}
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        className={`${style.iconBtn} ${style.iconBtnDelete}`}
+                        onClick={() => handleDelete(lote.idlote)}
+                      >
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* LEGEND */}
+          <footer className={style.legend}>
+            <div className={style.legendItem}>
+              <span
+                className={style.dot}
+                style={{ background: "#10b981" }}
+              ></span>{" "}
+              Disponible
+            </div>
+            <div className={style.legendItem}>
+              <span
+                className={style.dot}
+                style={{ background: "#f59e0b" }}
+              ></span>{" "}
+              Reservado
+            </div>
+            <div className={style.legendItem}>
+              <span
+                className={style.dot}
+                style={{ background: "#94a3b8" }}
+              ></span>{" "}
+              Vendido
+            </div>
+          </footer>
+
+          {/* MODALS HIJOS */}
+          {showModalBlock && (
+            <InmobiliariaModal
+              onClose={() => {
+                setShowModalBlock(false);
+                fetchData();
+              }}
+              idproyecto={idproyecto}
+            />
+          )}
+          {showModalLote && (
+            <LoteBlockModal
+              onClose={() => {
+                setShowModalLote(false);
+                fetchData();
+              }}
+              idproyecto={idproyecto}
+            />
+          )}
+          {showModalLotePDF && (
+            <LotePDF
+              onClose={() => {
+                setShowModalLotePDF(false);
+                fetchData();
+              }}
+              idproyecto={idproyecto}
+            />
+          )}
+          <EditLote
             onClose={() => {
-              setShowModalBlock(false);
-              refreshLotes(); // 🔥 Refresca después de cerrar
+              setShowModalEdit(false);
+              fetchData();
             }}
             idproyecto={idproyecto}
+            lote={selectedLote}
+            visible={showModalEdit}
           />
-        )}
-        {showModalLote && (
-          <LoteBlockModal
-            onClose={() => {
-              setShowModalLote(false);
-              refreshLotes(); // 🔥 Refresca después de cerrar
-            }}
-            idproyecto={idproyecto}
-          />
-        )}
-        {showModalLotePDF && (
-          <LotePDF
-            onClose={() => {
-              setShowModalLotePDF(false);
-              refreshLotes(); // 🔥 Refresca después de cerrar
-            }}
-            idproyecto={idproyecto}
-          />
-        )}
-        <EditLote
-          onClose={() => {
-            setShowModalEdit(false);
-            refreshLotes(); // 🔥 Refresca después de editar
-          }}
-          idproyecto={idproyecto}
-          lote={selectedLote}
-          visible={showModalEdit}
-        />
+        </div>
       </div>
     </div>
   );

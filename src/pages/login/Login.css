@@ -1,15 +1,299 @@
-.divider:after,
-.divider:before {
+/* Scope principal para evitar colisiones */
+.inmo-login-scope {
+  --inmo-primary: #137fec;
+  --inmo-bg-dark: #101922;
+  --inmo-charcoal: #192633;
+  --inmo-border: #324d67;
+  --inmo-text-muted: #92adc9;
+
+  font-family: "Manrope", sans-serif;
+  background-color: var(--inmo-bg-dark);
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  color: white;
+  position: fixed; /* Evita scrolls inesperados si hay Bootstrap activo */
+  top: 0;
+  left: 0;
+}
+
+.inmo-login-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+}
+
+/* --- Hero Section (Left) --- */
+.inmo-login-hero-section {
+  display: none;
+  position: relative;
+  width: 50%;
+  height: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .inmo-login-hero-section {
+    display: flex;
+  }
+}
+
+.inmo-login-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent, rgba(16, 25, 34, 0.4));
+  z-index: 1;
+}
+
+.inmo-login-hero-img {
+  width: 100%;
+  height: 100%;
+  background-image: url("https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1200&q=80");
+  background-size: cover;
+  background-position: center;
+}
+
+.inmo-login-hero-content {
+  position: absolute;
+  bottom: 4rem;
+  left: 4rem;
+  z-index: 2;
+  max-width: 30rem;
+}
+
+.inmo-login-brand-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.inmo-login-logo-icon {
+  color: var(--inmo-primary);
+  font-size: 2.8rem !important; /* !important para evitar overrides de bootstrap icon sizes */
+}
+
+.inmo-login-brand-name {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.inmo-login-hero-text {
+  font-size: 2.5rem;
+  font-weight: 200;
+  line-height: 1.1;
+}
+
+.inmo-login-italic {
+  font-style: italic;
+  font-weight: 700;
+}
+
+/* --- Form Section (Right) --- */
+.inmo-login-form-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background-color: var(--inmo-bg-dark);
+}
+
+.inmo-login-form-card {
+  width: 100%;
+  max-width: 440px;
+}
+
+.inmo-login-mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2.5rem;
+}
+
+@media (min-width: 1024px) {
+  .inmo-login-mobile-header {
+    display: none;
+  }
+}
+
+.inmo-login-logo-icon-sm {
+  color: var(--inmo-primary);
+  font-size: 2rem !important;
+}
+.inmo-login-brand-name-sm {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.inmo-login-title {
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: #ffffff;
+}
+
+.inmo-login-subtitle {
+  color: var(--inmo-text-muted);
+  font-size: 1.1rem;
+  margin-bottom: 2.5rem;
+}
+
+.inmo-login-form-element {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.inmo-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.inmo-login-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #ffffff;
+}
+
+.inmo-login-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inmo-login-link-sm {
+  font-size: 0.85rem;
+  color: var(--inmo-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.inmo-login-input {
+  width: 100%;
+  height: 3.5rem;
+  background-color: var(--inmo-charcoal) !important;
+  border: 1px solid var(--inmo-border) !important;
+  border-radius: 0.6rem !important;
+  padding: 0 1.2rem;
+  color: white !important;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.inmo-login-input:focus {
+  outline: none !important;
+  border-color: var(--inmo-primary) !important;
+  box-shadow: 0 0 0 3px rgba(19, 127, 236, 0.2) !important;
+}
+
+.inmo-login-input-wrapper {
+  position: relative;
+}
+
+.inmo-login-password-toggle {
+  position: absolute;
+  right: 1.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--inmo-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.inmo-login-btn-submit {
+  margin-top: 1rem;
+  height: 3.8rem;
+  background-color: var(--inmo-primary);
+  color: white;
+  border: none;
+  border-radius: 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 8px 20px rgba(19, 127, 236, 0.2);
+}
+
+.inmo-login-btn-submit:hover {
+  filter: brightness(1.1);
+}
+
+.inmo-login-btn-submit:active {
+  transform: scale(0.98);
+}
+
+.inmo-login-divider {
+  display: flex;
+  align-items: center;
+  margin: 2rem 0;
+}
+
+.inmo-login-divider::before,
+.inmo-login-divider::after {
   content: "";
   flex: 1;
-  height: 1px;
-  background: #eee;
+  border-top: 1px solid var(--inmo-border);
 }
-.h-custom {
-  height: calc(100% - 73px);
+
+.inmo-login-divider span {
+  padding: 0 1rem;
+  color: var(--inmo-text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
 }
-@media (max-width: 450px) {
-  .h-custom {
-    height: 100%;
-  }
+
+.inmo-login-social-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.inmo-login-social-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  height: 3.5rem;
+  background-color: var(--inmo-charcoal);
+  border: 1px solid var(--inmo-border);
+  border-radius: 0.6rem;
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.inmo-login-social-btn:hover {
+  background-color: #233547;
+}
+
+.inmo-login-svg-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.inmo-login-footer {
+  margin-top: 3rem;
+  text-align: center;
+  color: var(--inmo-text-muted);
+  font-size: 0.9rem;
+}
+
+.inmo-login-link-bold {
+  color: var(--inmo-primary);
+  font-weight: 700;
+  text-decoration: none;
+  margin-left: 0.3rem;
+}
+
+.inmo-login-link-bold:hover {
+  text-decoration: underline;
 }

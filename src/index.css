@@ -1,0 +1,14 @@
+:root {
+  --main-bg: #ffffff; /* gris claro */
+  --main-text-color: #ffffff; /* texto oscuro */
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Inter", sans-serif;
+  background: var(--main-bg);
+  color: var(--main-text-color);
+}

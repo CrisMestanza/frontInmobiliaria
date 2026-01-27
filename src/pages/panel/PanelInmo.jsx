@@ -1,99 +1,213 @@
-import React, { useEffect, useState } from "react";
+import React, { Profiler, useEffect, useState } from "react";
 import "./PanelInmo.css";
 import {
   PlusCircle,
   Home,
   Layers,
   LogOut,
-  MousePointerClick,
+  Copy,
+  Link,
+  ExternalLink,
+  Eye,
+  Edit,
+  MapPin,
+  Trash2,
+  Search,
+  Smile,
+  Globe,
+  ExternalLinkIcon,
+  Link2,
+  Link2Icon,
+  Share,
+  Share2Icon,
+  PersonStanding,
+  User,
+  Check,
+  CheckCheck,
+  CheckCheckIcon,
+  CheckCircle,
+  CheckCircle2,
+  CheckCircle2Icon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  Timer,
+  TimerIcon,
+  TimerReset,
+  ClockFading,
+  TagIcon,
+  FoldersIcon,
+  ChartSplineIcon,
   MessageCircle,
+  MessageCircleHeartIcon,
 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
+
+import Loader from "../../components/Loading";
 import ProyectoModal from "../inmobiliaria/proyecto/agregarProyecto";
 import LotesModal from "../inmobiliaria/lote/LotesModal";
 import EditProyectoModal from "../inmobiliaria/proyecto/editProyecto";
 import IconoModal from "../inmobiliaria/proyecto/icono/IconoModal";
+
+const CardProyecto = ({ proyecto, onViewLotes, onEdit, onDelete }) => {
+  const [imagenes, setImagenes] = useState([]);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    fetch(
+      `https://apiinmo.y0urs.com/api/list_imagen_proyecto/${proyecto.idproyecto}`,
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        setImagenes(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => console.error("Error cargando imágenes:", err));
+  }, [proyecto.idproyecto]);
+  useEffect(() => {
+    if (imagenes.length <= 1) return;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % imagenes.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [imagenes]);
+  const getImageUrl = () => {
+    if (imagenes.length === 0) return null;
+    const path = imagenes[index].imagenproyecto;
+    if (!path) return null;
+    return path.startsWith("http") ? path : `https://apiinmo.y0urs.com${path}`;
+  };
+
+  const currentImg = getImageUrl();
+
+  const estadosMap = { 0: "Vendido", 1: "Disponible", 2: "Agotado" };
+
+  return (
+    <div className="proyecto-card">
+      <div className="card-image-container">
+        <div className="estado-badge">
+          {estadosMap[proyecto.estado] || "ACTIVO"}
+        </div>
+        {currentImg ? (
+          <img
+            src={currentImg}
+            alt={proyecto.nombreproyecto}
+            className="img-carousel"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div className="no-image-placeholder">
+            <Globe size={48} opacity={0.2} />
+            <span style={{ fontSize: "10px" }}>Cargando imagen...</span>
+          </div>
+        )}
+      </div>
+      <div className="card-info-content">
+        <h3
+          className="card-title"
+          style={{ margin: "10px 0", fontSize: "1.1rem" }}
+        >
+          {proyecto.nombreproyecto}
+        </h3>
+        <div
+          className="card-location"
+          style={{
+            marginBottom: "15px",
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            fontSize: "0.85rem",
+            color: "#666",
+          }}
+        >
+          <MapPin size={14} /> {proyecto.latitud}, {proyecto.longitud}
+        </div>
+        <div
+          className="card-footer"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingTop: "10px",
+            borderTop: "1px solid #eee",
+          }}
+        >
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              onClick={() => onViewLotes(proyecto.idproyecto)}
+              className="btn-icon-small"
+              title="Ver Lotes"
+              style={{ padding: "6px", borderRadius: "4px" }}
+            >
+              <Eye size={16} />
+            </button>
+            <button
+              onClick={() => onEdit(proyecto.idproyecto)}
+              className="btn-icon-small"
+              title="Editar"
+              style={{ padding: "6px", borderRadius: "4px" }}
+            >
+              <Edit size={16} />
+            </button>
+          </div>
+          <button
+            onClick={() => onDelete && onDelete(proyecto.idproyecto)}
+            className="btn-icon-small"
+            title="Eliminar"
+            style={{ padding: "6px", borderRadius: "4px" }}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PanelInmo = () => {
   const [resumen, setResumen] = useState(null);
   const [clicks, setClicks] = useState(null);
   const [proyectos, setProyectos] = useState([]);
   const [lotes, setLotes] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showRedes, setShowRedes] = useState(false);
   const token = localStorage.getItem("access");
   const nombre = localStorage.getItem("nombre");
   const nombreInmo = localStorage.getItem("nombreinmobiliaria");
   const idInmo = localStorage.getItem("idinmobiliaria");
+
   const [showModal, setShowModal] = useState(false);
   const [showLotes, setShowLotes] = useState(false);
   const [showModalEditProyecto, setShowModalEditProyecto] = useState(false);
   const [showIconoModal, setShowIconoModal] = useState(false);
+
   const mapUrl = `${window.location.origin}/mapa/${idInmo}`;
-  const handleDelete = async (idproyecto) => {
-    if (!window.confirm("¿Seguro que deseas eliminar este Proyecto?")) return;
-    const token = localStorage.getItem("access");
-    try {
-      const res = await fetch(
-        `https://apiinmo.y0urs.com/api/deleteProyecto/${idproyecto}/`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (res.ok) {
-        // ✅ Refrescar datos después de eliminar
-        await fetchData();
-      } else {
-        alert("Error al eliminar ❌");
-      }
-    } catch (err) {
-      console.error("Error:", err);
-    }
-  };
 
   const fetchData = async () => {
     if (!token || !idInmo) {
       window.location.href = "/";
       return;
     }
-
     try {
       setLoading(true);
       const resProy = await fetch(
         `https://apiinmo.y0urs.com/api/getProyectoInmo/${idInmo}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
-
-      if (!resProy.ok) {
-        if (resProy.status === 401) {
-          console.log("❌ 401 Unauthorized - Limpiando localStorage");
-          localStorage.clear();
-          window.location.href = "/";
-          return;
-        }
-        throw new Error(`HTTP error! status: ${resProy.status}`);
-      }
-
-      const dataProy = await resProy.json();
-
-      const proyectosData = Array.isArray(dataProy) ? dataProy : [];
-      setProyectos(proyectosData);
+      const proyectosData = await resProy.json();
+      const cleanProyectos = Array.isArray(proyectosData) ? proyectosData : [];
+      setProyectos(cleanProyectos);
 
       let lotesAcumulados = [];
-
-      for (let proy of proyectosData) {
+      for (let proy of cleanProyectos) {
         const resLotes = await fetch(
           `https://apiinmo.y0urs.com/api/getLoteProyecto/${proy.idproyecto}`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
-
         if (resLotes.ok) {
           const dataLotes = await resLotes.json();
           lotesAcumulados = [
@@ -104,36 +218,27 @@ const PanelInmo = () => {
       }
       setLotes(lotesAcumulados);
 
-      const resumenCalculado = {
-        proyectosActivos: proyectosData.filter((p) => p.estado === 1).length,
-        lotesDisponibles: lotesAcumulados.filter((l) => l.vendido === 0).length,
-        lotesReservados: lotesAcumulados.filter((l) => l.vendido === 2).length,
-        lotesVendidos: lotesAcumulados.filter((l) => l.vendido === 1).length,
-      };
-      setResumen(resumenCalculado);
+      setResumen({
+        proyectosActivos: cleanProyectos.length,
+        lotesDisponibles: lotesAcumulados.filter(
+          (l) => String(l.estado) === "1",
+        ).length,
+        lotesReservados: lotesAcumulados.filter(
+          (l) => String(l.vendido) === "2",
+        ).length,
+        lotesVendidos: lotesAcumulados.filter((l) => String(l.vendido) === "1")
+          .length,
+      });
 
-      // 🆕 Obtener datos de clics (opcional, no bloquea el resto)
-      try {
-        const resClicks = await fetch(
-          `https://apiinmo.y0urs.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (resClicks.ok) {
-          const dataClicks = await resClicks.json();
-          setClicks(dataClicks);
-        }
-      } catch (err) {
-        console.warn("Error:", err);
-        // No hacemos nada, los clicks son opcionales
-      }
+      const resClicks = await fetch(
+        `https://apiinmo.y0urs.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (resClicks.ok) setClicks(await resClicks.json());
     } catch (err) {
-      console.error("Error cargando datos:", err);
-      // Solo limpiamos si realmente no hay datos
-      if (proyectos.length === 0) setProyectos([]);
-      if (lotes.length === 0) setLotes([]);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -141,7 +246,6 @@ const PanelInmo = () => {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogout = () => {
@@ -149,9 +253,7 @@ const PanelInmo = () => {
     window.location.href = "/";
   };
 
-  if (loading) {
-    return <p className="loading-text">Cargando dashboard...</p>;
-  }
+  if (loading) return <Loader />;
 
   const redes = [
     { nombre: "Whatsapp", icono: <FaWhatsapp color="green" /> },
@@ -160,302 +262,347 @@ const PanelInmo = () => {
   ];
 
   return (
-    <div className="panel-container">
-      <div className="panel-header">
-        <h1 className="panel-title">
-          <Home size={30} className="home-icon" /> Dashboard de {nombreInmo}
-        </h1>
-        <div className="user-controls">
-          <span className="welcome-message">Bienvenido, {nombre}</span>
-          <button className="btn btn-logout" onClick={handleLogout}>
-            <LogOut size={18} /> Cerrar sesión
+    <div className="panel-inmo-container">
+      {/* HEADER */}
+      <header className="dashboard-header">
+        <div className="header-brand">
+          <div className="brand-icon">
+            <Home size={24} />
+          </div>
+          <div>
+            <h1 style={{ fontSize: "1.25rem", fontWeight: "bold", margin: 0 }}>
+              {nombreInmo}
+            </h1>
+            <p
+              style={{
+                fontSize: "0.75rem",
+                color: "var(--text-muted)",
+                margin: 0,
+              }}
+            >
+              Gestión Inmobiliaria
+            </p>
+          </div>
+        </div>
+        <div className="header-user">
+          <div className="user-info">
+            <div
+              style={{
+                background: "#f1f5f9",
+                padding: "5px",
+                borderRadius: "50%",
+              }}
+            >
+              <User size={20} />
+            </div>
+            <span style={{ fontSize: "0.875rem", fontWeight: "400" }}>
+              Bienvenid@,
+            </span>
+            <span style={{ fontSize: "0.875rem", fontWeight: "600" }}>
+              {nombre}
+            </span>
+          </div>
+          <button onClick={handleLogout} className="btn-logout">
+            <LogOut size={18} /> Salir
           </button>
         </div>
-      </div>
-      <div className="link-compartir-section">
-        <h3>🔗 Enlace Público del Mapa Filtrado</h3>
-        <p>
-          Comparte este enlace con tus clientes para que solo vean los proyectos
-          de tu Inmobiliaria {nombreInmo}
-        </p>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <input
-            type="text"
-            value={mapUrl}
-            readOnly
-            style={{
-              flexGrow: 1,
-              padding: "8px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-            }}
-          />
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              navigator.clipboard.writeText(mapUrl);
-              alert("Enlace copiado al portapapeles.");
-            }}
-          >
-            Copiar
-          </button>
-          <a
-            href={mapUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-primary"
-          >
-            Ver Mapa
-          </a>
-        </div>
-      </div>
+      </header>
 
-      {/* Resumen */}
-      {resumen && (
-        <div className="resumen-grid">
-          <div className="resumen-card active-projects">
-            <Home className="icon" />
-            <h3>Proyectos</h3>
-            <p>{proyectos.length}</p>
+      <main className="dashboard-content">
+        {/* ENLACE COMPARTIR */}
+        <section className="link-share-card">
+          <div className="link-icon-box">
+            <Link size={32} />
           </div>
-          <div className="resumen-card available-lots">
-            <Layers className="icon" />
-            <h3>Lotes Disponibles</h3>
-            <p>{resumen.lotesDisponibles}</p>
-          </div>
-          <div className="resumen-card reserved-lots">
-            <Layers className="icon" />
-            <h3>Lotes Reservados</h3>
-            <p>{resumen.lotesReservados}</p>
-          </div>
-          <div className="resumen-card sold-lots">
-            <Layers className="icon" />
-            <h3>Lotes Vendidos</h3>
-            <p>{resumen.lotesVendidos}</p>
-          </div>
-          <div className="resumen-card clicks-proyectos">
-            <MousePointerClick className="icon" />
-            <h3>Clicks en Proyectos</h3>
-            <p>{clicks?.total_clicks_proyectos || 0}</p>
-          </div>
-
-          <div className="resumen-card clicks-contactos">
-            <MessageCircle className="icon" />
-            <h3>Clicks en Contactos</h3>
-            <p>{clicks?.total_clicks_contactos || 0}</p>
-
-            {/* 🔸 Subdetalle con íconos de red social */}
-            <div style={{ fontSize: "0.9rem", marginTop: "6px" }}>
-              {redes.map((rs) => {
-                const red = clicks?.detalle_contactos?.find(
-                  (r) => r.redSocial === rs.nombre
-                );
-                return (
-                  <div
-                    key={rs.nombre}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      marginTop: "3px",
-                    }}
-                  >
-                    {rs.icono}
-                    <span>
-                      <strong>{rs.nombre}:</strong> {red ? red.total : 0}
-                    </span>
-                  </div>
-                );
-              })}
+          <div className="input-group">
+            <label className="link-label">
+              Copia o comparte este enlace con tus clientes para acceder
+              exclusivamente a tus proyectos
+            </label>
+            <div className="link-input-wrapper">
+              <input className="input-styled" readOnly value={mapUrl} />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(mapUrl);
+                  alert("Copiado");
+                }}
+                className="btn-copy"
+              >
+                <Copy size={18} /> Copiar
+              </button>
+              <button
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator
+                      .share({
+                        title: "GeoHabita",
+                        text: "Accede a mis proyectos en GeoHabita",
+                        url: mapUrl,
+                      })
+                      .then(() => alert("Enlace compartido"))
+                      .catch((error) =>
+                        console.log("Error al compartir:", error),
+                      );
+                  } else {
+                    navigator.clipboard.writeText(mapUrl);
+                    alert(
+                      "El navegador no soporta compartir. Enlace copiado al portapapeles.",
+                    );
+                  }
+                }}
+                className="btn-share"
+              >
+                <Share2Icon size={18} /> Compartir
+              </button>
+              <button
+                onClick={() => {
+                  window.open(mapUrl, "_blank");
+                }}
+                className="btn-map"
+              >
+                <MapPin size={18} /> Ver en Mapa
+              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Proyectos */}
-      <div className="proyectos-section">
-        <div className="section-header">
-          <h2 className="section-title">📂 Proyectos</h2>
-          <button onClick={() => setShowModal(true)} className="btn-add">
-            <PlusCircle size={22} />
-          </button>
-        </div>
-
-        <div className="proyectos-grid">
-          {proyectos.map((p) => (
-            <div key={p.idproyecto} className="proyecto-card">
-              {/* Encabezado */}
-              <div className="card-header">
-                <h3 className="card-title">{p.nombreproyecto}</h3>
-                <span
-                  className={`estado-badge ${(p.estado || "")
-                    .toString()
-                    .toLowerCase()}`}
-                >
-                  {p.estado}
-                </span>
-              </div>
-
-              {/* Cuerpo */}
-              <div className="card-body">
-                <p className="card-description">
-                  {p.descripcion || "Sin descripción disponible"}
-                </p>
-                <p className="card-location">
-                  📍 <strong>Ubicación:</strong> {p.latitud}, {p.longitud}
-                </p>
-              </div>
-
-              {/* Footer con acciones */}
-              <div className="card-footer">
-                <button
-                  className="btn-secondary"
-                  onClick={() => setShowLotes(p.idproyecto)}
-                >
-                  Ver Lotes
-                </button>
-                <button
-                  className="btn-edit"
-                  onClick={() => setShowModalEditProyecto(p.idproyecto)}
-                >
-                  Editar
-                </button>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setShowIconoModal(p.idproyecto)}
-                >
-                  Íconos
-                </button>
-                <button
-                  className="btn-terciary"
-                  onClick={() => handleDelete(p.idproyecto)}
-                >
-                  Eliminar
-                </button>
-              </div>
+        </section>
+        <div className="stats-grid">
+          <div className="stat-box">
+            <div className="stat-label">Proyectos</div>
+            <div className="stat-value">
+              {proyectos.length} <FoldersIcon size={24} color="#cbd5e1" />
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+          <div className="stat-box accent-green">
+            <div className="stat-label">Lotes Disponibles</div>
+            <div
+              className="stat-value"
+              style={{ color: "var(--accent-green)" }}
+            >
+              {resumen?.lotesDisponibles} <CheckCircleIcon size={24} />
+            </div>
+          </div>
+          <div className="stat-box accent-yellow">
+            <div className="stat-label">Lotes Reservados</div>
+            <div
+              className="stat-value"
+              style={{ color: "var(--accent-yellow)" }}
+            >
+              {resumen?.lotesReservados} <ClockFading size={24} />
+            </div>
+          </div>
+          <div className="stat-box accent-red">
+            <div className="stat-label">Lotes Vendidos</div>
+            <div className="stat-value" style={{ color: "var(--accent-red)" }}>
+              {resumen?.lotesVendidos} <TagIcon size={24} />
+            </div>
+          </div>
+          <div className="stat-box accent-blue">
+            <div className="stat-label">Interés en Proyectos</div>
+            <div className="stat-value" style={{ color: "var(--accent-blue)" }}>
+              {clicks?.total_clicks_proyectos || 0}
+              <ChartSplineIcon size={24} />
+            </div>
+          </div>
+          <div
+            className="stat-box accent-black"
+            style={{ position: "relative" }}
+          >
+            <div className="stat-label">Contactos</div>
+            <div
+              className="stat-value"
+              style={{ color: "var(--accent-black)" }}
+            >
+              {clicks?.total_clicks_contactos || 0}
+              <MessageCircleHeartIcon size={24} />
+            </div>
+            <button
+              onClick={() => setShowRedes(!showRedes)}
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "15px",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              {showRedes ? (
+                <ChevronUpIcon size={18} />
+              ) : (
+                <ChevronDownIcon size={18} />
+              )}
+            </button>
 
-      {/* Lotes */}
-      <div className="section">
-        <div className="section-header">
-          <h2 className="section-title">📋 Lotes ({lotes.length})</h2>
-        </div>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Descripción</th>
-                <th>Precio</th>
-                <th>Estado</th>
-                <th>Proyecto</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lotes.map((lote, i) => (
-                <tr key={lote.idlote} className={i % 2 === 0 ? "even" : "odd"}>
-                  <td>{lote.nombre}</td>
-                  <td>{lote.descripcion}</td>
-                  <td className="price-cell">S/. {lote.precio?.toFixed(2)}</td>
-                  <td>
-                    <span
-                      className={`estado ${
-                        String(lote.estado) === "1" ? "disponible" : "vendido"
-                      }`}
-                    >
-                      {String(lote.estado) === "1"
-                        ? "Disponible"
-                        : "No disponible"}
-                    </span>
-                  </td>
-                  <td>
-                    {proyectos.find((p) => p.idproyecto === lote.idproyecto)
-                      ?.nombreproyecto || "N/A"}
-                  </td>
-                  <td>
-                    <button className="btn-secondary">👁️ Ver</button>
-                    <button className="btn-edit">✏️ Editar</button>
-                    <button
-                      className="btn-danger"
-                      onClick={async () => {
-                        if (
-                          window.confirm(
-                            `¿Seguro que quieres eliminar el lote "${lote.nombre}"?`
-                          )
-                        ) {
-                          try {
-                            const res = await fetch(
-                              `https://apiinmo.y0urs.com/api/deleteLote/${lote.idlote}/`,
-                              {
-                                method: "PUT",
-                                headers: {
-                                  Authorization: `Bearer ${token}`,
-                                },
-                              }
-                            );
-                            if (res.ok) {
-                              // ✅ Refrescar datos después de eliminar
-                              await fetchData();
-                            }
-                          } catch (err) {
-                            console.error("Error eliminando lote:", err);
-                          }
-                        }
+            {showRedes && (
+              <div style={{ fontSize: "0.9rem", marginTop: "6px" }}>
+                {redes.map((rs) => {
+                  const red = clicks?.detalle_contactos?.find(
+                    (r) => r.redSocial === rs.nombre,
+                  );
+                  return (
+                    <div
+                      key={rs.nombre}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        marginTop: "3px",
                       }}
                     >
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {showModal && (
-            <ProyectoModal
-              onClose={() => {
-                setShowModal(false);
-                fetchData(); // ✅ Refrescar al cerrar modal
-              }}
-              idinmobiliaria={idInmo}
-            />
-          )}
-          {showLotes && (
-            <LotesModal
-              idproyecto={showLotes}
-              proyectoNombre={
-                proyectos.find((p) => p.idproyecto === showLotes)
-                  ?.nombreproyecto
-              }
-              onClose={() => {
-                setShowLotes(false);
-                fetchData(); // ✅ Refrescar al cerrar modal
-              }}
-            />
-          )}
-          {showModalEditProyecto && (
-            <EditProyectoModal
-              onClose={() => {
-                setShowModalEditProyecto(null);
-                fetchData(); // ✅ Refrescar al cerrar modal
-              }}
-              idinmobiliaria={idInmo}
-              proyecto={proyectos.find(
-                (p) => p.idproyecto === showModalEditProyecto
-              )}
-            />
-          )}
-          {showIconoModal && (
-            <IconoModal
-              onClose={() => setShowIconoModal(false)}
-              idproyecto={showIconoModal}
-            />
-          )}
+                      {rs.icono}
+                      <span>
+                        <strong>{rs.nombre}:</strong> {red ? red.total : 0}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* GALERÍA */}
+        <section>
+          <div className="section-header">
+            <h2 style={{ fontWeight: "800", fontSize: "1.25rem" }}>
+              Mis Proyectos
+            </h2>
+            <button onClick={() => setShowModal(true)} className="btn-copy">
+              <PlusCircle size={18} /> Nuevo Proyecto
+            </button>
+          </div>
+          <div className="projects-grid">
+            {proyectos.map((p) => (
+              <CardProyecto
+                key={p.idproyecto}
+                proyecto={p}
+                onViewLotes={setShowLotes}
+                onEdit={setShowModalEditProyecto}
+                // onDelete={handleDeleteProyecto}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* TABLA */}
+        <section className="table-section">
+          <div
+            style={{
+              padding: "1.5rem",
+              borderBottom: "1px solid var(--border-color)",
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            <h2 style={{ fontWeight: "bold", margin: 0 }}>Listado de Lotes</h2>
+            <div style={{ position: "relative" }}>
+              <input
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar..."
+                className="input-styled"
+                style={{ paddingLeft: "2.5rem", width: "250px" }}
+              />
+              <Search
+                size={18}
+                style={{
+                  position: "absolute",
+                  left: "10px",
+                  top: "10px",
+                  color: "#94a3b8",
+                }}
+              />
+            </div>
+          </div>
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lote</th>
+                  <th>Descripción</th>
+                  <th>Precio</th>
+                  <th>Estado</th>
+                  <th style={{ textAlign: "right" }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lotes
+                  .filter((l) =>
+                    l.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
+                  )
+                  .map((lote) => (
+                    <tr key={lote.idlote}>
+                      <td style={{ fontWeight: "bold" }}>{lote.nombre}</td>
+                      <td>{lote.descripcion}</td>
+                      <td
+                        style={{
+                          fontWeight: "bold",
+                          color: "var(--accent-green)",
+                        }}
+                      >
+                        S/. {lote.precio?.toLocaleString()}
+                      </td>
+                      <td>
+                        <span
+                          className={`status-pill ${String(lote.estado) === "1" ? "status-available" : "status-sold"}`}
+                        >
+                          {String(lote.estado) === "1"
+                            ? "Disponible"
+                            : "Vendido"}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <button className="btn-icon-small">
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      {/* MODALES ORIGINALES */}
+      {showModal && (
+        <ProyectoModal
+          onClose={() => {
+            setShowModal(false);
+            fetchData();
+          }}
+          idinmobiliaria={idInmo}
+        />
+      )}
+      {showLotes && (
+        <LotesModal
+          idproyecto={showLotes}
+          proyectoNombre={
+            proyectos.find((p) => p.idproyecto === showLotes)?.nombreproyecto
+          }
+          onClose={() => {
+            setShowLotes(false);
+            fetchData();
+          }}
+        />
+      )}
+      {showModalEditProyecto && (
+        <EditProyectoModal
+          onClose={() => {
+            setShowModalEditProyecto(null);
+            fetchData();
+          }}
+          idinmobiliaria={idInmo}
+          proyecto={proyectos.find(
+            (p) => p.idproyecto === showModalEditProyecto,
+          )}
+        />
+      )}
+      {showIconoModal && (
+        <IconoModal
+          onClose={() => setShowIconoModal(false)}
+          idproyecto={showIconoModal}
+        />
+      )}
     </div>
   );
 };

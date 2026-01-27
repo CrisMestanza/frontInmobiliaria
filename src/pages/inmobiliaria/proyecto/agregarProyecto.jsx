@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { GoogleMap, DrawingManager, Polygon } from "@react-google-maps/api";
+import { GoogleMap, Polygon, Marker } from "@react-google-maps/api";
 import loader from "../../../components/loader";
-import style from "../agregarInmo.module.css";
+import styles from "./addproyect.module.css";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 
@@ -9,6 +9,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const token = localStorage.getItem("access");
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [tipo, setTipo] = useState([]);
   const [form, setForm] = useState({
     idinmobiliaria,
@@ -23,134 +24,118 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   });
 
   const mapRef = useRef(null);
-  const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const autocompleteRef = useRef(null);
 
-  // 🗺️ Cargar Google Maps con loader
+  // Cargar Google Maps
   useEffect(() => {
     loader
       .load()
       .then(() => setIsLoaded(true))
-      .catch((err) => {
-        console.error("Error al cargar Google Maps:", err);
-        setLoadError(true);
-      });
+      .catch(() => setLoadError(true));
   }, []);
 
-  // 🔒 Bloquear scroll
+  // Cargar Tipos
   useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => (document.body.style.overflow = "auto");
-  }, []);
+    fetch("https://apiinmo.y0urs.com/api/listTipoInmobiliaria/", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setTipo(data))
+      .catch((err) => console.error("Error tipos:", err));
+  }, [token]);
 
-  // 🔍 Configurar Autocomplete
-  const onMapLoad = (map) => {
-    mapRef.current = map;
+  // Configurar Autocomplete con supresión de warning
+  useEffect(() => {
+    if (!isLoaded || !window.google) return;
 
-    setTimeout(() => {
-      if (!inputRef.current || autocompleteRef.current) return;
-
+    const initAutocomplete = async () => {
       try {
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          inputRef.current,
-          {
-            fields: ["geometry", "name", "formatted_address"],
-            componentRestrictions: { country: "pe" },
-          }
-        );
+        // Importar places library (esto suprime el warning)
+        await window.google.maps.importLibrary("places");
 
-        autocomplete.bindTo("bounds", map);
+        const input = document.getElementById("autocomplete-input");
+        if (!input) {
+          console.error("❌ Input no encontrado");
+          return;
+        }
 
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          if (!place.geometry || !place.geometry.location) return;
-
-          const location = place.geometry.location;
-          map.panTo(location);
-          map.setZoom(17);
-
-          setForm((prev) => ({
-            ...prev,
-            latitud: location.lat(),
-            longitud: location.lng(),
-          }));
+        // Crear Autocomplete
+        const autocomplete = new window.google.maps.places.Autocomplete(input, {
+          fields: ["geometry", "name", "formatted_address"],
         });
 
         autocompleteRef.current = autocomplete;
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          console.log("📍 Lugar seleccionado:", place);
+
+          if (place.geometry && place.geometry.location) {
+            const loc = {
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+            };
+
+            console.log("✅ Navegando a:", loc);
+
+            if (mapRef.current) {
+              mapRef.current.panTo(loc);
+              mapRef.current.setZoom(17);
+            }
+
+            setForm((prev) => ({
+              ...prev,
+              latitud: loc.lat,
+              longitud: loc.lng,
+            }));
+          }
+        });
+
+        console.log("✅ Autocomplete inicializado correctamente");
       } catch (error) {
-        console.error("Error al inicializar Autocomplete:", error);
+        console.error("❌ Error al inicializar autocomplete:", error);
       }
-    }, 150);
+    };
+
+    initAutocomplete();
+  }, [isLoaded]);
+
+  // --- Lógica de Dibujo Manual ---
+  const handleMapClick = (e) => {
+    if (!isDrawing) return;
+
+    const newPoint = {
+      latitud: e.latLng.lat(),
+      longitud: e.latLng.lng(),
+      orden: form.puntos.length + 1,
+    };
+
+    setForm((prev) => ({
+      ...prev,
+      puntos: [...prev.puntos, newPoint],
+      latitud: prev.puntos.length === 0 ? newPoint.latitud : prev.latitud,
+      longitud: prev.puntos.length === 0 ? newPoint.longitud : prev.longitud,
+    }));
   };
 
-  useEffect(() => {
-    return () => {
-      if (autocompleteRef.current) {
-        window.google.maps.event.clearInstanceListeners(
-          autocompleteRef.current
-        );
-      }
-    };
-  }, []);
+  const clearPolygon = () => {
+    setForm((prev) => ({ ...prev, puntos: [] }));
+    setIsDrawing(false);
+  };
 
-  // 🔄 Cargar tipos de inmobiliaria
-  useEffect(() => {
-    const fetchTipos = async () => {
-      try {
-        const res = await fetch(
-          "https://apiinmo.y0urs.com/api/listTipoInmobiliaria/",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        const data = await res.json();
-        setTipo(data);
-      } catch (err) {
-        console.error("Error al cargar tipos:", err);
-      }
-    };
-    fetchTipos();
-  }, [token]);
+  const undoLastPoint = () => {
+    setForm((prev) => ({
+      ...prev,
+      puntos: prev.puntos.slice(0, -1),
+    }));
+  };
 
-  // 📌 Manejo de inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
   };
 
-  // 📍 Polígono
-  const handlePolygonComplete = (polygon) => {
-    const path = polygon.getPath();
-    const puntos = path.getArray().map((point, i) => ({
-      latitud: point.lat(),
-      longitud: point.lng(),
-      orden: i + 1,
-    }));
-
-    setForm((prev) => ({
-      ...prev,
-      puntos,
-      latitud: puntos[0]?.latitud || "",
-      longitud: puntos[0]?.longitud || "",
-    }));
-
-    polygon.setEditable(true);
-
-    const updatePath = () => {
-      const updated = path.getArray().map((p, i) => ({
-        latitud: p.lat(),
-        longitud: p.lng(),
-        orden: i + 1,
-      }));
-      setForm((prev) => ({ ...prev, puntos: updated }));
-    };
-
-    window.google.maps.event.addListener(path, "insert_at", updatePath);
-    window.google.maps.event.addListener(path, "remove_at", updatePath);
-    window.google.maps.event.addListener(path, "set_at", updatePath);
-  };
-
-  // 🖼️ Imágenes
   const handleImagenesChange = (e) => {
     const files = Array.from(e.target.files).map((file) => ({
       file,
@@ -166,173 +151,210 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     setForm({ ...form, imagenes: imgs });
   };
 
-  // 📤 Enviar formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.puntos.length < 3) {
+      alert(
+        "Por favor, delimite el área del proyecto con al menos 3 puntos en el mapa.",
+      );
+      return;
+    }
+
+    const formData = new FormData();
+    Object.keys(form).forEach((key) => {
+      if (key === "puntos") formData.append(key, JSON.stringify(form[key]));
+      else if (key === "imagenes")
+        form.imagenes.forEach((img) => formData.append("imagenes", img.file));
+      else formData.append(key, form[key]);
+    });
 
     try {
-      const formData = new FormData();
-      formData.append("idinmobiliaria", idinmobiliaria);
-      formData.append("idtipoinmobiliaria", form.idtipoinmobiliaria);
-      formData.append("nombreproyecto", form.nombreproyecto);
-      formData.append("descripcion", form.descripcion);
-      formData.append("latitud", form.latitud);
-      formData.append("longitud", form.longitud);
-      formData.append("puntos", JSON.stringify(form.puntos));
-
-      if (form.idtipoinmobiliaria === "2" && form.precio) {
-        formData.append("precio", parseFloat(form.precio));
-      }
-
-      form.imagenes.forEach((img) => formData.append("imagenes", img.file));
-
-      const res = await fetch("https://apiinmo.y0urs.com/api/registerProyecto/", {
-        method: "POST",
-        body: formData,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (res.status === 201 || res.status === 200) {
-        alert("✅ Proyecto registrado con éxito");
+      const res = await fetch(
+        "https://apiinmo.y0urs.com/api/registerProyecto/",
+        {
+          method: "POST",
+          body: formData,
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (res.ok) {
+        alert("✅ Éxito");
         onClose();
-      } else {
-        const errorText = await res.text();
-        console.error("Respuesta del servidor:", errorText);
-        alert(`⚠️ Error al registrar proyecto (${res.status})`);
-      }
-
-    } catch (err) {
-      console.error(err);
+      } else alert("⚠️ Error en registro");
+    } catch {
       alert("🚫 Error de red");
     }
   };
 
-  if (loadError) return <h2>Error cargando el mapa</h2>;
-  if (!isLoaded) return <h2>Cargando mapa...</h2>;
+  if (loadError) return <div className={styles.loaderMsg}>Error de mapa</div>;
+  if (!isLoaded) return <div className={styles.loaderMsg}>Cargando...</div>;
 
   return (
-    <div className={style.modalOverlay}>
-      <div className={style.modalContent}>
-        <button className={style.closeBtn} onClick={onClose}>
-          ✖
-        </button>
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalContent}>
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>Registrar Proyecto Inmobiliario</h1>
+            <p className={styles.subtitle}>
+              Completa la información detallada para publicar tu nuevo proyecto.
+            </p>
+          </div>
+          <button className={styles.closeBtn} onClick={onClose}>
+            <span className="material-icons-outlined">close</span>
+          </button>
+        </div>
 
-        <form className={style.formContainer} onSubmit={handleSubmit}>
-          <h2 style={{ color: "black" }}>Registrar Proyecto</h2>
-
-          {/* Select tipo */}
-          <h3 style={{ color: "black" }}>¿Agregarás lotes o casa?</h3>
-          <select
-            className={style.input}
-            name="idtipoinmobiliaria"
-            value={form.idtipoinmobiliaria}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Seleccione un tipo</option>
-            {tipo.map((item) => (
-              <option
-                key={item.idtipoinmobiliaria}
-                value={item.idtipoinmobiliaria}
-              >
-                {item.nombre}
-              </option>
-            ))}
-          </select>
-
-          {form.idtipoinmobiliaria && (
-            <>
-              {form.idtipoinmobiliaria === "2" && (
-                <>
-                  <h3 style={{ color: "black" }}>Precio</h3>
-                  <input
-                    name="precio"
-                    type="number"
-                    step="0.01"
-                    value={form.precio}
+        <form onSubmit={handleSubmit} className={styles.formBody}>
+          <div className={styles.gridContainer}>
+            <div className={styles.leftColumn}>
+              <section>
+                <h2 className={styles.sectionTitle}>
+                  <span className="material-icons-outlined">info</span>{" "}
+                  Información
+                </h2>
+                <div className={styles.inputGroup}>
+                  <label>Tipo de Proyecto</label>
+                  <select
+                    name="idtipoinmobiliaria"
+                    value={form.idtipoinmobiliaria}
                     onChange={handleChange}
-                    className={style.input}
+                    className={styles.select}
+                    required
+                  >
+                    <option value="">Seleccione...</option>
+                    {tipo.map((t) => (
+                      <option
+                        key={t.idtipoinmobiliaria}
+                        value={t.idtipoinmobiliaria}
+                      >
+                        {t.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={styles.inputGroup}>
+                  <label>Nombre</label>
+                  <input
+                    name="nombreproyecto"
+                    value={form.nombreproyecto}
+                    onChange={handleChange}
+                    className={styles.input}
                     required
                   />
-                </>
-              )}
+                </div>
+                <div className={styles.inputGroup}>
+                  <label>Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    value={form.descripcion}
+                    onChange={handleChange}
+                    className={styles.textarea}
+                    rows="4"
+                    required
+                  />
+                </div>
+              </section>
 
-              <h3 style={{ color: "black" }}>Nombre del Proyecto</h3>
-              <input
-                name="nombreproyecto"
-                value={form.nombreproyecto}
-                onChange={handleChange}
-                className={style.input}
-                required
-              />
+              <section>
+                <h2 className={styles.sectionTitle}>
+                  <span className="material-icons-outlined">collections</span>{" "}
+                  Imágenes
+                </h2>
+                <div className={styles.imageUploadContainer}>
+                  {/* Mostrar primera imagen grande si existe */}
+                  {form.imagenes.length > 0 ? (
+                    <div className={styles.mainImageWrapper}>
+                      <div className={styles.mainImagePreview}>
+                        <img src={form.imagenes[0].preview} alt="Principal" />
+                        <button
+                          type="button"
+                          className={styles.removeMainImage}
+                          onClick={() => removeImagen(0)}
+                        >
+                          <span className="material-icons-outlined">close</span>
+                        </button>
+                      </div>
+                      <p className={styles.imageCounter}>
+                        Fotos - {form.imagenes.length}/10
+                      </p>
+                    </div>
+                  ) : null}
 
-              <h3 style={{ color: "black" }}>Descripción</h3>
-              <textarea
-                name="descripcion"
-                value={form.descripcion}
-                onChange={handleChange}
-                className={style.input}
-                required
-              />
+                  {/* Botón de subir y miniaturas */}
+                  <div className={styles.uploadSection}>
+                    <div
+                      className={styles.uploadBox}
+                      onClick={() => fileInputRef.current.click()}
+                    >
+                      <span className="material-icons-outlined">
+                        add_photo_alternate
+                      </span>
+                      <p>Agregar foto</p>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        multiple
+                        accept="image/*"
+                        onChange={handleImagenesChange}
+                        hidden
+                      />
+                    </div>
 
-              <h3 style={{ color: "black" }}>Ubicación y Área</h3>
-              <p style={{ fontSize: "14px", color: "gray" }}>
-                Busca una ubicación o dibuja el polígono del proyecto.
-              </p>
+                    {/* Miniaturas de imágenes adicionales */}
+                    {form.imagenes.length > 1 && (
+                      <div className={styles.thumbnailGrid}>
+                        {form.imagenes.slice(1).map((img, i) => (
+                          <div key={i + 1} className={styles.thumbnailItem}>
+                            <img src={img.preview} alt={`Foto ${i + 2}`} />
+                            <button
+                              type="button"
+                              onClick={() => removeImagen(i + 1)}
+                              className={styles.removeThumbnail}
+                            >
+                              <span className="material-icons-outlined">
+                                close
+                              </span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            </div>
 
-              {/* 🗺️ Mapa con buscador */}
-              <div style={{ height: "400px", marginBottom: "20px" }}>
+            <div className={styles.rightColumn}>
+              <h2 className={styles.sectionTitle}>
+                <span className="material-icons-outlined">map</span> Ubicación y
+                Polígono
+              </h2>
+
+              <div className={styles.mapWrapper}>
+                {/* Input de búsqueda simple y directo */}
+                <div className={styles.searchWrapper}>
+                  <input
+                    id="autocomplete-input"
+                    type="text"
+                    placeholder="Buscar ubicación..."
+                    className={styles.mapSearchInput}
+                  />
+                </div>
+
                 <GoogleMap
-                  mapContainerStyle={{ width: "100%", height: "100%" }}
+                  mapContainerClassName={styles.googleMap}
                   center={defaultCenter}
-                  zoom={13}
-                  onLoad={onMapLoad}
+                  zoom={14}
+                  onLoad={(map) => (mapRef.current = map)}
+                  onClick={handleMapClick}
                   options={{
-                    gestureHandling: "greedy",
-                    mapTypeControl: true,
+                    disableDefaultUI: false,
                     streetViewControl: false,
-                    fullscreenControl: true,
+                    mapTypeControl: false,
+                    gestureHandling: "greedy",
                   }}
                 >
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    placeholder="🔍 Buscar ubicación..."
-                    style={{
-                      position: "absolute",
-                      top: "10px",
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      zIndex: 10,
-                      width: "60%",
-                      maxWidth: "400px",
-                      padding: "10px 15px",
-                      borderRadius: "8px",
-                      border: "2px solid #1976d2",
-                      fontSize: "14px",
-                      backgroundColor: "white",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.3)",
-                    }}
-                  />
-
-                  <DrawingManager
-                    options={{
-                      drawingControl: true,
-                      drawingControlOptions: {
-                        position: window.google.maps.ControlPosition.RIGHT_TOP,
-                        drawingModes: ["polygon"],
-                      },
-                      polygonOptions: {
-                        fillColor: "#2196f3",
-                        fillOpacity: 0.4,
-                        strokeColor: "#1976d2",
-                        strokeWeight: 2,
-                        editable: true,
-                      },
-                    }}
-                    onPolygonComplete={handlePolygonComplete}
-                  />
-
+                  {/* Dibujo del polígono en tiempo real */}
                   {form.puntos.length > 0 && (
                     <Polygon
                       paths={form.puntos.map((p) => ({
@@ -340,45 +362,106 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                         lng: p.longitud,
                       }))}
                       options={{
-                        fillColor: "#2196f3",
-                        fillOpacity: 0.4,
-                        strokeColor: "#1976d2",
-                        strokeWeight: 2,
-                        editable: true,
+                        fillColor: "#1E40AF",
+                        fillOpacity: 0.35,
+                        strokeColor: "#1E40AF",
+                        strokeWeight: 3,
                       }}
                     />
                   )}
-                </GoogleMap>
-              </div>
 
-              <h3 style={{ color: "black" }}>Imágenes Referenciales</h3>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImagenesChange}
-                className={style.input}
-              />
-              <div className={style.previewContainer}>
-                {form.imagenes.map((img, i) => (
-                  <div key={i} className={style.previewItem}>
-                    <img src={img.preview} alt={`preview-${i}`} />
+                  {/* Marcadores de los vértices */}
+                  {form.puntos.map((p, idx) => (
+                    <Marker
+                      key={idx}
+                      position={{ lat: p.latitud, lng: p.longitud }}
+                      label={`${idx + 1}`}
+                    />
+                  ))}
+
+                  {/* Botonera Flotante del Mapa */}
+                  <div className={styles.mapControls}>
+                    {form.puntos.length > 0 ? (
+                      <button
+                        type="button"
+                        className={`${styles.mapBtn} ${isDrawing ? styles.mapBtnActive : ""}`}
+                        onClick={() => setIsDrawing(!isDrawing)}
+                        title={isDrawing ? "Finalizar dibujo" : "Editar área"}
+                        aria-label={
+                          isDrawing ? "Finalizar dibujo" : "Editar área"
+                        }
+                      >
+                        <span className="material-icons-outlined">
+                          {isDrawing ? "check_circle" : "edit_location_alt"}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`${styles.mapBtn} ${isDrawing ? styles.mapBtnActive : ""}`}
+                        onClick={() => setIsDrawing(true)}
+                        title="Dibujar área"
+                        aria-label="Dibujar área"
+                      >
+                        <span className="material-icons-outlined">
+                          edit_location_alt
+                        </span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
-                      className={style.removeBtn}
-                      onClick={() => removeImagen(i)}
+                      className={styles.mapBtn}
+                      onClick={undoLastPoint}
+                      disabled={form.puntos.length === 0}
+                      title="Deshacer último punto"
                     >
-                      ❌
+                      <span className="material-icons-outlined">undo</span>
+                      {/* Deshacer */}
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.mapBtn}
+                      onClick={clearPolygon}
+                      disabled={form.puntos.length === 0}
+                      title="Eliminar todos los puntos"
+                    >
+                      <span className="material-icons-outlined">delete</span>
+                      {/* Limpiar Todo */}
                     </button>
                   </div>
-                ))}
+                </GoogleMap>
               </div>
+              <p className={styles.mapHint}>
+                {isDrawing ? (
+                  `Haz clic en el mapa para añadir vértices (${form.puntos.length} puntos). Usa 'Deshacer' para eliminar el último punto.`
+                ) : (
+                  <>
+                    Presiona el botón{" "}
+                    <span className="material-icons-outlined">
+                      edit_location_alt
+                    </span>{" "}
+                    para trazar el polígono del proyecto
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
 
-              <button type="submit" className={style.submitBtn}>
-                Guardar Proyecto
-              </button>
-            </>
-          )}
+          <div className={styles.footer}>
+            <button
+              type="button"
+              className={styles.cancelBtn}
+              onClick={onClose}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className={styles.submitBtn}>
+              Guardar Proyecto{" "}
+              <span className="material-icons-outlined">arrow_forward</span>
+            </button>
+          </div>
         </form>
       </div>
     </div>
