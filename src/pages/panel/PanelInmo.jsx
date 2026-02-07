@@ -568,7 +568,7 @@ const PanelInmo = () => {
         <ProyectoModal
           onClose={() => {
             setShowModal(false);
-            fetchData();
+            // fetchData();
           }}
           idinmobiliaria={idInmo}
         />
@@ -581,7 +581,7 @@ const PanelInmo = () => {
           }
           onClose={() => {
             setShowLotes(false);
-            fetchData();
+            // fetchData();
           }}
         />
       )}
@@ -589,7 +589,7 @@ const PanelInmo = () => {
         <EditProyectoModal
           onClose={() => {
             setShowModalEditProyecto(null);
-            fetchData();
+            // fetchData();
           }}
           idinmobiliaria={idInmo}
           proyecto={proyectos.find(

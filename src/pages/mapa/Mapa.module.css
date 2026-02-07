@@ -3,76 +3,361 @@
   width: 100vw;
   height: 100vh;
   position: relative;
+  overflow-x: hidden;
 }
 
 /* FRANJA SUPERIOR */
 .cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80px;
+  /* Altura fija para consistencia */
+  padding: 0 40px;
+  position: fixed;
+  /* Para que siempre esté arriba */
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+  box-sizing: border-box;
+  background-color: white;
+  /* Fondo blanco para visibilidad */
+}
+
+.mapWrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.clickHint {
+  position: absolute;
+  bottom: 60%;
+  left: 70%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 9999;
+  animation: pulse 1.6s infinite;
+  pointer-events: none; /* 🔥 CLAVE */
+}
+
+
+@keyframes pulse {
+  0% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.05); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* Reemplaza o añade estos estilos */
+
+.customTrigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: #484848;
+  padding: 2px 0;
+  width: 100%;
+}
+
+.triggerText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 5px;
+}
+
+/* Sombra de fondo (Airbnb Style) */
+.overlay {
   position: fixed;
   top: 0;
   left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.35); /* Oscurece el fondo */
+  z-index: 900; /* Debajo de la cabecera pero sobre el mapa */
+  backdrop-filter: blur(2px); /* Opcional: ligero desenfoque */
+  animation: fadeIn 0.2s ease;
+}
 
-  width: 100%;
-  height: 100px;
-
-  background: linear-gradient(
-    to bottom,
-    #ffffff 0%,
-    #f7f9fc 100%
-  );
-
-  z-index: 20;
-
+/* Contenedor que mantiene los selects (Asegura que esté sobre el overlay) */
+.searchWrapper {
+  position: relative;
+  z-index: 1001; /* Sobre el overlay */
   display: flex;
   align-items: center;
+  width: 100%;
+}
 
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+/* Modificación a tu customOptionsList para que sea idéntico a Airbnb */
+.customOptionsList {
+  position: fixed;
+  top: calc(100% + 15px); /* Separación estética */
+  left: 10%;
+  /* transform: translateX(-50%); */
+  width: auto;
+  /* min-width: 600px; */
+  background: white;
+  border-radius: 28px; /* Bordes muy redondeados */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  padding: 16px 0;
+  border: 1px solid #ebebeb
+}
+
+/* Sección activa resaltada */
+.searchSectionActive {
+  background: white !important;
+  border-radius: 40px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+.customOption {
+  padding: 10px 15px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 40vh;
+  text-align: center;
+  
+}
+
+.customOption:hover {
+  background-color: #f7f7f7;
+}
+
+.selectedOpt {
+  font-weight: bold;
+  color: #106e2e; /* O el color de tu marca */
+}
+
+.arrow {
+  font-size: 10px;
+  transition: transform 0.3s;
+}
+
+.arrowUp {
+  transform: rotate(180deg);
 }
 
 /* BARRA FLOTANTE (PASTILLA) */
 .topBar {
-  position: fixed;
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-
-  width: min(92%, 920px);
-  height: 64px;
-
   display: flex;
   align-items: center;
-  gap: 14px;
+  background: #fff;
+  border-radius: 40px;
+  height: 66px;
+  min-width: 400px;
+  padding: 0 10px 0 24px;
+  border: 2px solid #404341; /* borde verde llamativo */
 
-  background-color: #ffffff;
-  padding: 0 20px;
+  /* Sombra más llamativa con verde suave */
+  box-shadow: 0 7px 1px rgba(82, 84, 83, 0.15), 0 2px 4px rgba(36, 36, 36, 0.1);
 
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+  cursor: pointer;
+
+  /* Para suavizar el texto y hacerlo más moderno */
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  color: #333;
+}
+
+/* Hover: efecto de elevación y sombra verde más intensa */
+.topBar:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(93, 116, 101, 0.25), 0 4px 6px rgba(0, 204, 68, 0.15);
+}
+
+/* Opcional: efecto “activo” al hacer click */
+.topBar:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 15px rgba(0, 204, 68, 0.2), 0 2px 4px rgba(0, 204, 68, 0.1);
+}
+
+
+.searchSection {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 16px;
+  flex: 1;
+}
+
+.searchLabel {
+  font-size: 10px;
+  font-weight: 800;
+  color: #545252;
+  /* Gris de la imagen */
+  margin-bottom: 2px;
+}
+
+.searchInput,
+.searchSelect {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  color: #545454;
+  width: 100%;
+  outline: none;
+  
+}
+
+
+
+.divider {
+  width: 1px;
+  height: 32px;
+  background-color: #ddd;
+}
+
+.customSelect {
+  position: relative;
+  width: 100%;
+}
+
+.selectTrigger {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e5e5;
+  background: white;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.selectTrigger:hover {
+  border-color: #007acc;
+}
+
+.arrow {
+  font-size: 16px;
+  opacity: 0.6;
+}
+
+.selectDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.selectOption {
+  padding: 12px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.selectOption:hover {
+  background: #f0f7ff;
+  color: #007acc;
+}
+
+.searchButton {
+  background-color: #004d40;
+  /* Verde oscuro del logo GeoHabita */
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Acciones derecha */
+.rightActions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.anunciaPropiedad {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 14px;
   border-radius: 999px;
+  background: linear-gradient(135deg, #0ea66b, #14c38e);
+  color: #ffffff;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s ease;
+  box-shadow: 0 6px 16px rgba(20, 195, 142, 0.35);
+}
 
-  box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.15),
-    0 1px 0 rgba(255, 255, 255, 0.6) inset;
+.anunciaPropiedad:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(20, 195, 142, 0.45);
+  filter: brightness(1.05);
+}
 
-  z-index: 30;
+.anunciaPropiedad:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(20, 195, 142, 0.3);
+}
 
-  backdrop-filter: blur(6px);
+
+.userMenu {
+  display: flex;
+  gap: 12px;
+  border: 1px solid #ddd;
+  padding: 5px 5px 5px 12px;
+  border-radius: 999px;
+  align-items: center;
 }
 
 /* EFECTO SUAVE AL PASAR EL MOUSE */
-.topBar:hover {
-  box-shadow:
-    0 12px 35px rgba(0, 0, 0, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.7) inset;
-}
+
 
 .logoContainer {
   display: flex;
   align-items: center;
 }
 
+.brandName {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  font-family: "Inter", "Poppins", system-ui, sans-serif;
+}
+
+.geo {
+  color: #1a2b4c;
+  font-weight: 900;
+}
+
+.habita {
+  color: #0ea66b;
+  font-weight: 800;
+  /* margin-left: 2px; */
+}
+
 .logo {
-  height: 100px;
-  width: 150px;
-  left: 20px;
-  cursor: pointer;
+  height: 55px;
+  /* ⬅ más visible */
 }
 
 .map {
@@ -85,19 +370,24 @@
   top: 10px;
   right: 10px;
   width: 320px;
-  max-height: 80vh; /* limite de altura */
-  overflow-y: auto; /* scroll vertical interno */
+  max-height: 80vh;
+  /* limite de altura */
+  overflow-y: auto;
+  /* scroll vertical interno */
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   padding: 1.5rem;
   z-index: 50;
   font-family: Arial, sans-serif;
-  display: flex; /* Habilita Flexbox */
-  flex-direction: column; /* Coloca los elementos uno debajo del otro */
+  display: flex;
+  /* Habilita Flexbox */
+  flex-direction: column;
+  /* Coloca los elementos uno debajo del otro */
   align-items: center;
   /* Para que el scroll no se vea feo en navegadores modernos */
-  scrollbar-width: thin; /* Firefox */
+  scrollbar-width: thin;
+  /* Firefox */
   scrollbar-color: #00ccbb6b #f1f1f1;
   transition: all 0.3s ease;
   position: absolute;
@@ -105,22 +395,27 @@
 
 /* Estilo del scrollbar para Chrome, Edge, Safari */
 .sidebar::-webkit-scrollbar {
-  width: 8px; /* grosor de la barra */
+  width: 8px;
+  /* grosor de la barra */
 }
 
 .sidebar::-webkit-scrollbar-track {
-  background: #f1f1f1; /* fondo del carril */
+  background: #f1f1f1;
+  /* fondo del carril */
   border-radius: 10px;
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: #007acc; /* color del scroll */
+  background: #007acc;
+  /* color del scroll */
   border-radius: 10px;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: #005f99; /* color más oscuro al pasar el mouse */
+  background: #005f99;
+  /* color más oscuro al pasar el mouse */
 }
+
 .sidebarCollapsed {
   top: 10dvh;
   width: 15dvh;
@@ -175,8 +470,10 @@
   gap: 20px;
   justify-content: center;
   align-items: center;
-  margin-bottom: 5px; /* Aumenta este valor para más espacio */
+  margin-bottom: 5px;
+  /* Aumenta este valor para más espacio */
 }
+
 /* El estilo de los enlaces individuales podría ser más simple ahora */
 .link {
   margin-bottom: 0;
@@ -215,12 +512,14 @@
   cursor: pointer;
   transition: all 0.3s ease;
 }
+
 .closeBtn2:hover {
   background: #b18f8f;
   transform: scale(1);
   color: #191818;
   transform: rotate(90deg) scale(1.1);
 }
+
 
 .closeBtn {
   align-self: flex-end;
@@ -275,6 +574,7 @@
 .infoTop p span {
   font-weight: bold;
 }
+
 .infoTop p strong {
   font-weight: bold;
 }
@@ -379,7 +679,8 @@
 
 .filterBoxTipo {
   position: absolute;
-  top: 80px; /* Ajusta la altura donde empieza */
+  top: 80px;
+  /* Ajusta la altura donde empieza */
   left: 20px;
   background: #fff;
   padding: 15px 20px;
@@ -404,9 +705,11 @@
   border: 1px solid #ccc;
   font-size: 14px;
 }
+
 .filterBoxPrecio {
   position: absolute;
-  top: 220px; /* Debajo del filtro anterior */
+  top: 220px;
+  /* Debajo del filtro anterior */
   left: 20px;
   background: #fff;
   padding: 15px 20px;
@@ -418,6 +721,7 @@
   gap: 8px;
   min-width: 220px;
 }
+
 .filterBoxPrecio label {
   font-weight: bold;
   margin-bottom: 4px;
@@ -444,7 +748,8 @@
 .checkboxInput {
   width: 16px;
   height: 16px;
-  appearance: none; /* Quita el estilo nativo */
+  appearance: none;
+  /* Quita el estilo nativo */
   border: 2px solid #333;
   border-radius: 4px;
   background: white;
@@ -453,7 +758,8 @@
 }
 
 .checkboxInput:checked {
-  background: #007bff; /* Color de check cuando está marcado */
+  background: #007bff;
+  /* Color de check cuando está marcado */
   border-color: #007bff;
 }
 
@@ -551,14 +857,15 @@
   transition: all 0.3s ease;
   color: #222;
   letter-spacing: 0.3px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
+
 .filterChip:hover {
   background: linear-gradient(145deg, #e6f0ff, #d0e7ff);
   border-color: #007acc;
   color: #007acc;
   transform: scale(1.08);
-  box-shadow: 0 4px 12px rgba(0,122,204,0.4);
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
 }
 
 
@@ -566,8 +873,8 @@
   background: linear-gradient(90deg, #007acc, #00c6ff);
   color: #fff;
   border: none;
-  box-shadow: 0 0 12px rgba(0, 198, 255, 0.7), 
-              0 0 20px rgba(0, 122, 204, 0.5);
+  box-shadow: 0 0 12px rgba(0, 198, 255, 0.7),
+    0 0 20px rgba(0, 122, 204, 0.5);
   transform: scale(1.1);
   animation: pulse 1.5s infinite;
 }
@@ -579,11 +886,24 @@
   font-weight: 800;
   text-shadow: 0 0 8px rgba(255, 0, 128, 0.4);
 }
+
 @keyframes pulse {
-  0%   { transform: scale(1); box-shadow: 0 0 10px rgba(0,198,255,0.4); }
-  50%  { transform: scale(1.12); box-shadow: 0 0 20px rgba(0,198,255,0.8); }
-  100% { transform: scale(1); box-shadow: 0 0 10px rgba(0,198,255,0.4); }
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(0, 198, 255, 0.4);
+  }
+
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 20px rgba(0, 198, 255, 0.8);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(0, 198, 255, 0.4);
+  }
 }
+
 .closeBtn {
   align-self: flex-end;
   background: transparent;
@@ -601,6 +921,7 @@
     opacity: 0;
     transform: translateX(-15px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -617,7 +938,7 @@
 .filterPanel .closeBtn {
   align-self: flex-end;
   margin-bottom: 50px;
-  
+
   /* color: black; */
 }
 
@@ -657,10 +978,13 @@
 /* Botón móvil para mostrar sidebar */
 /* Botón móvil para mostrar sidebar */
 .showInfoBtn {
-  display: none; /* oculto en escritorio */
+  display: none;
+  /* oculto en escritorio */
   position: absolute;
-  top: 100px; /* altura desde la parte superior */
-  right: 20px; /* espacio desde la derecha */
+  top: 100px;
+  /* altura desde la parte superior */
+  right: 20px;
+  /* espacio desde la derecha */
   background: #007acc;
   color: white;
   border: none;
@@ -675,6 +999,7 @@
 .sidebar {
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
+
 /* Sidebar móvil abierto */
 .sidebarMobileOpen {
   transform: translateX(0) !important;
@@ -684,7 +1009,8 @@
 .label {
   font-size: 15px;
   color: #000000;
-  margin-bottom: 2px; /* ajusta según lo que necesites */
+  margin-bottom: 2px;
+  /* ajusta según lo que necesites */
 }
 
 .value {
@@ -694,8 +1020,10 @@
 }
 
 .distancia p {
-  margin: 2px 0; /* reduce espacio vertical */
-  line-height: 1.2; /* ajusta la altura de línea */
+  margin: 2px 0;
+  /* reduce espacio vertical */
+  line-height: 1.2;
+  /* ajusta la altura de línea */
 }
 
 .toggleBtn {
@@ -730,7 +1058,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999; /* por encima del sidebar */
+  z-index: 9999;
+  /* por encima del sidebar */
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
@@ -766,8 +1095,10 @@
 
 .toggleArrow:focus {
   outline: none;
-  box-shadow: none; /* Opcional: elimina cualquier sombra que pueda aparecer */
+  box-shadow: none;
+  /* Opcional: elimina cualquier sombra que pueda aparecer */
 }
+
 /* auth button & tooltip */
 .authButtonContainer {
   position: relative;
@@ -792,7 +1123,7 @@
 }
 
 .filterToggle:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 
@@ -813,13 +1144,14 @@
 }
 
 .authButton:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .authIcon {
   width: 22px;
   height: 22px;
 }
+
 .authTooltip {
   background-color: #fff;
   color: #333;
@@ -828,10 +1160,12 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   position: absolute;
   right: 60px;
-  top: 0; /* Asegura que el tooltip se alinee con el botón */
+  top: 0;
+  /* Asegura que el tooltip se alinee con el botón */
   opacity: 0;
   visibility: hidden;
-  transform: translateY(0); /* Elimina la traslación vertical inicial */
+  transform: translateY(0);
+  /* Elimina la traslación vertical inicial */
   transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
   min-width: 200px;
   font-family: Arial, sans-serif;
@@ -865,156 +1199,126 @@
 .authLink:hover {
   text-decoration: underline;
 }
-/* === Versión móvil súper pequeña === */
 
 
-/* === Versión móvil aún más pequeña (celulares chicos) === */
-@media screen and (max-width: 480px),
-       screen and (max-width: 600px) {
-  .sidebar {
-    width: 40%;
-    max-width: 260px;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    top: auto;
-    bottom: 0;
-    right: 5%;
-    max-height: 60vh;
-    top: 50px;
-  }
-    .authButtonContainer {
-    display: none;
-  }
-  .sidebarCollapsed {
-  top: 10dvh;
-  width: 15dvh;
-  height: 7dvh;
-  max-height: none;
-  overflow-y: hidden;
-  padding-bottom: 0;
-}
 
 
-  .sidebar h2 {
-    font-size: 1rem;
+
+/* === HEADER MINI tipo Airbnb (420px) === */
+@media screen and (max-width: 420px) {
+
+  /* Header fijo y bajo */
+  .cabecera {
+    height: 64px;              /* ⬅ clave */
+    padding: 6px 10px;
+    gap: 8px;
+    align-items: center;
   }
 
-  .sidebar h3 {
-    font-size: 0.9rem;
+  /* Logo fuera */
+
+  .brandName,
+  .anunciaPropiedad {
+    display: none !important;
   }
 
-  .descripcion {
-    font-size: 0.8rem;
-    padding-bottom: 6px;
+  /* Barra principal tipo "¿A dónde vas?" */
+  .topBar {
+    height: 48px;              /* ⬅ estilo Airbnb */
+    min-width: unset;
+    width: 100%;
+    padding: 0 10px;
+    border-radius: 999px;
   }
 
-  .links {
-    gap: 10px;
-  }
-  .links svg {
-    width: 28px;
-    height: 28px;
+  /* Secciones internas */
+  .searchSection {
+    padding: 0 8px;
   }
 
-  .imagenesGrid {
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-    gap: 4px;
-  }
-
-  .thumbnail {
-    border-radius: 4px;
-  }
-
-  .verMas {
-    font-size: 0.75rem;
-    padding: 4px 8px;
-  }
-
-  .showInfoBtn {
-    top: 70px;
-    right: 10px;
-    padding: 6px 12px;
-    font-size: 12px;
-    border-radius: 6px;
-  }
-
-.toggleArrow {
-  position: absolute;          /* lo mantenemos absoluto */
-  top: 50%;                    /* centrado vertical */
-  left: -4px;                 /* pegado a la izquierda */
-  transform: translateY(-50%); /* lo centra de verdad */
-  width: 24px;                 /* más angosto */
-  height: 24px;                /* más bajo */
-  font-size: 0.9rem;           /* icono más chico */
-  border-radius: 50%;          /* redondeado */
-  background: #007acc;         /* color de fondo */
-  color: white;                /* color del símbolo */
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-}
-
-.toggleArrow:hover {
-  background: #005f99; /* efecto hover */
-}
-.sidebarCollapsed .toggleArrow {
-  /* top: 10px;
-  right: 10px; */
-  /* transform: translateY(5%); */
-  bottom: 50px;
-  left: 40px;
-}
-
-
-  .closeBtn,
-  .closeBtn2 {
-    font-size: 14px;
-    padding: 4px 8px;
-  }
-
-  .filterPanel {
-    width: 70%;
-    max-width: 160px;
-    padding: 6px;
-    gap: 6px;
-  }
-
-  .filterGroup h4 {
-    font-size: 10px;
-    margin-bottom: 3px;
-  }
-
-  .filterChip {
-    font-size: 9px;
-    padding: 3px 6px;
-    border-radius: 8px;
+  .searchLabel {
+    display: none;             /* ⬅ Airbnb no muestra label */
   }
 
   .searchBox {
-    width: 85%;
-    max-width: 260px;
-    padding: 8px 12px;
-    font-size: 0.85rem;
+    height: 40px;
+    font-size: 14px;
+    padding: 0 12px;
   }
 
+  /* Botón buscar oculto */
+  .searchButton {
+    display: none;
+  }
+
+  /* Botones redondos pequeños */
+  .filterToggle,
   .authButton {
-    width: 35px;
-    height: 35px;
-  }
-  .authIcon {
-    width: 18px;
-    height: 18px;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
   }
 
-  .authTooltip {
-    right: 45px;
-    font-size: 0.75rem;
-    min-width: 150px;
-    padding: 10px;
+  .authButtonContainer {
+    display: none;             /* opcional */
   }
+
+  /* ===== FILTROS ===== */
+
+  .filterPanel {
+    top: 70px;
+    left: 10px;
+    width: calc(100% - 20px);  /* ocupa casi toda la pantalla */
+    max-width: none;
+    padding: 10px;
+    border-radius: 14px;
+    gap: 10px;
+  }
+
+  .filterGroup h4 {
+    font-size: 13px;
+  }
+
+  .filterChip {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 999px;
+  }
+
+  /* Sidebar info más compacta */
+  .sidebar {
+    width: 85%;
+    max-width: 300px;
+    padding: 10px;
+    font-size: 0.8rem;
+    max-height: 55vh;
+  }
+
+  .toggleArrow {
+    width: 24px;
+    height: 24px;
+    font-size: 0.9rem;
+    left: -6px;
+  }
+
+  .customOptionsList {
+    position: fixed;        /* para que no dependa del contenedor padre */
+    top: 70px;              /* ajusta según tu topBar */
+    left: 40%;              /* centro horizontal */
+    transform: translateX(-50%);
+    /* width: 100%;             ocupa casi toda la pantalla */
+    max-width: 400px;       /* opcional */
+    border-radius: 14px;
+    padding: 10px 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+
+  .customOption {
+    width: 50vh;            /* ocupa todo el contenedor */
+    text-align: center;     /* centra el texto */
+  }
+
+
+  
+
 }

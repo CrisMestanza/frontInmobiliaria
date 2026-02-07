@@ -11,6 +11,10 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const [loadError, setLoadError] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [tipo, setTipo] = useState([]);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
   const [form, setForm] = useState({
     idinmobiliaria,
     idtipoinmobiliaria: "",
@@ -20,8 +24,48 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     longitud: "",
     puntos: [],
     imagenes: [],
+
     precio: "",
+    area_total_m2: "",
+    dormitorios: 0,
+    banos: 0,
+    cuartos: 0,
+    titulo_propiedad: 0,
+    cochera: 0,
+    cocina: 0,
+    sala: 0,
+    patio: 0,
+    jardin: 0,
+    terraza: 0,
+    azotea: 0,
+    ancho: 0,
+    largo: 0,
+
   });
+  const isCasa = parseInt(form.idtipoinmobiliaria, 10) === 2;
+
+
+  // useEffect(() => {
+  //   if (!isCasa) {
+  //     setForm((prev) => ({
+  //       ...prev,
+  //       dormitorios: 0,
+  //       banos: 0,
+  //       cuartos: 0,
+  //       cochera: 0,
+  //       cocina: 0,
+  //       sala: 0,
+  //       patio: 0,
+  //       jardin: 0,
+  //       terraza: 0,
+  //       azotea: 0,
+  //       precio: 0,
+  //       area_total_m2: 0,
+  //       ancho: 0,
+  //       largo: 0,
+  //     }));
+  //   }
+  // }, [isCasa]);
 
   const mapRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -132,8 +176,27 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   };
 
   const handleChange = (e) => {
+    console.log("Valor ", e.target.name)
+    console.log(e.target.name, e.target.value)
     const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
+
+    const intFields = [
+      "dormitorios", "banos", "cuartos", "cochera", "cocina",
+      "sala", "patio", "jardin", "terraza", "azotea", "titulo_propiedad",
+    ];
+
+    const floatFields = ["precio", "ancho", "largo", "area_total_m2"]; // Añadí area_total aquí
+
+    const normalizedValue = typeof value === "string" ? value.replace(",", ".") : value;
+
+    setForm({
+      ...form,
+      [name]: intFields.includes(name)
+        ? (parseInt(normalizedValue, 10) || 0) // Si es NaN, pone 0
+        : floatFields.includes(name)
+          ? (parseFloat(normalizedValue) || 0) // Si es NaN, pone 0
+          : value,
+    });
   };
 
   const handleImagenesChange = (e) => {
@@ -153,20 +216,59 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validación del polígono
     if (form.puntos.length < 3) {
       alert(
-        "Por favor, delimite el área del proyecto con al menos 3 puntos en el mapa.",
+        "Por favor, delimite el área del proyecto con al menos 3 puntos en el mapa."
       );
       return;
     }
+    setIsSubmitting(true);
+
+    // 🔒 Normalización de datos (CLAVE)
+    const normalizedForm = {
+      ...form,
+      dormitorios: Number(form.dormitorios) || 0,
+      banos: Number(form.banos) || 0,
+      cuartos: Number(form.cuartos) || 0,
+      cochera: Number(form.cochera) || 0,
+      cocina: Number(form.cocina) || 0,
+      sala: Number(form.sala) || 0,
+      patio: Number(form.patio) || 0,
+      jardin: Number(form.jardin) || 0,
+      terraza: Number(form.terraza) || 0,
+      azotea: Number(form.azotea) || 0,
+      precio: Number(form.precio) || 0,
+      area_total_m2: Number(form.area_total_m2) || 0,
+      ancho: Number(form.ancho) || 0,
+      largo: Number(form.largo) || 0,
+    };
+
+    console.log("Dormitorios normalizado:", normalizedForm.dormitorios);
 
     const formData = new FormData();
-    Object.keys(form).forEach((key) => {
-      if (key === "puntos") formData.append(key, JSON.stringify(form[key]));
-      else if (key === "imagenes")
-        form.imagenes.forEach((img) => formData.append("imagenes", img.file));
-      else formData.append(key, form[key]);
+
+    // 📦 Construcción segura del FormData
+    Object.keys(normalizedForm).forEach((key) => {
+      if (key === "puntos") {
+        formData.append(key, JSON.stringify(normalizedForm[key]));
+      } else if (key === "imagenes") {
+        normalizedForm.imagenes.forEach((img) => {
+          if (img?.file) {
+            formData.append("imagenes", img.file);
+          }
+        });
+      } else {
+        formData.append(key, normalizedForm[key]);
+      }
     });
+
+    // 🧪 Debug FINAL (úsalo solo mientras pruebas)
+    console.log("📤 FormData enviado:");
+    for (let pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
 
     try {
       const res = await fetch(
@@ -174,23 +276,64 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
         {
           method: "POST",
           body: formData,
-          headers: { Authorization: `Bearer ${token}` },
-        },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // ❌ NO pongas Content-Type con FormData
+          },
+        }
       );
+
       if (res.ok) {
-        alert("✅ Éxito");
-        onClose();
-      } else alert("⚠️ Error en registro");
-    } catch {
+        setSuccess(true);
+
+        setTimeout(() => {
+          setIsSubmitting(false);
+          onClose();
+        }, 1500);
+      } else {
+        setIsSubmitting(false);
+        alert("⚠️ Error en registro");
+      }
+
+    } catch (error) {
+      console.error(error);
+      setIsSubmitting(false);
       alert("🚫 Error de red");
     }
+
   };
 
   if (loadError) return <div className={styles.loaderMsg}>Error de mapa</div>;
   if (!isLoaded) return <div className={styles.loaderMsg}>Cargando...</div>;
 
+
+
   return (
+
     <div className={styles.modalOverlay}>
+      {isSubmitting && (
+        <div className={styles.loadingOverlay}>
+          <div className={styles.loadingModal}>
+            {!success ? (
+              <>
+                <span className="material-icons-outlined styles.spinner">
+                  autorenew
+                </span>
+                <h3>Subiendo proyecto...</h3>
+                <p>Por favor espera, estamos procesando la información</p>
+              </>
+            ) : (
+              <>
+                <span className={styles.successIcon}>
+                  <span className="material-icons-outlined">check_circle</span>
+                </span>
+                <h3>¡Proyecto subido con éxito!</h3>
+                <p>Tu proyecto ya fue registrado correctamente</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       <div className={styles.modalContent}>
         <div className={styles.header}>
           <div>
@@ -199,7 +342,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
               Completa la información detallada para publicar tu nuevo proyecto.
             </p>
           </div>
-          <button className={styles.closeBtn} onClick={onClose}>
+          <button type="button" className={styles.closeBtn} onClick={onClose}>
             <span className="material-icons-outlined">close</span>
           </button>
         </div>
@@ -253,6 +396,195 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     required
                   />
                 </div>
+
+                {isCasa && (
+                  <>
+                    <div className={styles.inputGroup}>
+                      <label>¿Cuenta con título de propiedad?</label>
+                      <select
+                        name="titulo_propiedad"
+                        value={form.titulo_propiedad}
+                        onChange={handleChange}
+                        className={styles.select}
+                        required
+                      >
+                        <option value={0}>No</option>
+                        <option value={1}>Sí</option>
+                      </select>
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label>Precio en dolares:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        name="precio"
+                        value={form.precio}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label>Area total:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        name="area_total_m2"
+                        value={form.area_total_m2}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label>Ancho:</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        name="ancho"
+                        value={form.ancho}
+                        onChange={handleChange}
+                        className={styles.input}
+                        required
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Largo:</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        name="largo"
+                        value={form.largo}
+                        onChange={handleChange}
+                        className={styles.input}
+                        required
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label>Dormitorios:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="dormitorios"
+                        value={form.dormitorios}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label>Baños:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="banos"
+                        value={form.banos}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Cuartos:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="cuartos"
+                        value={form.cuartos}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Cochera:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="cochera"
+                        value={form.cochera}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+
+                      <label>Cocina:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="cocina"
+                        value={form.cocina}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Sala:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="sala"
+                        value={form.sala}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+
+                      <label>Patio:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="patio"
+                        value={form.patio}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+                      <label>Jardín:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="jardin"
+                        value={form.jardin}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+
+                      <label>Terraza:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="terraza"
+                        value={form.terraza}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.inputGroup}>
+
+                      <label>Azotea:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        name="azotea"
+                        value={form.azotea}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+                  </>
+                )}
+
+
               </section>
 
               <section>

@@ -95,23 +95,23 @@ export default function LoteModal({ onClose, idproyecto }) {
   //     console.error("Error cargando proyecto/lotes:", err);
   //   }
   // }, [idproyecto]);
-useEffect(() => {
-  if (!isCasa) {
-    setForm((prev) => ({
-      ...prev,
-      dormitorios: 0,
-      banos: 0,
-      cuartos: 0,
-      cochera: 0,
-      cocina: 0,
-      sala: 0,
-      patio: 0,
-      jardin: 0,
-      terraza: 0,
-      azotea: 0,
-    }));
-  }
-}, [isCasa]);
+  useEffect(() => {
+    if (!isCasa) {
+      setForm((prev) => ({
+        ...prev,
+        dormitorios: 0,
+        banos: 0,
+        cuartos: 0,
+        cochera: 0,
+        cocina: 0,
+        sala: 0,
+        patio: 0,
+        jardin: 0,
+        terraza: 0,
+        azotea: 0,
+      }));
+    }
+  }, [isCasa]);
 
   const fetchProyecto = useCallback(async () => {
     try {
@@ -443,7 +443,7 @@ useEffect(() => {
             className={style.input}
           />
 
-          <label>Precio:</label>
+          <label>Precio en dolares:</label>
           <input
             name="precio"
             type="number"
@@ -524,109 +524,109 @@ useEffect(() => {
             required
           />
 
-{isCasa && (
-  <>
-    <label>Dormitorios:</label>
-    <input
-      type="number"
-      min="0"
-      name="dormitorios"
-      value={form.dormitorios}
-      onChange={handleChange}
-      className={style.input}
-    />
+          {isCasa && (
+            <>
+              <label>Dormitorios:</label>
+              <input
+                type="number"
+                min="0"
+                name="dormitorios"
+                value={form.dormitorios}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Baños:</label>
-    <input
-      type="number"
-      min="0"
-      name="banos"
-      value={form.banos}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Baños:</label>
+              <input
+                type="number"
+                min="0"
+                name="banos"
+                value={form.banos}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Cuartos:</label>
-    <input
-      type="number"
-      min="0"
-      name="cuartos"
-      value={form.cuartos}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Cuartos:</label>
+              <input
+                type="number"
+                min="0"
+                name="cuartos"
+                value={form.cuartos}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Cochera:</label>
-    <input
-      type="number"
-      min="0"
-      name="cochera"
-      value={form.cochera}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Cochera:</label>
+              <input
+                type="number"
+                min="0"
+                name="cochera"
+                value={form.cochera}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Cocina:</label>
-    <input
-      type="number"
-      min="0"
-      name="cocina"
-      value={form.cocina}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Cocina:</label>
+              <input
+                type="number"
+                min="0"
+                name="cocina"
+                value={form.cocina}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Sala:</label>
-    <input
-      type="number"
-      min="0"
-      name="sala"
-      value={form.sala}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Sala:</label>
+              <input
+                type="number"
+                min="0"
+                name="sala"
+                value={form.sala}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Patio:</label>
-    <input
-      type="number"
-      min="0"
-      name="patio"
-      value={form.patio}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Patio:</label>
+              <input
+                type="number"
+                min="0"
+                name="patio"
+                value={form.patio}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Jardín:</label>
-    <input
-      type="number"
-      min="0"
-      name="jardin"
-      value={form.jardin}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Jardín:</label>
+              <input
+                type="number"
+                min="0"
+                name="jardin"
+                value={form.jardin}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Terraza:</label>
-    <input
-      type="number"
-      min="0"
-      name="terraza"
-      value={form.terraza}
-      onChange={handleChange}
-      className={style.input}
-    />
+              <label>Terraza:</label>
+              <input
+                type="number"
+                min="0"
+                name="terraza"
+                value={form.terraza}
+                onChange={handleChange}
+                className={style.input}
+              />
 
-    <label>Azotea:</label>
-    <input
-      type="number"
-      min="0"
-      name="azotea"
-      value={form.azotea}
-      onChange={handleChange}
-      className={style.input}
-    />
-  </>
-)}
+              <label>Azotea:</label>
+              <input
+                type="number"
+                min="0"
+                name="azotea"
+                value={form.azotea}
+                onChange={handleChange}
+                className={style.input}
+              />
+            </>
+          )}
 
 
           <h3>Imágenes</h3>

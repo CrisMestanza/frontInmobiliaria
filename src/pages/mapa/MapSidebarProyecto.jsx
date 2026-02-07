@@ -3,15 +3,48 @@ import {
   FaBed, FaBath, FaCar, FaTree, FaHome, FaUtensils,
   FaChair, FaSun, FaBuilding, FaBorderAll, FaCampground,
   FaRulerHorizontal, FaRulerVertical, FaRulerCombined,
-  FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe
+  FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe, FaVectorSquare, FaArrowsAltH, FaArrowsAltV
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
+import { FaChevronDown } from "react-icons/fa";
+
 
 const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
   const contentRef = useRef(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  const minSwipeDistance = 50;
+  const onTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+
+    const distance = touchStartX.current - touchEndX.current;
+
+    if (Math.abs(distance) < minSwipeDistance) return;
+
+    if (distance > 0) {
+      // 👉 Swipe izquierda (siguiente)
+      setFullscreenImgIndex(prev =>
+        prev === imagenes.length - 1 ? 0 : prev + 1
+      );
+    } else {
+      // 👈 Swipe derecha (anterior)
+      setFullscreenImgIndex(prev =>
+        prev === 0 ? imagenes.length - 1 : prev - 1
+      );
+    }
+  };
 
   const nextSlide = (e) => {
     e.stopPropagation();
@@ -50,10 +83,12 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
         className={styles.overlay}
         style={{
           opacity: expanded ? 1 : 0,
-          background: "rgba(15, 23, 42, 0.2)", // Más transparente para ver el fondo
-          pointerEvents: (proyecto.idtipoinmobiliaria === 2 || expanded) ? "auto" : "none"
+          background: "rgba(15, 23, 42, 0.2)",
+          // CAMBIO AQUÍ: Solo "auto" cuando esté expandido. 
+          // Si no está expandido, debe ser "none" para que el mapa se pueda mover.
+          pointerEvents: expanded ? "auto" : "none"
         }}
-        onClick={cerrarSidebar} // Permitimos cerrar al tocar la parte de arriba
+        onClick={cerrarSidebar}
       />
 
       <div className={`${styles.sidebar} ${expanded ? styles.expanded : ""}`}>
@@ -85,6 +120,19 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
 
           {/* SECCIÓN INFORMACIÓN */}
           <div className={styles.infoSection} ref={contentRef} onScroll={handleScroll}>
+            {/* FLECHA SCROLL */}
+            {!expanded && (
+              <div
+                className={styles.scrollHint}
+                onClick={() =>
+                  contentRef.current?.scrollTo({ top: 500, behavior: "smooth" })
+                }
+              >
+                <FaChevronDown />
+                <span>Desliza</span>
+              </div>
+            )}
+
             <div className={styles.primeInfo}>
               {proyecto.idtipoinmobiliaria === 2 && (
                 <span className={styles.legalLabel}>
@@ -109,21 +157,23 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
               {proyecto.idtipoinmobiliaria === 2 && (
                 <div className={styles.quickGrid}>
                   <div className={styles.qBadge}>
-                    <FaRulerCombined />
+                    <FaVectorSquare />
                     <div>
                       <strong>{proyecto.area_total_m2} m²</strong>
                       <span>Extensión</span>
                     </div>
                   </div>
+
                   <div className={styles.qBadge}>
-                    <FaRulerCombined />
+                    <FaArrowsAltH />
                     <div>
                       <strong>{proyecto.ancho} m</strong>
                       <span>Ancho</span>
                     </div>
                   </div>
+
                   <div className={styles.qBadge}>
-                    <FaRulerCombined />
+                    <FaArrowsAltV />
                     <div>
                       <strong>{proyecto.largo} m</strong>
                       <span>Largo</span>
@@ -161,7 +211,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                 </>
               )}
 
-              <h3 className={styles.sectionTitle}>Distancia de tu ubicación o de la ubicación buscada</h3>
+              <h3 className={styles.sectionTitle}>Distancia (actual o buscada)</h3>
               <div className={styles.distanciaBox}>
                 <span>🚶 {walkingInfo?.duration || "Calc..."}</span>
                 <span>🚗 {drivingInfo?.duration || "Calc..."}</span>
@@ -179,9 +229,16 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
 
 
       {fullscreenImgIndex !== null && (
-        <div className={styles.fullscreenOverlay} onClick={() => setFullscreenImgIndex(null)}>
+        <div
+          className={styles.fullscreenOverlay}
+          onClick={() => setFullscreenImgIndex(null)}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+
           {/* Botón Cerrar (opcional, ya que el fondo cierra) */}
-          <button className={styles.closeFS} onClick={() => setFullscreenImgIndex(null)}>✕</button>
+          <button className={styles.closeBtn} onClick={() => setFullscreenImgIndex(null)}>✕</button>
 
           {imagenes.length > 1 && (
             <>

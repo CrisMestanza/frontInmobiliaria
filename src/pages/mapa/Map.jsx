@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
+
 import { GoogleMap, Marker, DirectionsRenderer } from "@react-google-maps/api";
 import ProyectoSidebar from "./MapSidebarProyecto";
 import MapSidebar from "./MapSidebar";
 import MapMarker from "./MapMarker";
 import PolygonOverlay from "./PolygonOverlay";
+import CustomSelect from "./CustomSelect";
 import styles from "./Mapa.module.css";
 import ChatBotPanel from "../mybot/ChatBotPanel";
 import loader from "../../components/loader";
 import { useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const LIBRARIES = ["places"];
@@ -20,6 +23,7 @@ const RANGOS_PRECIO = [
   { label: "$. 150,001 - 250,000", value: "150001-250000" },
   { label: "$. 250,001 - más", value: "250001-999999999" },
 ];
+
 
 const LotesOverlay = ({
   lotes,
@@ -115,8 +119,9 @@ function MyMap() {
   const [imagenesProyecto, setImagenesProyecto] = useState([]);
   const [imagenesLote, setImagenesLote] = useState([]);
   const [puntos, setPuntos] = useState([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showHintClickLote, setShowHintClickLote] = useState(false);
 
+  const [showFilters, setShowFilters] = useState(false);
   const [hoveredLote, setHoveredLote] = useState(null);
   const [iconosProyecto, setIconosProyecto] = useState([]);
   const [walkingInfo, setWalkingInfo] = useState(null);
@@ -172,21 +177,27 @@ function MyMap() {
     loadGoogleMaps();
   }, []);
 
-useEffect(() => {
-  // ❗ Si el usuario ya buscó una ubicación, NO usar GPS
-  if (hasSearchedLocation) return;
+  useEffect(() => {
+    // ❗ Si el usuario ya buscó una ubicación, NO usar GPS
+    if (hasSearchedLocation) return;
 
-  if (inmoId || selectedProyecto) return;
+    if (inmoId || selectedProyecto) return;
 
-  navigator.geolocation?.getCurrentPosition(
-    (pos) =>
-      setCurrentPosition({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-      }),
-    () => console.warn("Permiso de ubicación denegado.")
-  );
-}, [inmoId, selectedProyecto, hasSearchedLocation]);
+    navigator.geolocation?.getCurrentPosition(
+      (pos) =>
+        setCurrentPosition({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        }),
+      () => console.warn("Permiso de ubicación denegado.")
+    );
+  }, [inmoId, selectedProyecto, hasSearchedLocation]);
+
+  useEffect(() => {
+    if (selectedProyecto && lotesProyecto.length > 0) {
+      setShowHintClickLote(true);
+    }
+  }, [selectedProyecto, lotesProyecto]);
 
 
   useEffect(() => {
@@ -253,14 +264,17 @@ useEffect(() => {
       // 👉 Si hay filtros, filtras en memoria (rápido)
       let lotesFiltrados = data;
 
-      if (selectedRango || filtroBotActivo) {
-        lotesFiltrados = data.filter(
-          (l) => l.idproyecto === selectedProyecto.idproyecto
-        );
-      }
+    // 🔥 AQUÍ ESTÁ LA CLAVE
+    if (selectedRango) {
+      const [min, max] = selectedRango.split("-").map(Number);
 
-      setLotesProyecto(lotesFiltrados);
-    };
+      lotesFiltrados = data.filter(
+        (l) => l.precio >= min && l.precio <= max
+      );
+    }
+
+    setLotesProyecto(lotesFiltrados);
+  }
 
     cargarLotes().catch(console.error);
   }, [selectedProyecto, selectedRango, filtroBotActivo]);
@@ -273,16 +287,15 @@ useEffect(() => {
   }, []);
 
   const handleTipoChange = (tipoId) => {
-    if (selectedTipo === tipoId) {
-      // Si vuelve a hacer clic en el mismo tipo → deseleccionar
+    // Convertimos a número porque el value del select siempre viene como string
+    const idNumerico = tipoId === "" ? "" : Number(tipoId);
+
+    if (selectedTipo === idNumerico) {
       setSelectedTipo("");
     } else {
-      setSelectedTipo(tipoId);
-      // 🔹 Cuando se selecciona un tipo, se borra el rango
-      setSelectedRango("");
+      setSelectedTipo(idNumerico);
+      setSelectedRango(""); // Resetea el otro filtro
     }
-
-    // 🔹 Además, desactivar el filtro del bot
     setFiltroBotActivo(false);
   };
 
@@ -392,6 +405,7 @@ useEffect(() => {
   };
 
   const handleLoteClick = (lote) => {
+    setShowHintClickLote(false);
     if (isMobile()) {
       setShowFilters(false);
     }
@@ -549,122 +563,79 @@ useEffect(() => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.cabecera}>
+      <header className={styles.cabecera}>
+        {/* Logo a la izquierda fuera de la barra central */}
         <div className={styles.logoContainer}>
-          <img
-            src="/habita.png"   // 👈 ruta correcta
-            alt="Habita"
-            className={styles.logo}
-          />
+          <img src="/habitasinfondo.png" alt="GeoHabita Logo" className={styles.logo} />
+          <span className={styles.brandName}>
+            <span className={styles.geo}>Geo</span>
+            <span className={styles.habita}>Habita</span>
+          </span>
         </div>
+
+
+        {/* BARRA CENTRAL (PASTILLA) */}
+        {/* BARRA CENTRAL (PASTILLA) */}
         <div className={styles.topBar}>
-          <div className={styles.authButtonContainer}>
-            <button className={styles.authButton}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className={styles.authIcon}
-              >
-                <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4Z" />
-              </svg>
-            </button>
-            <div className={styles.authTooltip}>
-              <p>¿Quieres registrar un Proyecto o Lote?</p>
-              <div className={styles.authLinks}>
-                <a href="/login" className={styles.authLink}>
-                  Inicia Sesión
-                </a>
-                <p>¿No tienes una cuenta?</p>
-                <a href="/register" className={styles.authLink}>
-                  Regístrate
-                </a>
-              </div>
-            </div>
+          <div className={styles.searchSection}>
+            <span className={styles.searchLabel}>UBICACIÓN</span>
+            <input
+              ref={inputRef}
+              className={styles.searchInput}
+              placeholder="Buscar"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Buscar ubicación..."
-            ref={inputRef}
-            className={styles.searchBox}
+
+          {/* SELECT PERSONALIZADO: TIPO */}
+          <CustomSelect
+            label="QUIERO VER"
+            value={selectedTipo}
+            placeholder="Cualquier tipo"
+            styles={styles}
+            options={tiposInmo.map(t => ({
+              label: t.nombre,
+              value: t.idtipoinmobiliaria
+            }))}
+            onChange={(val) => handleTipoChange(val)}
           />
 
-          <button
-            className={styles.filterToggle}
-            onClick={() => setShowFilters(prev => !prev)}
-            title="Filtros"
-          >
+          <div className={styles.divider}></div>
+
+          {/* SELECT PERSONALIZADO: PRESUPUESTOS */}
+          <CustomSelect
+            label="PRESUPUESTOS"
+            value={selectedRango}
+            placeholder="Sin límite"
+            styles={styles}
+            options={RANGOS_PRECIO}
+            onChange={(val) => handleRangoChange(val)}
+          />
+
+          {/* BOTÓN LUPA */}
+          <button className={styles.searchButton}>
+            <svg viewBox="0 0 32 32" style={{ display: 'block', fill: 'none', height: '16px', width: '16px', stroke: 'currentColor', strokeWidth: '4', overflow: 'visible' }}>
+              <path d="m13 24c6.0751322 0 11-4.9248678 11-11s-4.9248678-11-11-11-11 4.9248678-11 11 4.9248678 11 11 11zm8-3 9 9"></path>
+            </svg>
+          </button>
+        </div>
+        {/* Botones de la derecha (User / Menu) */}
+        <div className={styles.rightActions}>
+          <Link to="/login" className={styles.anunciaPropiedad}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              width="22"
-              height="22"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              fill="currentColor"
             >
-              <line x1="4" y1="5" x2="20" y2="5" />
-              <circle cx="8" cy="5" r="2" />
-
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <circle cx="14" cy="12" r="2" />
-
-              <line x1="4" y1="19" x2="20" y2="19" />
-              <circle cx="10" cy="19" r="2" />
+              <path d="M12 2L2 7v15h20V7L12 2zm0 2.18L20 8v12H4V8l8-3.82zM7 13h10v2H7z" />
             </svg>
+            Anuncia tu propiedad
+          </Link>
 
-          </button>
 
         </div>
-      </div>
-
-      {showFilters && (
-        <div className={styles.filterPanel}>
-          <button
-            className={styles.closeBtn}
-            onClick={() => setShowFilters(false)}
-          >
-            ✖
-          </button>
-
-          <div className={styles.filterGroup}>
-            <h4>Quiero ver:</h4>
-            <div className={styles.filterOptions}>
-              {tiposInmo.map((tipo) => (
-                <button
-                  key={tipo.idtipoinmobiliaria}
-                  className={`${styles.filterChip} ${selectedTipo === tipo.idtipoinmobiliaria
-                    ? styles.active
-                    : ""
-                    }`}
-                  onClick={() => handleTipoChange(tipo.idtipoinmobiliaria)}
-                >
-                  {tipo.nombre}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.filterGroup}>
-            <h4>Rango de precios:</h4>
-            <div className={styles.filterOptions}>
-              {RANGOS_PRECIO.map((rango) => (
-                <button
-                  key={rango.value}
-                  className={`${styles.filterChip} ${selectedRango === rango.value ? styles.active : ""
-                    }`}
-                  onClick={() => handleRangoChange(rango.value)}
-                >
-                  {rango.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
+      </header>
 
 
       <GoogleMap
@@ -680,6 +651,7 @@ useEffect(() => {
           fullscreenControl: false,
         }}
       >
+
         {puntos.length === 0 && <Marker position={currentPosition} />}
 
         {!filtroBotActivo &&
@@ -757,18 +729,24 @@ useEffect(() => {
         )}
 
         {selectedProyecto && lotesProyecto.length > 0 && (
-  <LotesOverlay
-    lotes={lotesProyecto}
-    selectedLote={selectedLote}
-    hoveredLote={hoveredLote}
-    onLoteClick={handleLoteClick}
-    onLoteMouseOver={setHoveredLote}
-    onLoteMouseOut={() => setHoveredLote(null)}
-  />
-)}
+          <LotesOverlay
+            lotes={lotesProyecto}
+            selectedLote={selectedLote}
+            hoveredLote={hoveredLote}
+            onLoteClick={handleLoteClick}
+            onLoteMouseOver={setHoveredLote}
+            onLoteMouseOut={() => setHoveredLote(null)}
+          />
+        )}
 
         {directions && <DirectionsRenderer directions={directions} />}
       </GoogleMap>
+      
+      {showHintClickLote && (
+        <div className={styles.clickHint}>
+           Toca un lote 
+        </div>
+      )}
 
       {selectedProyecto && (
         <ProyectoSidebar
@@ -789,7 +767,7 @@ useEffect(() => {
             setLotesProyecto([]);
             setIconosProyecto([]);
             setSelectedLote(null); // 🔥 CLAVE
-
+            setShowHintClickLote(false);
             try {
               if (selectedRango) {
                 const res = await fetch(
