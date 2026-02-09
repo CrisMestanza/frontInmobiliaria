@@ -40,6 +40,12 @@ import {
   ChartSplineIcon,
   MessageCircle,
   MessageCircleHeartIcon,
+  LogsIcon,
+  LogInIcon,
+  MapIcon,
+  PointerIcon,
+  PointerOffIcon,
+  PinIcon,
 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
@@ -49,7 +55,7 @@ import LotesModal from "../inmobiliaria/lote/LotesModal";
 import EditProyectoModal from "../inmobiliaria/proyecto/editProyecto";
 import IconoModal from "../inmobiliaria/proyecto/icono/IconoModal";
 
-const CardProyecto = ({ proyecto, onViewLotes, onEdit, onDelete }) => {
+const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
   const [imagenes, setImagenes] = useState([]);
   const [index, setIndex] = useState(0);
 
@@ -147,6 +153,14 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onDelete }) => {
               style={{ padding: "6px", borderRadius: "4px" }}
             >
               <Edit size={16} />
+            </button>
+            <button
+              onClick={() => onIcon(proyecto.idproyecto)}
+              className="btn-icon-small"
+              title="Íconos"
+              style={{ padding: "6px", borderRadius: "4px" }}
+            >
+              <PinIcon size={16} />
             </button>
           </div>
           <button
@@ -478,6 +492,7 @@ const PanelInmo = () => {
                 proyecto={p}
                 onViewLotes={setShowLotes}
                 onEdit={setShowModalEditProyecto}
+                onIcon={setShowIconoModal}
                 // onDelete={handleDeleteProyecto}
               />
             ))}

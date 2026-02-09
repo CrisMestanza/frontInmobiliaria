@@ -114,7 +114,7 @@ const LoginLayout = () => {
                 <div className="inmo-login-label-row">
                   <label className="inmo-login-label">Contraseña</label>
                   <a href="#" className="inmo-login-link-sm">
-                    Olvidó su Contraseña?
+                    Olvidó su Contraseña? Contactar a 916 762 676
                   </a>
                 </div>
                 <div className="inmo-login-input-wrapper">
@@ -145,7 +145,7 @@ const LoginLayout = () => {
               </button>
             </form>
 
-            <div className="inmo-login-divider">
+            {/* <div className="inmo-login-divider">
               <span>O continua con...</span>
             </div>
 
@@ -181,7 +181,7 @@ const LoginLayout = () => {
                 </svg>
                 <span>Apple</span>
               </button>
-            </div>
+            </div> */}
 
             <p className="inmo-login-footer">
               No tiene una Cuenta?{" "}

@@ -3,6 +3,9 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
 import style from "../agregarInmo.module.css";
 import loader from "../../../components/loader";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { loadPdfFromIndexedDB } from "../../../components/utils/indexedDB";
 
 export default function LoteModal({ onClose, idproyecto }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -20,6 +23,207 @@ export default function LoteModal({ onClose, idproyecto }) {
   const googleRef = useRef(null);
   const drawnPolygonRef = useRef(null);
   const token = localStorage.getItem("access");
+  const originalPdfImageRef = useRef(null);
+  const [pdfImage, setPdfImage] = useState(null);
+  const [overlayBounds, setOverlayBounds] = useState(null);
+  const [pdfRotation, setPdfRotation] = useState(0);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.6);
+  const overlayRef = useRef(null);
+  const drawingManagerRef = useRef(null);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+  const createRotatableOverlay = useCallback(
+    (bounds, image, rotation, opacity) => {
+      if (!googleRef.current) return null;
+
+      class RotatableOverlay extends googleRef.current.maps.OverlayView {
+        constructor() {
+          super();
+          this.bounds = bounds;
+          this.image = image;
+          this.rotation = rotation;
+          this.opacity = opacity;
+          this.div = null;
+        }
+
+        onAdd() {
+          const div = document.createElement("div");
+          div.style.borderStyle = "none";
+          div.style.borderWidth = "0px";
+          div.style.position = "absolute";
+          div.style.transformOrigin = "center center";
+
+          const img = document.createElement("img");
+          img.src = this.image;
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.opacity = this.opacity;
+          img.style.position = "absolute";
+          div.appendChild(img);
+
+          this.div = div;
+          const panes = this.getPanes();
+          panes.overlayLayer.appendChild(div);
+        }
+
+        draw() {
+          const overlayProjection = this.getProjection();
+          if (!overlayProjection || !this.div) return;
+
+          const sw = overlayProjection.fromLatLngToDivPixel(
+            new googleRef.current.maps.LatLng(
+              this.bounds.south,
+              this.bounds.west,
+            ),
+          );
+          const ne = overlayProjection.fromLatLngToDivPixel(
+            new googleRef.current.maps.LatLng(
+              this.bounds.north,
+              this.bounds.east,
+            ),
+          );
+
+          const width = ne.x - sw.x;
+          const height = sw.y - ne.y;
+          const centerX = (sw.x + ne.x) / 2;
+          const centerY = (sw.y + ne.y) / 2;
+
+          this.div.style.left = centerX - width / 2 + "px";
+          this.div.style.top = centerY - height / 2 + "px";
+          this.div.style.width = width + "px";
+          this.div.style.height = height + "px";
+          this.div.style.transform = `rotate(${this.rotation}deg)`;
+        }
+
+        onRemove() {
+          if (this.div) {
+            this.div.parentNode.removeChild(this.div);
+            this.div = null;
+          }
+        }
+
+        updateBounds(newBounds) {
+          this.bounds = newBounds;
+          this.draw();
+        }
+
+        updateRotation(newRotation) {
+          this.rotation = newRotation;
+          this.draw();
+        }
+
+        updateOpacity(newOpacity) {
+          this.opacity = newOpacity;
+          if (this.div) {
+            const img = this.div.querySelector("img");
+            if (img) img.style.opacity = newOpacity;
+          }
+        }
+
+        updateImage(newImage) {
+          this.image = newImage;
+          if (this.div) {
+            const img = this.div.querySelector("img");
+            if (img) img.src = newImage;
+          }
+        }
+      }
+
+      return new RotatableOverlay();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const loadSavedPDF = async () => {
+      if (!isLoaded || !mapCenter) return;
+      try {
+        const pdfBlob = await loadPdfFromIndexedDB(idproyecto);
+        if (pdfBlob) {
+          const arrayBuffer = await pdfBlob.arrayBuffer();
+          const typedArray = new Uint8Array(arrayBuffer);
+          const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+          const page = await pdf.getPage(1);
+
+          const scale = 2.5;
+          const viewport = page.getViewport({ scale });
+
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          await page.render({
+            canvasContext: context,
+            viewport: viewport,
+          }).promise;
+
+          const imageUrl = canvas.toDataURL("image/png");
+          originalPdfImageRef.current = imageUrl;
+          setPdfImage(imageUrl);
+
+          const savedMeta = localStorage.getItem(`pdf_meta_${idproyecto}`);
+          if (savedMeta) {
+            const meta = JSON.parse(savedMeta);
+            setOverlayBounds(meta.bounds);
+            setOverlayOpacity(meta.opacity || 0.6);
+            setPdfRotation(meta.rotation || 0);
+          } else {
+            setPdfRotation(0);
+            const centerLat = mapCenter.lat;
+            const centerLng = mapCenter.lng;
+            const aspectRatio = viewport.height / viewport.width;
+            const widthDegrees = 0.002;
+            const heightDegrees = widthDegrees * aspectRatio;
+
+            setOverlayBounds({
+              north: centerLat + heightDegrees / 2,
+              south: centerLat - heightDegrees / 2,
+              east: centerLng + widthDegrees / 2,
+              west: centerLng - widthDegrees / 2,
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("No hay PDF previo para este proyecto", error);
+      }
+    };
+    loadSavedPDF();
+  }, [idproyecto, isLoaded, mapCenter]);
+
+  useEffect(() => {
+    if (!mapRef.current || !googleRef.current) return;
+
+    if (!pdfImage || !overlayBounds) {
+      if (overlayRef.current) {
+        overlayRef.current.setMap(null);
+        overlayRef.current = null;
+      }
+      return;
+    }
+
+    if (!overlayRef.current) {
+      overlayRef.current = createRotatableOverlay(
+        overlayBounds,
+        pdfImage,
+        pdfRotation,
+        overlayOpacity,
+      );
+      overlayRef.current.setMap(mapRef.current);
+      return;
+    }
+
+    overlayRef.current.updateBounds(overlayBounds);
+    overlayRef.current.updateRotation(pdfRotation);
+    overlayRef.current.updateOpacity(overlayOpacity);
+    overlayRef.current.updateImage(pdfImage);
+  }, [
+    pdfImage,
+    overlayBounds,
+    pdfRotation,
+    overlayOpacity,
+    createRotatableOverlay,
+  ]);
 
   useEffect(() => {
     loader.load().then((googleInstance) => {
@@ -31,7 +235,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const fetchProyecto = useCallback(async () => {
     try {
       const res = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`
+        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
       );
       const puntosProyecto = await res.json();
       if (!puntosProyecto || !puntosProyecto.length) return;
@@ -45,19 +249,19 @@ export default function LoteModal({ onClose, idproyecto }) {
         puntosProyecto.map((p) => ({
           lat: parseFloat(p.latitud),
           lng: parseFloat(p.longitud),
-        }))
+        })),
       );
 
       // cargar lotes
       const resLotes = await fetch(
-        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`
+        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
       );
       const lotes = await resLotes.json();
 
       const lotesData = [];
       for (const lote of lotes) {
         const resPuntos = await fetch(
-          `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`
+          `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`,
         );
         const puntos = await resPuntos.json();
         if (!puntos.length) continue;
@@ -167,7 +371,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
     try {
       const polygonPath = polygonCoords.map(
-        (c) => new googleRef.current.maps.LatLng(c.lat, c.lng)
+        (c) => new googleRef.current.maps.LatLng(c.lat, c.lng),
       );
       const basePolygon = new googleRef.current.maps.Polygon({
         paths: polygonPath,
@@ -179,7 +383,7 @@ export default function LoteModal({ onClose, idproyecto }) {
         if (
           googleRef.current.maps.geometry.poly.containsLocation(
             point,
-            basePolygon
+            basePolygon,
           )
         ) {
           insidePoints.push(coord);
@@ -197,13 +401,13 @@ export default function LoteModal({ onClose, idproyecto }) {
           rectCoords.reduce((sum, c) => sum + c.lng, 0) / rectCoords.length;
         const centerPoint = new googleRef.current.maps.LatLng(
           centerLat,
-          centerLng
+          centerLng,
         );
 
         if (
           !googleRef.current.maps.geometry.poly.containsLocation(
             centerPoint,
-            basePolygon
+            basePolygon,
           )
         ) {
           return null;
@@ -226,7 +430,7 @@ export default function LoteModal({ onClose, idproyecto }) {
             const isDuplicate = clippedPoints.some(
               (pt) =>
                 Math.abs(pt.lat - intersection.lat) < 0.0000001 &&
-                Math.abs(pt.lng - intersection.lng) < 0.0000001
+                Math.abs(pt.lng - intersection.lng) < 0.0000001,
             );
             if (!isDuplicate) {
               clippedPoints.push(intersection);
@@ -238,7 +442,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       // Agregar vértices del polígono dentro del rectángulo
       const rectPolygon = new googleRef.current.maps.Polygon({
         paths: rectCoords.map(
-          (c) => new googleRef.current.maps.LatLng(c.lat, c.lng)
+          (c) => new googleRef.current.maps.LatLng(c.lat, c.lng),
         ),
       });
 
@@ -247,13 +451,13 @@ export default function LoteModal({ onClose, idproyecto }) {
         if (
           googleRef.current.maps.geometry.poly.containsLocation(
             point,
-            rectPolygon
+            rectPolygon,
           )
         ) {
           const isDuplicate = clippedPoints.some(
             (pt) =>
               Math.abs(pt.lat - coord.lat) < 0.0000001 &&
-              Math.abs(pt.lng - coord.lng) < 0.0000001
+              Math.abs(pt.lng - coord.lng) < 0.0000001,
           );
           if (!isDuplicate) {
             clippedPoints.push(coord);
@@ -309,6 +513,25 @@ export default function LoteModal({ onClose, idproyecto }) {
       const angleB = Math.atan2(b.lat - center.lat, b.lng - center.lng);
       return angleA - angleB;
     });
+  };
+
+  /**
+   * Calcula el área de un polígono en metros cuadrados
+   * Usa la fórmula de área esférica para mayor precisión
+   */
+  const calculatePolygonArea = (coords) => {
+    if (!coords || coords.length < 3 || !googleRef.current) return 0;
+
+    try {
+      const path = coords.map(
+        (coord) => new googleRef.current.maps.LatLng(coord.lat, coord.lng),
+      );
+      const area = googleRef.current.maps.geometry.spherical.computeArea(path);
+      return Math.round(area * 100) / 100; // Redondear a 2 decimales
+    } catch (error) {
+      console.warn("Error calculando área:", error);
+      return 0;
+    }
   };
 
   /**
@@ -371,16 +594,18 @@ export default function LoteModal({ onClose, idproyecto }) {
           // Recortar al polígono
           const clippedCoords = clipRectangleToPolygon(
             globalCorners,
-            polygonCoords
+            polygonCoords,
           );
 
           if (clippedCoords && clippedCoords.length >= 3) {
+            const calculatedArea = calculatePolygonArea(clippedCoords);
             grid.push({
               id: loteCounter++,
               coords: clippedCoords,
               nombre: `Lote ${r + 1}-${c + 1}`,
               precio: 0,
               descripcion: "",
+              area_total_m2: calculatedArea > 0 ? calculatedArea : 50,
               vendido: 0,
               row: r,
               col: c,
@@ -391,7 +616,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       return grid;
     },
-    [googleRef]
+    [googleRef],
   );
 
   const handleRegenerateGrid = useCallback(() => {
@@ -401,7 +626,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       basePolygonCoords,
       gridParams.rows,
       gridParams.cols,
-      rotationDeg
+      rotationDeg,
     );
     setGeneratedLotes(grid);
   }, [
@@ -459,6 +684,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       nombre: lote.nombre,
       precio: lote.precio,
       descripcion: lote.descripcion,
+      area_total_m2: lote.area_total_m2 || "",
     };
     setFormValues((prev) => ({
       ...prev,
@@ -483,14 +709,49 @@ export default function LoteModal({ onClose, idproyecto }) {
       return;
     }
 
-    const lotesToSend = generatedLotes.map((lote) => ({
-      ...lote,
-      nombre: formValues[lote.id]?.nombre || lote.nombre,
-      precio: formValues[lote.id]?.precio || lote.precio,
-      descripcion: formValues[lote.id]?.descripcion || lote.descripcion,
-      puntos: lote.coords,
-      idproyecto,
-    }));
+    const lotesToSend = generatedLotes.map((lote) => {
+      // Obtener el valor del área, con validación
+      const areaValue =
+        formValues[lote.id]?.area_total_m2 || lote.area_total_m2;
+
+      let areaTotal;
+      if (
+        areaValue &&
+        !isNaN(parseFloat(areaValue)) &&
+        parseFloat(areaValue) > 0
+      ) {
+        areaTotal = parseFloat(areaValue);
+      } else {
+        // Si no hay área válida, recalcular desde las coordenadas
+        areaTotal = calculatePolygonArea(lote.coords);
+        // Si aún así es 0, usar un valor mínimo por defecto
+        if (areaTotal <= 0) {
+          areaTotal = 50;
+        }
+      }
+
+      return {
+        ...lote,
+        nombre: formValues[lote.id]?.nombre || lote.nombre,
+        precio: formValues[lote.id]?.precio || lote.precio,
+        descripcion: formValues[lote.id]?.descripcion || lote.descripcion,
+        area_total_m2: areaTotal,
+        puntos: lote.coords,
+        idproyecto,
+      };
+    });
+
+    // Validar antes de enviar
+    const lotesInvalidos = lotesToSend.filter(
+      (lote) => !lote.area_total_m2 || lote.area_total_m2 <= 0,
+    );
+
+    if (lotesInvalidos.length > 0) {
+      alert(
+        `⚠️ Los siguientes lotes no tienen área válida:\n${lotesInvalidos.map((l) => l.nombre).join(", ")}\n\nPor favor, verifica que todos los lotes tengan un área mayor a 0.`,
+      );
+      return;
+    }
 
     try {
       const res = await fetch(
@@ -502,22 +763,22 @@ export default function LoteModal({ onClose, idproyecto }) {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(lotesToSend),
-        }
+        },
       );
 
       if (res.ok) {
         alert("Lotes registrados exitosamente ✅");
         onClose();
       } else {
-        console.error(await res.text());
-        alert("Error al registrar lotes ❌");
+        const errorText = await res.text();
+        console.error(errorText);
+        alert("Error al registrar lotes ❌\n" + errorText);
       }
     } catch (err) {
       console.error(err);
       alert("Error de red 🚫");
     }
   };
-
   const getColorLote = (vendido) => {
     switch (vendido) {
       case 0:
@@ -733,7 +994,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                     coords.push({ lat: point.lat(), lng: point.lng() });
                   }
                   setGeneratedLotes((prev) =>
-                    prev.map((l) => (l.id === lote.id ? { ...l, coords } : l))
+                    prev.map((l) => (l.id === lote.id ? { ...l, coords } : l)),
                   );
                 } catch (error) {
                   console.warn("Error al actualizar coordenadas:", error);
@@ -752,33 +1013,38 @@ export default function LoteModal({ onClose, idproyecto }) {
             />
           ))}
 
-          <DrawingManager
-            onPolygonComplete={onPolygonComplete}
-            options={{
-              drawingControl: true,
-              drawingControlOptions: {
-                position:
-                  googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
-                drawingModes: ["polygon", "rectangle"],
-              },
-              polygonOptions: {
-                editable: true,
-                draggable: true,
-                fillColor: "#FF00FF",
-                fillOpacity: 0.3,
-                strokeColor: "#FF00FF",
-                strokeWeight: 2,
-              },
-              rectangleOptions: {
-                editable: true,
-                draggable: true,
-                fillColor: "#FF00FF",
-                fillOpacity: 0.3,
-                strokeColor: "#FF00FF",
-                strokeWeight: 2,
-              },
-            }}
-          />
+          {!drawingManagerRef.current && (
+            <DrawingManager
+              onLoad={(dm) => {
+                drawingManagerRef.current = dm;
+              }}
+              onPolygonComplete={onPolygonComplete}
+              options={{
+                drawingControl: true,
+                drawingControlOptions: {
+                  position:
+                    googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
+                  drawingModes: ["polygon", "rectangle"],
+                },
+                polygonOptions: {
+                  editable: true,
+                  draggable: true,
+                  fillColor: "#FF00FF",
+                  fillOpacity: 0.3,
+                  strokeColor: "#FF00FF",
+                  strokeWeight: 2,
+                },
+                rectangleOptions: {
+                  editable: true,
+                  draggable: true,
+                  fillColor: "#FF00FF",
+                  fillOpacity: 0.3,
+                  strokeColor: "#FF00FF",
+                  strokeWeight: 2,
+                },
+              }}
+            />
+          )}
         </GoogleMap>
 
         {selectedLote && (
@@ -822,6 +1088,21 @@ export default function LoteModal({ onClose, idproyecto }) {
               onChange={handleFormChange}
               className={style.input}
             ></textarea>
+            <label>Área total (m²):</label>
+            <input
+              name="area_total_m2"
+              type="number"
+              min="0"
+              step="0.01"
+              value={
+                formValues[selectedLote]?.area_total_m2 ||
+                generatedLotes.find((l) => l.id === selectedLote)
+                  ?.area_total_m2 ||
+                ""
+              }
+              onChange={handleFormChange}
+              className={style.input}
+            />
           </div>
         )}
 

@@ -1,8 +1,11 @@
 // components/LoteModal.jsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
 import style from "../agregarInmo.module.css";
 import loader from "../../../components/loader";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
+import { loadPdfFromIndexedDB } from "../../../components/utils/indexedDB";
 
 export default function LoteModal({ onClose, idproyecto }) {
   const [form, setForm] = useState({
@@ -36,13 +39,223 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [proyectoCoords, setProyectoCoords] = useState([]);
   const [lotesCoords, setLotesCoords] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const mapRef = useRef(null);
+  const googleRef = useRef(null);
   const token = localStorage.getItem("access");
   const isCasa = form.idtipoinmobiliaria === 2;
+  const originalPdfImageRef = useRef(null);
+  const [pdfImage, setPdfImage] = useState(null);
+  const [overlayBounds, setOverlayBounds] = useState(null);
+  const [pdfRotation, setPdfRotation] = useState(0);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.6);
+  const overlayRef = useRef(null);
+  const proyectoCoordsRef = useRef([]);
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+  const createRotatableOverlay = useCallback(
+    (bounds, image, rotation, opacity) => {
+      if (!googleRef.current) return null;
+
+      class RotatableOverlay extends googleRef.current.maps.OverlayView {
+        constructor() {
+          super();
+          this.bounds = bounds;
+          this.image = image;
+          this.rotation = rotation;
+          this.opacity = opacity;
+          this.div = null;
+        }
+
+        onAdd() {
+          const div = document.createElement("div");
+          div.style.borderStyle = "none";
+          div.style.borderWidth = "0px";
+          div.style.position = "absolute";
+          div.style.transformOrigin = "center center";
+
+          const img = document.createElement("img");
+          img.src = this.image;
+          img.style.width = "100%";
+          img.style.height = "100%";
+          img.style.opacity = this.opacity;
+          img.style.position = "absolute";
+          div.appendChild(img);
+
+          this.div = div;
+          const panes = this.getPanes();
+          panes.overlayLayer.appendChild(div);
+        }
+
+        draw() {
+          const overlayProjection = this.getProjection();
+          if (!overlayProjection || !this.div) return;
+
+          const sw = overlayProjection.fromLatLngToDivPixel(
+            new googleRef.current.maps.LatLng(
+              this.bounds.south,
+              this.bounds.west,
+            ),
+          );
+          const ne = overlayProjection.fromLatLngToDivPixel(
+            new googleRef.current.maps.LatLng(
+              this.bounds.north,
+              this.bounds.east,
+            ),
+          );
+
+          const width = ne.x - sw.x;
+          const height = sw.y - ne.y;
+          const centerX = (sw.x + ne.x) / 2;
+          const centerY = (sw.y + ne.y) / 2;
+
+          this.div.style.left = centerX - width / 2 + "px";
+          this.div.style.top = centerY - height / 2 + "px";
+          this.div.style.width = width + "px";
+          this.div.style.height = height + "px";
+          this.div.style.transform = `rotate(${this.rotation}deg)`;
+        }
+
+        onRemove() {
+          if (this.div) {
+            this.div.parentNode.removeChild(this.div);
+            this.div = null;
+          }
+        }
+
+        updateBounds(newBounds) {
+          this.bounds = newBounds;
+          this.draw();
+        }
+
+        updateRotation(newRotation) {
+          this.rotation = newRotation;
+          this.draw();
+        }
+
+        updateOpacity(newOpacity) {
+          this.opacity = newOpacity;
+          if (this.div) {
+            const img = this.div.querySelector("img");
+            if (img) img.style.opacity = newOpacity;
+          }
+        }
+
+        updateImage(newImage) {
+          this.image = newImage;
+          if (this.div) {
+            const img = this.div.querySelector("img");
+            if (img) img.src = newImage;
+          }
+        }
+      }
+
+      return new RotatableOverlay();
+    },
+    [],
+  );
 
   //  cargar Google Maps desde loader.js
   useEffect(() => {
-    loader.load().then(() => setIsLoaded(true));
+    loader.load().then((googleInstance) => {
+      setIsLoaded(true);
+      googleRef.current = googleInstance;
+    });
   }, []);
+
+  useEffect(() => {
+    const loadSavedPDF = async () => {
+      if (!isLoaded || !mapCenter) return;
+      try {
+        const pdfBlob = await loadPdfFromIndexedDB(idproyecto);
+        if (pdfBlob) {
+          const arrayBuffer = await pdfBlob.arrayBuffer();
+          const typedArray = new Uint8Array(arrayBuffer);
+          const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
+          const page = await pdf.getPage(1);
+
+          const scale = 2.5;
+          const viewport = page.getViewport({ scale });
+
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          await page.render({
+            canvasContext: context,
+            viewport: viewport,
+          }).promise;
+
+          const imageUrl = canvas.toDataURL("image/png");
+          originalPdfImageRef.current = imageUrl;
+          setPdfImage(imageUrl);
+
+          const savedMeta = localStorage.getItem(`pdf_meta_${idproyecto}`);
+          if (savedMeta) {
+            const meta = JSON.parse(savedMeta);
+            setOverlayBounds(meta.bounds);
+            setOverlayOpacity(meta.opacity || 0.6);
+            setPdfRotation(meta.rotation || 0);
+          } else {
+            setPdfRotation(0);
+            const centerLat = mapCenter.lat;
+            const centerLng = mapCenter.lng;
+            const aspectRatio = viewport.height / viewport.width;
+            const widthDegrees = 0.002;
+            const heightDegrees = widthDegrees * aspectRatio;
+
+            setOverlayBounds({
+              north: centerLat + heightDegrees / 2,
+              south: centerLat - heightDegrees / 2,
+              east: centerLng + widthDegrees / 2,
+              west: centerLng - widthDegrees / 2,
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("No hay PDF previo para este proyecto", error);
+      }
+    };
+    loadSavedPDF();
+  }, [idproyecto, isLoaded, mapCenter]);
+
+  useEffect(() => {
+    if (!mapRef.current || !googleRef.current) return;
+
+    if (!pdfImage || !overlayBounds) {
+      if (overlayRef.current) {
+        overlayRef.current.setMap(null);
+        overlayRef.current = null;
+      }
+      return;
+    }
+
+    if (!overlayRef.current) {
+      overlayRef.current = createRotatableOverlay(
+        overlayBounds,
+        pdfImage,
+        pdfRotation,
+        overlayOpacity,
+      );
+      overlayRef.current.setMap(mapRef.current);
+      return;
+    }
+
+    overlayRef.current.updateBounds(overlayBounds);
+    overlayRef.current.updateRotation(pdfRotation);
+    overlayRef.current.updateOpacity(overlayOpacity);
+    overlayRef.current.updateImage(pdfImage);
+  }, [
+    pdfImage,
+    overlayBounds,
+    pdfRotation,
+    overlayOpacity,
+    createRotatableOverlay,
+  ]);
+  useEffect(() => {
+    proyectoCoordsRef.current = proyectoCoords;
+  }, [proyectoCoords]);
 
   // 👉 cargar puntos del proyecto y lotes
   // const fetchProyecto = useCallback(async () => {
@@ -139,12 +352,16 @@ export default function LoteModal({ onClose, idproyecto }) {
         }
       );
       const puntosProyecto = await resPuntosProyecto.json();
-      setProyectoCoords(
-        puntosProyecto.map((p) => ({
+      const orderedProyecto = puntosProyecto
+        .sort((a, b) => a.orden - b.orden)
+        .map((p) => ({
           lat: parseFloat(p.latitud),
           lng: parseFloat(p.longitud),
-        }))
-      );
+        }));
+      if (orderedProyecto.length > 2) {
+        orderedProyecto.push(orderedProyecto[0]); // cerrar polígono
+      }
+      setProyectoCoords(orderedProyecto);
 
       // 🔹 Lotes con sus coordenadas ya incluidas
       const lotesData = data.map((lote) => ({
@@ -209,6 +426,12 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   // 👉 cuando el usuario termina de dibujar un lote
   const onPolygonComplete = (polygon) => {
+    const currentProyectoCoords = proyectoCoordsRef.current || [];
+    if (currentProyectoCoords.length < 3) {
+      alert("El polígono del proyecto aún no está listo.");
+      polygon.setMap(null);
+      return;
+    }
     const path = polygon.getPath().getArray();
     const loteCoords = path.map((c, i) => ({
       latitud: c.lat(),
@@ -218,7 +441,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
     // validar dentro del proyecto
     const proyectoPolygon = new window.google.maps.Polygon({
-      paths: proyectoCoords,
+      paths: currentProyectoCoords,
     });
 
     const isInside = loteCoords.every((coord) =>
@@ -375,6 +598,9 @@ export default function LoteModal({ onClose, idproyecto }) {
             zoom={16}
             center={mapCenter}
             options={{ gestureHandling: "greedy" }}
+            onLoad={(map) => {
+              mapRef.current = map;
+            }}
           >
             {/* polígono proyecto */}
             {proyectoCoords.length > 0 && (

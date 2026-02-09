@@ -1,7 +1,7 @@
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
-import style from "../agregarInmo.module.css";
+import style from "../agregarInmoPDF.module.css";
 import loader from "../../../components/loader";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
@@ -24,8 +24,10 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [basePolygonCoords, setBasePolygonCoords] = useState(null);
   const [detectedAngle, setDetectedAngle] = useState(0);
   const [lotesCoords, setLotesCoords] = useState([]);
-
-  // Estados para PDF overlay
+  const [movePrecision, setMovePrecision] = useState("normal");
+  const moveIntervalRef = useRef(null);
+  const [zoomPrecision, setZoomPrecision] = useState("normal");
+  const zoomIntervalRef = useRef(null);
   const [pdfImage, setPdfImage] = useState(null);
   const [overlayBounds, setOverlayBounds] = useState(null);
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
@@ -82,14 +84,14 @@ export default function LoteModal({ onClose, idproyecto }) {
           const sw = overlayProjection.fromLatLngToDivPixel(
             new googleRef.current.maps.LatLng(
               this.bounds.south,
-              this.bounds.west
-            )
+              this.bounds.west,
+            ),
           );
           const ne = overlayProjection.fromLatLngToDivPixel(
             new googleRef.current.maps.LatLng(
               this.bounds.north,
-              this.bounds.east
-            )
+              this.bounds.east,
+            ),
           );
 
           if (this.div) {
@@ -142,7 +144,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       return new RotatableOverlay();
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -152,10 +154,17 @@ export default function LoteModal({ onClose, idproyecto }) {
     });
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "hidden";
+    };
+  }, []);
+
   const fetchProyecto = useCallback(async () => {
     try {
       const res = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`
+        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
       );
       const puntosProyecto = await res.json();
       if (!puntosProyecto || !puntosProyecto.length) return;
@@ -172,16 +181,15 @@ export default function LoteModal({ onClose, idproyecto }) {
       }));
       setProyectoCoords(coords);
 
-      // Cargar lotes existentes
       const resLotes = await fetch(
-        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`
+        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
       );
       const lotes = await resLotes.json();
 
       const lotesData = [];
       for (const lote of lotes) {
         const resPuntos = await fetch(
-          `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`
+          `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`,
         );
         const puntos = await resPuntos.json();
         if (!puntos.length) continue;
@@ -207,7 +215,6 @@ export default function LoteModal({ onClose, idproyecto }) {
   }, [fetchProyecto, isLoaded]);
 
   // ============ CARGAR PDF GUARDADO AL ABRIR EL MODAL ============
-  // Reemplaza el useEffect de "CARGAR PDF GUARDADO" (línea ~175 aproximadamente)
   useEffect(() => {
     const loadSavedPDF = async () => {
       if (!isLoaded || !mapCenter) return;
@@ -236,24 +243,20 @@ export default function LoteModal({ onClose, idproyecto }) {
 
           const imageUrl = canvas.toDataURL("image/png");
 
-          // 🔥 SIEMPRE guardar la imagen original sin rotar
           originalPdfImageRef.current = imageUrl;
           setPdfImage(imageUrl);
 
-          // Cargar metadatos desde localStorage
           const savedMeta = localStorage.getItem(`pdf_meta_${idproyecto}`);
 
           if (savedMeta) {
             const meta = JSON.parse(savedMeta);
 
-            // 🔥 Restaurar bounds, opacidad y rotación desde los metadatos
             setOverlayBounds(meta.bounds);
             setOverlayOpacity(meta.opacity || 0.6);
             setPdfRotation(meta.rotation || 0);
 
             console.log("✅ PDF cargado con metadatos:", meta);
           } else {
-            // Si no hay metadatos, usar valores predeterminados
             setPdfRotation(0);
 
             const centerLat = mapCenter.lat;
@@ -270,14 +273,14 @@ export default function LoteModal({ onClose, idproyecto }) {
             });
 
             console.log(
-              "ℹ️ PDF cargado sin metadatos, usando valores por defecto"
+              "PDF cargado sin metadatos, usando valores por defecto",
             );
           }
 
-          console.log("✅ PDF cargado desde IndexedDB");
+          console.log("PDF cargado desde IndexedDB");
         }
       } catch (error) {
-        console.warn("⚠️ No se pudo cargar PDF guardado:", error);
+        console.warn("No se pudo cargar PDF guardado:", error);
       }
     };
 
@@ -309,12 +312,10 @@ export default function LoteModal({ onClose, idproyecto }) {
       fileReader.onload = async (event) => {
         const typedArray = new Uint8Array(event.target.result);
 
-        // Guardar PDF en IndexedDB
         const pdfBlob = new Blob([typedArray], { type: "application/pdf" });
         await savePdfToIndexedDB(idproyecto, pdfBlob);
         console.log("✅ PDF guardado en IndexedDB");
 
-        // Renderizar PDF
         const pdf = await pdfjsLib.getDocument({ data: typedArray }).promise;
         const page = await pdf.getPage(1);
 
@@ -336,7 +337,6 @@ export default function LoteModal({ onClose, idproyecto }) {
         originalPdfImageRef.current = imageUrl;
         setPdfRotation(0);
 
-        // Inicializar bounds usando mapCenter como referencia
         const centerLat = mapCenter?.lat || -6.4882;
         const centerLng = mapCenter?.lng || -76.365629;
 
@@ -361,65 +361,22 @@ export default function LoteModal({ onClose, idproyecto }) {
     }
   };
 
-  const adjustOverlaySize = (scaleChange) => {
-    if (!overlayBounds || isPDFLocked) return;
+  const startMove = (direction) => {
+    if (isPDFLocked) return;
 
-    const centerLat = (overlayBounds.north + overlayBounds.south) / 2;
-    const centerLng = (overlayBounds.east + overlayBounds.west) / 2;
+    handleMove(direction, movePrecision);
 
-    const currentHeight = overlayBounds.north - overlayBounds.south;
-    const currentWidth = overlayBounds.east - overlayBounds.west;
-
-    const newHeight = currentHeight * scaleChange;
-    const newWidth = currentWidth * scaleChange;
-
-    setOverlayBounds({
-      north: centerLat + newHeight / 2,
-      south: centerLat - newHeight / 2,
-      east: centerLng + newWidth / 2,
-      west: centerLng - newWidth / 2,
-    });
+    moveIntervalRef.current = setInterval(() => {
+      handleMove(direction, movePrecision);
+    }, 120);
   };
 
-  const moveOverlay = (latDelta, lngDelta) => {
-    if (!overlayBounds || isPDFLocked) return;
-
-    setOverlayBounds((prev) => ({
-      north: prev.north + latDelta,
-      south: prev.south + latDelta,
-      east: prev.east + lngDelta,
-      west: prev.west + lngDelta,
-    }));
+  const stopMove = () => {
+    if (moveIntervalRef.current) {
+      clearInterval(moveIntervalRef.current);
+      moveIntervalRef.current = null;
+    }
   };
-
-  // const adjustBoundsForRotation = (currentBounds, rotationDegrees) => {
-  //   const centerLat = (currentBounds.north + currentBounds.south) / 2;
-  //   const centerLng = (currentBounds.east + currentBounds.west) / 2;
-
-  //   const currentHeight = currentBounds.north - currentBounds.south;
-  //   const currentWidth = currentBounds.east - currentBounds.west;
-
-  //   // Para rotaciones de 90° y 270°, intercambiamos ancho y alto
-  //   const normalizedRotation = ((rotationDegrees % 360) + 360) % 360;
-  //   const isRightAngle = Math.abs(normalizedRotation % 180) === 90;
-
-  //   let newHeight, newWidth;
-
-  //   if (isRightAngle) {
-  //     newHeight = currentWidth;
-  //     newWidth = currentHeight;
-  //   } else {
-  //     newHeight = currentHeight;
-  //     newWidth = currentWidth;
-  //   }
-
-  //   return {
-  //     north: centerLat + newHeight / 2,
-  //     south: centerLat - newHeight / 2,
-  //     east: centerLng + newWidth / 2,
-  //     west: centerLng - newWidth / 2,
-  //   };
-  // };
 
   const rotatePDF = (degrees) => {
     if (isPDFLocked) return;
@@ -521,7 +478,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
     try {
       const polygonPath = polygonCoords.map(
-        (c) => new googleRef.current.maps.LatLng(c.lat, c.lng)
+        (c) => new googleRef.current.maps.LatLng(c.lat, c.lng),
       );
       const basePolygon = new googleRef.current.maps.Polygon({
         paths: polygonPath,
@@ -533,7 +490,7 @@ export default function LoteModal({ onClose, idproyecto }) {
         if (
           googleRef.current.maps.geometry.poly.containsLocation(
             point,
-            basePolygon
+            basePolygon,
           )
         ) {
           insidePoints.push(coord);
@@ -549,13 +506,13 @@ export default function LoteModal({ onClose, idproyecto }) {
           rectCoords.reduce((sum, c) => sum + c.lng, 0) / rectCoords.length;
         const centerPoint = new googleRef.current.maps.LatLng(
           centerLat,
-          centerLng
+          centerLng,
         );
 
         if (
           !googleRef.current.maps.geometry.poly.containsLocation(
             centerPoint,
-            basePolygon
+            basePolygon,
           )
         ) {
           return null;
@@ -577,7 +534,7 @@ export default function LoteModal({ onClose, idproyecto }) {
             const isDuplicate = clippedPoints.some(
               (pt) =>
                 Math.abs(pt.lat - intersection.lat) < 0.0000001 &&
-                Math.abs(pt.lng - intersection.lng) < 0.0000001
+                Math.abs(pt.lng - intersection.lng) < 0.0000001,
             );
             if (!isDuplicate) {
               clippedPoints.push(intersection);
@@ -588,7 +545,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       const rectPolygon = new googleRef.current.maps.Polygon({
         paths: rectCoords.map(
-          (c) => new googleRef.current.maps.LatLng(c.lat, c.lng)
+          (c) => new googleRef.current.maps.LatLng(c.lat, c.lng),
         ),
       });
 
@@ -597,13 +554,13 @@ export default function LoteModal({ onClose, idproyecto }) {
         if (
           googleRef.current.maps.geometry.poly.containsLocation(
             point,
-            rectPolygon
+            rectPolygon,
           )
         ) {
           const isDuplicate = clippedPoints.some(
             (pt) =>
               Math.abs(pt.lat - coord.lat) < 0.0000001 &&
-              Math.abs(pt.lng - coord.lng) < 0.0000001
+              Math.abs(pt.lng - coord.lng) < 0.0000001,
           );
           if (!isDuplicate) {
             clippedPoints.push(coord);
@@ -708,7 +665,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
           const clippedCoords = clipRectangleToPolygon(
             globalCorners,
-            polygonCoords
+            polygonCoords,
           );
 
           if (clippedCoords && clippedCoords.length >= 3) {
@@ -729,7 +686,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       return grid;
     },
-    []
+    [],
   );
 
   const handleRegenerateGrid = useCallback(() => {
@@ -739,7 +696,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       basePolygonCoords,
       gridParams.rows,
       gridParams.cols,
-      rotationDeg
+      rotationDeg,
     );
     setGeneratedLotes(grid);
   }, [
@@ -761,7 +718,6 @@ export default function LoteModal({ onClose, idproyecto }) {
       return;
     }
 
-    // Crear o actualizar el overlay
     if (overlayRef.current) {
       overlayRef.current.updateImage(pdfImage);
       overlayRef.current.updateBounds(overlayBounds);
@@ -772,7 +728,7 @@ export default function LoteModal({ onClose, idproyecto }) {
         overlayBounds,
         pdfImage,
         pdfRotation,
-        overlayOpacity
+        overlayOpacity,
       );
       if (newOverlay) {
         newOverlay.setMap(mapRef.current);
@@ -848,23 +804,6 @@ export default function LoteModal({ onClose, idproyecto }) {
     }));
   };
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormValues((prev) => ({
-      ...prev,
-      [selectedLote]: {
-        ...prev[selectedLote],
-        [name]: name === "vendido" ? parseInt(value) : value,
-      },
-    }));
-  };
-
-  const opcionesEstado = [
-    { value: 0, label: "Disponible" },
-    { value: 1, label: "Vendido" },
-    { value: 2, label: "Reservado" },
-  ];
-
   const handleRegisterAll = async () => {
     if (generatedLotes.length === 0) {
       alert("No hay lotes generados.");
@@ -894,7 +833,7 @@ export default function LoteModal({ onClose, idproyecto }) {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(lotesToSend),
-        }
+        },
       );
 
       if (res.ok) {
@@ -910,19 +849,6 @@ export default function LoteModal({ onClose, idproyecto }) {
     }
   };
 
-  const getColorLote = (vendido) => {
-    switch (vendido) {
-      case 0:
-        return "#00ff00";
-      case 1:
-        return "#ff0000";
-      case 2:
-        return "#ffff00";
-      default:
-        return "#808080";
-    }
-  };
-
   const handleClearPolygon = () => {
     setBasePolygonCoords(null);
     setGeneratedLotes([]);
@@ -935,990 +861,653 @@ export default function LoteModal({ onClose, idproyecto }) {
     }
   };
 
+  const handleZoom = (direction, intensity = "normal") => {
+    if (!overlayBounds) return;
+
+    const factors = {
+      normal: 0.1,
+      fine: 0.05,
+      veryFine: 0.02,
+    };
+
+    const factor = factors[intensity] || factors.normal;
+    const scaleFactor = direction === "in" ? 1 - factor : 1 + factor;
+
+    const centerLat = (overlayBounds.north + overlayBounds.south) / 2;
+    const centerLng = (overlayBounds.east + overlayBounds.west) / 2;
+    const latSpan = overlayBounds.north - overlayBounds.south;
+    const lngSpan = overlayBounds.east - overlayBounds.west;
+
+    const newLatSpan = latSpan * scaleFactor;
+    const newLngSpan = lngSpan * scaleFactor;
+
+    const newBounds = {
+      north: centerLat + newLatSpan / 2,
+      south: centerLat - newLatSpan / 2,
+      east: centerLng + newLngSpan / 2,
+      west: centerLng - newLngSpan / 2,
+    };
+
+    setOverlayBounds(newBounds);
+  };
+
+  const handleMove = (direction, intensity = "normal") => {
+    if (!overlayBounds) return;
+
+    const factors = {
+      normal: 0.05,
+      fine: 0.025,
+      veryFine: 0.005,
+    };
+
+    const factor = factors[intensity] || factors.normal;
+    const latSpan = overlayBounds.north - overlayBounds.south;
+    const lngSpan = overlayBounds.east - overlayBounds.west;
+
+    let latDelta = 0;
+    let lngDelta = 0;
+
+    switch (direction) {
+      case "up":
+        latDelta = latSpan * factor;
+        break;
+      case "down":
+        latDelta = -latSpan * factor;
+        break;
+      case "left":
+        lngDelta = -lngSpan * factor;
+        break;
+      case "right":
+        lngDelta = lngSpan * factor;
+        break;
+    }
+
+    const newBounds = {
+      north: overlayBounds.north + latDelta,
+      south: overlayBounds.south + latDelta,
+      east: overlayBounds.east + lngDelta,
+      west: overlayBounds.west + lngDelta,
+    };
+
+    setOverlayBounds(newBounds);
+  };
+
+  const startZoom = (direction) => {
+    if (isPDFLocked) return;
+
+    handleZoom(direction, zoomPrecision);
+
+    zoomIntervalRef.current = setInterval(() => {
+      handleZoom(direction, zoomPrecision);
+    }, 120);
+  };
+
+  const stopZoom = () => {
+    if (zoomIntervalRef.current) {
+      clearInterval(zoomIntervalRef.current);
+      zoomIntervalRef.current = null;
+    }
+  };
+
   if (!isLoaded || !mapCenter) return <div>Cargando mapa...</div>;
 
   return (
     <div className={style.modalOverlay}>
-      <div
-        className={style.modalContent}
-        style={{ maxWidth: "95vw", width: "1400px" }}
-      >
-        <button className={style.closeBtn} onClick={onClose}>
-          ×
-        </button>
-
-        <h2 style={{ color: "black" }}>Generar Lotes con Plano PDF</h2>
-
-        {/* CONTROLES PDF */}
-        {pdfImage && (
-          <div
-            style={{
-              marginBottom: "1rem",
-              padding: "1rem",
-              backgroundColor: isPDFLocked ? "#e8f5e9" : "#fff3cd",
-              borderRadius: "8px",
-              border: isPDFLocked ? "2px solid #4CAF50" : "2px solid #ff9800",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: "1rem",
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              <strong>
-                {isPDFLocked ? "✅ PDF Fijado" : "🔧 Ajustando PDF"}
-              </strong>
-
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+      <div className={style.modalContainer}>
+        <div className={style.container}>
+          {/* HEADER */}
+          <header className={style.header}>
+            <div className={style.logoArea}>
+              <div className={style.iconBox}>
+                <span className="material-icons-round">layers</span>
+              </div>
+              <h1 style={{ fontSize: "20px", fontWeight: "bold" }}>
+                Generar Lotes con Plano
+              </h1>
+            </div>
+            <div className={style.headerActions}>
+              <button
+                className={style.btnSecondary}
+                onClick={() =>
+                  alert(
+                    "Usa el polígono para marcar el área y ajusta el PDF debajo.",
+                  )
+                }
               >
-                <label>Opacidad:</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={overlayOpacity}
-                  onChange={(e) =>
-                    setOverlayOpacity(parseFloat(e.target.value))
-                  }
-                  style={{ width: "120px" }}
-                />
-                <span>{(overlayOpacity * 100).toFixed(0)}%</span>
+                <span className="material-icons-round">help_outline</span> Ayuda
+              </button>
+              <button className={style.btnPrimary} onClick={handleRegisterAll}>
+                <span className="material-icons-round">save</span> Registrar
+                Todo
+              </button>
+              <button
+                onClick={onClose}
+                style={{
+                  border: "none",
+                  background: "none",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  padding: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <span className="material-icons-round">close</span>
+              </button>
+            </div>
+          </header>
+
+          <main className={style.main}>
+            {/* SIDEBAR */}
+            <aside className={style.sidebar}>
+              {/* SECCIÓN PDF */}
+              <div className={style.section}>
+                <h2 className={style.sectionTitle}>
+                  <span className="material-icons-round">picture_as_pdf</span>{" "}
+                  Superposición PDF
+                </h2>
+                {!pdfImage ? (
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePDFUpload}
+                    className={style.inputNumber}
+                  />
+                ) : (
+                  <div className={style.controlGroup}>
+                    <div>
+                      <div className={style.labelRow}>
+                        <label className={style.label}>Opacidad</label>
+                        <span className={style.valueDisplay}>
+                          {(overlayOpacity * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={overlayOpacity}
+                        onChange={(e) =>
+                          setOverlayOpacity(parseFloat(e.target.value))
+                        }
+                        className={style.rangeInput}
+                      />
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "8px",
+                      }}
+                    >
+                      <button
+                        className={style.btnSecondary}
+                        onClick={() => setIsPDFLocked(!isPDFLocked)}
+                      >
+                        <span className="material-icons-round">
+                          {isPDFLocked ? "lock" : "lock_open"}
+                        </span>
+                        {isPDFLocked ? "Fijado" : "Fijar"}
+                      </button>
+                      <button
+                        className={`${style.btnSecondary} ${style.btnDanger}`}
+                        onClick={handleDeletePDF}
+                      >
+                        <span className="material-icons-round">
+                          delete_outline
+                        </span>{" "}
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <button
-                onClick={() => setIsPDFLocked(!isPDFLocked)}
-                className={style.submitBtn}
-                style={{ backgroundColor: isPDFLocked ? "#ff9800" : "#4CAF50" }}
-              >
-                {isPDFLocked ? "Mostrar Botones" : "Ocultar Botones"}
-              </button>
+              {/* TRANSFORMACIÓN */}
+              {pdfImage && !isPDFLocked && (
+                <div className={style.section}>
+                  <h2 className={style.sectionTitle}>
+                    <span className="material-icons-round">open_with</span>{" "}
+                    Transformación
+                  </h2>
+                  <div className={style.controlGroup}>
+                    {/* CONTROLES DE ESCALA/ZOOM */}
+                    <div className={style.compactControlBox}>
+                      <div className={style.compactControlHeader}>
+                        <span className="material-icons-round">zoom_in</span>
+                        <span>Zoom</span>
+                      </div>
 
-              <button
-                onClick={() => {
-                  setPdfImage(null);
-                  setOverlayBounds(null);
-                  setIsPDFLocked(false);
-                  setPdfRotation(0);
-                  originalPdfImageRef.current = null;
-                  if (fileInputRef.current) {
-                    fileInputRef.current.value = "";
-                  }
+                      <div className={style.precisionSelector}>
+                        <button
+                          className={`${style.precisionBtn} ${
+                            zoomPrecision === "normal" ? style.active : ""
+                          }`}
+                          onClick={() => setZoomPrecision("normal")}
+                          disabled={isPDFLocked}
+                        >
+                          Normal
+                        </button>
+                        <button
+                          className={`${style.precisionBtn} ${
+                            zoomPrecision === "fine" ? style.active : ""
+                          }`}
+                          onClick={() => setZoomPrecision("fine")}
+                          disabled={isPDFLocked}
+                        >
+                          Fino
+                        </button>
+                        <button
+                          className={`${style.precisionBtn} ${
+                            zoomPrecision === "veryFine" ? style.active : ""
+                          }`}
+                          onClick={() => setZoomPrecision("veryFine")}
+                          disabled={isPDFLocked}
+                        >
+                          Muy Fino
+                        </button>
+                      </div>
+
+                      {/* Controles de Zoom */}
+                      <div className={style.zoomControl}>
+                        <button
+                          className={style.zoomBtn}
+                          onMouseDown={() => startZoom("out")}
+                          onMouseUp={stopZoom}
+                          onMouseLeave={stopZoom}
+                          disabled={isPDFLocked}
+                          title="Alejar zoom"
+                        >
+                          <span className="material-icons-round">remove</span>
+                        </button>
+                        <div className={style.zoomLabel}>Zoom</div>
+                        <button
+                          className={style.zoomBtn}
+                          onMouseDown={() => startZoom("in")}
+                          onMouseUp={stopZoom}
+                          onMouseLeave={stopZoom}
+                          disabled={isPDFLocked}
+                          title="Acercar zoom"
+                        >
+                          <span className="material-icons-round">add</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* CONTROLES DE MOVIMIENTO */}
+                    <div className={style.compactControlBox}>
+                      <div className={style.compactControlHeader}>
+                        <span className="material-icons-round">open_with</span>
+                        <span>Mover Plano</span>
+                      </div>
+
+                      {/* Selector de precisión */}
+                      <div className={style.precisionSelector}>
+                        <button
+                          className={`${style.precisionBtn} ${
+                            movePrecision === "normal" ? style.active : ""
+                          }`}
+                          onClick={() => setMovePrecision("normal")}
+                          disabled={isPDFLocked}
+                        >
+                          Normal
+                        </button>
+                        <button
+                          className={`${style.precisionBtn} ${
+                            movePrecision === "fine" ? style.active : ""
+                          }`}
+                          onClick={() => setMovePrecision("fine")}
+                          disabled={isPDFLocked}
+                        >
+                          Fino
+                        </button>
+                        <button
+                          className={`${style.precisionBtn} ${
+                            movePrecision === "veryFine" ? style.active : ""
+                          }`}
+                          onClick={() => setMovePrecision("veryFine")}
+                          disabled={isPDFLocked}
+                        >
+                          Muy Fino
+                        </button>
+                      </div>
+
+                      {/* Joystick */}
+                      <div className={style.dpad}>
+                        <button
+                          className={style.joystickBtn}
+                          onMouseDown={() => startMove("up")}
+                          onMouseUp={stopMove}
+                          onMouseLeave={stopMove}
+                          disabled={isPDFLocked}
+                          title="Mover arriba"
+                        >
+                          <span className="material-icons-round">
+                            expand_less
+                          </span>
+                        </button>
+
+                        <div className={style.middleRow}>
+                          <button
+                            className={style.joystickBtn}
+                            onMouseDown={() => startMove("left")}
+                            onMouseUp={stopMove}
+                            onMouseLeave={stopMove}
+                            disabled={isPDFLocked}
+                            title="Mover izquierda"
+                          >
+                            <span className="material-icons-round">
+                              chevron_left
+                            </span>
+                          </button>
+
+                          <div className={style.centerDot}></div>
+
+                          <button
+                            className={style.joystickBtn}
+                            onMouseDown={() => startMove("right")}
+                            onMouseUp={stopMove}
+                            onMouseLeave={stopMove}
+                            disabled={isPDFLocked}
+                            title="Mover derecha"
+                          >
+                            <span className="material-icons-round">
+                              chevron_right
+                            </span>
+                          </button>
+                        </div>
+
+                        <button
+                          className={style.joystickBtn}
+                          onMouseDown={() => startMove("down")}
+                          onMouseUp={stopMove}
+                          onMouseLeave={stopMove}
+                          disabled={isPDFLocked}
+                          title="Mover abajo"
+                        >
+                          <span className="material-icons-round">
+                            expand_more
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ROTACIÓN */}
+                    <div>
+                      <div className={style.labelRow}>
+                        <label className={style.label}>Rotación</label>
+                        <button
+                          onClick={() => setPdfRotation(0)}
+                          className={`${style.btnSecondary} ${style.btnCompact}`}
+                        >
+                          RESET
+                        </button>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={pdfRotation}
+                        onChange={(e) =>
+                          setPdfRotation(parseInt(e.target.value))
+                        }
+                        className={style.rangeInput}
+                      />
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginTop: "8px",
+                          alignItems: "center",
+                        }}
+                      >
+                        <button
+                          className={`${style.btnSecondary} ${style.btnCompact}`}
+                          onClick={() => rotatePDF(-1)}
+                        >
+                          -1°
+                        </button>
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "bold",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {pdfRotation}°
+                        </span>
+                        <button
+                          className={`${style.btnSecondary} ${style.btnCompact}`}
+                          onClick={() => rotatePDF(1)}
+                        >
+                          +1°
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* GENERACIÓN DE LOTES */}
+              <div className={style.section}>
+                <h2 className={style.sectionTitle}>
+                  <span className="material-icons-round">grid_view</span>{" "}
+                  Generación de Lotes
+                </h2>
+                <div className={style.controlGroup}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "8px",
+                    }}
+                  >
+                    <div>
+                      <label
+                        className={style.label}
+                        style={{ fontSize: "12px" }}
+                      >
+                        Filas
+                      </label>
+                      <input
+                        type="number"
+                        value={gridParams.rows}
+                        onChange={(e) =>
+                          handleGridParamChange(
+                            "rows",
+                            parseInt(e.target.value),
+                          )
+                        }
+                        className={style.inputNumber}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className={style.label}
+                        style={{ fontSize: "12px" }}
+                      >
+                        Columnas
+                      </label>
+                      <input
+                        type="number"
+                        value={gridParams.cols}
+                        onChange={(e) =>
+                          handleGridParamChange(
+                            "cols",
+                            parseInt(e.target.value),
+                          )
+                        }
+                        className={style.inputNumber}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={style.label}>Ángulo de Ajuste</label>
+                    <input
+                      type="range"
+                      min="-45"
+                      max="45"
+                      value={rotationDeg}
+                      onChange={(e) => setRotationDeg(parseInt(e.target.value))}
+                      className={style.rangeInput}
+                    />
+                  </div>
+                  <button
+                    className={style.btnPrimary}
+                    style={{ width: "100%" }}
+                    onClick={handleRegenerateGrid}
+                  >
+                    <span className="material-icons-round">refresh</span>{" "}
+                    Regenerar Cuadrícula
+                  </button>
+                  <button
+                    className={style.btnSecondary}
+                    style={{ width: "100%", justifyContent: "center" }}
+                    onClick={handleClearPolygon}
+                  >
+                    <span className="material-icons-round">clear_all</span>{" "}
+                    Limpiar Mapa
+                  </button>
+                </div>
+              </div>
+
+              {/* TIP */}
+              <div
+                style={{
+                  marginTop: "auto",
+                  padding: "24px",
+                  backgroundColor: "#f8fafc",
                 }}
-                className={style.submitBtn}
-                style={{ backgroundColor: "#f44336" }}
               >
-                🗑️ Quitar PDF
-              </button>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    fontSize: "11px",
+                    color: "#64748b",
+                  }}
+                >
+                  <span
+                    className="material-icons-round"
+                    style={{ color: "#f59e0b", fontSize: "16px" }}
+                  >
+                    lightbulb
+                  </span>
+                  <p>
+                    Dibuja un polígono para definir el área. Luego ajusta el PDF
+                    debajo para calcar los lotes.
+                  </p>
+                </div>
+              </div>
+            </aside>
 
-              <button
-                onClick={handleDeletePDF}
-                className={style.submitBtn}
-                style={{ backgroundColor: "#d32f2f", color: "white" }}
+            {/* MAPA AREA */}
+            <section className={style.mapSection}>
+              <GoogleMap
+                mapContainerStyle={{ width: "100%", height: "100%" }}
+                center={mapCenter}
+                zoom={19}
+                onLoad={onMapLoad}
+                options={{
+                  mapTypeId: "satellite",
+                  tilt: 0,
+                  fullscreenControl: false,
+                  streetViewControl: false,
+                }}
               >
-                🗑️ Eliminar definitivamente
-              </button>
-            </div>
-
-            {!isPDFLocked && (
-              <>
-                {/* === PANEL DE TAMAÑO === */}
-                <div
-                  style={{
-                    marginTop: "1rem",
-                    padding: "1rem",
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: "10px",
+                {/* <DrawingManager
+                  onPolygonComplete={onPolygonComplete}
+                  options={{
+                    drawingControl: !basePolygonCoords,
+                    polygonOptions: {
+                      fillColor: "#0ea5e9",
+                      fillOpacity: 0.3,
+                      strokeWeight: 2,
+                      strokeColor: "#0ea5e9",
+                      editable: true,
+                    },
                   }}
-                >
-                  <div style={{ marginBottom: "0.75rem", textAlign: "center" }}>
-                    <strong style={{ fontSize: "16px" }}>
-                      Ajuste de Tamaño
-                    </strong>
-                  </div>
+                /> */}
 
+                {proyectoCoords.length > 0 && (
+                  <Polygon
+                    paths={proyectoCoords}
+                    options={{
+                      fillColor: "transparent",
+                      strokeColor: "#ffffff",
+                      strokeOpacity: 0.8,
+                      strokeWeight: 3,
+                      clickable: false,
+                    }}
+                  />
+                )}
+
+                {generatedLotes.map((lote) => (
+                  <Polygon
+                    key={lote.id}
+                    paths={lote.coords}
+                    onClick={() => handleSelectLote(lote)}
+                    options={{
+                      fillColor:
+                        selectedLote === lote.id ? "#0ea5e9" : "#22c55e",
+                      fillOpacity: selectedLote === lote.id ? 0.6 : 0.3,
+                      strokeColor: "#ffffff",
+                      strokeWeight: 1,
+                    }}
+                  />
+                ))}
+              </GoogleMap>
+
+              {/* TOOLBAR FLOTANTE INFERIOR */}
+              {generatedLotes.length > 0 && (
+                <div className={style.actionToolbar}>
+                  <button
+                    className={style.btnPrimary}
+                    style={{ padding: "10px 20px", borderRadius: "12px" }}
+                    onClick={handleRegisterAll}
+                  >
+                    <span className="material-icons-round">playlist_add</span>{" "}
+                    Confirmar {generatedLotes.length} Lotes
+                  </button>
                   <div
                     style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      flexWrap: "wrap",
-                      gap: "0.75rem",
+                      width: "1px",
+                      height: "24px",
+                      backgroundColor: "#e2e8f0",
+                    }}
+                  ></div>
+                  <button
+                    className={style.btnSecondary}
+                    style={{ border: "none" }}
+                    onClick={() => {
+                      /* Tu lógica de replicar precios */
                     }}
                   >
-                    <button
-                      onClick={() => adjustOverlaySize(1.1)}
-                      className={style.submitBtn}
-                      style={{
-                        backgroundColor: "#1976d2",
-                        color: "white",
-                        borderRadius: "10px",
-                        width: "120px",
-                      }}
-                    >
-                      ➕ Agrandar
-                    </button>
-                    <button
-                      onClick={() => adjustOverlaySize(0.9)}
-                      className={style.submitBtn}
-                      style={{
-                        backgroundColor: "#1976d2",
-                        color: "white",
-                        borderRadius: "10px",
-                        width: "120px",
-                      }}
-                    >
-                      ➖ Reducir
-                    </button>
-                    <button
-                      onClick={() => adjustOverlaySize(1.05)}
-                      className={style.submitBtn}
-                      style={{
-                        backgroundColor: "#64b5f6",
-                        color: "white",
-                        borderRadius: "10px",
-                        width: "100px",
-                      }}
-                    >
-                      + Fino
-                    </button>
-                    <button
-                      onClick={() => adjustOverlaySize(0.95)}
-                      className={style.submitBtn}
-                      style={{
-                        backgroundColor: "#64b5f6",
-                        color: "white",
-                        borderRadius: "10px",
-                        width: "100px",
-                      }}
-                    >
-                      - Fino
-                    </button>
-                    <button
-                      onClick={() => adjustOverlaySize(1.02)}
-                      className={style.submitBtn}
-                      style={{
-                        backgroundColor: "#90caf9",
-                        color: "white",
-                        borderRadius: "10px",
-                        width: "110px",
-                      }}
-                    >
-                      + Muy fino
-                    </button>
-
-                    <button
-                      onClick={() => adjustOverlaySize(0.98)}
-                      className={style.submitBtn}
-                      style={{
-                        backgroundColor: "#90caf9",
-                        color: "white",
-                        borderRadius: "10px",
-                        width: "110px",
-                      }}
-                    >
-                      - Muy fino
-                    </button>
-                  </div>
+                    <span className="material-icons-round">edit</span> Replicar
+                    Datos
+                  </button>
                 </div>
+              )}
+            </section>
+          </main>
 
-                {/* === PANEL DE POSICIÓN === */}
-                <div
-                  style={{
-                    marginTop: "1rem",
-                    padding: "1rem",
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: "10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-evenly",
-                      flexWrap: "wrap",
-                      gap: "1.5rem",
-                      textAlign: "center",
-                    }}
-                  >
-                    {/* === Movimiento Normal === */}
-                    <div>
-                      <strong
-                        style={{ display: "block", marginBottom: "0.5rem" }}
-                      >
-                        Posición del PDF
-                      </strong>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(3, 55px)",
-                          gridTemplateRows: "repeat(3, 55px)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          gap: "6px",
-                        }}
-                      >
-                        <button
-                          onClick={() => moveOverlay(0.0005, 0)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "1",
-                            backgroundColor: "#1976d2",
-                            color: "white",
-                            borderRadius: "50%",
-                            fontSize: "20px",
-                          }}
-                        >
-                          ⬆️
-                        </button>
-                        <button
-                          onClick={() => moveOverlay(0, -0.0005)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "1",
-                            gridRow: "2",
-                            backgroundColor: "#1976d2",
-                            color: "white",
-                            borderRadius: "50%",
-                            fontSize: "20px",
-                          }}
-                        >
-                          ⬅️
-                        </button>
-                        <div
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "2",
-                            backgroundColor: "#e3f2fd",
-                            borderRadius: "50%",
-                            width: "45px",
-                            height: "45px",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            fontWeight: "bold",
-                            color: "#1565c0",
-                          }}
-                        >
-                          PDF
-                        </div>
-                        <button
-                          onClick={() => moveOverlay(0, 0.0005)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "3",
-                            gridRow: "2",
-                            backgroundColor: "#1976d2",
-                            color: "white",
-                            borderRadius: "50%",
-                            fontSize: "20px",
-                          }}
-                        >
-                          ➡️
-                        </button>
-                        <button
-                          onClick={() => moveOverlay(-0.0005, 0)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "3",
-                            backgroundColor: "#1976d2",
-                            color: "white",
-                            borderRadius: "50%",
-                            fontSize: "20px",
-                          }}
-                        >
-                          ⬇️
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* === Movimiento Fino === */}
-                    <div>
-                      <strong
-                        style={{ display: "block", marginBottom: "0.5rem" }}
-                      >
-                        Fino
-                      </strong>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(3, 45px)",
-                          gridTemplateRows: "repeat(3, 45px)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <button
-                          onClick={() => moveOverlay(0.0001, 0)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "1",
-                            backgroundColor: "#64b5f6",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ⬆️
-                        </button>
-                        <button
-                          onClick={() => moveOverlay(0, -0.0001)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "1",
-                            gridRow: "2",
-                            backgroundColor: "#64b5f6",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ⬅️
-                        </button>
-                        <div
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "2",
-                            backgroundColor: "#e3f2fd",
-                            borderRadius: "50%",
-                            width: "45px",
-                            height: "45px",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            fontWeight: "bold",
-                            color: "#1565c0",
-                          }}
-                        >
-                          PDF
-                        </div>
-                        <button
-                          onClick={() => moveOverlay(0, 0.0001)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "3",
-                            gridRow: "2",
-                            backgroundColor: "#64b5f6",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ➡️
-                        </button>
-                        <button
-                          onClick={() => moveOverlay(-0.0001, 0)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "3",
-                            backgroundColor: "#64b5f6",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ⬇️
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* === Movimiento Muy Fino === */}
-                    <div>
-                      <strong
-                        style={{ display: "block", marginBottom: "0.5rem" }}
-                      >
-                        Muy Fino
-                      </strong>
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(3, 40px)",
-                          gridTemplateRows: "repeat(3, 40px)",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          gap: "3px",
-                        }}
-                      >
-                        <button
-                          onClick={() => moveOverlay(0.00005, 0)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "1",
-                            backgroundColor: "#bbdefb",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ⬆️
-                        </button>
-                        <button
-                          onClick={() => moveOverlay(0, -0.00005)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "1",
-                            gridRow: "2",
-                            backgroundColor: "#bbdefb",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ⬅️
-                        </button>
-                        <div
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "2",
-                            backgroundColor: "#e3f2fd",
-                            borderRadius: "50%",
-                            width: "45px",
-                            height: "45px",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            fontWeight: "bold",
-                            color: "#1565c0",
-                          }}
-                        >
-                          PDF
-                        </div>
-                        <button
-                          onClick={() => moveOverlay(0, 0.00005)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "3",
-                            gridRow: "2",
-                            backgroundColor: "#bbdefb",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ➡️
-                        </button>
-                        <button
-                          onClick={() => moveOverlay(-0.00005, 0)}
-                          className={style.submitBtn}
-                          style={{
-                            gridColumn: "2",
-                            gridRow: "3",
-                            backgroundColor: "#bbdefb",
-                            borderRadius: "50%",
-                          }}
-                        >
-                          ⬇️
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* === PANEL DE ROTACIÓN === */}
-                <div
-                  style={{
-                    marginTop: "1rem",
-                    padding: "1rem",
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: "10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      textAlign: "center",
-                      marginBottom: "0.5rem",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <strong style={{ fontSize: "16px" }}>Rotación</strong>
-                    <span
-                      style={{
-                        fontSize: "18px",
-                        fontWeight: "bold",
-                        color: "#1976d2",
-                      }}
-                    >
-                      {pdfRotation}°
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      justifyContent: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <button
-                      onClick={() => rotatePDF(90)}
-                      className={style.submitBtn}
-                    >
-                      ↻ 90°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(45)}
-                      className={style.submitBtn}
-                    >
-                      ↻ 45°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(15)}
-                      className={style.submitBtn}
-                    >
-                      ↻ 15°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(5)}
-                      className={style.submitBtn}
-                    >
-                      ↻ 5°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(1)}
-                      className={style.submitBtn}
-                    >
-                      ↻ 1°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(-1)}
-                      className={style.submitBtn}
-                    >
-                      ↺ 1°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(-5)}
-                      className={style.submitBtn}
-                    >
-                      ↺ 5°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(-15)}
-                      className={style.submitBtn}
-                    >
-                      ↺ 15°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(-45)}
-                      className={style.submitBtn}
-                    >
-                      ↺ 45°
-                    </button>
-                    <button
-                      onClick={() => rotatePDF(-90)}
-                      className={style.submitBtn}
-                    >
-                      ↺ 90°
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPdfRotation(0);
-                      }}
-                      className={style.submitBtn}
-                      style={{ backgroundColor: "#ff9800", color: "white" }}
-                    >
-                      🔄 Restablecer
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: "0.5rem",
-                    padding: "0.5rem",
-                    backgroundColor: "#e3f2fd",
-                    borderRadius: "4px",
-                    fontSize: "12px",
-                    color: "#1976d2",
-                  }}
-                >
-                  💡 <strong>Consejo:</strong> Usa los controles "Fino" y "Muy
-                  Fino" para ajustes precisos. Cuando termines de ajustar,
-                  presiona "🔒 Fijar PDF" para continuar con los lotes.
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* CONTROLES CUADRÍCULA */}
-        <div
-          style={{
-            display: "flex",
-            gap: "1rem",
-            flexWrap: "wrap",
-            marginBottom: "0.5rem",
-            alignItems: "center",
-          }}
-        >
-          {!pdfImage && (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className={style.submitBtn}
-              type="button"
-            >
-              📄 Subir Plano PDF
-            </button>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/pdf"
-            onChange={handlePDFUpload}
-            style={{ display: "none" }}
-          />
-
-          <div>
-            <label>Filas:</label>
-            <input
-              type="number"
-              value={gridParams.rows}
-              min="1"
-              max="50"
-              onChange={(e) =>
-                handleGridParamChange("rows", parseInt(e.target.value || 1))
-              }
-              className={style.input}
-              style={{ width: "4rem", marginLeft: "0.5rem" }}
-            />
-          </div>
-
-          <div>
-            <label>Columnas:</label>
-            <input
-              type="number"
-              value={gridParams.cols}
-              min="1"
-              max="50"
-              onChange={(e) =>
-                handleGridParamChange("cols", parseInt(e.target.value || 1))
-              }
-              className={style.input}
-              style={{ width: "4rem", marginLeft: "0.5rem" }}
-            />
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              minWidth: "250px",
-            }}
-          >
-            <label>Ajuste:</label>
-            <input
-              type="range"
-              min="-90"
-              max="90"
-              step="1"
-              value={rotationDeg}
-              onChange={(e) => setRotationDeg(parseFloat(e.target.value))}
-              style={{ flex: 1 }}
-            />
-            <div
-              style={{
-                width: "3.5rem",
-                textAlign: "right",
-                fontWeight: "bold",
-              }}
-            >
-              {rotationDeg.toFixed(0)}°
+          {/* FOOTER BAR */}
+          <footer className={style.footer}>
+            <div className={style.footerLeft}>
+              <span className={style.footerItem}>
+                <span className={style.statusDot}></span>
+                Motor de Calco Listo
+              </span>
+              {mapCenter && (
+                <span className={style.footerItem}>
+                  Lat: {mapCenter.lat.toFixed(6)} Lng:{" "}
+                  {mapCenter.lng.toFixed(6)}
+                </span>
+              )}
             </div>
-          </div>
-
-          <button
-            className={style.submitBtn}
-            onClick={handleRegenerateGrid}
-            disabled={!basePolygonCoords}
-          >
-            🔄 Regenerar
-          </button>
-
-          <button
-            className={style.submitBtn}
-            onClick={handleClearPolygon}
-            style={{ backgroundColor: "#ff6b6b" }}
-          >
-            🗑️ Limpiar
-          </button>
-        </div>
-
-        <div
-          style={{ marginBottom: "0.5rem", color: "#333", fontSize: "14px" }}
-        >
-          {!basePolygonCoords && (
-            <div>
-              <span>
-                ✏️ Dibuja un polígono en el mapa para comenzar, en base a ese
-                polígono puedes generar filas y columnas y ajustar su ángulo,
-                luego presionar con la manito "✋" para seleccionar y editar los
-                lotes.
-              </span>
-              <br />
-              <span>
-                ⟳ Si cargaste un pdf anteriormente, espera a que cargue
-              </span>
-              <br />
-              <span>⏳ La carga depende del tamaño del PDF subido</span>
-            </div>
-          )}
-
-          {basePolygonCoords && (
-            <div>
-              <span>
-                <strong>Lotes generados: {generatedLotes.length}</strong>
-                {selectedLote && ` | Seleccionado: Lote ${selectedLote}`}
-              </span>
-              <br />
-              <span style={{ fontSize: "12px", color: "#666" }}>
-                Ángulo detectado: {detectedAngle.toFixed(1)}° | Ajuste:{" "}
-                {rotationDeg}°
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* MAPA */}
-        <GoogleMap
-          onLoad={onMapLoad}
-          mapContainerStyle={{
-            width: "100%",
-            height: "500px",
-            marginBottom: "1rem",
-          }}
-          zoom={18}
-          center={mapCenter}
-          options={{
-            gestureHandling: "greedy",
-            // mapTypeId: pdfImage ? "satellite" : "roadmap",
-            zoomControl: true,
-            // streetViewControl: false,
-            // mapTypeControl: false,
-            // fullscreenControl: false,
-          }}
-        >
-          {proyectoCoords.length > 0 && (
-            <Polygon
-              paths={proyectoCoords}
-              options={{
-                strokeColor: "#0000FF",
-                strokeWeight: 2,
-                fillColor: "#0000FF",
-                fillOpacity: 0.1,
-                clickable: false,
-                zIndex: 0,
-              }}
-            />
-          )}
-
-          {basePolygonCoords && (
-            <Polygon
-              paths={basePolygonCoords}
-              options={{
-                strokeColor: "#FF00FF",
-                strokeWeight: 3,
-                fillOpacity: 0.15,
-                fillColor: "#FF00FF",
-                clickable: false,
-                zIndex: 1,
-              }}
-            />
-          )}
-
-          {lotesCoords.map((lote, i) => (
-            <Polygon
-              key={`existing-${i}`}
-              paths={lote.coords}
-              options={{
-                strokeColor: "#333333",
-                strokeWeight: 1,
-                fillColor: getColorLote(lote.vendido),
-                fillOpacity: 0.45,
-                clickable: false,
-                zIndex: 2,
-              }}
-            />
-          ))}
-
-          {generatedLotes.map((lote) => (
-            <Polygon
-              key={lote.id}
-              paths={lote.coords}
-              onClick={() => handleSelectLote(lote)}
-              onMouseUp={(e) => {
-                const polygon = e.overlay || e?.domEvent?.target;
-                if (!polygon || !polygon.getPath) return;
-
-                try {
-                  const path = polygon.getPath();
-                  const coords = [];
-                  for (let i = 0; i < path.getLength(); i++) {
-                    const point = path.getAt(i);
-                    coords.push({ lat: point.lat(), lng: point.lng() });
-                  }
-                  setGeneratedLotes((prev) =>
-                    prev.map((l) => (l.id === lote.id ? { ...l, coords } : l))
-                  );
-                } catch (error) {
-                  console.warn("Error al actualizar coordenadas:", error);
-                }
-              }}
-              options={{
-                strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
-                strokeWeight: 2,
-                fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
-                fillOpacity: 0.5,
-                editable: true,
-                draggable: true,
-                zIndex: 10,
-                clickable: true,
-              }}
-            />
-          ))}
-
-          {!isPDFLocked && (
-            <DrawingManager
-              onPolygonComplete={onPolygonComplete}
-              options={{
-                drawingControl: true,
-                drawingControlOptions: {
-                  position:
-                    googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
-                  drawingModes: ["polygon"],
-                },
-                polygonOptions: {
-                  editable: true,
-                  draggable: true,
-                  fillColor: "#FF00FF",
-                  fillOpacity: 0.3,
-                  strokeColor: "#FF00FF",
-                  strokeWeight: 2,
-                },
-              }}
-            />
-          )}
-        </GoogleMap>
-
-        {selectedLote && (
-          <div className={style.formContainer}>
-            <h3>Editar Lote {selectedLote}</h3>
-
-            <label>Nombre:</label>
-            <input
-              name="nombre"
-              value={
-                formValues[selectedLote]?.nombre ||
-                generatedLotes.find((l) => l.id === selectedLote)?.nombre ||
-                ""
-              }
-              onChange={handleFormChange}
-              className={style.input}
-            />
-            <label>Precio:</label>
-            <input
-              name="precio"
-              type="number"
-              min="0"
-              step="0.01"
-              value={
-                formValues[selectedLote]?.precio ||
-                generatedLotes.find((l) => l.id === selectedLote)?.precio ||
-                ""
-              }
-              onChange={handleFormChange}
-              className={style.input}
-            />
-
-            <label>Estado:</label>
-            <select
-              name="vendido"
-              value={
-                formValues[selectedLote]?.vendido !== undefined
-                  ? formValues[selectedLote]?.vendido
-                  : generatedLotes.find((l) => l.id === selectedLote)
-                      ?.vendido ?? 0
-              }
-              onChange={handleFormChange}
-              className={style.input}
-              style={{ padding: "0.5rem", cursor: "pointer" }}
-            >
-              {opcionesEstado.map((opcion) => (
-                <option key={opcion.value} value={opcion.value}>
-                  {opcion.label}
-                </option>
-              ))}
-            </select>
-
-            <label>Descripción:</label>
-            <textarea
-              name="descripcion"
-              rows="3"
-              value={
-                formValues[selectedLote]?.descripcion ||
-                generatedLotes.find((l) => l.id === selectedLote)
-                  ?.descripcion ||
-                ""
-              }
-              onChange={handleFormChange}
-              className={style.input}
-            ></textarea>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-          <button
-            onClick={handleRegisterAll}
-            className={style.submitBtn}
-            disabled={generatedLotes.length === 0}
-            style={{
-              opacity: generatedLotes.length === 0 ? 0.5 : 1,
-              cursor: generatedLotes.length === 0 ? "not-allowed" : "pointer",
-            }}
-          >
-            💾 Registrar Todos ({generatedLotes.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                confirm(
-                  `¿Replicar los datos de este lote a los ${
-                    generatedLotes.length - 1
-                  } lotes restantes?`
-                )
-              ) {
-                const currentData = formValues[selectedLote] || {
-                  nombre: generatedLotes.find((l) => l.id === selectedLote)
-                    ?.nombre,
-                  precio: generatedLotes.find((l) => l.id === selectedLote)
-                    ?.precio,
-                  descripcion: generatedLotes.find((l) => l.id === selectedLote)
-                    ?.descripcion,
-                };
-
-                const newFormValues = {};
-                generatedLotes.forEach((lote) => {
-                  if (lote.id !== selectedLote) {
-                    newFormValues[lote.id] = {
-                      nombre: lote.nombre, // Mantiene el nombre original de cada lote
-                      precio: currentData.precio, // Replica el precio
-                      descripcion: currentData.descripcion, // Replica la descripción
-                    };
-                  } else {
-                    newFormValues[lote.id] = currentData; // Mantiene los datos del lote actual
-                  }
-                });
-
-                setFormValues(newFormValues);
-                alert(
-                  `✅ Datos replicados a ${
-                    generatedLotes.length - 1
-                  } lotes. Solo cambia los nombres si es necesario.`
-                );
-              }
-            }}
-            className={style.submitBtn}
-          >
-            📋 Replicar precio y descripción a todos los lotes
-          </button>
+            <div style={{ letterSpacing: "2px" }}>V2.4.1 STABLE</div>
+          </footer>
         </div>
       </div>
     </div>
