@@ -687,6 +687,7 @@ export default function LoteModal({ onClose, idproyecto }) {
             value={form.latitud}
             readOnly
             className={style.input}
+            
           />
 
           <label>Longitud:</label>

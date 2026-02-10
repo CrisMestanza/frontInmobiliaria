@@ -10,6 +10,7 @@ import {
 import styles from "./Lote.module.css";
 
 const LoteSidebarOverlay = ({ inmo, lote, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
+  console.log(lote)
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);

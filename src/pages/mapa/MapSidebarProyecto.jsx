@@ -17,6 +17,13 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
 
+  const mensajeWhatsapp = encodeURIComponent(
+    `Hola 👋, vengo desde GeoHabita.\n` +
+    `Estoy interesado en el proyecto "${proyecto.nombreproyecto}" 🏡.\n` +
+    `Me gustaría recibir más información sobre disponibilidad, valor y formas de pago.\n` +
+    `¡Quedo atento(a)! 😊`
+  );
+
   const minSwipeDistance = 50;
   const onTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX;
@@ -140,32 +147,39 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                 </span>
               )}
               <h1 className={styles.nombreProyecto}>{proyecto.nombreproyecto}</h1>
-              <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p>
+              {/* <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p> */}
 
               <div className={styles.priceContainer}>
                 {proyecto.idtipoinmobiliaria === 2 && (
 
                   <div>
-                    <span className={styles.labelSmall}>Inversión</span>
+                    <span className={styles.labelSmall}>Precio de venta del inmueble</span>
+                    <br></br>
                     <span className={styles.priceValue}>${proyecto.precio}</span>
                   </div>
                 )}
-                <a href={`https://wa.me/${inmo.whatsapp}`} target="_blank" rel="noreferrer" className={styles.contactMiniBtn}>
+                <a
+                  href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.contactMiniBtn}
+                >
                   <FaWhatsapp /> Contactar
                 </a>
+
               </div>
               {proyecto.idtipoinmobiliaria === 2 && (
                 <div className={styles.quickGrid}>
                   <div className={styles.qBadge}>
-                    <FaVectorSquare />
+                    <FaRulerCombined />
                     <div>
                       <strong>{proyecto.area_total_m2} m²</strong>
-                      <span>Extensión</span>
+                      <span>Área Total</span>
                     </div>
                   </div>
 
                   <div className={styles.qBadge}>
-                    <FaArrowsAltH />
+                    <FaRulerHorizontal />
                     <div>
                       <strong>{proyecto.ancho} m</strong>
                       <span>Ancho</span>
@@ -173,7 +187,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                   </div>
 
                   <div className={styles.qBadge}>
-                    <FaArrowsAltV />
+                    <FaRulerVertical />
                     <div>
                       <strong>{proyecto.largo} m</strong>
                       <span>Largo</span>
@@ -238,7 +252,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
         >
 
           {/* Botón Cerrar (opcional, ya que el fondo cierra) */}
-          <button className={styles.closeBtn} onClick={() => setFullscreenImgIndex(null)}>✕</button>
+          <button className={styles.closeBtn} onClick={() => setFullscreenImgIndex(null)}> ✕</button>
 
           {imagenes.length > 1 && (
             <>

@@ -31,6 +31,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const overlayRef = useRef(null);
   const drawingManagerRef = useRef(null);
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+  const esCasa = formValues[selectedLote]?.tipo_inmueble === 2;
 
   const createRotatableOverlay = useCallback(
     (bounds, image, rotation, opacity) => {
@@ -680,12 +681,32 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   const handleSelectLote = (lote) => {
     setSelectedLote(lote.id);
+
     const initialForm = formValues[lote.id] || {
+      idtipoinmobiliaria: lote.tipo_inmueble,
       nombre: lote.nombre,
       precio: lote.precio,
       descripcion: lote.descripcion,
       area_total_m2: lote.area_total_m2 || "",
+
+      ancho: 0,
+      largo: 0,
+
+      dormitorios: 0,
+      banos: 0,
+      cuartos: 0,
+
+      cochera: 0,
+      cocina: 0,
+      sala: 0,
+      patio: 0,
+      jardin: 0,
+      terraza: 0,
+      azotea: 0,
+
+      titulo_propiedad: 0,
     };
+
     setFormValues((prev) => ({
       ...prev,
       [lote.id]: initialForm,
@@ -693,15 +714,45 @@ export default function LoteModal({ onClose, idproyecto }) {
   };
 
   const handleFormChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+
+    const parsedValue =
+      type === "number" ? (value === "" ? 0 : Number(value)) : value;
+
     setFormValues((prev) => ({
       ...prev,
       [selectedLote]: {
         ...prev[selectedLote],
-        [name]: value,
+        [name]: parsedValue,
       },
     }));
   };
+  const handleTipoChange = (e) => {
+    const value = Number(e.target.value);
+
+    setFormValues((prev) => ({
+      ...prev,
+      [selectedLote]: {
+        ...prev[selectedLote],
+        tipo_inmueble: value,
+
+        // Si vuelve a ser LOTE, resetea campos de casa
+        ...(value === 1 && {
+          dormitorios: 0,
+          banos: 0,
+          cuartos: 0,
+          cochera: 0,
+          cocina: 0,
+          sala: 0,
+          patio: 0,
+          jardin: 0,
+          terraza: 0,
+          azotea: 0,
+        }),
+      },
+    }));
+  };
+
 
   const handleRegisterAll = async () => {
     if (generatedLotes.length === 0) {
@@ -732,19 +783,49 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       return {
         ...lote,
+
+        idtipoinmobiliaria: Number(
+          formValues[lote.id]?.tipo_inmueble ?? 1
+        ),
+        // básicos
         nombre: formValues[lote.id]?.nombre || lote.nombre,
-        precio: formValues[lote.id]?.precio || lote.precio,
-        descripcion: formValues[lote.id]?.descripcion || lote.descripcion,
+        precio: Number(formValues[lote.id]?.precio || lote.precio || 0),
+        descripcion: formValues[lote.id]?.descripcion || lote.descripcion || "",
         area_total_m2: areaTotal,
+
+        // 🔹 MEDIDAS (float)
+        ancho: Number(formValues[lote.id]?.ancho || 0),
+        largo: Number(formValues[lote.id]?.largo || 0),
+
+        // 🔹 CANTIDADES (int)
+        dormitorios: Number(formValues[lote.id]?.dormitorios || 0),
+        banos: Number(formValues[lote.id]?.banos || 0),
+        cuartos: Number(formValues[lote.id]?.cuartos || 0),
+
+        titulo_propiedad: Number(formValues[lote.id]?.titulo_propiedad || 0),
+        cochera: Number(formValues[lote.id]?.cochera || 0),
+        cocina: Number(formValues[lote.id]?.cocina || 0),
+        sala: Number(formValues[lote.id]?.sala || 0),
+        patio: Number(formValues[lote.id]?.patio || 0),
+        jardin: Number(formValues[lote.id]?.jardin || 0),
+        terraza: Number(formValues[lote.id]?.terraza || 0),
+        azotea: Number(formValues[lote.id]?.azotea || 0),
+
+        // 🔹 relaciones
         puntos: lote.coords,
         idproyecto,
       };
+
     });
+
+
 
     // Validar antes de enviar
     const lotesInvalidos = lotesToSend.filter(
       (lote) => !lote.area_total_m2 || lote.area_total_m2 <= 0,
     );
+    console.log(lotesToSend.map(l => l.area_total_m2));
+
 
     if (lotesInvalidos.length > 0) {
       alert(
@@ -752,6 +833,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       );
       return;
     }
+    console.log(lotesToSend.map(l => l.tipo_inmueble));
 
     try {
       const res = await fetch(
@@ -804,7 +886,11 @@ export default function LoteModal({ onClose, idproyecto }) {
     }
   };
 
+
   if (!isLoaded || !mapCenter) return <div>Cargando mapa...</div>;
+
+
+
 
   return (
     <div className={style.modalOverlay}>
@@ -1049,7 +1135,20 @@ export default function LoteModal({ onClose, idproyecto }) {
 
         {selectedLote && (
           <div className={style.formContainer}>
+
+
             <h3>📝 Editar Lote {selectedLote}</h3>
+            <label>Tipo de inmueble:</label>
+            <select
+              name="tipo_inmueble"
+              value={formValues[selectedLote]?.tipo_inmueble ?? 1}
+              onChange={handleTipoChange}
+              className={style.input}
+            >
+              <option value={1}>Lote</option>
+              <option value={2}>Casa</option>
+            </select>
+
             <label>Nombre:</label>
             <input
               name="nombre"
@@ -1061,7 +1160,7 @@ export default function LoteModal({ onClose, idproyecto }) {
               onChange={handleFormChange}
               className={style.input}
             />
-            <label>Precio:</label>
+            <label>Precio en dolares:</label>
             <input
               name="precio"
               type="number"
@@ -1088,6 +1187,20 @@ export default function LoteModal({ onClose, idproyecto }) {
               onChange={handleFormChange}
               className={style.input}
             ></textarea>
+
+            <label>Título de propiedad:</label>
+            <select
+              name="titulo_propiedad"
+              value={formValues[selectedLote]?.titulo_propiedad ?? 0}
+              onChange={handleFormChange}
+              className={style.input}
+            >
+              <option value="">Selecciona un valor</option>
+              <option value={0}>No</option>
+              <option value={1}>Sí</option>
+            </select>
+
+
             <label>Área total (m²):</label>
             <input
               name="area_total_m2"
@@ -1103,6 +1216,130 @@ export default function LoteModal({ onClose, idproyecto }) {
               onChange={handleFormChange}
               className={style.input}
             />
+
+            <label>Ancho (m):</label>
+            <input
+              name="ancho"
+              type="number"
+              step="0.01"
+              value={formValues[selectedLote]?.ancho || ""}
+              onChange={handleFormChange}
+              className={style.input}
+            />
+
+            <label>Largo (m):</label>
+            <input
+              name="largo"
+              type="number"
+              step="0.01"
+              value={formValues[selectedLote]?.largo || ""}
+              onChange={handleFormChange}
+              className={style.input}
+            />
+            {esCasa && (
+              <>
+                <label>Dormitorios:</label>
+                <input
+                  name="dormitorios"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.dormitorios ?? 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Baños:</label>
+                <input
+                  name="banos"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.banos ?? 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Cuartos:</label>
+                <input
+                  name="cuartos"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.cuartos ?? 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Cochera:</label>
+                <input
+                  name="cochera"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.cochera || 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Cocina:</label>
+                <input
+                  name="cocina"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.cocina || 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Sala:</label>
+                <input
+                  name="sala"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.sala || 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Patio:</label>
+                <input
+                  name="patio"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.patio || 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Jardín:</label>
+                <input
+                  name="jardin"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.jardin || 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Terraza:</label>
+                <input
+                  name="terraza"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.terraza || 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+
+                <label>Azotea:</label>
+                <input
+                  name="azotea"
+                  type="number"
+                  min="0"
+                  value={formValues[selectedLote]?.azotea || 0}
+                  onChange={handleFormChange}
+                  className={style.input}
+                />
+              </>
+            )}
+
           </div>
         )}
 

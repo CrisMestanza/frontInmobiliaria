@@ -32,8 +32,8 @@
 
 .clickHint {
   position: absolute;
-  bottom: 60%;
-  left: 70%;
+  bottom: 80%;
+  left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
   color: #fff;
@@ -42,7 +42,7 @@
   font-size: 14px;
   z-index: 9999;
   animation: pulse 1.6s infinite;
-  pointer-events: none; /* 🔥 CLAVE */
+  pointer-events: none; 
 }
 
 
@@ -1206,6 +1206,22 @@
 
 /* === HEADER MINI tipo Airbnb (420px) === */
 @media screen and (max-width: 420px) {
+  
+.clickHint {
+  position: absolute;
+  bottom: 80%;
+  left: 5%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  z-index: 9999;
+  animation: pulse 1.6s infinite;
+  pointer-events: none; 
+}
+
 
   /* Header fijo y bajo */
   .cabecera {
