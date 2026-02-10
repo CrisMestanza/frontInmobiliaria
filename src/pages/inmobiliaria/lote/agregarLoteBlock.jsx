@@ -235,53 +235,55 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   const fetchProyecto = useCallback(async () => {
     try {
-      const res = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+      const resProyecto = await fetch(
+        `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
-      const puntosProyecto = await res.json();
-      if (!puntosProyecto || !puntosProyecto.length) return;
+      const data = await resProyecto.json();
 
+      if (!data.length) return;
+
+      // primer lote = referencia para centrar
       setMapCenter({
-        lat: parseFloat(puntosProyecto[0].latitud),
-        lng: parseFloat(puntosProyecto[0].longitud),
+        lat: parseFloat(data[0].puntos[0].latitud),
+        lng: parseFloat(data[0].puntos[0].longitud),
       });
 
-      setProyectoCoords(
-        puntosProyecto.map((p) => ({
+      // 🔹 Polígono del proyecto
+      const resPuntosProyecto = await fetch(
+        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const puntosProyecto = await resPuntosProyecto.json();
+      const orderedProyecto = puntosProyecto
+        .sort((a, b) => a.orden - b.orden)
+        .map((p) => ({
+          lat: parseFloat(p.latitud),
+          lng: parseFloat(p.longitud),
+        }));
+      if (orderedProyecto.length > 2) {
+        orderedProyecto.push(orderedProyecto[0]); // cerrar polígono
+      }
+      setProyectoCoords(orderedProyecto);
+
+      // 🔹 Lotes con sus coordenadas ya incluidas
+      const lotesData = data.map((lote) => ({
+        coords: lote.puntos.map((p) => ({
           lat: parseFloat(p.latitud),
           lng: parseFloat(p.longitud),
         })),
-      );
+        vendido: lote.vendido,
+      }));
 
-      // cargar lotes
-      const resLotes = await fetch(
-        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
-      );
-      const lotes = await resLotes.json();
-
-      const lotesData = [];
-      for (const lote of lotes) {
-        const resPuntos = await fetch(
-          `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`,
-        );
-        const puntos = await resPuntos.json();
-        if (!puntos.length) continue;
-
-        const coords = puntos
-          .sort((a, b) => a.orden - b.orden)
-          .map((p) => ({
-            lat: parseFloat(p.latitud),
-            lng: parseFloat(p.longitud),
-          }));
-
-        if (coords.length > 2) coords.push(coords[0]); // cerrar polígono
-        lotesData.push({ coords, vendido: lote.vendido });
-      }
       setLotesCoords(lotesData);
     } catch (err) {
       console.error("Error cargando proyecto:", err);
     }
-  }, [idproyecto]);
+  }, [idproyecto, token]);
 
   useEffect(() => {
     if (isLoaded) fetchProyecto();

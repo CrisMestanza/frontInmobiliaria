@@ -265,26 +265,29 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                       </td>
                       <td style={{ fontWeight: "600" }}>S/. {lote.precio}</td>
                       <td style={{ textAlign: "center" }}>
-                        <select
-                          className={`${style.badge} ${style["badge-" + lote.vendido]}`}
-                          value={lote.vendido}
-                          onChange={(e) =>
-                            handleEstadoChange(
-                              lote.idlote,
-                              parseInt(e.target.value),
-                            )
-                          }
-                          disabled={lote.vendido === 1}
-                          style={{
-                            border: "none",
-                            cursor: "pointer",
-                            appearance: "none",
-                          }}
-                        >
-                          <option value={0}>Disponible</option>
-                          <option value={1}>Vendido</option>
-                          <option value={2}>Reservado</option>
-                        </select>
+                        <div className={style.statusSelect}>
+                          <select
+                            className={`${style.badge} ${style.statusSelectInput} ${style["badge-" + lote.vendido]}`}
+                            value={lote.vendido}
+                            onChange={(e) =>
+                              handleEstadoChange(
+                                lote.idlote,
+                                parseInt(e.target.value),
+                              )
+                            }
+                            disabled={lote.vendido === 1}
+                          >
+                            <option value={0}>Disponible</option>
+                            <option value={1}>Vendido</option>
+                            <option value={2}>Reservado</option>
+                          </select>
+                          <span
+                            className={style.selectChevron}
+                            aria-hidden="true"
+                          >
+                            ▾
+                          </span>
+                        </div>
                       </td>
                       <td style={{ textAlign: "right" }}>
                         <button

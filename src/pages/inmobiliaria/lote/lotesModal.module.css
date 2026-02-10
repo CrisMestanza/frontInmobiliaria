@@ -290,6 +290,26 @@
   font-size: 0.75rem;
   font-weight: 600;
 }
+.statusSelect {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.statusSelectInput {
+  border: none;
+  cursor: pointer;
+  appearance: none;
+  padding-right: 26px;
+}
+
+.selectChevron {
+  position: absolute;
+  right: 10px;
+  font-size: 0.7rem;
+  color: #64748b;
+  pointer-events: none;
+}
 .legend {
   padding: 1.5rem 2rem;
   display: flex;
