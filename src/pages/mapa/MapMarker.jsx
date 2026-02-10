@@ -2,72 +2,45 @@ import React, { useEffect, useState } from "react";
 import { Marker } from "@react-google-maps/api";
 import axios from "axios";
 
-function calcularCentroide(puntos) {
-  let area = 0;
-  let cx = 0;
-  let cy = 0;
-
-  for (let i = 0; i < puntos.length; i++) {
-    const j = (i + 1) % puntos.length; // siguiente punto (cierra polígono)
-    const xi = puntos[i].longitud;
-    const yi = puntos[i].latitud;
-    const xj = puntos[j].longitud;
-    const yj = puntos[j].latitud;
-
-    const factor = xi * yj - xj * yi;
-    area += factor;
-    cx += (xi + xj) * factor;
-    cy += (yi + yj) * factor;
-  }
-
-  area *= 0.5;
-  cx = cx / (6 * area);
-  cy = cy / (6 * area);
-
-  return { lat: cy, lng: cx };
-}
-
-export default function ProyectoMarker({ proyecto, onClick }) {
-  const [centroide, setCentroide] = useState(null);
+export default function ProyectoMarker({ onClick, proyecto }) {
+  // const [proyectos, setProyectos] = useState([]);
 
   useEffect(() => {
-    async function fetchPuntos() {
+    async function fetchProyectos() {
       try {
         const res = await axios.get(
-          `https://apiinmo.y0urs.com/api/listPuntosProyecto/${proyecto.idproyecto}`,
+          "https://apiinmo.y0urs.com/api/listProyectos",
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("access")}`,
             },
           }
         );
-        const puntos = res.data;
-
-        if (puntos.length > 0) {
-          setCentroide(calcularCentroide(puntos));
-        }
+        setProyectos(res.data);
       } catch (err) {
-        console.error("Error cargando puntos del proyecto:", err);
+        console.error("Error cargando proyectos:", err);
       }
     }
 
-    fetchPuntos();
-  }, [proyecto.idproyecto]);
+    fetchProyectos();
+  }, []);
 
-  if (!centroide) return null;
-
-  return (
+ return (
     <Marker
       key={proyecto.idproyecto}
-      position={centroide}
+      position={{
+        lat: parseFloat(proyecto.latitud),
+        lng: parseFloat(proyecto.longitud),
+      }}
       onClick={() => onClick(proyecto)}
       icon={{
         url:
           proyecto.estado === 1 && proyecto.idtipoinmobiliaria === 1
-            ? "/proyectoicono.png"
-            : "https://cdn-icons-png.freepik.com/512/11130/11130373.png",
-        scaledSize: { width: 60, height: 60 },
+            ? "/proyectoicono.png" // icono principal
+            : "/iconoCasa.png",    // icono alternativo
+        scaledSize: { width: 50, height: 50 },
       }}
     />
   );
+
 }

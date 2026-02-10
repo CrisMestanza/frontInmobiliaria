@@ -18,10 +18,10 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
   const touchEndX = useRef(0);
 
   const mensajeWhatsapp = encodeURIComponent(
-    `Hola 👋, vengo desde GeoHabita.\n` +
-    `Estoy interesado en el proyecto "${proyecto.nombreproyecto}" 🏡.\n` +
+    `Hola, vengo desde GeoHabita.\n` +
+    `Estoy interesado en el proyecto *"${proyecto.nombreproyecto}"*.\n` +
     `Me gustaría recibir más información sobre disponibilidad, valor y formas de pago.\n` +
-    `¡Quedo atento(a)! 😊`
+    `¡Quedo atento(a)!`
   );
 
   const minSwipeDistance = 50;

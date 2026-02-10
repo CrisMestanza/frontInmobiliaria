@@ -33,6 +33,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
   const esCasa = formValues[selectedLote]?.tipo_inmueble === 2;
 
+
   const createRotatableOverlay = useCallback(
     (bounds, image, rotation, opacity) => {
       if (!googleRef.current) return null;
@@ -135,6 +136,50 @@ export default function LoteModal({ onClose, idproyecto }) {
     [],
   );
 
+
+
+  const handleImagenesChange = (e) => {
+    if (!selectedLote) return;
+
+    const newFiles = Array.from(e.target.files).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+
+    setFormValues((prev) => ({
+      ...prev,
+      [selectedLote]: {
+        ...prev[selectedLote],
+        imagenes: [
+          ...(prev[selectedLote]?.imagenes || []),
+          ...newFiles,
+        ],
+      },
+    }));
+
+    e.target.value = ""; // reset input
+  };
+
+
+
+  const handleRemoveImage = (loteId, index) => {
+    setFormValues((prev) => {
+      const imgs = prev[loteId]?.imagenes || [];
+
+      URL.revokeObjectURL(imgs[index]?.preview);
+
+      return {
+        ...prev,
+        [loteId]: {
+          ...prev[loteId],
+          imagenes: imgs.filter((_, i) => i !== index),
+        },
+      };
+    });
+  };
+
+
+
   useEffect(() => {
     const loadSavedPDF = async () => {
       if (!isLoaded || !mapCenter) return;
@@ -191,6 +236,8 @@ export default function LoteModal({ onClose, idproyecto }) {
     };
     loadSavedPDF();
   }, [idproyecto, isLoaded, mapCenter]);
+
+
 
   useEffect(() => {
     if (!mapRef.current || !googleRef.current) return;
@@ -755,112 +802,59 @@ export default function LoteModal({ onClose, idproyecto }) {
 
 
   const handleRegisterAll = async () => {
-    if (generatedLotes.length === 0) {
-      alert("No hay lotes generados.");
-      return;
-    }
+  for (const lote of generatedLotes) {
+    const data = formValues[lote.id];
 
-    const lotesToSend = generatedLotes.map((lote) => {
-      // Obtener el valor del área, con validación
-      const areaValue =
-        formValues[lote.id]?.area_total_m2 || lote.area_total_m2;
+    const formData = new FormData();
 
-      let areaTotal;
-      if (
-        areaValue &&
-        !isNaN(parseFloat(areaValue)) &&
-        parseFloat(areaValue) > 0
-      ) {
-        areaTotal = parseFloat(areaValue);
-      } else {
-        // Si no hay área válida, recalcular desde las coordenadas
-        areaTotal = calculatePolygonArea(lote.coords);
-        // Si aún así es 0, usar un valor mínimo por defecto
-        if (areaTotal <= 0) {
-          areaTotal = 50;
-        }
-      }
+    // 🔹 Campos simples
+    formData.append("idproyecto", idproyecto);
+    formData.append("idtipoinmobiliaria", data.tipo_inmueble);
+    formData.append("nombre", data.nombre);
+    formData.append("precio", data.precio);
+    formData.append("descripcion", data.descripcion);
+    formData.append("area_total_m2", data.area_total_m2);
 
-      return {
-        ...lote,
+    formData.append("ancho", data.ancho);
+    formData.append("largo", data.largo);
 
-        idtipoinmobiliaria: Number(
-          formValues[lote.id]?.tipo_inmueble ?? 1
-        ),
-        // básicos
-        nombre: formValues[lote.id]?.nombre || lote.nombre,
-        precio: Number(formValues[lote.id]?.precio || lote.precio || 0),
-        descripcion: formValues[lote.id]?.descripcion || lote.descripcion || "",
-        area_total_m2: areaTotal,
+    formData.append("dormitorios", data.dormitorios);
+    formData.append("banos", data.banos);
+    formData.append("cuartos", data.cuartos);
 
-        // 🔹 MEDIDAS (float)
-        ancho: Number(formValues[lote.id]?.ancho || 0),
-        largo: Number(formValues[lote.id]?.largo || 0),
+    formData.append("cochera", data.cochera);
+    formData.append("cocina", data.cocina);
+    formData.append("sala", data.sala);
+    formData.append("patio", data.patio);
+    formData.append("jardin", data.jardin);
+    formData.append("terraza", data.terraza);
+    formData.append("azotea", data.azotea);
+    formData.append("titulo_propiedad", data.titulo_propiedad);
 
-        // 🔹 CANTIDADES (int)
-        dormitorios: Number(formValues[lote.id]?.dormitorios || 0),
-        banos: Number(formValues[lote.id]?.banos || 0),
-        cuartos: Number(formValues[lote.id]?.cuartos || 0),
+    // 🔹 PUNTOS (JSON)
+    formData.append("puntos", JSON.stringify(lote.coords));
 
-        titulo_propiedad: Number(formValues[lote.id]?.titulo_propiedad || 0),
-        cochera: Number(formValues[lote.id]?.cochera || 0),
-        cocina: Number(formValues[lote.id]?.cocina || 0),
-        sala: Number(formValues[lote.id]?.sala || 0),
-        patio: Number(formValues[lote.id]?.patio || 0),
-        jardin: Number(formValues[lote.id]?.jardin || 0),
-        terraza: Number(formValues[lote.id]?.terraza || 0),
-        azotea: Number(formValues[lote.id]?.azotea || 0),
-
-        // 🔹 relaciones
-        puntos: lote.coords,
-        idproyecto,
-      };
-
+    // 🔹 IMÁGENES
+    data?.imagenes?.forEach((img) => {
+      formData.append("imagenes", img.file);
     });
 
+    await fetch("https://apiinmo.y0urs.com/api/registerLotesMasivo/", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // ❌ NO pongas Content-Type
+      },
+      body: formData,
+    });
+  }
+
+  alert("Lotes registrados correctamente ✅");
+  onClose();
+};
 
 
-    // Validar antes de enviar
-    const lotesInvalidos = lotesToSend.filter(
-      (lote) => !lote.area_total_m2 || lote.area_total_m2 <= 0,
-    );
-    console.log(lotesToSend.map(l => l.area_total_m2));
 
-
-    if (lotesInvalidos.length > 0) {
-      alert(
-        `⚠️ Los siguientes lotes no tienen área válida:\n${lotesInvalidos.map((l) => l.nombre).join(", ")}\n\nPor favor, verifica que todos los lotes tengan un área mayor a 0.`,
-      );
-      return;
-    }
-    console.log(lotesToSend.map(l => l.tipo_inmueble));
-
-    try {
-      const res = await fetch(
-        "https://apiinmo.y0urs.com/api/registerLotesMasivo/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(lotesToSend),
-        },
-      );
-
-      if (res.ok) {
-        alert("Lotes registrados exitosamente ✅");
-        onClose();
-      } else {
-        const errorText = await res.text();
-        console.error(errorText);
-        alert("Error al registrar lotes ❌\n" + errorText);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error de red 🚫");
-    }
-  };
   const getColorLote = (vendido) => {
     switch (vendido) {
       case 0:
@@ -1339,6 +1333,56 @@ export default function LoteModal({ onClose, idproyecto }) {
                 />
               </>
             )}
+
+
+            {/* IMÁGENES DEL LOTE */}
+
+            <label>Imágenes:</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImagenesChange}
+              className={style.input}
+            />
+
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              {(formValues[selectedLote]?.imagenes || []).map((img, index) => (
+                <div key={index} style={{ position: "relative" }}>
+                  <img
+                    src={img.preview}
+                    alt="preview"
+                    style={{
+                      width: "80px",
+                      height: "80px",
+                      objectFit: "cover",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(selectedLote, index)}
+                    style={{
+                      position: "absolute",
+                      top: "-6px",
+                      right: "-6px",
+                      background: "red",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "50%",
+                      width: "20px",
+                      height: "20px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+
+
 
           </div>
         )}
