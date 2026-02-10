@@ -68,6 +68,27 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
     if (mapRef?.current) mapRef.current.setZoom(13);
   };
 
+  const registrarClickContacto = async (redSocial) => {
+  try {
+    await fetch("https://apiinmo.y0urs.com/api/registerClickContactos/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idproyecto: proyecto.idproyecto,
+        dia: new Date().toISOString().split("T")[0], // YYYY-MM-DD
+        hora: new Date().toLocaleTimeString(), // HH:MM:SS
+        redSocial: redSocial,
+      }),
+    });
+    console.log(`Click registrado en ${redSocial}`);
+  } catch (error) {
+    console.error("Error registrando click:", error);
+  }
+};
+
+
   useEffect(() => {
     const esc = (e) => e.key === "Escape" && cerrarSidebar();
     window.addEventListener("keydown", esc);
@@ -163,6 +184,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                   target="_blank"
                   rel="noreferrer"
                   className={styles.contactMiniBtn}
+                  onClick={() => registrarClickContacto("Whatsapp")}
                 >
                   <FaWhatsapp /> Contactar
                 </a>
@@ -232,8 +254,8 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
               </div>
 
               <div className={styles.socialFooter}>
-                <a href={inmo.facebook} target="_blank" rel="noreferrer"><FaFacebook /></a>
-                <a href={inmo.pagina} target="_blank" rel="noreferrer"><FaGlobe /></a>
+                <a href={inmo.facebook} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Facebook")}><FaFacebook /></a>
+                <a href={inmo.pagina} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Web")}><FaGlobe /></a>
               </div>
             </div>
           </div>

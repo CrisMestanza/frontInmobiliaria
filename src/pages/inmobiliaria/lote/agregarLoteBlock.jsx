@@ -32,6 +32,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const drawingManagerRef = useRef(null);
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
   const esCasa = formValues[selectedLote]?.tipo_inmueble === 2;
+  const polygonRefs = useRef({});
 
 
   const createRotatableOverlay = useCallback(
@@ -279,6 +280,8 @@ export default function LoteModal({ onClose, idproyecto }) {
       googleRef.current = googleInstance;
     });
   }, []);
+
+  
 
   const fetchProyecto = useCallback(async () => {
     try {
@@ -803,57 +806,96 @@ export default function LoteModal({ onClose, idproyecto }) {
   };
 
 
+
   const handleRegisterAll = async () => {
-  for (const lote of generatedLotes) {
-    const data = formValues[lote.id];
+    for (const l of generatedLotes) {
+    if (!l.coords || l.coords.length < 3) {
+      alert(`❌ El ${l.nombre} no tiene coordenadas válidas`);
+      return; // ⬅️ salir limpio
+    }
+  }
+
 
     const formData = new FormData();
 
-    // 🔹 Campos simples
-    formData.append("idproyecto", idproyecto);
-    formData.append("idtipoinmobiliaria", data.tipo_inmueble);
-    formData.append("nombre", data.nombre);
-    formData.append("precio", data.precio);
-    formData.append("descripcion", data.descripcion);
-    formData.append("area_total_m2", data.area_total_m2);
+    generatedLotes.forEach((lote, index) => {
+      const data = formValues[lote.id];
 
-    formData.append("ancho", data.ancho);
-    formData.append("largo", data.largo);
+      const lotePayload = {
+        idproyecto,
+        idtipoinmobiliaria: data.tipo_inmueble,
+        nombre: data.nombre,
+        precio: data.precio,
+        descripcion: data.descripcion,
+        area_total_m2: data.area_total_m2,
 
-    formData.append("dormitorios", data.dormitorios);
-    formData.append("banos", data.banos);
-    formData.append("cuartos", data.cuartos);
+        ancho: data.ancho,
+        largo: data.largo,
 
-    formData.append("cochera", data.cochera);
-    formData.append("cocina", data.cocina);
-    formData.append("sala", data.sala);
-    formData.append("patio", data.patio);
-    formData.append("jardin", data.jardin);
-    formData.append("terraza", data.terraza);
-    formData.append("azotea", data.azotea);
-    formData.append("titulo_propiedad", data.titulo_propiedad);
+        dormitorios: data.dormitorios,
+        banos: data.banos,
+        cuartos: data.cuartos,
 
-    // 🔹 PUNTOS (JSON)
-    formData.append("puntos", JSON.stringify(lote.coords));
+        cochera: data.cochera,
+        cocina: data.cocina,
+        sala: data.sala,
+        patio: data.patio,
+        jardin: data.jardin,
+        terraza: data.terraza,
+        azotea: data.azotea,
 
-    // 🔹 IMÁGENES
-    data?.imagenes?.forEach((img) => {
-      formData.append("imagenes", img.file);
+        titulo_propiedad: data.titulo_propiedad,
+
+        puntos: lote.coords.map(p => ({
+          latitud: p.lat,
+          longitud: p.lng,
+        }))
+
+      };
+
+      // 🔹 LOTE (JSON)
+      formData.append(`lotes[${index}]`, JSON.stringify(lotePayload));
+
+      // 🔹 IMÁGENES DEL LOTE
+      data?.imagenes?.forEach((img) => {
+        formData.append(`imagenes_${index}`, img.file);
+      });
     });
-
-    await fetch("https://apiinmo.y0urs.com/api/registerLotesMasivo/", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // ❌ NO pongas Content-Type
-      },
-      body: formData,
-    });
+    console.log("📦 FORMDATA ENVIADO:");
+for (const [key, value] of formData.entries()) {
+  if (value instanceof File) {
+    console.log(key, "📁 Archivo:", value.name, value.size);
+  } else {
+    try {
+      console.log(key, JSON.parse(value));
+    } catch {
+      console.log(key, value);
+    }
   }
+}
 
-  alert("Lotes registrados correctamente ✅");
-  onClose();
-};
+    try {
+      const res = await fetch(
+        "https://apiinmo.y0urs.com/api/registerLotesMasivo/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
+
+      if (!res.ok) throw new Error("Error en registro masivo");
+
+      alert("✅ Lotes registrados correctamente");
+      onClose();
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error al registrar los lotes");
+    }
+  };
+
 
 
 
@@ -1063,37 +1105,40 @@ export default function LoteModal({ onClose, idproyecto }) {
             <Polygon
               key={lote.id}
               paths={lote.coords}
-              onClick={() => handleSelectLote(lote)}
-              onMouseUp={(e) => {
-                const polygon = e.overlay || e?.domEvent?.target;
-                if (!polygon || !polygon.getPath) return;
-
-                try {
-                  const path = polygon.getPath();
-                  const coords = [];
-                  for (let i = 0; i < path.getLength(); i++) {
-                    const point = path.getAt(i);
-                    coords.push({ lat: point.lat(), lng: point.lng() });
-                  }
-                  setGeneratedLotes((prev) =>
-                    prev.map((l) => (l.id === lote.id ? { ...l, coords } : l)),
-                  );
-                } catch (error) {
-                  console.warn("Error al actualizar coordenadas:", error);
-                }
+              editable
+              draggable
+              onLoad={(poly) => {
+                polygonRefs.current[lote.id] = poly;
               }}
+              onMouseUp={() => {
+                const poly = polygonRefs.current[lote.id];
+                if (!poly) return;
+
+                const coords = poly
+                  .getPath()
+                  .getArray()
+                  .map(p => ({
+                    lat: p.lat(),
+                    lng: p.lng(),
+                  }));
+
+                setGeneratedLotes(prev =>
+                  prev.map(l =>
+                    l.id === lote.id ? { ...l, coords } : l
+                  )
+                );
+              }}
+              onClick={() => handleSelectLote(lote)}
               options={{
                 strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
                 strokeWeight: 2,
                 fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
                 fillOpacity: 0.5,
-                editable: true,
-                draggable: true,
                 zIndex: 10,
-                clickable: true,
               }}
             />
           ))}
+
 
           {!drawingManagerRef.current && (
             <DrawingManager
@@ -1339,49 +1384,72 @@ export default function LoteModal({ onClose, idproyecto }) {
 
             {/* IMÁGENES DEL LOTE */}
 
-            <label>Imágenes:</label>
+
+
+            <h4 style={{ color: "#333" }}>📷 Imágenes del inmueble</h4>
+
             <input
               type="file"
-              multiple
               accept="image/*"
+              multiple
               onChange={handleImagenesChange}
               className={style.input}
             />
 
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              {(formValues[selectedLote]?.imagenes || []).map((img, index) => (
-                <div key={index} style={{ position: "relative" }}>
-                  <img
-                    src={img.preview}
-                    alt="preview"
+            {formValues[selectedLote]?.imagenes?.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
+                  marginTop: "0.5rem",
+                }}
+              >
+                {formValues[selectedLote].imagenes.map((img, index) => (
+                  <div
+                    key={index}
                     style={{
-                      width: "80px",
-                      height: "80px",
-                      objectFit: "cover",
+                      position: "relative",
+                      width: "90px",
+                      height: "90px",
                       borderRadius: "6px",
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveImage(selectedLote, index)}
-                    style={{
-                      position: "absolute",
-                      top: "-6px",
-                      right: "-6px",
-                      background: "red",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "50%",
-                      width: "20px",
-                      height: "20px",
-                      cursor: "pointer",
+                      overflow: "hidden",
+                      border: "1px solid #ccc",
                     }}
                   >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <img
+                      src={img.preview}
+                      alt={`lote-${index}`}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(selectedLote, index)}
+                      style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "2px",
+                        background: "rgba(0,0,0,0.6)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "20px",
+                        height: "20px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
 
 
 

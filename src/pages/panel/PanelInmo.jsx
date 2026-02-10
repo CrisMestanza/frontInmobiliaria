@@ -272,7 +272,7 @@ const PanelInmo = () => {
   const redes = [
     { nombre: "Whatsapp", icono: <FaWhatsapp color="green" /> },
     { nombre: "Facebook", icono: <FaFacebook color="#1877f2" /> },
-    { nombre: "Página", icono: <FaGlobe color="#0077b6" /> },
+    { nombre: "Web", icono: <FaGlobe color="#0077b6" /> },
   ];
 
   return (
