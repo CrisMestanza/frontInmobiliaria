@@ -13,7 +13,6 @@ import {
 
 export default function LoteModal({ onClose, idproyecto }) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const token = localStorage.getItem("access");
   const [mapCenter, setMapCenter] = useState(null);
   const [proyectoCoords, setProyectoCoords] = useState([]);
   const [generatedLotes, setGeneratedLotes] = useState([]);
@@ -764,32 +763,32 @@ export default function LoteModal({ onClose, idproyecto }) {
     handleRegenerateGrid,
   ]);
 
-  const onPolygonComplete = (poly) => {
-    if (!poly) return;
+  // const onPolygonComplete = (poly) => {
+  //   if (!poly) return;
 
-    const path = poly.getPath().getArray();
-    const coords = path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
+  //   const path = poly.getPath().getArray();
+  //   const coords = path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
 
-    if (drawnPolygonRef.current) {
-      drawnPolygonRef.current.setMap(null);
-    }
-    drawnPolygonRef.current = poly;
-    poly.setMap(null);
+  //   if (drawnPolygonRef.current) {
+  //     drawnPolygonRef.current.setMap(null);
+  //   }
+  //   drawnPolygonRef.current = poly;
+  //   poly.setMap(null);
 
-    const angle = detectPolygonOrientation(coords);
-    setDetectedAngle((angle * 180) / Math.PI);
-    setRotationDeg(0);
+  //   const angle = detectPolygonOrientation(coords);
+  //   setDetectedAngle((angle * 180) / Math.PI);
+  //   setRotationDeg(0);
 
-    setBasePolygonCoords(coords);
-  };
+  //   setBasePolygonCoords(coords);
+  // };
 
   const onMapLoad = (map) => {
     mapRef.current = map;
   };
 
-  const handleGridParamChange = (name, value) => {
-    setGridParams((prev) => ({ ...prev, [name]: value }));
-  };
+  // const handleGridParamChange = (name, value) => {
+  //   setGridParams((prev) => ({ ...prev, [name]: value }));
+  // };
 
   const handleSelectLote = (lote) => {
     setSelectedLote(lote.id);
@@ -804,62 +803,30 @@ export default function LoteModal({ onClose, idproyecto }) {
     }));
   };
 
-  const handleRegisterAll = async () => {
-    if (generatedLotes.length === 0) {
-      alert("No hay lotes generados.");
-      return;
+  const handleSaveChanges = () => {
+    if (pdfImage && overlayBounds) {
+      const pdfMeta = {
+        bounds: overlayBounds,
+        opacity: overlayOpacity,
+        rotation: pdfRotation,
+      };
+      localStorage.setItem(`pdf_meta_${idproyecto}`, JSON.stringify(pdfMeta));
     }
-
-    const lotesToSend = generatedLotes.map((lote) => ({
-      ...lote,
-      nombre: formValues[lote.id]?.nombre || lote.nombre,
-      precio: formValues[lote.id]?.precio || lote.precio,
-      descripcion: formValues[lote.id]?.descripcion || lote.descripcion,
-      vendido:
-        formValues[lote.id]?.vendido !== undefined
-          ? formValues[lote.id].vendido
-          : lote.vendido,
-      puntos: lote.coords,
-      idproyecto,
-    }));
-
-    try {
-      const res = await fetch(
-        "https://apiinmo.y0urs.com/api/registerLotesMasivo/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(lotesToSend),
-        },
-      );
-
-      if (res.ok) {
-        alert("Lotes registrados exitosamente");
-        onClose();
-      } else {
-        console.error(await res.text());
-        alert("Error al registrar lotes");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error de red");
-    }
+    alert("Cambios guardados");
+    onClose();
   };
 
-  const handleClearPolygon = () => {
-    setBasePolygonCoords(null);
-    setGeneratedLotes([]);
-    setSelectedLote(null);
-    setRotationDeg(0);
-    setDetectedAngle(0);
-    if (drawnPolygonRef.current) {
-      drawnPolygonRef.current.setMap(null);
-      drawnPolygonRef.current = null;
-    }
-  };
+  // const handleClearPolygon = () => {
+  //   setBasePolygonCoords(null);
+  //   setGeneratedLotes([]);
+  //   setSelectedLote(null);
+  //   setRotationDeg(0);
+  //   setDetectedAngle(0);
+  //   if (drawnPolygonRef.current) {
+  //     drawnPolygonRef.current.setMap(null);
+  //     drawnPolygonRef.current = null;
+  //   }
+  // };
 
   const handleZoom = (direction, intensity = "normal") => {
     if (!overlayBounds) return;
@@ -962,7 +929,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                 <span className="material-icons-round">layers</span>
               </div>
               <h1 style={{ fontSize: "20px", fontWeight: "bold" }}>
-                Generar Lotes con Plano
+                Ajustar PDF del Proyecto
               </h1>
             </div>
             <div className={style.headerActions}>
@@ -970,15 +937,15 @@ export default function LoteModal({ onClose, idproyecto }) {
                 className={style.btnSecondary}
                 onClick={() =>
                   alert(
-                    "Usa el polígono para marcar el área y ajusta el PDF debajo.",
+                    "Añade un PDF y ajústalo (posición, escala, rotación y opacidad) hasta que coincida con el proyecto. Luego guarda los cambios.",
                   )
                 }
               >
                 <span className="material-icons-round">help_outline</span> Ayuda
               </button>
-              <button className={style.btnPrimary} onClick={handleRegisterAll}>
-                <span className="material-icons-round">save</span> Registrar
-                Todo
+              <button className={style.btnPrimary} onClick={handleSaveChanges}>
+                <span className="material-icons-round">save</span> Guardar
+                Cambios
               </button>
               <button
                 onClick={onClose}
@@ -1290,7 +1257,7 @@ export default function LoteModal({ onClose, idproyecto }) {
               )}
 
               {/* GENERACIÓN DE LOTES */}
-              <div className={style.section}>
+              {/* <div className={style.section}>
                 <h2 className={style.sectionTitle}>
                   <span className="material-icons-round">grid_view</span>{" "}
                   Generación de Lotes
@@ -1370,7 +1337,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                     Limpiar Mapa
                   </button>
                 </div>
-              </div>
+              </div> */}
 
               {/* TIP */}
               <div
@@ -1395,8 +1362,9 @@ export default function LoteModal({ onClose, idproyecto }) {
                     lightbulb
                   </span>
                   <p>
-                    Dibuja un polígono para definir el área. Luego ajusta el PDF
-                    debajo para calcar los lotes.
+                    Sube un PDF y ajústalo (posición, escala, rotación y
+                    opacidad) hasta alinearlo con el proyecto. Luego guarda los
+                    cambios.
                   </p>
                 </div>
               </div>
@@ -1459,36 +1427,6 @@ export default function LoteModal({ onClose, idproyecto }) {
                 ))}
               </GoogleMap>
 
-              {/* TOOLBAR FLOTANTE INFERIOR */}
-              {generatedLotes.length > 0 && (
-                <div className={style.actionToolbar}>
-                  <button
-                    className={style.btnPrimary}
-                    style={{ padding: "10px 20px", borderRadius: "12px" }}
-                    onClick={handleRegisterAll}
-                  >
-                    <span className="material-icons-round">playlist_add</span>{" "}
-                    Confirmar {generatedLotes.length} Lotes
-                  </button>
-                  <div
-                    style={{
-                      width: "1px",
-                      height: "24px",
-                      backgroundColor: "#e2e8f0",
-                    }}
-                  ></div>
-                  <button
-                    className={style.btnSecondary}
-                    style={{ border: "none" }}
-                    onClick={() => {
-                      /* Tu lógica de replicar precios */
-                    }}
-                  >
-                    <span className="material-icons-round">edit</span> Replicar
-                    Datos
-                  </button>
-                </div>
-              )}
             </section>
           </main>
 

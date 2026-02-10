@@ -130,12 +130,108 @@ function MyMap() {
   const mapRef = useRef(null);
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
+  const cacheRef = useRef({
+    lotes: new Map(),
+    puntos: new Map(),
+    inmo: new Map(),
+    iconos: new Map(),
+  });
   // const inmoId = null;
   const { inmoId } = useParams();
   const [filtroBotActivo, setFiltroBotActivo] = useState(false);
 
   // Usuario
   const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
+
+  const CACHE_TTL_MS = 10 * 60 * 1000;
+  const getCacheKey = (prefix, id) => `${prefix}_${id}`;
+
+  const readSessionCache = (key) => {
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.ts || Date.now() - parsed.ts > CACHE_TTL_MS) {
+        sessionStorage.removeItem(key);
+        return null;
+      }
+      return parsed.data ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeSessionCache = (key, data) => {
+    try {
+      sessionStorage.setItem(
+        key,
+        JSON.stringify({ ts: Date.now(), data }),
+      );
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const getCached = (bucket, id, prefix) => {
+    const mem = cacheRef.current[bucket].get(id);
+    if (mem) return mem;
+    const fromSession = readSessionCache(getCacheKey(prefix, id));
+    if (fromSession) {
+      cacheRef.current[bucket].set(id, fromSession);
+      return fromSession;
+    }
+    return null;
+  };
+
+  const setCached = (bucket, id, prefix, data) => {
+    cacheRef.current[bucket].set(id, data);
+    writeSessionCache(getCacheKey(prefix, id), data);
+  };
+
+  const loadLotesConPuntos = async (id) => {
+    const cached = getCached("lotes", id, "lotes");
+    if (cached) return cached;
+    const res = await fetch(
+      `https://apiinmo.y0urs.com/api/getLotesConPuntos/${id}`,
+    );
+    const data = await res.json();
+    setCached("lotes", id, "lotes", data);
+    return data;
+  };
+
+  const loadPuntosProyecto = async (id) => {
+    const cached = getCached("puntos", id, "puntos");
+    if (cached) return cached;
+    const res = await fetch(
+      `https://apiinmo.y0urs.com/api/listPuntosProyecto/${id}`,
+    );
+    const data = await res.json();
+    setCached("puntos", id, "puntos", data);
+    return data;
+  };
+
+  const loadInmobiliaria = async (idInmo, idProyecto) => {
+    const cacheKey = `${idProyecto}_${idInmo}`;
+    const cached = getCached("inmo", cacheKey, "inmo");
+    if (cached) return cached;
+    const res = await fetch(
+      `https://apiinmo.y0urs.com/api/getInmobiliaria/${idInmo}`,
+    );
+    const data = await res.json();
+    setCached("inmo", cacheKey, "inmo", data);
+    return data;
+  };
+
+  const loadIconosProyecto = async (id) => {
+    const cached = getCached("iconos", id, "iconos");
+    if (cached) return cached;
+    const res = await fetch(
+      `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${id}`,
+    );
+    const data = await res.json();
+    setCached("iconos", id, "iconos", data);
+    return data;
+  };
 
 
   // ✅ FIX: Load Google Maps API properly with all required libraries
@@ -255,11 +351,8 @@ function MyMap() {
     if (!selectedProyecto) return;
 
     const cargarLotes = async () => {
-      //  UNA sola llamada
-      const res = await fetch(
-        `https://apiinmo.y0urs.com/api/getLotesConPuntos/${selectedProyecto.idproyecto}`
-      );
-      const data = await res.json();
+      // UNA sola llamada (con cache)
+      const data = await loadLotesConPuntos(selectedProyecto.idproyecto);
 
       // 👉 Si hay filtros, filtras en memoria (rápido)
       let lotesFiltrados = data;
@@ -278,6 +371,26 @@ function MyMap() {
 
     cargarLotes().catch(console.error);
   }, [selectedProyecto, selectedRango, filtroBotActivo]);
+
+  useEffect(() => {
+    if (!proyecto?.length || selectedProyecto) return;
+
+    const ids = proyecto
+      .slice(0, 3)
+      .map((p) => p.idproyecto)
+      .filter(Boolean);
+
+    if (!ids.length) return;
+
+    const prefetch = async () => {
+      await Promise.allSettled(
+        ids.map((id) => Promise.all([loadLotesConPuntos(id), loadPuntosProyecto(id)])),
+      );
+    };
+
+    const t = setTimeout(prefetch, 300);
+    return () => clearTimeout(t);
+  }, [proyecto, selectedProyecto]);
 
   useEffect(() => {
     fetch("https://apiinmo.y0urs.com/api/listTipoInmobiliaria/")
@@ -455,39 +568,53 @@ function MyMap() {
       calculateInfo("WALKING", proyecto);
       calculateInfo("DRIVING", proyecto);
 
-      const resPuntos = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${proyecto.idproyecto}`
-      );
-      const dataPuntos = await resPuntos.json();
-      setPuntos(dataPuntos);
+      const cachedPuntos = getCached("puntos", proyecto.idproyecto, "puntos");
+      if (cachedPuntos) {
+        setPuntos(cachedPuntos);
+        if (cachedPuntos.length > 0 && mapRef.current) {
+          const bounds = new window.google.maps.LatLngBounds();
+          cachedPuntos.forEach((p) =>
+            bounds.extend({
+              lat: parseFloat(p.latitud),
+              lng: parseFloat(p.longitud),
+            }),
+          );
+          mapRef.current.fitBounds(bounds);
+        }
+      }
 
+      const cachedLotes = getCached("lotes", proyecto.idproyecto, "lotes");
+      if (cachedLotes) setLotesProyecto(cachedLotes);
+
+      const cachedIconos = getCached("iconos", proyecto.idproyecto, "iconos");
+      if (cachedIconos) setIconosProyecto(cachedIconos);
+
+      const inmoCacheKey = `${proyecto.idproyecto}_${proyecto.idinmobiliaria}`;
+      const cachedInmo = getCached("inmo", inmoCacheKey, "inmo");
+
+      const [dataPuntos, lotesConPuntos, inmoData, dataIconos] =
+        await Promise.all([
+          loadPuntosProyecto(proyecto.idproyecto),
+          loadLotesConPuntos(proyecto.idproyecto),
+          cachedInmo
+            ? Promise.resolve(cachedInmo)
+            : loadInmobiliaria(proyecto.idinmobiliaria, proyecto.idproyecto),
+          loadIconosProyecto(proyecto.idproyecto),
+        ]);
+
+      setPuntos(dataPuntos);
       if (dataPuntos.length > 0 && mapRef.current) {
         const bounds = new window.google.maps.LatLngBounds();
         dataPuntos.forEach((p) =>
           bounds.extend({
             lat: parseFloat(p.latitud),
             lng: parseFloat(p.longitud),
-          })
+          }),
         );
         mapRef.current.fitBounds(bounds);
       }
-      const resLotes = await fetch(
-        `https://apiinmo.y0urs.com/api/getLotesConPuntos/${proyecto.idproyecto}`
-      );
-      const lotesConPuntos = await resLotes.json();
 
       setLotesProyecto(lotesConPuntos);
-
-
-      const resInmo = await fetch(
-        `https://apiinmo.y0urs.com/api/getInmobiliaria/${proyecto.idinmobiliaria}`
-      );
-      const inmoData = await resInmo.json();
-
-      const resIconos = await fetch(
-        `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${proyecto.idproyecto}`
-      );
-      const dataIconos = await resIconos.json();
       setIconosProyecto(dataIconos);
 
       setselectedProyecto({
