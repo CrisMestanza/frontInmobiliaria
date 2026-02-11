@@ -328,23 +328,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   const fetchProyecto = useCallback(async () => {
     try {
-      const resProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const data = await resProyecto.json();
-
-      if (!data.length) return;
-
-      // primer lote = referencia para centrar
-      setMapCenter({
-        lat: parseFloat(data[0].puntos[0].latitud),
-        lng: parseFloat(data[0].puntos[0].longitud),
-      });
-
-      // 🔹 Polígono del proyecto
+      // 🔹 Polígono del proyecto (siempre debe cargarse, incluso sin lotes)
       const resPuntosProyecto = await fetch(
         `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
         {
@@ -358,10 +342,25 @@ export default function LoteModal({ onClose, idproyecto }) {
           lat: parseFloat(p.latitud),
           lng: parseFloat(p.longitud),
         }));
+
+      if (!orderedProyecto.length) return;
+
+      // centro del mapa tomando el primer punto del proyecto
+      setMapCenter(orderedProyecto[0]);
+
       if (orderedProyecto.length > 2) {
         orderedProyecto.push(orderedProyecto[0]); // cerrar polígono
       }
       setProyectoCoords(orderedProyecto);
+
+      // 🔹 Lotes ya registrados (puede venir vacío en proyecto nuevo)
+      const resProyecto = await fetch(
+        `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = await resProyecto.json();
 
       // 🔹 Lotes con sus coordenadas ya incluidas
       const lotesData = data.map((lote) => ({
@@ -376,7 +375,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     } catch (err) {
       console.error("Error cargando proyecto/lotes:", err);
     }
-  }, [idproyecto]);
+  }, [idproyecto, token]);
 
   useEffect(() => {
     if (isLoaded) {

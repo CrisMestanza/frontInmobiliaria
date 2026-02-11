@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
 import { GoogleMap, Marker, DirectionsRenderer } from "@react-google-maps/api";
 import ProyectoSidebar from "./MapSidebarProyecto";
 import MapSidebar from "./MapSidebar";
-import MapMarker from "./MapMarker";
 import PolygonOverlay from "./PolygonOverlay";
 import CustomSelect from "./CustomSelect";
 import styles from "./Mapa.module.css";
@@ -126,10 +125,12 @@ function MyMap() {
   const [iconosProyecto, setIconosProyecto] = useState([]);
   const [walkingInfo, setWalkingInfo] = useState(null);
   const [drivingInfo, setDrivingInfo] = useState(null);
+  const [mapBounds, setMapBounds] = useState(null);
 
   const mapRef = useRef(null);
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
+  const boundsDebounceRef = useRef(null);
   const cacheRef = useRef({
     lotes: new Map(),
     puntos: new Map(),
@@ -142,6 +143,7 @@ function MyMap() {
 
   // Usuario
   const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
+  const MAX_VISIBLE_MARKERS = 250;
 
   const CACHE_TTL_MS = 10 * 60 * 1000;
   const getCacheKey = (prefix, id) => `${prefix}_${id}`;
@@ -232,6 +234,81 @@ function MyMap() {
     setCached("iconos", id, "iconos", data);
     return data;
   };
+
+  const updateBoundsFromMap = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !window.google?.maps) return;
+
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+
+    setMapBounds({
+      north: ne.lat(),
+      east: ne.lng(),
+      south: sw.lat(),
+      west: sw.lng(),
+    });
+  }, []);
+
+  const scheduleBoundsUpdate = useCallback(() => {
+    if (boundsDebounceRef.current) {
+      clearTimeout(boundsDebounceRef.current);
+    }
+    boundsDebounceRef.current = setTimeout(() => {
+      updateBoundsFromMap();
+    }, 120);
+  }, [updateBoundsFromMap]);
+
+  useEffect(() => {
+    return () => {
+      if (boundsDebounceRef.current) {
+        clearTimeout(boundsDebounceRef.current);
+      }
+    };
+  }, []);
+
+  const getProjectIconUrl = (p) => {
+    if (filtroBotActivo) {
+      return p.iconoTipo === "casa"
+        ? "https://cdn-icons-png.freepik.com/512/11130/11130373.png"
+        : "/proyectoicono.png";
+    }
+
+    return p.estado === 1 && p.idtipoinmobiliaria === 1
+      ? "/proyectoicono.png"
+      : "https://cdn-icons-png.freepik.com/512/11130/11130373.png";
+  };
+
+  const visibleProyectos = useMemo(() => {
+    const filtered = proyecto.filter((p) => {
+      if (
+        selectedProyecto &&
+        ((puntos.length > 0 && selectedProyecto.idproyecto === p.idproyecto) ||
+          selectedProyecto.idproyecto === p.idproyecto)
+      ) {
+        return false;
+      }
+
+      const lat = parseFloat(p.latitud);
+      const lng = parseFloat(p.longitud);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
+
+      if (!mapBounds) return true;
+
+      return (
+        lat <= mapBounds.north &&
+        lat >= mapBounds.south &&
+        lng <= mapBounds.east &&
+        lng >= mapBounds.west
+      );
+    });
+
+    if (filtered.length <= MAX_VISIBLE_MARKERS) return filtered;
+    return filtered.slice(0, MAX_VISIBLE_MARKERS);
+  }, [proyecto, selectedProyecto, puntos.length, mapBounds]);
 
 
   // ✅ FIX: Load Google Maps API properly with all required libraries
@@ -769,7 +846,11 @@ function MyMap() {
         mapContainerClassName={styles.map}
         center={currentPosition}
         zoom={13}
-        onLoad={(map) => (mapRef.current = map)}
+        onLoad={(map) => {
+          mapRef.current = map;
+          updateBoundsFromMap();
+        }}
+        onIdle={scheduleBoundsUpdate}
         options={{
           gestureHandling: "greedy",
           zoomControl: true,
@@ -781,51 +862,21 @@ function MyMap() {
 
         {puntos.length === 0 && <Marker position={currentPosition} />}
 
-        {!filtroBotActivo &&
-          proyecto
-            .filter(
-              (p) =>
-                !(
-                  selectedProyecto &&
-                  puntos.length > 0 &&
-                  selectedProyecto.idproyecto === p.idproyecto
-                )
-            )
-            .map((p) => (
-              <MapMarker
-                key={p.idproyecto}
-                proyecto={p}
-                onClick={handleMarkerClick}
-              />
-            ))}
-
-        {filtroBotActivo &&
-          proyecto
-            .filter(
-              (p) =>
-                !(
-                  selectedProyecto &&
-                  selectedProyecto.idproyecto === p.idproyecto
-                )
-            )
-            .map((p) => (
-              <Marker
-                key={p.idproyecto}
-                position={{
-                  lat: parseFloat(p.latitud),
-                  lng: parseFloat(p.longitud),
-                }}
-                icon={{
-                  url:
-                    p.iconoTipo === "casa"
-                      ? "https://cdn-icons-png.freepik.com/512/11130/11130373.png"
-                      : "/proyectoicono.png",
-                  scaledSize: new window.google.maps.Size(40, 40),
-                }}
-                title={p.nombreproyecto}
-                onClick={() => handleMarkerClick(p)}
-              />
-            ))}
+        {visibleProyectos.map((p) => (
+          <Marker
+            key={p.idproyecto}
+            position={{
+              lat: parseFloat(p.latitud),
+              lng: parseFloat(p.longitud),
+            }}
+            icon={{
+              url: getProjectIconUrl(p),
+              scaledSize: new window.google.maps.Size(40, 40),
+            }}
+            title={p.nombreproyecto}
+            onClick={() => handleMarkerClick(p)}
+          />
+        ))}
 
         {iconosProyecto.map((ico) => (
           <Marker
