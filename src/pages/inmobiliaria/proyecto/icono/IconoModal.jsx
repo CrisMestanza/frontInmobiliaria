@@ -6,11 +6,26 @@ import loader from "../../../../components/loader";
 export default function IconoModal({ onClose, idproyecto }) {
   const mapRef = useRef(null);
   const proyectoPolygonRef = useRef(null);
+  const lotesPolygonsRef = useRef([]);
   const [map, setMap] = useState(null);
   const [iconosDisponibles, setIconosDisponibles] = useState([]);
   const [iconosMapa, setIconosMapa] = useState([]);
   const [draggedIcono, setDraggedIcono] = useState(null);
   const token = localStorage.getItem("access");
+
+  const getColorLote = (vendido) => {
+    switch (vendido) {
+      case 0:
+        return "#00ff00";
+      case 1:
+        return "#ff0000";
+      case 2:
+        return "#ffff00";
+      default:
+        return "#808080";
+    }
+  };
+
   const loadGoogleMapsScript = useCallback(() => {
     return loader
       .load()
@@ -27,22 +42,12 @@ export default function IconoModal({ onClose, idproyecto }) {
     try {
       await loadGoogleMapsScript();
       if (!mapRef.current) return;
-      const resProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      const puntosProyecto = await resProyecto.json();
-      if (!puntosProyecto.length) return;
 
       const mapInstance = new window.google.maps.Map(mapRef.current, {
         zoom: 16,
         center: {
-          lat: parseFloat(puntosProyecto[0].latitud),
-          lng: parseFloat(puntosProyecto[0].longitud),
+          lat: -6.4882,
+          lng: -76.365629,
         },
         gestureHandling: "greedy",
       });
@@ -57,25 +62,54 @@ export default function IconoModal({ onClose, idproyecto }) {
     } catch (error) {
       console.error("Error initializing the map:", error);
     }
-  }, [idproyecto, loadGoogleMapsScript, token]);
+  }, [loadGoogleMapsScript]);
 
   useEffect(() => {
     if (!map) return;
     const loadProjectGeometries = async () => {
       try {
-        const resProyecto = await fetch(
-          `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
-          {
+        const [resProyecto, resLotes, resIconosProyecto] = await Promise.all([
+          fetch(`https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
-        );
+          }),
+          fetch(
+            `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          ),
+          fetch(
+            `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${idproyecto}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          ),
+        ]);
+
         const puntosProyecto = await resProyecto.json();
+        const lotesConPuntos = await resLotes.json();
+        const iconosRegistrados = await resIconosProyecto.json();
+
         const proyectoCoords = puntosProyecto.map((p) => ({
           lat: parseFloat(p.latitud),
           lng: parseFloat(p.longitud),
         }));
+        if (!proyectoCoords.length) return;
+
+        // Centrar mapa con puntos del proyecto para que abra rápido aun sin lotes
+        map.mapInstance.setCenter(proyectoCoords[0]);
+
+        if (proyectoPolygonRef.current) {
+          proyectoPolygonRef.current.setMap(null);
+        }
+        lotesPolygonsRef.current.forEach((polygon) => polygon.setMap(null));
+        lotesPolygonsRef.current = [];
 
         const proyectoPolygon = new window.google.maps.Polygon({
           paths: proyectoCoords,
@@ -87,98 +121,58 @@ export default function IconoModal({ onClose, idproyecto }) {
         });
         proyectoPolygonRef.current = proyectoPolygon;
 
-        const resLotes = await fetch(
-          `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        const lotes = await resLotes.json();
+        const lotesPolygons = lotesConPuntos
+          .map((lote) => {
+            const loteCoords = (lote.puntos || [])
+              .sort((a, b) => a.orden - b.orden)
+              .map((p) => ({
+                lat: parseFloat(p.latitud),
+                lng: parseFloat(p.longitud),
+              }));
 
-        for (const lote of lotes) {
-          const resPuntos = await fetch(
-            `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-          const puntos = await resPuntos.json();
-          if (!puntos.length) continue;
+            if (!loteCoords.length) return null;
+            if (loteCoords.length > 2) loteCoords.push(loteCoords[0]);
 
-          const loteCoords = puntos
-            .sort((a, b) => a.orden - b.orden)
-            .map((p) => ({
-              lat: parseFloat(p.latitud),
-              lng: parseFloat(p.longitud),
-            }));
+            return new window.google.maps.Polygon({
+              paths: loteCoords,
+              map: map.mapInstance,
+              strokeColor: "#333",
+              strokeWeight: 1,
+              fillColor: getColorLote(lote.vendido),
+              fillOpacity: 0.45,
+            });
+          })
+          .filter(Boolean);
 
-          if (loteCoords.length > 2) loteCoords.push(loteCoords[0]);
-
-          const getColorLote = (vendido) => {
-            switch (vendido) {
-              case 0:
-                return "#00ff00";
-              case 1:
-                return "#ff0000";
-              case 2:
-                return "#ffff00";
-              default:
-                return "#808080";
-            }
-          };
-
-          new window.google.maps.Polygon({
-            paths: loteCoords,
-            map: map.mapInstance,
-            strokeColor: "#333",
-            strokeWeight: 1,
-            fillColor: getColorLote(lote.vendido),
-            fillOpacity: 0.45,
-          });
-        }
-
-        // 👉 Ahora cargamos los íconos ya registrados
-        const resIconosProyecto = await fetch(
-          `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${idproyecto}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        const iconosRegistrados = await resIconosProyecto.json();
-        const nuevosIconos = iconosRegistrados.map((ico) => {
-          const marker = new window.google.maps.Marker({
-            position: {
-              lat: parseFloat(ico.latitud),
-              lng: parseFloat(ico.longitud),
-            },
-            map: map.mapInstance,
-            icon: {
-              url: `https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`,
-              scaledSize: new window.google.maps.Size(40, 40),
-            },
-            draggable: true,
-            title: ico.icono_detalle.nombre,
-          });
-
-          return {
-            idicono: ico.idicono,
-            latitud: ico.latitud,
-            longitud: ico.longitud,
-            marker,
-            icono_detalle: ico.icono_detalle,
-            saved: true,
-          };
-        });
+        lotesPolygonsRef.current = lotesPolygons;
 
         setIconosMapa((prev) => {
           prev.forEach((ic) => ic.marker?.setMap(null));
-          return nuevosIconos;
+
+          return iconosRegistrados.map((ico) => {
+            const marker = new window.google.maps.Marker({
+              position: {
+                lat: parseFloat(ico.latitud),
+                lng: parseFloat(ico.longitud),
+              },
+              map: map.mapInstance,
+              icon: {
+                url: `https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`,
+                scaledSize: new window.google.maps.Size(40, 40),
+              },
+              draggable: true,
+              title: ico.icono_detalle.nombre,
+            });
+
+            return {
+              idicono: ico.idicono,
+              latitud: ico.latitud,
+              longitud: ico.longitud,
+              marker,
+              icono_detalle: ico.icono_detalle,
+              saved: true,
+            };
+          });
         });
       } catch (error) {
         console.error("Error loading project geometry:", error);
@@ -222,12 +216,6 @@ export default function IconoModal({ onClose, idproyecto }) {
         scaledSize: new window.google.maps.Size(40, 40),
       },
       draggable: true,
-    });
-
-    setIconosMapa((prev) => {
-      const existe = prev.some((ic) => ic.idicono === payloadIcono.idicono);
-      if (existe) return prev; // evita duplicados
-      return [...prev, payloadIcono];
     });
 
     // Objeto listo para enviar al backend ✅

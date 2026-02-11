@@ -141,7 +141,7 @@ export default function EditProyectoModal({
       });
 
       const res = await fetch(
-        `https://apiinmo.y0urs.com/api/updateProyecto/${form.idproyecto}`,
+        `https://apiinmo.y0urs.com/api/updateProyecto/${form.idproyecto}/`,
         {
           method: "PUT",
           headers: {

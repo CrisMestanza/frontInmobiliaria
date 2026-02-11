@@ -269,6 +269,33 @@ const PanelInmo = () => {
     window.location.href = "/";
   };
 
+  const handleDeleteProyecto = async (idproyecto) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este proyecto?")) return;
+
+    try {
+      const res = await fetch(
+        `https://apiinmo.y0urs.com/api/deleteProyecto/${idproyecto}/`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (!res.ok) {
+        alert("No se pudo eliminar el proyecto ❌");
+        return;
+      }
+
+      setProyectos((prev) => prev.filter((p) => p.idproyecto !== idproyecto));
+      setLotes((prev) => prev.filter((l) => l.idproyecto !== idproyecto));
+      alert("Proyecto eliminado ✅");
+      fetchData();
+    } catch (err) {
+      console.error("Error eliminando proyecto:", err);
+      alert("Error de red al eliminar proyecto 🚫");
+    }
+  };
+
   if (loading) return <Loader />;
 
   const redes = [
@@ -495,7 +522,7 @@ const PanelInmo = () => {
                 onViewLotes={setShowLotes}
                 onEdit={setShowModalEditProyecto}
                 onIcon={setShowIconoModal}
-                // onDelete={handleDeleteProyecto}
+                onDelete={handleDeleteProyecto}
               />
             ))}
           </div>
