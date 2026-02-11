@@ -281,46 +281,18 @@ export default function LoteModal({ onClose, idproyecto }) {
     });
   }, []);
 
-  
+
+
+  const [mapZoom, setMapZoom] = useState(17); // valor por defecto
 
   const fetchProyecto = useCallback(async () => {
     try {
       const resProyecto = await fetch(
         `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       const data = await resProyecto.json();
 
-      if (!data.length) return;
-
-      // primer lote = referencia para centrar
-      setMapCenter({
-        lat: parseFloat(data[0].puntos[0].latitud),
-        lng: parseFloat(data[0].puntos[0].longitud),
-      });
-
-      // 🔹 Polígono del proyecto
-      const resPuntosProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const puntosProyecto = await resPuntosProyecto.json();
-      const orderedProyecto = puntosProyecto
-        .sort((a, b) => a.orden - b.orden)
-        .map((p) => ({
-          lat: parseFloat(p.latitud),
-          lng: parseFloat(p.longitud),
-        }));
-      if (orderedProyecto.length > 2) {
-        orderedProyecto.push(orderedProyecto[0]); // cerrar polígono
-      }
-      setProyectoCoords(orderedProyecto);
-
-      // 🔹 Lotes con sus coordenadas ya incluidas
       const lotesData = data.map((lote) => ({
         coords: lote.puntos.map((p) => ({
           lat: parseFloat(p.latitud),
@@ -328,12 +300,41 @@ export default function LoteModal({ onClose, idproyecto }) {
         })),
         vendido: lote.vendido,
       }));
-
       setLotesCoords(lotesData);
+
+      // 🔹 Cargar polígono del proyecto
+      const resPuntosProyecto = await fetch(
+        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const puntosProyecto = await resPuntosProyecto.json();
+      const orderedProyecto = puntosProyecto
+        .sort((a, b) => a.orden - b.orden)
+        .map((p) => ({ lat: parseFloat(p.latitud), lng: parseFloat(p.longitud) }));
+      if (orderedProyecto.length > 2) orderedProyecto.push(orderedProyecto[0]);
+
+      setProyectoCoords(orderedProyecto);
+
+      // 🔹 CENTRAR MAPA y definir zoom
+      if (lotesData.length > 0) {
+        // Centro en el primer lote
+        setMapCenter(lotesData[0].coords[0]);
+        setMapZoom(17); // Zoom para lotes
+      } else if (orderedProyecto.length > 0) {
+        // Centro en el polígono del proyecto
+        const centerLat =
+          orderedProyecto.reduce((sum, p) => sum + p.lat, 0) / orderedProyecto.length;
+        const centerLng =
+          orderedProyecto.reduce((sum, p) => sum + p.lng, 0) / orderedProyecto.length;
+        setMapCenter({ lat: centerLat, lng: centerLng });
+        setMapZoom(14); // Zoom para polígono
+      }
     } catch (err) {
       console.error("Error cargando proyecto:", err);
     }
   }, [idproyecto, token]);
+
+
 
   useEffect(() => {
     if (isLoaded) fetchProyecto();
@@ -805,16 +806,21 @@ export default function LoteModal({ onClose, idproyecto }) {
     }));
   };
 
-
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
+const [isRegistering, setIsRegistering] = useState(false);
 
   const handleRegisterAll = async () => {
     for (const l of generatedLotes) {
-    if (!l.coords || l.coords.length < 3) {
-      alert(`❌ El ${l.nombre} no tiene coordenadas válidas`);
-      return; // ⬅️ salir limpio
+      if (!l.coords || l.coords.length < 3) {
+        alert(`❌ El ${l.nombre} no tiene coordenadas válidas`);
+        return; // ⬅️ salir limpio
+      }
     }
-  }
 
+setShowRegisterModal(true);      // Abrir modal
+  setRegisterMessage("Registrando inmuebles...");
+  setIsRegistering(true);
 
     const formData = new FormData();
 
@@ -862,17 +868,17 @@ export default function LoteModal({ onClose, idproyecto }) {
       });
     });
     console.log("📦 FORMDATA ENVIADO:");
-for (const [key, value] of formData.entries()) {
-  if (value instanceof File) {
-    console.log(key, "📁 Archivo:", value.name, value.size);
-  } else {
-    try {
-      console.log(key, JSON.parse(value));
-    } catch {
-      console.log(key, value);
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(key, "📁 Archivo:", value.name, value.size);
+      } else {
+        try {
+          console.log(key, JSON.parse(value));
+        } catch {
+          console.log(key, value);
+        }
+      }
     }
-  }
-}
 
     try {
       const res = await fetch(
@@ -888,12 +894,15 @@ for (const [key, value] of formData.entries()) {
 
       if (!res.ok) throw new Error("Error en registro masivo");
 
-      alert("✅ Lotes registrados correctamente");
+setRegisterMessage("✅ Registro con éxito!");
       onClose();
     } catch (error) {
       console.error(error);
-      alert("❌ Error al registrar los lotes");
-    }
+          setRegisterMessage("❌ Error al registrar los inmuebles");
+
+    }finally {
+    setIsRegistering(false);
+  }
   };
 
 
@@ -931,8 +940,11 @@ for (const [key, value] of formData.entries()) {
 
 
   return (
+    
     <div className={style.modalOverlay}>
       <div className={style.modalContent}>
+        
+
         <button className={style.closeBtn} onClick={onClose}>
           ✖
         </button>
@@ -1048,7 +1060,25 @@ for (const [key, value] of formData.entries()) {
             </div>
           )}
         </div>
-
+{showRegisterModal && (
+  <div className={style.modalOverlay}>
+    <div
+      className={style.modalContent}
+      style={{ maxWidth: "400px", textAlign: "center" }}
+    >
+      <h3>{registerMessage}</h3>
+      {!isRegistering && (
+        <button
+          className={style.submitBtn}
+          onClick={() => setShowRegisterModal(false)}
+          style={{ marginTop: "1rem" }}
+        >
+          Cerrar
+        </button>
+      )}
+    </div>
+  </div>
+)}
         <GoogleMap
           onLoad={onMapLoad}
           mapContainerStyle={{
@@ -1056,7 +1086,7 @@ for (const [key, value] of formData.entries()) {
             height: "480px",
             marginBottom: "1rem",
           }}
-          zoom={17}
+          zoom={mapZoom}
           center={mapCenter}
           options={{ gestureHandling: "greedy" }}
         >

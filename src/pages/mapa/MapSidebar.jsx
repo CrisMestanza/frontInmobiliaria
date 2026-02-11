@@ -30,7 +30,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
   const cerrarSidebar = () => {
     onClose();
-    if (mapRef?.current) mapRef.current.setZoom(18);
+    if (mapRef?.current) mapRef.current.setZoom(17);
   };
 
   useEffect(() => {

@@ -46,6 +46,8 @@ import {
   PointerIcon,
   PointerOffIcon,
   PinIcon,
+  MapPinIcon,
+  MapPlus,
 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
@@ -160,7 +162,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
               title="Íconos"
               style={{ padding: "6px", borderRadius: "4px" }}
             >
-              <PinIcon size={16} />
+              <MapPlus size={16} />
             </button>
           </div>
           <button

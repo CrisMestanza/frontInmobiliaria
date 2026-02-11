@@ -3,7 +3,7 @@ import { Marker } from "@react-google-maps/api";
 import axios from "axios";
 
 export default function ProyectoMarker({ onClick, proyecto }) {
-  // const [proyectos, setProyectos] = useState([]);
+  const [proyectos, setProyectos] = useState([]);
 
   useEffect(() => {
     async function fetchProyectos() {
