@@ -32,6 +32,8 @@ export default function LoteModal({ onClose, idproyecto }) {
   const drawingManagerRef = useRef(null);
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
   const esCasa = formValues[selectedLote]?.tipo_inmueble === 2;
+  const polygonRefs = useRef({});
+
 
   const createRotatableOverlay = useCallback(
     (bounds, image, rotation, opacity) => {
@@ -135,6 +137,50 @@ export default function LoteModal({ onClose, idproyecto }) {
     [],
   );
 
+
+
+  const handleImagenesChange = (e) => {
+    if (!selectedLote) return;
+
+    const newFiles = Array.from(e.target.files).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+
+    setFormValues((prev) => ({
+      ...prev,
+      [selectedLote]: {
+        ...prev[selectedLote],
+        imagenes: [
+          ...(prev[selectedLote]?.imagenes || []),
+          ...newFiles,
+        ],
+      },
+    }));
+
+    e.target.value = ""; // reset input
+  };
+
+
+
+  const handleRemoveImage = (loteId, index) => {
+    setFormValues((prev) => {
+      const imgs = prev[loteId]?.imagenes || [];
+
+      URL.revokeObjectURL(imgs[index]?.preview);
+
+      return {
+        ...prev,
+        [loteId]: {
+          ...prev[loteId],
+          imagenes: imgs.filter((_, i) => i !== index),
+        },
+      };
+    });
+  };
+
+
+
   useEffect(() => {
     const loadSavedPDF = async () => {
       if (!isLoaded || !mapCenter) return;
@@ -192,6 +238,8 @@ export default function LoteModal({ onClose, idproyecto }) {
     loadSavedPDF();
   }, [idproyecto, isLoaded, mapCenter]);
 
+
+
   useEffect(() => {
     if (!mapRef.current || !googleRef.current) return;
 
@@ -233,44 +281,18 @@ export default function LoteModal({ onClose, idproyecto }) {
     });
   }, []);
 
+
+
+  const [mapZoom, setMapZoom] = useState(17); // valor por defecto
+
   const fetchProyecto = useCallback(async () => {
     try {
       const resProyecto = await fetch(
         `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       const data = await resProyecto.json();
 
-      if (!data.length) return;
-
-      // primer lote = referencia para centrar
-      setMapCenter({
-        lat: parseFloat(data[0].puntos[0].latitud),
-        lng: parseFloat(data[0].puntos[0].longitud),
-      });
-
-      // 🔹 Polígono del proyecto
-      const resPuntosProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const puntosProyecto = await resPuntosProyecto.json();
-      const orderedProyecto = puntosProyecto
-        .sort((a, b) => a.orden - b.orden)
-        .map((p) => ({
-          lat: parseFloat(p.latitud),
-          lng: parseFloat(p.longitud),
-        }));
-      if (orderedProyecto.length > 2) {
-        orderedProyecto.push(orderedProyecto[0]); // cerrar polígono
-      }
-      setProyectoCoords(orderedProyecto);
-
-      // 🔹 Lotes con sus coordenadas ya incluidas
       const lotesData = data.map((lote) => ({
         coords: lote.puntos.map((p) => ({
           lat: parseFloat(p.latitud),
@@ -278,12 +300,41 @@ export default function LoteModal({ onClose, idproyecto }) {
         })),
         vendido: lote.vendido,
       }));
-
       setLotesCoords(lotesData);
+
+      // 🔹 Cargar polígono del proyecto
+      const resPuntosProyecto = await fetch(
+        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const puntosProyecto = await resPuntosProyecto.json();
+      const orderedProyecto = puntosProyecto
+        .sort((a, b) => a.orden - b.orden)
+        .map((p) => ({ lat: parseFloat(p.latitud), lng: parseFloat(p.longitud) }));
+      if (orderedProyecto.length > 2) orderedProyecto.push(orderedProyecto[0]);
+
+      setProyectoCoords(orderedProyecto);
+
+      // 🔹 CENTRAR MAPA y definir zoom
+      if (lotesData.length > 0) {
+        // Centro en el primer lote
+        setMapCenter(lotesData[0].coords[0]);
+        setMapZoom(17); // Zoom para lotes
+      } else if (orderedProyecto.length > 0) {
+        // Centro en el polígono del proyecto
+        const centerLat =
+          orderedProyecto.reduce((sum, p) => sum + p.lat, 0) / orderedProyecto.length;
+        const centerLng =
+          orderedProyecto.reduce((sum, p) => sum + p.lng, 0) / orderedProyecto.length;
+        setMapCenter({ lat: centerLat, lng: centerLng });
+        setMapZoom(14); // Zoom para polígono
+      }
     } catch (err) {
       console.error("Error cargando proyecto:", err);
     }
   }, [idproyecto, token]);
+
+
 
   useEffect(() => {
     if (isLoaded) fetchProyecto();
@@ -755,87 +806,79 @@ export default function LoteModal({ onClose, idproyecto }) {
     }));
   };
 
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
+const [isRegistering, setIsRegistering] = useState(false);
 
   const handleRegisterAll = async () => {
-    if (generatedLotes.length === 0) {
-      alert("No hay lotes generados.");
-      return;
+    for (const l of generatedLotes) {
+      if (!l.coords || l.coords.length < 3) {
+        alert(`❌ El ${l.nombre} no tiene coordenadas válidas`);
+        return; // ⬅️ salir limpio
+      }
     }
 
-    const lotesToSend = generatedLotes.map((lote) => {
-      // Obtener el valor del área, con validación
-      const areaValue =
-        formValues[lote.id]?.area_total_m2 || lote.area_total_m2;
+setShowRegisterModal(true);      // Abrir modal
+  setRegisterMessage("Registrando inmuebles...");
+  setIsRegistering(true);
 
-      let areaTotal;
-      if (
-        areaValue &&
-        !isNaN(parseFloat(areaValue)) &&
-        parseFloat(areaValue) > 0
-      ) {
-        areaTotal = parseFloat(areaValue);
-      } else {
-        // Si no hay área válida, recalcular desde las coordenadas
-        areaTotal = calculatePolygonArea(lote.coords);
-        // Si aún así es 0, usar un valor mínimo por defecto
-        if (areaTotal <= 0) {
-          areaTotal = 50;
-        }
-      }
+    const formData = new FormData();
 
-      return {
-        ...lote,
+    generatedLotes.forEach((lote, index) => {
+      const data = formValues[lote.id];
 
-        idtipoinmobiliaria: Number(
-          formValues[lote.id]?.tipo_inmueble ?? 1
-        ),
-        // básicos
-        nombre: formValues[lote.id]?.nombre || lote.nombre,
-        precio: Number(formValues[lote.id]?.precio || lote.precio || 0),
-        descripcion: formValues[lote.id]?.descripcion || lote.descripcion || "",
-        area_total_m2: areaTotal,
-
-        // 🔹 MEDIDAS (float)
-        ancho: Number(formValues[lote.id]?.ancho || 0),
-        largo: Number(formValues[lote.id]?.largo || 0),
-
-        // 🔹 CANTIDADES (int)
-        dormitorios: Number(formValues[lote.id]?.dormitorios || 0),
-        banos: Number(formValues[lote.id]?.banos || 0),
-        cuartos: Number(formValues[lote.id]?.cuartos || 0),
-
-        titulo_propiedad: Number(formValues[lote.id]?.titulo_propiedad || 0),
-        cochera: Number(formValues[lote.id]?.cochera || 0),
-        cocina: Number(formValues[lote.id]?.cocina || 0),
-        sala: Number(formValues[lote.id]?.sala || 0),
-        patio: Number(formValues[lote.id]?.patio || 0),
-        jardin: Number(formValues[lote.id]?.jardin || 0),
-        terraza: Number(formValues[lote.id]?.terraza || 0),
-        azotea: Number(formValues[lote.id]?.azotea || 0),
-
-        // 🔹 relaciones
-        puntos: lote.coords,
+      const lotePayload = {
         idproyecto,
+        idtipoinmobiliaria: data.tipo_inmueble,
+        nombre: data.nombre,
+        precio: data.precio,
+        descripcion: data.descripcion,
+        area_total_m2: data.area_total_m2,
+
+        ancho: data.ancho,
+        largo: data.largo,
+
+        dormitorios: data.dormitorios,
+        banos: data.banos,
+        cuartos: data.cuartos,
+
+        cochera: data.cochera,
+        cocina: data.cocina,
+        sala: data.sala,
+        patio: data.patio,
+        jardin: data.jardin,
+        terraza: data.terraza,
+        azotea: data.azotea,
+
+        titulo_propiedad: data.titulo_propiedad,
+
+        puntos: lote.coords.map(p => ({
+          latitud: p.lat,
+          longitud: p.lng,
+        }))
+
       };
 
+      // 🔹 LOTE (JSON)
+      formData.append(`lotes[${index}]`, JSON.stringify(lotePayload));
+
+      // 🔹 IMÁGENES DEL LOTE
+      data?.imagenes?.forEach((img) => {
+        formData.append(`imagenes_${index}`, img.file);
+      });
     });
-
-
-
-    // Validar antes de enviar
-    const lotesInvalidos = lotesToSend.filter(
-      (lote) => !lote.area_total_m2 || lote.area_total_m2 <= 0,
-    );
-    console.log(lotesToSend.map(l => l.area_total_m2));
-
-
-    if (lotesInvalidos.length > 0) {
-      alert(
-        `⚠️ Los siguientes lotes no tienen área válida:\n${lotesInvalidos.map((l) => l.nombre).join(", ")}\n\nPor favor, verifica que todos los lotes tengan un área mayor a 0.`,
-      );
-      return;
+    console.log("📦 FORMDATA ENVIADO:");
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(key, "📁 Archivo:", value.name, value.size);
+      } else {
+        try {
+          console.log(key, JSON.parse(value));
+        } catch {
+          console.log(key, value);
+        }
+      }
     }
-    console.log(lotesToSend.map(l => l.tipo_inmueble));
 
     try {
       const res = await fetch(
@@ -843,26 +886,28 @@ export default function LoteModal({ onClose, idproyecto }) {
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(lotesToSend),
+          body: formData,
         },
       );
 
-      if (res.ok) {
-        alert("Lotes registrados exitosamente ✅");
-        onClose();
-      } else {
-        const errorText = await res.text();
-        console.error(errorText);
-        alert("Error al registrar lotes ❌\n" + errorText);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error de red 🚫");
-    }
+      if (!res.ok) throw new Error("Error en registro masivo");
+
+setRegisterMessage("✅ Registro con éxito!");
+      onClose();
+    } catch (error) {
+      console.error(error);
+          setRegisterMessage("❌ Error al registrar los inmuebles");
+
+    }finally {
+    setIsRegistering(false);
+  }
   };
+
+
+
+
   const getColorLote = (vendido) => {
     switch (vendido) {
       case 0:
@@ -895,8 +940,11 @@ export default function LoteModal({ onClose, idproyecto }) {
 
 
   return (
+    
     <div className={style.modalOverlay}>
       <div className={style.modalContent}>
+        
+
         <button className={style.closeBtn} onClick={onClose}>
           ✖
         </button>
@@ -1012,7 +1060,25 @@ export default function LoteModal({ onClose, idproyecto }) {
             </div>
           )}
         </div>
-
+{showRegisterModal && (
+  <div className={style.modalOverlay}>
+    <div
+      className={style.modalContent}
+      style={{ maxWidth: "400px", textAlign: "center" }}
+    >
+      <h3>{registerMessage}</h3>
+      {!isRegistering && (
+        <button
+          className={style.submitBtn}
+          onClick={() => setShowRegisterModal(false)}
+          style={{ marginTop: "1rem" }}
+        >
+          Cerrar
+        </button>
+      )}
+    </div>
+  </div>
+)}
         <GoogleMap
           onLoad={onMapLoad}
           mapContainerStyle={{
@@ -1020,7 +1086,7 @@ export default function LoteModal({ onClose, idproyecto }) {
             height: "480px",
             marginBottom: "1rem",
           }}
-          zoom={17}
+          zoom={mapZoom}
           center={mapCenter}
           options={{ gestureHandling: "greedy" }}
         >
@@ -1069,37 +1135,40 @@ export default function LoteModal({ onClose, idproyecto }) {
             <Polygon
               key={lote.id}
               paths={lote.coords}
-              onClick={() => handleSelectLote(lote)}
-              onMouseUp={(e) => {
-                const polygon = e.overlay || e?.domEvent?.target;
-                if (!polygon || !polygon.getPath) return;
-
-                try {
-                  const path = polygon.getPath();
-                  const coords = [];
-                  for (let i = 0; i < path.getLength(); i++) {
-                    const point = path.getAt(i);
-                    coords.push({ lat: point.lat(), lng: point.lng() });
-                  }
-                  setGeneratedLotes((prev) =>
-                    prev.map((l) => (l.id === lote.id ? { ...l, coords } : l)),
-                  );
-                } catch (error) {
-                  console.warn("Error al actualizar coordenadas:", error);
-                }
+              editable
+              draggable
+              onLoad={(poly) => {
+                polygonRefs.current[lote.id] = poly;
               }}
+              onMouseUp={() => {
+                const poly = polygonRefs.current[lote.id];
+                if (!poly) return;
+
+                const coords = poly
+                  .getPath()
+                  .getArray()
+                  .map(p => ({
+                    lat: p.lat(),
+                    lng: p.lng(),
+                  }));
+
+                setGeneratedLotes(prev =>
+                  prev.map(l =>
+                    l.id === lote.id ? { ...l, coords } : l
+                  )
+                );
+              }}
+              onClick={() => handleSelectLote(lote)}
               options={{
                 strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
                 strokeWeight: 2,
                 fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
                 fillOpacity: 0.5,
-                editable: true,
-                draggable: true,
                 zIndex: 10,
-                clickable: true,
               }}
             />
           ))}
+
 
           {!drawingManagerRef.current && (
             <DrawingManager
@@ -1341,6 +1410,79 @@ export default function LoteModal({ onClose, idproyecto }) {
                 />
               </>
             )}
+
+
+            {/* IMÁGENES DEL LOTE */}
+
+
+
+            <h4 style={{ color: "#333" }}>📷 Imágenes del inmueble</h4>
+
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImagenesChange}
+              className={style.input}
+            />
+
+            {formValues[selectedLote]?.imagenes?.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "0.5rem",
+                  marginTop: "0.5rem",
+                }}
+              >
+                {formValues[selectedLote].imagenes.map((img, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      position: "relative",
+                      width: "90px",
+                      height: "90px",
+                      borderRadius: "6px",
+                      overflow: "hidden",
+                      border: "1px solid #ccc",
+                    }}
+                  >
+                    <img
+                      src={img.preview}
+                      alt={`lote-${index}`}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(selectedLote, index)}
+                      style={{
+                        position: "absolute",
+                        top: "2px",
+                        right: "2px",
+                        background: "rgba(0,0,0,0.6)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: "20px",
+                        height: "20px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+
+
+
 
           </div>
         )}

@@ -994,6 +994,7 @@ function MyMap() {
           lote={selectedLote.lote}
           inmo={selectedLote.inmo}
           imagenes={imagenesLote}
+          proyecto={selectedProyecto}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
           mapRef={mapRef}

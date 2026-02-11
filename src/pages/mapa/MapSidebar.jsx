@@ -4,12 +4,12 @@ import {
   FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe,
   FaMapMarkerAlt, FaCheckCircle, FaTimesCircle,
   // ESTOS SON LOS QUE FALTABAN:
-  FaBed, FaBath, FaHome, FaChair, FaUtensils, FaCar, 
-  FaCampground, FaTree, FaSun, FaBuilding 
+  FaBed, FaBath, FaHome, FaChair, FaUtensils, FaCar,
+  FaCampground, FaTree, FaSun, FaBuilding
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
 
-const LoteSidebarOverlay = ({ inmo, lote, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
+const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
   console.log(lote)
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
@@ -30,7 +30,7 @@ const LoteSidebarOverlay = ({ inmo, lote, imagenes = [], onClose, walkingInfo, d
 
   const cerrarSidebar = () => {
     onClose();
-    if (mapRef?.current) mapRef.current.setZoom(18);
+    if (mapRef?.current) mapRef.current.setZoom(17);
   };
 
   useEffect(() => {
@@ -103,10 +103,18 @@ const LoteSidebarOverlay = ({ inmo, lote, imagenes = [], onClose, walkingInfo, d
                   <span className={styles.labelSmall}>Precio del Lote</span>
                   <span className={styles.priceValue}>$. {lote.precio}</span>
                 </div>
-                <a href={`https://wa.me/${inmo.whatsapp}`} target="_blank" rel="noreferrer" className={styles.contactMiniBtn}>
+                <a
+                  href={`https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
+                    `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto.nombreproyecto}"* y en el lote/inmueble *"${lote.nombre}"*`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.contactMiniBtn}
+                >
                   <FaWhatsapp /> Contactar
                 </a>
               </div>
+
 
               <div className={styles.quickGrid}>
                 {hasValue(lote.area_total_m2) && (

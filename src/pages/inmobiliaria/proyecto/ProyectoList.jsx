@@ -10,6 +10,7 @@ export default function ProyectosList() {
   const [proyectos, setProyectos] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const token = localStorage.getItem("access");
+  
   useEffect(() => {
     const fetchProyectos = async () => {
       try {

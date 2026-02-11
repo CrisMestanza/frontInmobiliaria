@@ -46,6 +46,8 @@ import {
   PointerIcon,
   PointerOffIcon,
   PinIcon,
+  MapPinIcon,
+  MapPlus,
 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
@@ -160,7 +162,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
               title="Íconos"
               style={{ padding: "6px", borderRadius: "4px" }}
             >
-              <PinIcon size={16} />
+              <MapPlus size={16} />
             </button>
           </div>
           <button
@@ -272,7 +274,7 @@ const PanelInmo = () => {
   const redes = [
     { nombre: "Whatsapp", icono: <FaWhatsapp color="green" /> },
     { nombre: "Facebook", icono: <FaFacebook color="#1877f2" /> },
-    { nombre: "Página", icono: <FaGlobe color="#0077b6" /> },
+    { nombre: "Web", icono: <FaGlobe color="#0077b6" /> },
   ];
 
   return (
