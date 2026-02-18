@@ -1,11 +1,12 @@
-# Archivo: .htaccess
-Options -MultiViews
-RewriteEngine On
-RewriteBase /
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
 
-# Si el archivo o directorio existe, úsalo normalmente
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+  # Si el archivo existe, no reescribir
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
 
-# Si no, redirige todas las rutas al index.html
-RewriteRule ^ index.html [L]
+  # Todo lo demás va a index.html
+  RewriteRule ^ index.html [L]
+</IfModule>

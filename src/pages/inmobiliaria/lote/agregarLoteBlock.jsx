@@ -740,7 +740,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       nombre: lote.nombre,
       precio: lote.precio,
       descripcion: lote.descripcion,
-      area_total_m2: lote.area_total_m2 || "",
+      area_total_m2: lote.area_total_m2 ?? "",
 
       ancho: 0,
       largo: 0,
@@ -770,7 +770,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     const { name, value, type } = e.target;
 
     const parsedValue =
-      type === "number" ? (value === "" ? 0 : Number(value)) : value;
+      type === "number" ? (value === "" ? "" : Number(value)) : value;
 
     setFormValues((prev) => ({
       ...prev,
@@ -1280,9 +1280,9 @@ setRegisterMessage("✅ Registro con éxito!");
               min="0"
               step="0.01"
               value={
-                formValues[selectedLote]?.area_total_m2 ||
+                formValues[selectedLote]?.area_total_m2 ??
                 generatedLotes.find((l) => l.id === selectedLote)
-                  ?.area_total_m2 ||
+                  ?.area_total_m2 ??
                 ""
               }
               onChange={handleFormChange}
