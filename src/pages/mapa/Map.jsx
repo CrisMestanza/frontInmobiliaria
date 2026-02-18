@@ -102,6 +102,7 @@ const LotesOverlay = ({
 };
 
 function MyMap() {
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(defaultCenter);
@@ -434,17 +435,17 @@ function MyMap() {
       // 👉 Si hay filtros, filtras en memoria (rápido)
       let lotesFiltrados = data;
 
-    // 🔥 AQUÍ ESTÁ LA CLAVE
-    if (selectedRango) {
-      const [min, max] = selectedRango.split("-").map(Number);
+      // 🔥 AQUÍ ESTÁ LA CLAVE
+      if (selectedRango) {
+        const [min, max] = selectedRango.split("-").map(Number);
 
-      lotesFiltrados = data.filter(
-        (l) => l.precio >= min && l.precio <= max
-      );
+        lotesFiltrados = data.filter(
+          (l) => l.precio >= min && l.precio <= max
+        );
+      }
+
+      setLotesProyecto(lotesFiltrados);
     }
-
-    setLotesProyecto(lotesFiltrados);
-  }
 
     cargarLotes().catch(console.error);
   }, [selectedProyecto, selectedRango, filtroBotActivo]);
@@ -779,42 +780,47 @@ function MyMap() {
 
 
         {/* BARRA CENTRAL (PASTILLA) */}
-        {/* BARRA CENTRAL (PASTILLA) */}
-        <div className={styles.topBar}>
+        <div className={`${styles.topBar} ${isSearchFocused ? styles.topBarExpanded : ""}`}>
           <div className={styles.searchSection}>
             <span className={styles.searchLabel}>UBICACIÓN</span>
             <input
               ref={inputRef}
-              className={styles.searchInput}
+              className={`${styles.searchInput} ${isSearchFocused ? styles.searchInputFocused : ""}`}
               placeholder="Buscar"
+              onFocus={() => {
+                if (isMobile()) setIsSearchFocused(true);
+              }}
+              onBlur={() => setIsSearchFocused(false)}
             />
           </div>
+          {!(isMobile() && isSearchFocused) && (
+            <>
+              {/* SELECT PERSONALIZADO: TIPO */}
+              <CustomSelect
+                label="QUIERO VER"
+                value={selectedTipo}
+                placeholder="Cualquier tipo"
+                styles={styles}
+                options={tiposInmo.map(t => ({
+                  label: t.nombre,
+                  value: t.idtipoinmobiliaria
+                }))}
+                onChange={(val) => handleTipoChange(val)}
+              />
 
-          {/* SELECT PERSONALIZADO: TIPO */}
-          <CustomSelect
-            label="QUIERO VER"
-            value={selectedTipo}
-            placeholder="Cualquier tipo"
-            styles={styles}
-            options={tiposInmo.map(t => ({
-              label: t.nombre,
-              value: t.idtipoinmobiliaria
-            }))}
-            onChange={(val) => handleTipoChange(val)}
-          />
+              <div className={styles.divider}></div>
 
-          <div className={styles.divider}></div>
-
-          {/* SELECT PERSONALIZADO: PRESUPUESTOS */}
-          <CustomSelect
-            label="PRESUPUESTOS"
-            value={selectedRango}
-            placeholder="Sin límite"
-            styles={styles}
-            options={RANGOS_PRECIO}
-            onChange={(val) => handleRangoChange(val)}
-          />
-
+              {/* SELECT PERSONALIZADO: PRESUPUESTOS */}
+              <CustomSelect
+                label="PRESUPUESTOS"
+                value={selectedRango}
+                placeholder="Sin límite"
+                styles={styles}
+                options={RANGOS_PRECIO}
+                onChange={(val) => handleRangoChange(val)}
+              />
+            </>
+          )}
           {/* BOTÓN LUPA */}
           <button className={styles.searchButton}>
             <svg viewBox="0 0 32 32" style={{ display: 'block', fill: 'none', height: '16px', width: '16px', stroke: 'currentColor', strokeWidth: '4', overflow: 'visible' }}>
@@ -919,10 +925,10 @@ function MyMap() {
 
         {directions && <DirectionsRenderer directions={directions} />}
       </GoogleMap>
-      
+
       {showHintClickLote && (
         <div className={styles.clickHint}>
-           Toca un lote 
+          Toca un lote
         </div>
       )}
 

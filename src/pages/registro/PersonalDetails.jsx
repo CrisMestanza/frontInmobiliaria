@@ -31,7 +31,7 @@ const PersonalDetails = ({ onNext, formData }) => {
         />
       </div>
       <div className="form-row">
-        <label htmlFor="companyRuc">RUC</label>
+        <label htmlFor="companyRuc">RUC o DNI</label>
         <input
           type="text"
           name="companyRuc"

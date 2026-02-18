@@ -1336,5 +1336,25 @@
 
 
   
+  .topBarExpanded {
+    position: absolute;
+    left: 5px;
+    right: 10px;
+    width: calc(100% - 35px) !important;
+    z-index: 1001;
+  }
 
+  /* Ocultar elementos cuando se busca */
+  .hiddenMobile {
+    display: none !important;
+  }
+  
+  .topBarExpanded .searchSection {
+    flex: 2; /* Toma todo el espacio disponible */
+  }
+
+  /* Ocultar el logo o branding si es necesario para ganar espacio */
+  .topBarExpanded ~ .logoContainer {
+    display: none;
+  }
 }

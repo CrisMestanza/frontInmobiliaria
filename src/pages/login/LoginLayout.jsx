@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Login.css";
-
+import { Link } from "react-router-dom";
 const LoginLayout = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -184,10 +184,10 @@ const LoginLayout = () => {
             </div> */}
 
             <p className="inmo-login-footer">
-              No tiene una Cuenta?{" "}
-              <a href="#" className="inmo-login-link-bold">
-                Crear Cuenta Inmobiliaria
-              </a>
+              ¿No tiene una cuenta?{" "}
+              <Link to="/register" className="inmo-login-link-bold">
+                Crear cuenta inmobiliaria
+              </Link>
             </p>
           </div>
         </div>
