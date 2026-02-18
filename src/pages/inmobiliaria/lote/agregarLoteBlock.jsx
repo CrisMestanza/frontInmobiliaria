@@ -1170,38 +1170,39 @@ setRegisterMessage("✅ Registro con éxito!");
           ))}
 
 
-          {!drawingManagerRef.current && (
-            <DrawingManager
-              onLoad={(dm) => {
-                drawingManagerRef.current = dm;
-              }}
-              onPolygonComplete={onPolygonComplete}
-              options={{
-                drawingControl: true,
-                drawingControlOptions: {
-                  position:
-                    googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
-                  drawingModes: ["polygon", "rectangle"],
-                },
-                polygonOptions: {
-                  editable: true,
-                  draggable: true,
-                  fillColor: "#FF00FF",
-                  fillOpacity: 0.3,
-                  strokeColor: "#FF00FF",
-                  strokeWeight: 2,
-                },
-                rectangleOptions: {
-                  editable: true,
-                  draggable: true,
-                  fillColor: "#FF00FF",
-                  fillOpacity: 0.3,
-                  strokeColor: "#FF00FF",
-                  strokeWeight: 2,
-                },
-              }}
-            />
-          )}
+          <DrawingManager
+            onLoad={(dm) => {
+              drawingManagerRef.current = dm;
+            }}
+            onUnmount={() => {
+              drawingManagerRef.current = null;
+            }}
+            onPolygonComplete={onPolygonComplete}
+            options={{
+              drawingControl: true,
+              drawingControlOptions: {
+                position:
+                  googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
+                drawingModes: ["polygon", "rectangle"],
+              },
+              polygonOptions: {
+                editable: true,
+                draggable: true,
+                fillColor: "#FF00FF",
+                fillOpacity: 0.3,
+                strokeColor: "#FF00FF",
+                strokeWeight: 2,
+              },
+              rectangleOptions: {
+                editable: true,
+                draggable: true,
+                fillColor: "#FF00FF",
+                fillOpacity: 0.3,
+                strokeColor: "#FF00FF",
+                strokeWeight: 2,
+              },
+            }}
+          />
         </GoogleMap>
 
         {selectedLote && (
