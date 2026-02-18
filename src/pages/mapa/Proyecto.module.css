@@ -460,7 +460,7 @@
   }
 
   .primeInfo {
-    margin-top: 15%;
+    margin-top: 20%;
   }
 
   .expanded {
@@ -469,7 +469,7 @@
   }
 
   .closeBtn {
-    margin-top: 7%;
+    margin-top: 10%;
     font-size: 17px;
     transition:
       transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
