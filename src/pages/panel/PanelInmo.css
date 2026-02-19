@@ -249,6 +249,26 @@
   margin-bottom: 3rem;
 }
 
+.proyecto-card {
+  position: relative;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  border: 1px solid #dbe7ea;
+  background: #0f172a;
+  min-height: 330px;
+  box-shadow: var(--shadow-md);
+  transition:
+    transform 0.35s ease,
+    box-shadow 0.35s ease,
+    border-color 0.35s ease;
+}
+
+.proyecto-card:hover {
+  transform: translateY(-6px);
+  border-color: #8cd4bf;
+  box-shadow: 0 20px 30px -14px rgba(15, 23, 42, 0.45);
+}
+
 .project-card {
   background: var(--white);
   border-radius: 1rem;
@@ -284,15 +304,13 @@
 
 .card-image-container {
   width: 100%;
-  height: 180px;
-  background: #f8fafc;
-  border-radius: 8px;
+  height: 330px;
+  background: #0f172a;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 10px;
 }
 
 .card-image {
@@ -309,32 +327,93 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: opacity 0.5s ease-in-out;
+  transition:
+    transform 0.7s ease,
+    filter 0.7s ease;
+  filter: grayscale(30%);
+}
+
+.proyecto-card:hover .img-carousel {
+  transform: scale(1.1);
+  filter: grayscale(0%);
 }
 
 .no-image-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #94a3b8;
+  justify-content: center;
+  color: #dbe4ef;
   font-size: 12px;
+  width: 100%;
+  height: 100%;
+}
+
+.card-gradient-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    0deg,
+    rgba(2, 6, 23, 0.94) 0%,
+    rgba(2, 6, 23, 0.7) 38%,
+    rgba(2, 6, 23, 0.18) 66%,
+    rgba(2, 6, 23, 0) 100%
+  );
+  z-index: 1;
+  transition: opacity 0.35s ease;
+}
+
+.proyecto-card:hover .card-gradient-overlay {
+  opacity: 0.85;
 }
 
 .estado-badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 2;
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: rgba(76, 175, 80, 0.9);
+  top: 16px;
+  left: 16px;
+  z-index: 3;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: white;
-  font-weight: bold;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
 }
 
 .card-info-content {
-  padding: 0 5px;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.1rem;
+  color: #fff;
+  transition: transform 0.35s ease;
+}
+
+.proyecto-card:hover .card-info-content {
+  transform: translateY(-3px);
+}
+
+.card-title {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.18rem;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.card-location {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .tag-status {
@@ -359,6 +438,49 @@
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #f1f5f9;
+}
+
+.card-footer {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.card-actions-left {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.btn-icon-overlay {
+  width: 33px;
+  height: 33px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.13);
+  color: #ffffff;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.btn-icon-overlay:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-icon-overlay.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.45);
 }
 
 .action-group {

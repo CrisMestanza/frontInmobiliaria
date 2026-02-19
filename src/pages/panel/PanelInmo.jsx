@@ -92,15 +92,11 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
   return (
     <div className="proyecto-card">
       <div className="card-image-container">
-        <div className="estado-badge">
-          {estadosMap[proyecto.estado] || "ACTIVO"}
-        </div>
         {currentImg ? (
           <img
             src={currentImg}
             alt={proyecto.nombreproyecto}
             className="img-carousel"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
           <div className="no-image-placeholder">
@@ -108,71 +104,47 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
             <span style={{ fontSize: "10px" }}>Cargando imagen...</span>
           </div>
         )}
-      </div>
-      <div className="card-info-content">
-        <h3
-          className="card-title"
-          style={{ margin: "10px 0", fontSize: "1.1rem" }}
-        >
-          {proyecto.nombreproyecto}
-        </h3>
-        <div
-          className="card-location"
-          style={{
-            marginBottom: "15px",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            fontSize: "0.85rem",
-            color: "#666",
-          }}
-        >
-          <MapPin size={14} /> {proyecto.latitud}, {proyecto.longitud}
+        <div className="card-gradient-overlay" />
+        <div className="estado-badge">
+          {estadosMap[proyecto.estado] || "ACTIVO"}
         </div>
-        <div
-          className="card-footer"
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingTop: "10px",
-            borderTop: "1px solid #eee",
-          }}
-        >
-          <div style={{ display: "flex", gap: "8px" }}>
+        <div className="card-info-content">
+          <h3 className="card-title">{proyecto.nombreproyecto}</h3>
+          <div className="card-location">
+            <MapPin size={14} /> {proyecto.latitud}, {proyecto.longitud}
+          </div>
+          <div className="card-footer">
+            <div className="card-actions-left">
+              <button
+                onClick={() => onViewLotes(proyecto.idproyecto)}
+                className="btn-icon-overlay"
+                title="Ver Lotes"
+              >
+                <Eye size={16} />
+              </button>
+              <button
+                onClick={() => onEdit(proyecto.idproyecto)}
+                className="btn-icon-overlay"
+                title="Editar"
+              >
+                <Edit size={16} />
+              </button>
+              <button
+                onClick={() => onIcon(proyecto.idproyecto)}
+                className="btn-icon-overlay"
+                title="Íconos"
+              >
+                <MapPlus size={16} />
+              </button>
+            </div>
             <button
-              onClick={() => onViewLotes(proyecto.idproyecto)}
-              className="btn-icon-small"
-              title="Ver Lotes"
-              style={{ padding: "6px", borderRadius: "4px" }}
+              onClick={() => onDelete && onDelete(proyecto.idproyecto)}
+              className="btn-icon-overlay btn-danger"
+              title="Eliminar"
             >
-              <Eye size={16} />
-            </button>
-            <button
-              onClick={() => onEdit(proyecto.idproyecto)}
-              className="btn-icon-small"
-              title="Editar"
-              style={{ padding: "6px", borderRadius: "4px" }}
-            >
-              <Edit size={16} />
-            </button>
-            <button
-              onClick={() => onIcon(proyecto.idproyecto)}
-              className="btn-icon-small"
-              title="Íconos"
-              style={{ padding: "6px", borderRadius: "4px" }}
-            >
-              <MapPlus size={16} />
+              <Trash2 size={16} />
             </button>
           </div>
-          <button
-            onClick={() => onDelete && onDelete(proyecto.idproyecto)}
-            className="btn-icon-small"
-            title="Eliminar"
-            style={{ padding: "6px", borderRadius: "4px" }}
-          >
-            <Trash2 size={16} />
-          </button>
         </div>
       </div>
     </div>
