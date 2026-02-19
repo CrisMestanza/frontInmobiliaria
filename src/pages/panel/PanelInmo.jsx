@@ -478,14 +478,94 @@ const PanelInmo = () => {
 
         {/* GALERÍA */}
         <section>
-          <div className="section-header">
-            <h2 style={{ fontWeight: "800", fontSize: "1.25rem" }}>
-              Mis Proyectos
-            </h2>
-            <button onClick={() => setShowModal(true)} className="btn-copy">
-              <PlusCircle size={18} /> Nuevo Proyecto
-            </button>
+
+          <div className="tutorial-section">
+            <h3 className="tutorial-title">
+              🎥 Tutoriales para gestionar tus proyectos en GeoHabita
+            </h3>
+
+            <div className="tutorial-grid">
+
+              <a
+                href="https://www.youtube.com/watch?v=lZNPDIBqyCg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tutorial-card"
+              >
+                <div className="tutorial-icon">🏗️</div>
+                <div>
+                  <h4>Agregar proyectos de lotes, casas y departamentos</h4>
+                  <p>Crea proyectos completos paso a paso en GeoHabita.</p>
+                </div>
+              </a>
+
+              <a
+                href="https://www.youtube.com/watch?v=PEvwYZO2BtU"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tutorial-card"
+              >
+                <div className="tutorial-icon">📄</div>
+                <div>
+                  <h4>Agregar PDF para trazado, después de crear proyecto</h4>
+                  <p>Sube planos en PDF para dibujar lotes correctamente.</p>
+                </div>
+              </a>
+
+              <a
+                href="https://www.youtube.com/watch?v=gzZHYnXD_5Q"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tutorial-card"
+              >
+                <div className="tutorial-icon">🏠</div>
+                <div>
+                  <h4>Registrar Casa Individual en el Mapa</h4>
+                  <p>Agrega propiedades individuales fácilmente.</p>
+                </div>
+              </a>
+
+              <a
+                href="https://www.youtube.com/watch?v=zOIoX1ZvAM0"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tutorial-card"
+              >
+                <div className="tutorial-icon">📍</div>
+                <div>
+                  <h4>Agregar lotes, después de crear el proyecto</h4>
+                  <p>Aprende a añadir más lotes cuando tu proyecto ya existe.</p>
+                </div>
+              </a>
+
+              <a
+                href="https://www.youtube.com/watch?v=JHP9YWTIgJs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="tutorial-card"
+              >
+                <div className="tutorial-icon">🏢</div>
+                <div>
+                  <h4>Registro de Proyecto de Departamentos</h4>
+                  <p>
+                    Aprende paso a paso cómo crear y configurar un proyecto inmobiliario
+                    de departamentos dentro de GeoHabita.
+                  </p>
+                </div>
+              </a>
+
+
+            </div>
           </div>
+
+
+          <h2 style={{ fontWeight: "800", fontSize: "1.25rem" }}>
+            Mis Proyectos
+          </h2>
+          <button onClick={() => setShowModal(true)} className="btn-copy">
+            <PlusCircle size={18} /> Nuevo Proyecto
+          </button>
+
           <div className="projects-grid">
             {proyectos.map((p) => (
               <CardProyecto
