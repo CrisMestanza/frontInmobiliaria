@@ -42,14 +42,19 @@
   font-size: 14px;
   z-index: 9999;
   animation: pulse 1.6s infinite;
-  pointer-events: none; 
+  pointer-events: none;
 }
 
-
 @keyframes pulse {
-  0% { transform: translateX(-50%) scale(1); }
-  50% { transform: translateX(-50%) scale(1.05); }
-  100% { transform: translateX(-50%) scale(1); }
+  0% {
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+  }
+  100% {
+    transform: translateX(-50%) scale(1);
+  }
 }
 
 /* Reemplaza o añade estos estilos */
@@ -107,14 +112,14 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   z-index: 9999;
   padding: 16px 0;
-  border: 1px solid #ebebeb
+  border: 1px solid #ebebeb;
 }
 
 /* Sección activa resaltada */
 .searchSectionActive {
   background: white !important;
   border-radius: 40px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 .customOption {
   padding: 10px 15px;
@@ -123,7 +128,6 @@
   transition: background 0.2s;
   width: 40vh;
   text-align: center;
-  
 }
 
 .customOption:hover {
@@ -156,13 +160,17 @@
   border: 2px solid #404341; /* borde verde llamativo */
 
   /* Sombra más llamativa con verde suave */
-  box-shadow: 0 7px 1px rgba(82, 84, 83, 0.15), 0 2px 4px rgba(36, 36, 36, 0.1);
+  box-shadow:
+    0 7px 1px rgba(82, 84, 83, 0.15),
+    0 2px 4px rgba(36, 36, 36, 0.1);
 
-  transition: box-shadow 0.25s ease, transform 0.2s ease;
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
   cursor: pointer;
 
   /* Para suavizar el texto y hacerlo más moderno */
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 16px;
   color: #333;
 }
@@ -170,15 +178,18 @@
 /* Hover: efecto de elevación y sombra verde más intensa */
 .topBar:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 25px rgba(93, 116, 101, 0.25), 0 4px 6px rgba(0, 204, 68, 0.15);
+  box-shadow:
+    0 12px 25px rgba(93, 116, 101, 0.25),
+    0 4px 6px rgba(0, 204, 68, 0.15);
 }
 
 /* Opcional: efecto “activo” al hacer click */
 .topBar:active {
   transform: translateY(0);
-  box-shadow: 0 6px 15px rgba(0, 204, 68, 0.2), 0 2px 4px rgba(0, 204, 68, 0.1);
+  box-shadow:
+    0 6px 15px rgba(0, 204, 68, 0.2),
+    0 2px 4px rgba(0, 204, 68, 0.1);
 }
-
 
 .searchSection {
   display: flex;
@@ -205,10 +216,7 @@
   color: #545454;
   width: 100%;
   outline: none;
-  
 }
-
-
 
 .divider {
   width: 1px;
@@ -252,7 +260,7 @@
   width: 100%;
   background: white;
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   overflow: hidden;
   z-index: 1000;
 }
@@ -293,7 +301,8 @@
 .anunciaPropiedad {
   font-size: 14px;
   font-weight: 700;
-  padding: 8px 14px;
+  width: 250px;
+  height: 40px;
   border-radius: 999px;
   background: linear-gradient(135deg, #0ea66b, #14c38e);
   color: #ffffff;
@@ -301,9 +310,83 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   transition: all 0.25s ease;
   box-shadow: 0 6px 16px rgba(20, 195, 142, 0.35);
+  white-space: nowrap;
+}
+
+.anuncioIconViewport {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+  flex: 0 0 16px;
+}
+
+.anuncioTextViewport {
+  position: relative;
+  width: 170px;
+  height: 18px;
+  overflow: hidden;
+  display: inline-block;
+  text-align: center;
+}
+
+.anuncioItem {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.anuncioIconViewport .anuncioItem {
+  justify-content: center;
+}
+
+.anuncioIconViewport svg {
+  width: 16px;
+  height: 16px;
+}
+
+.anuncioEnter {
+  animation: anuncioEnterTop 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.anuncioLeave {
+  animation: anuncioLeaveBottom 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.anuncioStatic {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@keyframes anuncioEnterTop {
+  from {
+    transform: translateY(-115%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes anuncioLeaveBottom {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(115%);
+    opacity: 0;
+  }
 }
 
 .anunciaPropiedad:hover {
@@ -317,7 +400,6 @@
   box-shadow: 0 4px 10px rgba(20, 195, 142, 0.3);
 }
 
-
 .userMenu {
   display: flex;
   gap: 12px;
@@ -328,7 +410,6 @@
 }
 
 /* EFECTO SUAVE AL PASAR EL MOUSE */
-
 
 .logoContainer {
   display: flex;
@@ -520,7 +601,6 @@
   transform: rotate(90deg) scale(1.1);
 }
 
-
 .closeBtn {
   align-self: flex-end;
   background: transparent;
@@ -539,7 +619,6 @@
   color: #191818;
   transform: rotate(90deg) scale(1.1);
 }
-
 
 .navButton {
   position: absolute;
@@ -868,12 +947,12 @@
   box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4);
 }
 
-
 .filterChip.active {
   background: linear-gradient(90deg, #007acc, #00c6ff);
   color: #fff;
   border: none;
-  box-shadow: 0 0 12px rgba(0, 198, 255, 0.7),
+  box-shadow:
+    0 0 12px rgba(0, 198, 255, 0.7),
     0 0 20px rgba(0, 122, 204, 0.5);
   transform: scale(1.1);
   animation: pulse 1.5s infinite;
@@ -915,7 +994,6 @@
   transition: all 0.2s;
 }
 
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -927,7 +1005,6 @@
     transform: translateX(0);
   }
 }
-
 
 .filterPanel.hidden {
   transform: translateX(-120%);
@@ -997,7 +1074,9 @@
 
 /* Sidebar móvil inicialmente oculto */
 .sidebar {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 
 /* Sidebar móvil abierto */
@@ -1060,7 +1139,9 @@
   justify-content: center;
   z-index: 9999;
   /* por encima del sidebar */
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .toggleArrow {
@@ -1126,7 +1207,6 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-
 .authButton {
   width: 42px;
   height: 42px;
@@ -1166,7 +1246,10 @@
   visibility: hidden;
   transform: translateY(0);
   /* Elimina la traslación vertical inicial */
-  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    visibility 0.3s ease;
   min-width: 200px;
   font-family: Arial, sans-serif;
 }
@@ -1200,32 +1283,26 @@
   text-decoration: underline;
 }
 
-
-
-
-
 /* === HEADER MINI tipo Airbnb (420px) === */
 @media screen and (max-width: 420px) {
-  
-.clickHint {
-  position: absolute;
-  bottom: 80%;
-  left: 5%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  z-index: 9999;
-  animation: pulse 1.6s infinite;
-  pointer-events: none; 
-}
-
+  .clickHint {
+    position: absolute;
+    bottom: 80%;
+    left: 5%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    z-index: 9999;
+    animation: pulse 1.6s infinite;
+    pointer-events: none;
+  }
 
   /* Header fijo y bajo */
   .cabecera {
-    height: 64px;              /* ⬅ clave */
+    height: 64px; /* ⬅ clave */
     padding: 6px 10px;
     gap: 8px;
     align-items: center;
@@ -1240,7 +1317,7 @@
 
   /* Barra principal tipo "¿A dónde vas?" */
   .topBar {
-    height: 48px;              /* ⬅ estilo Airbnb */
+    height: 48px; /* ⬅ estilo Airbnb */
     min-width: unset;
     width: 100%;
     padding: 0 10px;
@@ -1253,7 +1330,7 @@
   }
 
   .searchLabel {
-    display: none;             /* ⬅ Airbnb no muestra label */
+    display: none; /* ⬅ Airbnb no muestra label */
   }
 
   .searchBox {
@@ -1276,7 +1353,7 @@
   }
 
   .authButtonContainer {
-    display: none;             /* opcional */
+    display: none; /* opcional */
   }
 
   /* ===== FILTROS ===== */
@@ -1284,7 +1361,7 @@
   .filterPanel {
     top: 70px;
     left: 10px;
-    width: calc(100% - 20px);  /* ocupa casi toda la pantalla */
+    width: calc(100% - 20px); /* ocupa casi toda la pantalla */
     max-width: none;
     padding: 10px;
     border-radius: 14px;
@@ -1318,24 +1395,22 @@
   }
 
   .customOptionsList {
-    position: fixed;        /* para que no dependa del contenedor padre */
-    top: 70px;              /* ajusta según tu topBar */
-    left: 40%;              /* centro horizontal */
+    position: fixed; /* para que no dependa del contenedor padre */
+    top: 70px; /* ajusta según tu topBar */
+    left: 40%; /* centro horizontal */
     transform: translateX(-50%);
     /* width: 100%;             ocupa casi toda la pantalla */
-    max-width: 400px;       /* opcional */
+    max-width: 400px; /* opcional */
     border-radius: 14px;
     padding: 10px 0;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   }
 
   .customOption {
-    width: 50vh;            /* ocupa todo el contenedor */
-    text-align: center;     /* centra el texto */
+    width: 50vh; /* ocupa todo el contenedor */
+    text-align: center; /* centra el texto */
   }
 
-
-  
   .topBarExpanded {
     position: absolute;
     left: 5px;
@@ -1348,7 +1423,7 @@
   .hiddenMobile {
     display: none !important;
   }
-  
+
   .topBarExpanded .searchSection {
     flex: 2; /* Toma todo el espacio disponible */
   }

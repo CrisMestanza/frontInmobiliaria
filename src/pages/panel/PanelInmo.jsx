@@ -404,7 +404,7 @@ const PanelInmo = () => {
         {/* {Videos} */}
         <div className="tutorial-section">
           <h3 className="tutorial-title">
-            Guías para gestionar tus proyectos en GeoHabita
+            Videotutoriales para Aprender a Gestionar tus Proyectos en GeoHabita
           </h3>
 
           <div className="tutorial-carousel-wrapper">

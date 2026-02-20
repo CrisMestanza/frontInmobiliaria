@@ -127,11 +127,15 @@ function MyMap() {
   const [walkingInfo, setWalkingInfo] = useState(null);
   const [drivingInfo, setDrivingInfo] = useState(null);
   const [mapBounds, setMapBounds] = useState(null);
+  const [activeAnuncioIndex, setActiveAnuncioIndex] = useState(0);
+  const [prevAnuncioIndex, setPrevAnuncioIndex] = useState(null);
+  const [isAnuncioAnimating, setIsAnuncioAnimating] = useState(false);
 
   const mapRef = useRef(null);
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const boundsDebounceRef = useRef(null);
+  const anuncioTimeoutRef = useRef(null);
   const cacheRef = useRef({
     lotes: new Map(),
     puntos: new Map(),
@@ -145,7 +149,43 @@ function MyMap() {
   // Usuario
   const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
   const MAX_VISIBLE_MARKERS = 250;
-
+  const anuncioSlides = useMemo(
+    () => [
+      {
+        text: "Anuncia tu propiedad",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2L2 7v15h20V7L12 2zm0 2.18L20 8v12H4V8l8-3.82zM7 13h10v2H7z" />
+          </svg>
+        ),
+      },
+      {
+        text: "Publica tus proyectos",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h8v8H3v-8zm10-1h8v9h-8v-9z" />
+          </svg>
+        ),
+      },
+      {
+        text: "Gestiona tus lotes",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 3h8v8H3V3zm10 10h8v8h-8v-8zM3 13h8v8H3v-8zm10-10h8v8h-8V3z" />
+          </svg>
+        ),
+      },
+      {
+        text: "Administra tus proyectos",
+        icon: (
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2a7 7 0 0 0-7 7v2H3v11h18V11h-2V9a7 7 0 0 0-7-7zm-5 9V9a5 5 0 0 1 10 0v2H7zm2 4h6v2H9v-2z" />
+          </svg>
+        ),
+      },
+    ],
+    [],
+  );
   const CACHE_TTL_MS = 10 * 60 * 1000;
   const getCacheKey = (prefix, id) => `${prefix}_${id}`;
 
@@ -270,6 +310,27 @@ function MyMap() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveAnuncioIndex((current) => {
+        const next = (current + 1) % anuncioSlides.length;
+        setPrevAnuncioIndex(current);
+        setIsAnuncioAnimating(true);
+        if (anuncioTimeoutRef.current) clearTimeout(anuncioTimeoutRef.current);
+        anuncioTimeoutRef.current = setTimeout(() => {
+          setIsAnuncioAnimating(false);
+          setPrevAnuncioIndex(null);
+        }, 560);
+        return next;
+      });
+    }, 2800);
+
+    return () => {
+      clearInterval(interval);
+      if (anuncioTimeoutRef.current) clearTimeout(anuncioTimeoutRef.current);
+    };
+  }, [anuncioSlides.length]);
 
   const getProjectIconUrl = (p) => {
     if (filtroBotActivo) {
@@ -831,16 +892,30 @@ function MyMap() {
         {/* Botones de la derecha (User / Menu) */}
         <div className={styles.rightActions}>
           <Link to="/login" className={styles.anunciaPropiedad}>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M12 2L2 7v15h20V7L12 2zm0 2.18L20 8v12H4V8l8-3.82zM7 13h10v2H7z" />
-            </svg>
-            Anuncia tu propiedad
+            <span className={styles.anuncioIconViewport}>
+              {prevAnuncioIndex !== null && isAnuncioAnimating && (
+                <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+                  {anuncioSlides[prevAnuncioIndex].icon}
+                </span>
+              )}
+              <span
+                className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
+              >
+                {anuncioSlides[activeAnuncioIndex].icon}
+              </span>
+            </span>
+            <span className={styles.anuncioTextViewport}>
+              {prevAnuncioIndex !== null && isAnuncioAnimating && (
+                <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+                  {anuncioSlides[prevAnuncioIndex].text}
+                </span>
+              )}
+              <span
+                className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
+              >
+                {anuncioSlides[activeAnuncioIndex].text}
+              </span>
+            </span>
           </Link>
 
 
