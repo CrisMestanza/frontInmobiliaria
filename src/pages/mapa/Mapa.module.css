@@ -101,17 +101,17 @@
 
 /* Modificación a tu customOptionsList para que sea idéntico a Airbnb */
 .customOptionsList {
-  position: fixed;
-  top: calc(100% + 15px); /* Separación estética */
-  left: 10%;
-  /* transform: translateX(-50%); */
-  width: auto;
-  /* min-width: 600px; */
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 340px;
   background: white;
-  border-radius: 28px; /* Bordes muy redondeados */
+  border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   z-index: 9999;
-  padding: 16px 0;
+  padding: 10px 0;
   border: 1px solid #ebebeb;
 }
 
@@ -126,8 +126,8 @@
   font-size: 14px;
   cursor: pointer;
   transition: background 0.2s;
-  width: 40vh;
-  text-align: center;
+  width: 100%;
+  text-align: left;
 }
 
 .customOption:hover {
@@ -192,11 +192,34 @@
 }
 
 .searchSection {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 0 16px;
   flex: 1;
+}
+
+:global(.pac-container) {
+  z-index: 99999 !important;
+  width: min(680px, calc(100vw - 20px)) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  border-radius: 12px;
+  margin-top: 6px;
+}
+
+:global(.pac-item) {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+:global(.pac-item-query) {
+  font-size: 14px;
 }
 
 .searchLabel {
@@ -1394,15 +1417,17 @@
   }
 
   .customOptionsList {
-    position: fixed; /* para que no dependa del contenedor padre */
-    top: 70px; /* ajusta según tu topBar */
-    left: 40%; /* centro horizontal */
-    transform: translateX(-50%);
-    /* width: 100%;             ocupa casi toda la pantalla */
-    max-width: 400px; /* opcional */
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    transform: none;
+    width: max-content;
+    min-width: 100%;
+    max-width: min(92vw, 320px);
     border-radius: 14px;
     padding: 10px 0;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    z-index: 3000;
   }
 
   .customOption {
@@ -1482,15 +1507,18 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
+    justify-items: center;
     gap: 4px;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .searchSection {
+    position: relative;
     min-width: 0;
     width: 100%;
     padding: 0 4px;
     flex: initial;
+    overflow: visible;
   }
 
   .divider {
@@ -1520,6 +1548,8 @@
     font-size: 12px;
     min-width: 0;
     padding: 0;
+    justify-content: center;
+    gap: 4px;
   }
 
   .triggerText {
@@ -1528,6 +1558,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-align: center;
   }
 
   .searchSection,
@@ -1536,10 +1567,23 @@
     height: 30px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   .topBar .customSelect:last-of-type {
     border-right: none;
+  }
+
+  .customOptionsList {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    transform: none;
+    width: max-content;
+    min-width: 100%;
+    max-width: min(92vw, 320px);
+    z-index: 3000;
   }
 
   :global(.pac-container) {
@@ -1547,6 +1591,7 @@
     width: calc(100vw - 20px) !important;
     left: 10px !important;
     right: 10px !important;
+    transform: none !important;
     border-radius: 12px;
     margin-top: 6px;
   }

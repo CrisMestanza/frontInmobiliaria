@@ -1,18 +1,63 @@
-import React, { useState, useEffect, useRef } from "react"; // IMPORTANTE: faltaban estos
+import React, { useState, useEffect, useRef } from "react";
 
 const CustomSelect = ({ label, value, options, onChange, placeholder, styles }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({});
   const containerRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const updateMenuPosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const isMobile = viewportWidth <= 768;
+
+    if (isMobile) {
+      const width = viewportWidth - 20;
+      const left = (viewportWidth - width) / 2;
+      setMenuStyle({
+        position: "fixed",
+        top: `${rect.bottom + 8}px`,
+        left: `${left}px`,
+        width: `${width}px`,
+        zIndex: 12000,
+      });
+      return;
+    }
+
+    setMenuStyle({});
+  };
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target) &&
+        menuRef.current &&
+        !menuRef.current.contains(e.target)
+      ) {
         setIsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("touchstart", handleClick, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("touchstart", handleClick);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateMenuPosition();
+    const onResizeOrScroll = () => updateMenuPosition();
+    window.addEventListener("resize", onResizeOrScroll);
+    window.addEventListener("scroll", onResizeOrScroll, true);
+    return () => {
+      window.removeEventListener("resize", onResizeOrScroll);
+      window.removeEventListener("scroll", onResizeOrScroll, true);
+    };
+  }, [isOpen]);
 
   const selectedOption = options.find(opt => opt.value === value);
 
@@ -27,7 +72,7 @@ const CustomSelect = ({ label, value, options, onChange, placeholder, styles }) 
       </div>
 
       {isOpen && (
-        <div className={styles.customOptionsList}>
+        <div className={styles.customOptionsList} style={menuStyle} ref={menuRef}>
           <div className={styles.customOption} onClick={() => { onChange(""); setIsOpen(false); }}>
             {placeholder}
           </div>
