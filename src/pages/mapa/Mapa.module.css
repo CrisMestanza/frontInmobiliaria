@@ -1310,8 +1310,7 @@
 
   /* Logo fuera */
 
-  .brandName,
-  .anunciaPropiedad {
+  .brandName {
     display: none !important;
   }
 
@@ -1431,5 +1430,136 @@
   /* Ocultar el logo o branding si es necesario para ganar espacio */
   .topBarExpanded ~ .logoContainer {
     display: none;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .cabecera {
+    height: 64px;
+    padding: 6px 8px;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .logoContainer {
+    flex: 0 0 auto;
+  }
+
+  .logo {
+    height: 38px;
+  }
+
+  .brandName {
+    display: none;
+  }
+
+  .rightActions {
+    flex: 0 0 auto;
+    margin-left: 0;
+    gap: 6px;
+  }
+
+  .anunciaPropiedad {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    justify-content: center;
+    min-width: 40px;
+  }
+
+  .anuncioTextViewport {
+    display: none;
+  }
+
+  .topBar {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 46px;
+    border-radius: 999px;
+    padding: 0 6px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .searchSection {
+    min-width: 0;
+    width: 100%;
+    padding: 0 4px;
+    flex: initial;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  .customSelect {
+    width: 100%;
+    min-width: 0;
+    flex: initial;
+  }
+
+  .searchButton {
+    display: none;
+  }
+
+  .searchLabel {
+    display: none;
+  }
+
+  .searchInput {
+    font-size: 12px;
+    min-width: 0;
+  }
+
+  .customTrigger {
+    font-size: 12px;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .triggerText {
+    display: block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .searchSection,
+  .topBar .customSelect {
+    border-right: 1px solid #e5e7eb;
+    height: 30px;
+    display: flex;
+    align-items: center;
+  }
+
+  .topBar .customSelect:last-of-type {
+    border-right: none;
+  }
+
+  :global(.pac-container) {
+    z-index: 99999 !important;
+    width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    right: 10px !important;
+    border-radius: 12px;
+    margin-top: 6px;
+  }
+
+  :global(.pac-item) {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  :global(.pac-item-query) {
+    font-size: 14px;
   }
 }

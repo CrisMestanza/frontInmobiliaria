@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 
 import { GoogleMap, Marker, DirectionsRenderer } from "@react-google-maps/api";
 import ProyectoSidebar from "./MapSidebarProyecto";
@@ -22,7 +28,6 @@ const RANGOS_PRECIO = [
   { label: "$. 150,001 - 250,000", value: "150001-250000" },
   { label: "$. 250,001 - más", value: "250001-999999999" },
 ];
-
 
 const LotesOverlay = ({
   lotes,
@@ -70,7 +75,7 @@ const LotesOverlay = ({
     <>
       {lotes
         .filter((lote) =>
-          selectedLote ? lote.idlote === selectedLote.lote.idlote : true
+          selectedLote ? lote.idlote === selectedLote.lote.idlote : true,
         )
         .map((lote) => {
           const isLibre = lote.vendido === 0;
@@ -206,10 +211,7 @@ function MyMap() {
 
   const writeSessionCache = (key, data) => {
     try {
-      sessionStorage.setItem(
-        key,
-        JSON.stringify({ ts: Date.now(), data }),
-      );
+      sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
     } catch {
       // ignore storage errors
     }
@@ -372,7 +374,6 @@ function MyMap() {
     return filtered.slice(0, MAX_VISIBLE_MARKERS);
   }, [proyecto, selectedProyecto, puntos.length, mapBounds]);
 
-
   // ✅ FIX: Load Google Maps API properly with all required libraries
   useEffect(() => {
     const loadGoogleMaps = async () => {
@@ -424,7 +425,7 @@ function MyMap() {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         }),
-      () => console.warn("Permiso de ubicación denegado.")
+      () => console.warn("Permiso de ubicación denegado."),
     );
   }, [inmoId, selectedProyecto, hasSearchedLocation]);
 
@@ -433,7 +434,6 @@ function MyMap() {
       setShowHintClickLote(true);
     }
   }, [selectedProyecto, lotesProyecto]);
-
 
   useEffect(() => {
     if (inmoId) {
@@ -453,7 +453,7 @@ function MyMap() {
               bounds.extend({
                 lat: parseFloat(p.latitud),
                 lng: parseFloat(p.longitud),
-              })
+              }),
             );
             mapRef.current.fitBounds(bounds);
           }
@@ -464,7 +464,9 @@ function MyMap() {
 
   useEffect(() => {
     if (selectedLote) {
-      fetch(`https://apiinmo.y0urs.com/api/list_imagen/${selectedLote.lote.idlote}`)
+      fetch(
+        `https://apiinmo.y0urs.com/api/list_imagen/${selectedLote.lote.idlote}`,
+      )
         .then((res) => res.json())
         .then((data) => setImagenesLote(data))
         .catch((err) => console.error("Error cargando imágenes:", err));
@@ -476,7 +478,7 @@ function MyMap() {
   useEffect(() => {
     if (selectedProyecto?.idproyecto) {
       fetch(
-        `https://apiinmo.y0urs.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`
+        `https://apiinmo.y0urs.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`,
       )
         .then((res) => res.json())
         .then((data) => setImagenesProyecto(data))
@@ -500,13 +502,11 @@ function MyMap() {
       if (selectedRango) {
         const [min, max] = selectedRango.split("-").map(Number);
 
-        lotesFiltrados = data.filter(
-          (l) => l.precio >= min && l.precio <= max
-        );
+        lotesFiltrados = data.filter((l) => l.precio >= min && l.precio <= max);
       }
 
       setLotesProyecto(lotesFiltrados);
-    }
+    };
 
     cargarLotes().catch(console.error);
   }, [selectedProyecto, selectedRango, filtroBotActivo]);
@@ -523,7 +523,9 @@ function MyMap() {
 
     const prefetch = async () => {
       await Promise.allSettled(
-        ids.map((id) => Promise.all([loadLotesConPuntos(id), loadPuntosProyecto(id)])),
+        ids.map((id) =>
+          Promise.all([loadLotesConPuntos(id), loadPuntosProyecto(id)]),
+        ),
       );
     };
 
@@ -551,7 +553,6 @@ function MyMap() {
     setFiltroBotActivo(false);
   };
 
-
   const handleRangoChange = (rango) => {
     if (selectedRango === rango) {
       // Si vuelve a hacer clic en el mismo rango → deseleccionar
@@ -566,7 +567,6 @@ function MyMap() {
     setFiltroBotActivo(false);
   };
 
-
   useEffect(() => {
     if (inmoId) return;
     if (selectedTipo) {
@@ -574,14 +574,18 @@ function MyMap() {
 
       if (tipo) {
         if (tipo.idtipoinmobiliaria === 2) {
-          fetch(`https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`)
+          fetch(
+            `https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`,
+          )
             .then((res) => res.json())
             .then((data) => {
               setProyecto(data);
             })
             .catch(console.error);
         } else if (tipo.idtipoinmobiliaria === 1) {
-          fetch(`https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`)
+          fetch(
+            `https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`,
+          )
             .then((res) => res.json())
             .then((data) => {
               setProyecto(data);
@@ -652,7 +656,7 @@ function MyMap() {
           if (mode === "WALKING") setWalkingInfo(info);
           if (mode === "DRIVING") setDrivingInfo(info);
         }
-      }
+      },
     );
   };
 
@@ -776,7 +780,7 @@ function MyMap() {
       }
 
       const autocomplete = new window.google.maps.places.Autocomplete(
-        inputRef.current
+        inputRef.current,
       );
       autocompleteRef.current = autocomplete;
 
@@ -801,7 +805,6 @@ function MyMap() {
           }
         }
       });
-
     } catch (error) {
       console.error("Error inicializando Autocomplete:", error);
     }
@@ -832,29 +835,32 @@ function MyMap() {
       <header className={styles.cabecera}>
         {/* Logo a la izquierda fuera de la barra central */}
         <div className={styles.logoContainer}>
-          <img src="/habitasinfondo.png" alt="GeoHabita Logo" className={styles.logo} />
+          <img
+            src="/habitasinfondo.png"
+            alt="GeoHabita Logo"
+            className={styles.logo}
+          />
           <span className={styles.brandName}>
             <span className={styles.geo}>Geo</span>
             <span className={styles.habita}>Habita</span>
           </span>
         </div>
 
-
         {/* BARRA CENTRAL (PASTILLA) */}
-        <div className={`${styles.topBar} ${isSearchFocused ? styles.topBarExpanded : ""}`}>
+        <div
+          className={`${styles.topBar} ${isSearchFocused ? styles.topBarExpanded : ""}`}
+        >
           <div className={styles.searchSection}>
             <span className={styles.searchLabel}>UBICACIÓN</span>
             <input
               ref={inputRef}
               className={`${styles.searchInput} ${isSearchFocused ? styles.searchInputFocused : ""}`}
-              placeholder="Buscar"
-              onFocus={() => {
-                if (isMobile()) setIsSearchFocused(true);
-              }}
+              placeholder="Buscar Lugar"
+              onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
             />
           </div>
-          {!(isMobile() && isSearchFocused) && (
+          {
             <>
               {/* SELECT PERSONALIZADO: TIPO */}
               <CustomSelect
@@ -862,9 +868,9 @@ function MyMap() {
                 value={selectedTipo}
                 placeholder="Cualquier tipo"
                 styles={styles}
-                options={tiposInmo.map(t => ({
+                options={tiposInmo.map((t) => ({
                   label: t.nombre,
-                  value: t.idtipoinmobiliaria
+                  value: t.idtipoinmobiliaria,
                 }))}
                 onChange={(val) => handleTipoChange(val)}
               />
@@ -881,10 +887,21 @@ function MyMap() {
                 onChange={(val) => handleRangoChange(val)}
               />
             </>
-          )}
+          }
           {/* BOTÓN LUPA */}
           <button className={styles.searchButton}>
-            <svg viewBox="0 0 32 32" style={{ display: 'block', fill: 'none', height: '16px', width: '16px', stroke: 'currentColor', strokeWidth: '4', overflow: 'visible' }}>
+            <svg
+              viewBox="0 0 32 32"
+              style={{
+                display: "block",
+                fill: "none",
+                height: "16px",
+                width: "16px",
+                stroke: "currentColor",
+                strokeWidth: "4",
+                overflow: "visible",
+              }}
+            >
               <path d="m13 24c6.0751322 0 11-4.9248678 11-11s-4.9248678-11-11-11-11 4.9248678-11 11 4.9248678 11 11 11zm8-3 9 9"></path>
             </svg>
           </button>
@@ -894,7 +911,9 @@ function MyMap() {
           <Link to="/login" className={styles.anunciaPropiedad}>
             <span className={styles.anuncioIconViewport}>
               {prevAnuncioIndex !== null && isAnuncioAnimating && (
-                <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+                <span
+                  className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
+                >
                   {anuncioSlides[prevAnuncioIndex].icon}
                 </span>
               )}
@@ -906,7 +925,9 @@ function MyMap() {
             </span>
             <span className={styles.anuncioTextViewport}>
               {prevAnuncioIndex !== null && isAnuncioAnimating && (
-                <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+                <span
+                  className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
+                >
                   {anuncioSlides[prevAnuncioIndex].text}
                 </span>
               )}
@@ -917,11 +938,8 @@ function MyMap() {
               </span>
             </span>
           </Link>
-
-
         </div>
       </header>
-
 
       <GoogleMap
         mapContainerClassName={styles.map}
@@ -940,7 +958,6 @@ function MyMap() {
           fullscreenControl: false,
         }}
       >
-
         {puntos.length === 0 && <Marker position={currentPosition} />}
 
         {visibleProyectos.map((p) => (
@@ -1002,9 +1019,7 @@ function MyMap() {
       </GoogleMap>
 
       {showHintClickLote && (
-        <div className={styles.clickHint}>
-          Toca un lote
-        </div>
+        <div className={styles.clickHint}>Toca un lote</div>
       )}
 
       {selectedProyecto && (
@@ -1030,7 +1045,7 @@ function MyMap() {
             try {
               if (selectedRango) {
                 const res = await fetch(
-                  `https://apiinmo.y0urs.com/api/rangoPrecio/${selectedRango}`
+                  `https://apiinmo.y0urs.com/api/rangoPrecio/${selectedRango}`,
                 );
                 const data = await res.json();
                 setLotes(data.lotes || []);
@@ -1052,13 +1067,13 @@ function MyMap() {
                 setProyecto(proyectosUnicos);
               } else if (inmoId) {
                 const res = await fetch(
-                  `https://apiinmo.y0urs.com/api/listProyectosInmobiliaria/${inmoId}`
+                  `https://apiinmo.y0urs.com/api/listProyectosInmobiliaria/${inmoId}`,
                 );
                 const data = await res.json();
                 setProyecto(data);
               } else {
                 const res = await fetch(
-                  "https://apiinmo.y0urs.com/api/listProyectos/"
+                  "https://apiinmo.y0urs.com/api/listProyectos/",
                 );
                 const data = await res.json();
                 setProyecto(data);

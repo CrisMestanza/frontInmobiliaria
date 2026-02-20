@@ -177,7 +177,8 @@ const PanelInmo = () => {
   });
 
   const mapUrl = `${window.location.origin}/mapa/${idInmo}`;
-  const publicBase = import.meta.env.BASE_URL;
+  const publicBase =
+    import.meta.env.BASE_URL === "./" ? "/" : import.meta.env.BASE_URL;
   const tutoriales = [
     {
       href: "https://www.youtube.com/watch?v=lZNPDIBqyCg",
