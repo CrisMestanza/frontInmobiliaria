@@ -26,7 +26,6 @@
   color: var(--text-main);
 }
 
-
 /* Header */
 .dashboard-header {
   position: sticky;
@@ -88,7 +87,6 @@
 .dashboard-content {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
 }
 
 /* Link Section */
@@ -578,13 +576,12 @@ td {
   gap: 0.5rem;
 }
 
-
 .tutorial-section {
   margin-bottom: 2rem;
-  padding: 1.5rem;
+  padding: 0.5rem;
   background: linear-gradient(135deg, #f8fafc, #eef2ff);
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  overflow: hidden;
 }
 
 .tutorial-title {
@@ -594,46 +591,165 @@ td {
   color: #1e293b;
 }
 
+.tutorial-carousel-wrapper {
+  position: relative;
+}
+
 .tutorial-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .tutorial-card {
+  position: relative;
   display: flex;
-  gap: 12px;
-  padding: 1rem;
-  border-radius: 14px;
-  background: white;
+  min-height: 170px;
+  border-radius: 16px;
+  overflow: hidden;
   text-decoration: none;
-  color: inherit;
+  color: #ffffff;
   transition: all 0.25s ease;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  background: #0f172a;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+}
+
+.tutorial-card::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  background-image: var(--tutorial-bg);
+  background-position: center;
+  background-size: cover;
+  filter: blur(1px) saturate(1);
+  transform: scale(1.08);
+  transition:
+    transform 0.35s ease,
+    filter 0.35s ease;
+}
+
+.tutorial-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 23, 0.25) 0%,
+    rgba(2, 6, 23, 0.65) 62%,
+    rgba(2, 6, 23, 0.92) 100%
+  );
+}
+
+.tutorial-content {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  padding: 0.8rem;
+  width: 100%;
+  backdrop-filter: blur(1.5px);
 }
 
 .tutorial-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-  border-color: #6366f1;
+  transform: translateY(-5px);
+  border-color: rgba(99, 102, 241, 0.65);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.24);
+}
+
+.tutorial-card:hover::before {
+  transform: scale(1.12);
+  filter: blur(7px) saturate(1.25);
 }
 
 .tutorial-card h4 {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #1e293b;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.28;
+  color: #ffffff;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .tutorial-card p {
   margin: 4px 0 0 0;
-  font-size: 0.8rem;
-  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.34;
+  color: rgba(241, 245, 249, 0.92);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.tutorial-icon {
-  font-size: 1.8rem;
-  display: flex;
+.tutorial-nav {
+  display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
   align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.tutorial-nav.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tutorial-nav-left {
+  left: 0.3rem;
+}
+
+.tutorial-nav-right {
+  right: 0.3rem;
+}
+
+@media (max-width: 1100px) {
+  .tutorial-section {
+    padding: 1rem 0.7rem 1.1rem;
+  }
+
+  .tutorial-grid {
+    display: flex;
+    gap: 0.8rem;
+    overflow-x: auto;
+    padding: 0.25rem 1.9rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .tutorial-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tutorial-card {
+    min-width: min(78vw, 300px);
+    flex: 0 0 min(78vw, 300px);
+    min-height: 160px;
+    scroll-snap-align: center;
+  }
+
+  .tutorial-card h4 {
+    font-size: 0.84rem;
+  }
+
+  .tutorial-card p {
+    font-size: 0.72rem;
+  }
+
+  .tutorial-nav {
+    display: inline-flex;
+  }
 }
