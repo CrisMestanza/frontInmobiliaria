@@ -39,7 +39,7 @@
   height: 36px;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -100,14 +100,25 @@
   font-weight: 700;
 }
 
-.infoSection {
+/* .infoSection {
   width: 55%;
   padding: 35px;
   overflow-y: auto;
   scroll-behavior: smooth;
+} */
+
+.infoSection {
+  width: 55%;
+  padding: 25px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  /* align-items: center;
+  text-align: center; */
 }
 
-.infoSection::-webkit-scrollbar { display: none; }
+.infoSection::-webkit-scrollbar {
+  display: none;
+}
 
 .legalLabel {
   display: inline-flex;
@@ -148,8 +159,19 @@
   margin: 20px 0;
 }
 
-.labelSmall { font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; display: block; }
-.priceValue { font-size: 24px; font-weight: 800; color: #1e293b; }
+.labelSmall {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: block;
+}
+
+.priceValue {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1e293b;
+}
 
 .contactMiniBtn {
   background: #25d366;
@@ -180,12 +202,34 @@
   gap: 10px;
 }
 
-.qBadge svg { color: #080808; font-size: 18px; }
-.qBadge strong { display: block; font-size: 14px; color: #1e293b; }
-.qBadge span { font-size: 10px; color: #94a3b8; }
+.qBadge svg {
+  color: #080808;
+  font-size: 18px;
+}
 
-.sectionTitle { font-size: 16px; font-weight: 700; margin: 30px 0 15px; color: #334155; }
-.fullDescription { line-height: 1.6; color: #475569; font-size: 14px; }
+.qBadge strong {
+  display: block;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.qBadge span {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 30px 0 15px;
+  color: #334155;
+}
+
+.fullDescription {
+  line-height: 1.6;
+  color: #475569;
+  font-size: 14px;
+}
 
 .distanciaBox {
   background: #eff6ff;
@@ -205,31 +249,46 @@
   gap: 20px;
 }
 
-.socialFooter a { 
-  width: 45px; height: 45px; background: #f1f5f9; 
-  border-radius: 50%; display: flex; align-items: center; 
-  justify-content: center; color: #64748b; font-size: 20px;
+.socialFooter a {
+  width: 45px;
+  height: 45px;
+  background: #f1f5f9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 20px;
   transition: all 0.3s;
 }
 
-.socialFooter a.fb:hover { color: #1877F2; background: #e7f0ff; }
-.socialFooter a.web:hover { color: #00bcd4; background: #e0f7fa; }
+.socialFooter a.fb:hover {
+  color: #1877F2;
+  background: #e7f0ff;
+}
+
+.socialFooter a.web:hover {
+  color: #00bcd4;
+  background: #e0f7fa;
+}
 
 .fullscreenOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.95);
+  background: rgba(0, 0, 0, 0.95);
   z-index: 2000;
   display: flex;
   justify-content: center;
   align-items: center;
 }
+
 .featuresGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-bottom: 25px;
 }
+
 .fItem {
   background: #f8fafc;
   padding: 10px;
@@ -240,24 +299,118 @@
   align-items: center;
   gap: 8px;
 }
-.noImage{
+
+.noImage {
   margin-left: 30px;
   margin-top: 30px;
 }
 
-.fullscreenImg { max-width: 90%; max-height: 85%; border-radius: 10px; }
-.fsBadge { position: absolute; bottom: 30px; color: white; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; }
+.fullscreenImg {
+  max-width: 90%;
+  max-height: 85%;
+  border-radius: 10px;
+}
 
-@media (max-width: 768px) {
-  .sidebar { height: 320px; width: 100%; bottom: 0; border-radius: 25px 25px 0 0; display: block; overflow-y: auto; }
-  .expanded { height: 75vh; }
-  .splitLayout { display: block; height: auto; }
-  .imageSection { width: 100%; height: 250px; }
-  .infoSection { width: 100%; padding: 20px; overflow-y: visible; height: auto; }
-  .closeBtn { position: fixed; top: 15px; right: 15px; }
+.fsBadge {
+  position: absolute;
+  bottom: 30px;
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 5px 15px;
+  border-radius: 20px;
 }
 
 
+
+
+
+/* ===== CARD CONTENEDOR ===== */
+.inmoCard {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff, #f5f7fa);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  transition: all 0.3s ease;
+  margin-bottom: 10px;
+}
+
+.proyectoP {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 12px;
+  position: relative;
+  display: inline-block;
+}
+
+.proyectoP::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 2px;
+  background-color: #106e2e;
+  margin-top: 6px;
+  border-radius: 2px;
+}
+
+.inmoCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+/* ===== HEADER ===== */
+.inmoHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.inmoIcon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: #106e2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: white;
+  box-shadow: 0 6px 16px rgba(16, 110, 46, 0.3);
+}
+
+.inmoLabel {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.inmoName {
+  margin: 2px 0 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ===== DESCRIPCIÓN ===== */
+.inmoDescription {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+/* ===== DIVISOR ===== */
+.inmoDivider {
+  margin: 18px 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+}
 
 
 
@@ -286,7 +439,7 @@
   }
 
   .closeBtn {
-    
+
     margin-top: 10%;
     font-size: 17px;
     transition:
@@ -307,7 +460,78 @@
     transform: scale(0.95) rotate(90deg);
   }
 
-  .noImage{
+  .noImage {
     margin-top: 30%;
+  }
+}
+
+
+
+@media (max-width: 768px) {
+  .sidebar {
+    height: 320px;
+    width: 100%;
+    bottom: 0;
+    border-radius: 25px 25px 0 0;
+    display: block;
+    overflow-y: auto;
+  }
+
+  .expanded {
+    height: 75vh;
+  }
+
+  .splitLayout {
+    display: block;
+    height: auto;
+  }
+
+  .imageSection {
+    width: 100%;
+    height: 250px;
+  }
+
+  .infoSection {
+    width: 100%;
+    padding: 20px;
+    overflow-y: visible;
+    height: auto;
+  }
+
+  .closeBtn {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+  }
+
+  .nombreProyecto {
+
+    /* font-size: 20px; */
+    margin: 10px 0;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .fullDescription {
+    line-height: 1.6;
+    color: #475569;
+    font-size: 14px;
+    margin-right: 30px;
+  }
+
+  .priceContainer {
+    margin-right: 30px;
+  }
+
+  .distanciaBox {
+    margin-right: 20px;
+  }
+
+  .distanciaBox {
+    margin-right: 40px;
+  }
+
+  .inmoCard {
+    margin-right: 40px;
   }
 }

@@ -153,9 +153,11 @@
 
 .infoSection {
   width: 55%;
-  padding: 35px;
+  padding: 25px;
   overflow-y: auto;
   scroll-behavior: smooth;
+  /* align-items: center;
+  text-align: center; */
 }
 
 .infoSection::-webkit-scrollbar {
@@ -173,7 +175,7 @@
 }
 
 .nombreProyecto {
-  font-size: 28px;
+  font-size: 60px;
   margin: 10px 0;
   color: #0f172a;
   font-weight: 800;
@@ -186,7 +188,7 @@
   background: #f8fafc;
   padding: 15px 20px;
   border-radius: 20px;
-  margin: 20px 0;
+  margin: 10px 0;
 }
 
 .labelSmall {
@@ -383,6 +385,95 @@
   }
 }
 
+
+/* ===== CARD CONTENEDOR ===== */
+.inmoCard {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff, #f5f7fa);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  transition: all 0.3s ease;
+  margin-bottom: 10px;
+}
+
+.proyectoP {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 12px;
+  position: relative;
+  display: inline-block;
+}
+
+.proyectoP::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 2px;
+  background-color: #106e2e;
+  margin-top: 6px;
+  border-radius: 2px;
+}
+
+.inmoCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+/* ===== HEADER ===== */
+.inmoHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.inmoIcon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: #106e2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: white;
+  box-shadow: 0 6px 16px rgba(16, 110, 46, 0.3);
+}
+
+.inmoLabel {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.inmoName {
+  margin: 2px 0 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* ===== DESCRIPCIÓN ===== */
+.inmoDescription {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+/* ===== DIVISOR ===== */
+.inmoDivider {
+  margin: 18px 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+}
+
 /* ... (tus estilos anteriores se mantienen igual) ... */
 
 @media (max-width: 768px) {
@@ -398,6 +489,13 @@
     display: block;
   }
 
+  .nombreProyecto {
+
+    font-size: 20px;
+    margin-right: 15px;
+    color: #0f172a;
+    font-weight: 800;
+  }
 
   .expanded {
     height: 75vh;
@@ -420,27 +518,47 @@
 
   .infoSection {
     width: 100%;
-    padding: 20px;
+    padding: 10px;
     overflow-y: visible;
     /* Desactivamos el scroll interno para que suba con la imagen */
     height: auto;
   }
 
-  .closeBtn {
-    /* Mantenemos el botón fijo arriba a la derecha */
-    width: 36px;
-    height: 36px;
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    font-size: 30px;
-    color: black;
-  }
 
   .navArrow {
     color: black;
   }
+
+
+  .nombreProyecto {
+
+    font-size: 20px;
+    margin-right: 15px;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .fullDescription {
+    line-height: 1.6;
+    color: #475569;
+    font-size: 14px;
+    margin-right: 30px;
+  }
+
+  .priceContainer {
+    margin-right: 30px;
+  }
+
+  .distanciaBox {
+    margin-right: 20px;
+  }
+
+  .inmoCard {
+    margin-right: 20px;
+  }
 }
+
+
 
 
 
@@ -489,7 +607,9 @@
     transform: scale(0.95) rotate(90deg);
   }
 
-  .noImage{
+  .noImage {
     margin-top: 30%;
   }
 }
+
+

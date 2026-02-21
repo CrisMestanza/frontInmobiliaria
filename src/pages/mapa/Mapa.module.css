@@ -33,7 +33,7 @@
 .clickHint {
   position: absolute;
   bottom: 80%;
-  left: 50%;
+  left: 48%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
   color: #fff;

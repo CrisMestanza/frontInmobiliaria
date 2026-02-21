@@ -69,24 +69,24 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
   };
 
   const registrarClickContacto = async (redSocial) => {
-  try {
-    await fetch("https://apiinmo.y0urs.com/api/registerClickContactos/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        idproyecto: proyecto.idproyecto,
-        dia: new Date().toISOString().split("T")[0], // YYYY-MM-DD
-        hora: new Date().toLocaleTimeString(), // HH:MM:SS
-        redSocial: redSocial,
-      }),
-    });
-    console.log(`Click registrado en ${redSocial}`);
-  } catch (error) {
-    console.error("Error registrando click:", error);
-  }
-};
+    try {
+      await fetch("https://apiinmo.y0urs.com/api/registerClickContactos/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          idproyecto: proyecto.idproyecto,
+          dia: new Date().toISOString().split("T")[0], // YYYY-MM-DD
+          hora: new Date().toLocaleTimeString(), // HH:MM:SS
+          redSocial: redSocial,
+        }),
+      });
+      console.log(`Click registrado en ${redSocial}`);
+    } catch (error) {
+      console.error("Error registrando click:", error);
+    }
+  };
 
 
   useEffect(() => {
@@ -162,11 +162,37 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
             )}
 
             <div className={styles.primeInfo}>
+              <div className={styles.inmoCard}>
+                <div className={styles.inmoHeader}>
+                  <div className={styles.inmoIcon}>
+                    🏢
+                  </div>
+
+                  <div>
+                    <span className={styles.inmoLabel}>Inmobiliaria</span>
+                    <h2 className={styles.inmoName}>
+                      {inmo?.nombreinmobiliaria}
+                    </h2>
+                  </div>
+                </div>
+
+                {inmo?.descripcion && (
+                  <p className={styles.inmoDescription}>
+                    {inmo.descripcion}
+                  </p>
+                )}
+
+              </div>
+
+              <p className={styles.proyectoP}>Proyecto</p>
+              
               {proyecto.idtipoinmobiliaria === 2 && (
                 <span className={styles.legalLabel}>
                   {proyecto.titulo_propiedad ? "✓ Cuenta con titulo" : "• No cuenta con titulo"}
                 </span>
               )}
+
+                
               <h1 className={styles.nombreProyecto}>{proyecto.nombreproyecto}</h1>
               {/* <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p> */}
 

@@ -87,6 +87,31 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
           <div className={styles.infoSection} ref={contentRef} onScroll={handleScroll}>
             <div className={styles.primeInfo}>
+              <div className={styles.inmoCard}>
+                <div className={styles.inmoHeader}>
+                  <div className={styles.inmoIcon}>
+                    🏢
+                  </div>
+
+                  <div>
+                    <span className={styles.inmoLabel}>Inmobiliaria</span>
+                    <h2 className={styles.inmoName}>
+                      {inmo?.nombreinmobiliaria}
+                    </h2>
+                  </div>
+                </div>
+
+                {inmo?.descripcion && (
+                  <p className={styles.inmoDescription}>
+                    {inmo.descripcion}
+                  </p>
+                )}
+
+              </div>
+
+              <p className={styles.proyectoP}>Datos del lote</p>
+              <br></br>
+
               <span className={styles.legalLabel}>
                 {lote.titulo_propiedad === 1 ? (
                   <><FaCheckCircle /> Con título de propiedad</>
@@ -100,7 +125,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
               <div className={styles.priceContainer}>
                 <div>
-                  <span className={styles.labelSmall}>Precio del Lote</span>
+                  <span className={styles.labelSmall}>Precio del Lote en dolares</span>
                   <span className={styles.priceValue}>$. {lote.precio}</span>
                 </div>
                 <a
