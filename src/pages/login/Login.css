@@ -181,7 +181,7 @@
   background-color: var(--inmo-charcoal) !important;
   border: 1px solid var(--inmo-border) !important;
   border-radius: 0.6rem !important;
-  padding: 0 1.2rem;
+  padding: 0.5rem;
   color: white !important;
   font-size: 1rem;
   transition: all 0.3s ease;
@@ -296,4 +296,100 @@
 
 .inmo-login-link-bold:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 1023px) {
+  .inmo-login-scope {
+    position: relative;
+    min-height: 100dvh;
+    height: auto;
+    overflow-y: auto;
+  }
+
+  .inmo-login-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    height: auto;
+  }
+
+  .inmo-login-hero-section {
+    display: flex;
+    width: 100%;
+    height: clamp(170px, 32vh, 260px);
+    min-height: 170px;
+  }
+
+  .inmo-login-hero-overlay {
+    background: linear-gradient(
+      to top,
+      rgba(16, 25, 34, 0.7),
+      rgba(16, 25, 34, 0.25)
+    );
+  }
+
+  .inmo-login-hero-content {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    max-width: none;
+  }
+
+  .inmo-login-brand-box {
+    margin-bottom: 0.7rem;
+    gap: 0.5rem;
+  }
+
+  .inmo-login-logo-icon {
+    font-size: 2rem !important;
+  }
+
+  .inmo-login-brand-name {
+    font-size: 1.2rem;
+  }
+
+  .inmo-login-hero-text {
+    font-size: clamp(1.2rem, 4.2vw, 1.6rem);
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .inmo-login-form-section {
+    flex: 1;
+    align-items: flex-start;
+  }
+
+  .inmo-login-form-card {
+    max-width: 100%;
+  }
+
+  .inmo-login-mobile-header {
+    display: none;
+  }
+
+  .inmo-login-title {
+    font-size: clamp(1.7rem, 7vw, 2.1rem);
+  }
+
+  .inmo-login-subtitle {
+    font-size: 0.95rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .inmo-login-form-element {
+    gap: 1rem;
+  }
+
+  .inmo-login-input {
+    height: 3.1rem;
+  }
+
+  .inmo-login-btn-submit {
+    height: 3.2rem;
+    margin-top: 0.5rem;
+  }
+
+  .inmo-login-footer {
+    margin-top: 1.2rem;
+  }
 }

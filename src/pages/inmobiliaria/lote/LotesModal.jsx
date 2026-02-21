@@ -126,9 +126,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               Administra disponibilidad, precios y estados.
             </p>
             {refreshing && (
-              <div style={{ fontSize: "12px", color: "#64748b" }}>
-                Actualizando lotes...
-              </div>
+              <div className={style.refreshingText}>Actualizando lotes...</div>
             )}
             <button className={style.closeBtn} onClick={onClose}>
               ✕
@@ -142,8 +140,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <div className={style.statValue}>
                 {stats.total}{" "}
                 <span
-                  className={`${style.statBadge}`}
-                  style={{ background: "#eff6ff", color: "#1e40af" }}
+                  className={`${style.statBadge} ${style.badgeBlue}`}
                 >
                   100%
                 </span>
@@ -154,8 +151,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <div className={style.statValue}>
                 {stats.disponibles}{" "}
                 <span
-                  className={`${style.statBadge}`}
-                  style={{ background: "#ecfdf5", color: "#065f46" }}
+                  className={`${style.statBadge} ${style.badgeGreen}`}
                 >
                   Activos
                 </span>
@@ -166,8 +162,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <div className={style.statValue}>
                 {stats.reservados}{" "}
                 <span
-                  className={`${style.statBadge}`}
-                  style={{ background: "#fffbeb", color: "#92400e" }}
+                  className={`${style.statBadge} ${style.badgeAmber}`}
                 >
                   En proceso
                 </span>
@@ -178,8 +173,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <div className={style.statValue}>
                 {stats.vendidos}{" "}
                 <span
-                  className={`${style.statBadge}`}
-                  style={{ background: "#f1f5f9", color: "#475569" }}
+                  className={`${style.statBadge} ${style.badgeSlate}`}
                 >
                   Cerrados
                 </span>
@@ -189,19 +183,6 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
 
           {/* ACTIONS BAR */}
           <div className={style.actionsBar}>
-            <div className={style.searchContainer}>
-              <span className={style.searchIcon}>⌕</span>
-              <input
-                className={style.searchInput}
-                placeholder="Buscar lote o descripción..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <span className={style.searchCount}>
-                {filteredLotes.length}/{stats.total}
-              </span>
-            </div>
-
             <div className={style.btnGroup}>
               <button
                 className={`${style.actionBtn} ${style.btnPrimary}`}
@@ -225,6 +206,19 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                 PDF para Calcado
               </button>
             </div>
+
+            <div className={style.searchContainer}>
+              <span className={style.searchIcon}>⌕</span>
+              <input
+                className={style.searchInput}
+                placeholder="Buscar lote o descripción..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <span className={style.searchCount}>
+                {filteredLotes.length}/{stats.total}
+              </span>
+            </div>
           </div>
 
           {/* TABLE */}
@@ -235,8 +229,8 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                   <th>Nº</th>
                   <th>Lote / Descripción</th>
                   <th>Precio</th>
-                  <th style={{ textAlign: "center" }}>Estado</th>
-                  <th style={{ textAlign: "right" }}>Acciones</th>
+                  <th className={style.thCenter}>Estado</th>
+                  <th className={style.thRight}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -256,15 +250,15 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                 ) : (
                   filteredLotes.map((lote, index) => (
                     <tr key={lote.idlote} className={style.rowHover}>
-                      <td style={{ color: "#94a3b8", fontWeight: "500" }}>
+                      <td className={style.rowIndex}>
                         {index + 1}
                       </td>
                       <td>
                         <div className={style.loteName}>{lote.nombre}</div>
                         <div className={style.loteDesc}>{lote.descripcion}</div>
                       </td>
-                      <td style={{ fontWeight: "600" }}>S/. {lote.precio}</td>
-                      <td style={{ textAlign: "center" }}>
+                      <td className={style.rowPrice}>S/. {lote.precio}</td>
+                      <td className={style.tdCenter}>
                         <div className={style.statusSelect}>
                           <select
                             className={`${style.badge} ${style.statusSelectInput} ${style["badge-" + lote.vendido]}`}
@@ -289,7 +283,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                           </span>
                         </div>
                       </td>
-                      <td style={{ textAlign: "right" }}>
+                      <td className={style.tdRight}>
                         <button
                           className={`${style.iconBtn} ${style.iconBtnEdit}`}
                           onClick={() => {
@@ -317,24 +311,15 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
           {/* LEGEND */}
           <footer className={style.legend}>
             <div className={style.legendItem}>
-              <span
-                className={style.dot}
-                style={{ background: "#10b981" }}
-              ></span>{" "}
+              <span className={`${style.dot} ${style.dotGreen}`}></span>{" "}
               Disponible
             </div>
             <div className={style.legendItem}>
-              <span
-                className={style.dot}
-                style={{ background: "#f59e0b" }}
-              ></span>{" "}
+              <span className={`${style.dot} ${style.dotAmber}`}></span>{" "}
               Reservado
             </div>
             <div className={style.legendItem}>
-              <span
-                className={style.dot}
-                style={{ background: "#94a3b8" }}
-              ></span>{" "}
+              <span className={`${style.dot} ${style.dotSlate}`}></span>{" "}
               Vendido
             </div>
           </footer>

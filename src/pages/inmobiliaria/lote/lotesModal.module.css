@@ -50,6 +50,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 /* Header & Nav */
@@ -96,7 +97,15 @@
   right: 1.5rem;
   background: var(--bg-light);
   border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -107,7 +116,6 @@
 
 .statCard {
   background: white;
-  padding: 1.25rem;
   border-radius: 0.9rem;
   border: 1px solid var(--border-color);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
@@ -118,6 +126,7 @@
   color: var(--text-muted);
   font-weight: 500;
 }
+
 .statValue {
   font-size: 1.875rem;
   font-weight: 700;
@@ -133,11 +142,36 @@
   font-weight: 600;
 }
 
+.badgeBlue {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.badgeGreen {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.badgeAmber {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.badgeSlate {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.refreshingText {
+  font-size: 12px;
+  color: #64748b;
+}
+
 /* Actions Bar */
 .actionsBar {
   padding: 1rem 2rem 1.25rem;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.85rem;
@@ -169,6 +203,7 @@
   background: var(--primary);
   color: white;
 }
+
 .btnPrimary:hover {
   background: #1d4ed8;
 }
@@ -197,7 +232,7 @@
 
 .searchContainer {
   position: relative;
-  width: 320px;
+  width: min(100%, 420px);
   display: flex;
   align-items: center;
 }
@@ -233,12 +268,24 @@
 .tableContainer {
   padding: 0 2rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
 }
 
 .table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   margin-bottom: 2rem;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
 }
 
 .table td {
@@ -249,6 +296,26 @@
 
 .rowHover:hover {
   background: #f8fafc;
+}
+
+.rowIndex {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.rowPrice {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.thCenter,
+.tdCenter {
+  text-align: center;
+}
+
+.thRight,
+.tdRight {
+  text-align: right;
 }
 
 .loteName {
@@ -290,6 +357,7 @@
   font-size: 0.75rem;
   font-weight: 600;
 }
+
 .statusSelect {
   position: relative;
   display: inline-flex;
@@ -310,12 +378,20 @@
   color: #64748b;
   pointer-events: none;
 }
+
 .legend {
-  padding: 1.5rem 2rem;
+  padding: 0.7rem 1rem;
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.2rem;
   font-size: 0.875rem;
   border-top: 1px solid var(--border-color);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .dot {
@@ -324,18 +400,165 @@
   border-radius: 50%;
 }
 
+.dotGreen {
+  background: #10b981;
+}
+
+.dotAmber {
+  background: #f59e0b;
+}
+
+.dotSlate {
+  background: #94a3b8;
+}
+
 @media (max-width: 900px) {
+  .overlay {
+    padding: 12px;
+  }
+
+  .modal {
+    max-height: calc(100vh - 24px);
+    border-radius: 1rem;
+  }
+
+  .header {
+    padding: 1.25rem 1rem 1rem;
+  }
+
+  .closeBtn {
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .title {
+    font-size: 1.3rem;
+    max-width: calc(100% - 52px);
+  }
+
   .actionsBar {
     flex-direction: column;
     align-items: stretch;
+    padding: 0.8rem 1rem 1rem;
   }
 
   .btnGroup {
     flex-wrap: wrap;
     justify-content: center;
+    width: 100%;
   }
 
   .searchContainer {
     width: 100%;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 1rem;
+  }
+
+  .tableContainer {
+    padding: 0 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal {
+    height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 16px);
+    overflow: hidden;
+  }
+
+  .header {
+    padding: 1rem 0.9rem 0.8rem;
+  }
+
+  .statsGrid {
+    padding: 0.8rem 0.9rem;
+    gap: 0.7rem;
+  }
+
+  .actionsBar {
+    padding: 0.55rem 0.9rem 0.7rem;
+    gap: 0.55rem;
+  }
+
+  .btnGroup {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 3px;
+  }
+
+  .actionBtn {
+    width: auto;
+    justify-content: center;
+    min-height: 34px;
+    padding: 6px 7px;
+    font-size: 0.72rem;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .btnDot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .statValue {
+    font-size: 1.5rem;
+  }
+
+  .table {
+    min-width: 600px;
+  }
+
+  .tableContainer {
+    flex: 1 1 auto;
+    min-height: 40vh;
+    max-height: none;
+    overflow: auto;
+    padding: 0 0.9rem 0.55rem;
+    overscroll-behavior: contain;
+  }
+
+  .legend {
+    padding: 0.7rem 0.9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statCard {
+    padding: 0.5rem;
+  }
+
+  .statValue {
+    font-size: 1.2rem;
+  }
+
+  .statBadge {
+    font-size: 0.64rem;
+    padding: 2px 6px;
+  }
+
+  .table {
+    min-width: 540px;
+    margin-bottom: 0.9rem;
+  }
+
+  .tableContainer {
+    min-height: 44vh;
+    padding: 0 0.8rem 0.8rem;
+  }
+
+  .actionBtn {
+    min-height: 32px;
+    padding: 5px 6px;
+    font-size: 0.69rem;
   }
 }

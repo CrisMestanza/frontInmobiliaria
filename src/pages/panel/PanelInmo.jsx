@@ -1,4 +1,4 @@
-import React, { Profiler, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./PanelInmo.css";
 import {
   PlusCircle,
@@ -103,7 +103,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
         ) : (
           <div className="no-image-placeholder">
             <Globe size={48} opacity={0.2} />
-            <span style={{ fontSize: "10px" }}>Cargando imagen...</span>
+            <span className="card-loading-text">Cargando imagen...</span>
           </div>
         )}
         <div className="card-gradient-overlay" />
@@ -363,37 +363,17 @@ const PanelInmo = () => {
             <Home size={24} />
           </div>
           <div>
-            <h1 style={{ fontSize: "1.25rem", fontWeight: "bold", margin: 0 }}>
-              {nombreInmo}
-            </h1>
-            <p
-              style={{
-                fontSize: "0.75rem",
-                color: "var(--text-muted)",
-                margin: 0,
-              }}
-            >
-              Gestión Inmobiliaria
-            </p>
+            <h1 className="brand-title">{nombreInmo}</h1>
+            <p className="brand-subtitle">Gestión Inmobiliaria</p>
           </div>
         </div>
         <div className="header-user">
           <div className="user-info">
-            <div
-              style={{
-                background: "#f1f5f9",
-                padding: "5px",
-                borderRadius: "50%",
-              }}
-            >
+            <div className="user-avatar">
               <User size={20} />
             </div>
-            <span style={{ fontSize: "0.875rem", fontWeight: "400" }}>
-              Bienvenid@,
-            </span>
-            <span style={{ fontSize: "0.875rem", fontWeight: "600" }}>
-              {nombre}
-            </span>
+            <span className="user-greeting">Bienvenid@,</span>
+            <span className="user-name">{nombre}</span>
           </div>
           <button onClick={handleLogout} className="btn-logout">
             <LogOut size={18} /> Salir
@@ -463,9 +443,10 @@ const PanelInmo = () => {
                   navigator.clipboard.writeText(mapUrl);
                   alert("Copiado");
                 }}
-                className="btn-copy"
+                className="btn-copy share-action-btn"
               >
-                <Copy size={18} /> Copiar
+                <Copy size={18} />
+                <span className="share-btn-text">Copiar</span>
               </button>
               <button
                 onClick={() => {
@@ -487,17 +468,19 @@ const PanelInmo = () => {
                     );
                   }
                 }}
-                className="btn-share"
+                className="btn-share share-action-btn"
               >
-                <Share2Icon size={18} /> Compartir
+                <Share2Icon size={18} />
+                <span className="share-btn-text">Compartir</span>
               </button>
               <button
                 onClick={() => {
                   window.open(mapUrl, "_blank");
                 }}
-                className="btn-map"
+                className="btn-map share-action-btn"
               >
-                <MapPin size={18} /> Ver en Mapa
+                <MapPin size={18} />
+                <span className="share-btn-text">Ver en Mapa</span>
               </button>
             </div>
           </div>
@@ -511,58 +494,36 @@ const PanelInmo = () => {
           </div>
           <div className="stat-box accent-green">
             <div className="stat-label">Lotes Disponibles</div>
-            <div
-              className="stat-value"
-              style={{ color: "var(--accent-green)" }}
-            >
+            <div className="stat-value stat-value-green">
               {resumen?.lotesDisponibles} <CheckCircleIcon size={24} />
             </div>
           </div>
           <div className="stat-box accent-yellow">
             <div className="stat-label">Lotes Reservados</div>
-            <div
-              className="stat-value"
-              style={{ color: "var(--accent-yellow)" }}
-            >
+            <div className="stat-value stat-value-yellow">
               {resumen?.lotesReservados} <ClockFading size={24} />
             </div>
           </div>
           <div className="stat-box accent-red">
             <div className="stat-label">Lotes Vendidos</div>
-            <div className="stat-value" style={{ color: "var(--accent-red)" }}>
+            <div className="stat-value stat-value-red">
               {resumen?.lotesVendidos} <TagIcon size={24} />
             </div>
           </div>
           <div className="stat-box accent-blue">
             <div className="stat-label">Interés en Proyectos</div>
-            <div className="stat-value" style={{ color: "var(--accent-blue)" }}>
+            <div className="stat-value stat-value-blue">
               {clicks?.total_clicks_proyectos || 0}
               <ChartSplineIcon size={24} />
             </div>
           </div>
-          <div
-            className="stat-box accent-black"
-            style={{ position: "relative" }}
-          >
+          <div className="stat-box accent-black contact-card">
             <div className="stat-label">Contactos</div>
-            <div
-              className="stat-value"
-              style={{ color: "var(--accent-black)" }}
-            >
+            <div className="stat-value stat-value-black">
               {clicks?.total_clicks_contactos || 0}
               <MessageCircleHeartIcon size={24} />
             </div>
-            <button
-              onClick={() => setShowRedes(!showRedes)}
-              style={{
-                position: "absolute",
-                top: "10px",
-                right: "15px",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={() => setShowRedes(!showRedes)} className="contact-toggle-btn">
               {showRedes ? (
                 <ChevronUpIcon size={18} />
               ) : (
@@ -571,21 +532,13 @@ const PanelInmo = () => {
             </button>
 
             {showRedes && (
-              <div style={{ fontSize: "0.9rem", marginTop: "6px" }}>
+              <div className="contact-details">
                 {redes.map((rs) => {
                   const red = clicks?.detalle_contactos?.find(
                     (r) => r.redSocial === rs.nombre,
                   );
                   return (
-                    <div
-                      key={rs.nombre}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        marginTop: "3px",
-                      }}
-                    >
+                    <div key={rs.nombre} className="contact-row">
                       {rs.icono}
                       <span>
                         <strong>{rs.nombre}:</strong> {red ? red.total : 0}
@@ -601,9 +554,7 @@ const PanelInmo = () => {
         {/* GALERÍA */}
         <section>
           <div className="section-header">
-            <h2 style={{ fontWeight: "800", fontSize: "1.25rem", margin: 0 }}>
-              Mis Proyectos
-            </h2>
+            <h2 className="section-title">Mis Proyectos</h2>
             <button onClick={() => setShowModal(true)} className="btn-copy">
               <PlusCircle size={18} /> Nuevo Proyecto
             </button>
@@ -624,42 +575,26 @@ const PanelInmo = () => {
 
         {/* TABLA */}
         <section className="table-section">
-          <div
-            style={{
-              padding: "1.5rem",
-              borderBottom: "1px solid var(--border-color)",
-              display: "flex",
-              justifyContent: "space-between",
-            }}
-          >
-            <h2 style={{ fontWeight: "bold", margin: 0 }}>Listado de Lotes</h2>
-            <div style={{ position: "relative" }}>
+          <div className="table-header">
+            <h2 className="table-title">Listado de Lotes</h2>
+            <div className="table-search-wrap">
               <input
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar..."
-                className="input-styled"
-                style={{ paddingLeft: "2.5rem", width: "250px" }}
+                className="input-styled table-search-input"
               />
-              <Search
-                size={18}
-                style={{
-                  position: "absolute",
-                  left: "10px",
-                  top: "10px",
-                  color: "#94a3b8",
-                }}
-              />
+              <Search size={18} className="table-search-icon" />
             </div>
           </div>
           <div className="table-wrapper">
-            <table>
+            <table className="table-main">
               <thead>
                 <tr>
                   <th>Lote</th>
                   <th>Descripción</th>
                   <th>Precio</th>
                   <th>Estado</th>
-                  <th style={{ textAlign: "right" }}>Acciones</th>
+                  <th className="th-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -669,14 +604,9 @@ const PanelInmo = () => {
                   )
                   .map((lote) => (
                     <tr key={lote.idlote}>
-                      <td style={{ fontWeight: "bold" }}>{lote.nombre}</td>
+                      <td className="td-bold">{lote.nombre}</td>
                       <td>{lote.descripcion}</td>
-                      <td
-                        style={{
-                          fontWeight: "bold",
-                          color: "var(--accent-green)",
-                        }}
-                      >
+                      <td className="td-price">
                         S/. {lote.precio?.toLocaleString()}
                       </td>
                       <td>
@@ -688,7 +618,7 @@ const PanelInmo = () => {
                             : "Vendido"}
                         </span>
                       </td>
-                      <td style={{ textAlign: "right" }}>
+                      <td className="td-right">
                         <button className="btn-icon-small">
                           <Trash2 size={18} />
                         </button>

@@ -323,15 +323,8 @@ export default function IconoModal({ onClose, idproyecto }) {
         <button className={style.closeBtn} onClick={onClose}>
           ✖
         </button>
-        <h2 style={{ color: "black" }}>Arrastra los Íconos a tu Proyecto</h2>
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            marginBottom: "10px",
-            flexWrap: "wrap",
-          }}
-        >
+        <h2 className={style.iconModalTitle}>Arrastra los Íconos a tu Proyecto</h2>
+        <div className={style.iconPalette}>
           {iconosDisponibles.map((ico) => (
             <img
               key={ico.idicono}
@@ -340,16 +333,16 @@ export default function IconoModal({ onClose, idproyecto }) {
               title={ico.nombre}
               draggable
               onDragStart={() => setDraggedIcono(ico)}
-              style={{ width: 40, height: 40, cursor: "grab" }}
+              className={style.iconPaletteItem}
             />
           ))}
         </div>
         {/* Lista de íconos ya registrados */}
-        <div style={{ margin: "10px 0" }}>
-          <h3 style={{ color: "black" }}>
+        <div className={style.iconSection}>
+          <h3 className={style.iconSectionTitle}>
             Íconos registrados en este proyecto:
           </h3>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <div className={style.iconRegisteredList}>
             {iconosMapa.map((ico, idx) => {
               // const imagen =
               //   ico.icono_detalle?.imagen ||
@@ -375,19 +368,19 @@ export default function IconoModal({ onClose, idproyecto }) {
                   src={`https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`}
                   alt={ico.icono_detalle.nombre}
                   title={ico.icono_detalle.nombre}
-                  style={{ width: 30, height: 30 }}
+                  className={style.iconRegisteredItem}
                 />
               );
             })}
             {!iconosMapa.length && (
-              <p style={{ color: "gray" }}>No hay íconos aún</p>
+              <p className={style.iconEmpty}>No hay íconos aún</p>
             )}
           </div>
         </div>
 
         <div
           ref={mapRef}
-          style={{ width: "100%", height: "400px", marginBottom: "1rem" }}
+          className={style.iconMap}
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
         />

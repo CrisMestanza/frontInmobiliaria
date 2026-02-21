@@ -19,6 +19,7 @@ import { Link } from "react-router-dom";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const LIBRARIES = ["places"];
+const GEOLOCATION_ONBOARDING_DONE_KEY = "geoHabitaGeolocationOnboardingDone";
 
 const RANGOS_PRECIO = [
   { label: "$. 5,000 - 15,000", value: "5000-15000" },
@@ -414,20 +415,39 @@ function MyMap() {
   }, []);
 
   useEffect(() => {
-    // ❗ Si el usuario ya buscó una ubicación, NO usar GPS
-    if (hasSearchedLocation) return;
+    // Solo intentar geolocalizar una vez por usuario para evitar recentrados inesperados.
+    let onboardingDone = false;
+    try {
+      onboardingDone =
+        localStorage.getItem(GEOLOCATION_ONBOARDING_DONE_KEY) === "1";
+    } catch {
+      onboardingDone = false;
+    }
 
-    if (inmoId || selectedProyecto) return;
+    if (onboardingDone || hasSearchedLocation || inmoId) return;
 
     navigator.geolocation?.getCurrentPosition(
-      (pos) =>
+      (pos) => {
         setCurrentPosition({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        }),
-      () => console.warn("Permiso de ubicación denegado."),
+        });
+        try {
+          localStorage.setItem(GEOLOCATION_ONBOARDING_DONE_KEY, "1");
+        } catch {
+          // ignore storage errors
+        }
+      },
+      () => {
+        console.warn("Permiso de ubicación denegado.");
+        try {
+          localStorage.setItem(GEOLOCATION_ONBOARDING_DONE_KEY, "1");
+        } catch {
+          // ignore storage errors
+        }
+      },
     );
-  }, [inmoId, selectedProyecto, hasSearchedLocation]);
+  }, [hasSearchedLocation, inmoId]);
 
   useEffect(() => {
     if (selectedProyecto && lotesProyecto.length > 0) {
@@ -855,8 +875,8 @@ function MyMap() {
             <input
               ref={inputRef}
               className={`${styles.searchInput} ${isSearchFocused ? styles.searchInputFocused : ""}`}
-              placeholder="Buscar Lugar"
               onFocus={() => setIsSearchFocused(true)}
+              placeholder="Buscar Lugar"
               onBlur={() => setIsSearchFocused(false)}
             />
           </div>

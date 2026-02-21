@@ -254,3 +254,108 @@ textarea.input {
   background: rgba(255, 255, 255, 0);
   border: #e03131;
 }
+
+.iconModalTitle {
+  color: #0f172a;
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+  padding-right: 2rem;
+}
+
+.iconPalette {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.iconPaletteItem {
+  width: 40px;
+  height: 40px;
+  cursor: grab;
+}
+
+.iconSection {
+  margin: 10px 0;
+}
+
+.iconSectionTitle {
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.iconRegisteredList {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.iconRegisteredItem {
+  width: 30px;
+  height: 30px;
+}
+
+.iconEmpty {
+  color: #64748b;
+  margin: 0;
+}
+
+.iconMap {
+  width: 100%;
+  height: 400px;
+  margin-bottom: 1rem;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .modalOverlay {
+    padding: 8px;
+  }
+
+  .modalContent {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 16px);
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .closeBtn {
+    width: 38px;
+    height: 38px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .input,
+  .submitBtn,
+  .addBtn {
+    min-height: 44px;
+  }
+
+  .iconMap {
+    height: 320px;
+  }
+
+  .iconPaletteItem {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modalOverlay {
+    padding: 4px;
+  }
+
+  .modalContent {
+    max-height: calc(100vh - 8px);
+    padding: 12px;
+  }
+
+  .iconMap {
+    height: 280px;
+  }
+}
