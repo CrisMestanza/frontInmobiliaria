@@ -94,7 +94,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                   </div>
 
                   <div>
-                    <span className={styles.inmoLabel}>Inmobiliaria</span>
+                    <span className={styles.inmoLabel}>Inmobiliaria / Persona</span>
                     <h2 className={styles.inmoName}>
                       {inmo?.nombreinmobiliaria}
                     </h2>

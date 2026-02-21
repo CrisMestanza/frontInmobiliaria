@@ -169,7 +169,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                   </div>
 
                   <div>
-                    <span className={styles.inmoLabel}>Inmobiliaria</span>
+                    <span className={styles.inmoLabel}>Inmobiliaria / Persona</span>
                     <h2 className={styles.inmoName}>
                       {inmo?.nombreinmobiliaria}
                     </h2>
