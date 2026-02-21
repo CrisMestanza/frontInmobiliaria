@@ -524,14 +524,17 @@
   }
 
   .distanciaBox {
-    margin-right: 20px;
-  }
-
-  .distanciaBox {
-    margin-right: 40px;
+    margin-right: 30px;
   }
 
   .inmoCard {
-    margin-right: 40px;
+    margin-right: 30px;
+  }
+
+  .quickGrid{
+     margin-right: 30px;
+  }
+  .featuresGrid{
+     margin-right: 30px;
   }
 }
