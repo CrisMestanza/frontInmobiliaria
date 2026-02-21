@@ -185,7 +185,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
               </div>
 
               <p className={styles.proyectoP}>Proyecto</p>
-              
+              <br></br>
               {proyecto.idtipoinmobiliaria === 2 && (
                 <span className={styles.legalLabel}>
                   {proyecto.titulo_propiedad ? "✓ Cuenta con titulo" : "• No cuenta con titulo"}
