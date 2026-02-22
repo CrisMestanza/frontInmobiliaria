@@ -489,6 +489,20 @@
     overflow-y: auto;
     display: block;
   }
+  .splitLayout{
+    margin-left: 10px;
+  }
+
+  .closeBtn{
+    font-size: 35px;
+    color: black;
+  }
+
+  .navArrow{
+    color: black;
+    margin-right: 27px;
+  }
+
 
   .nombreProyecto {
 

@@ -503,7 +503,10 @@
     top: 15px;
     right: 15px;
   }
-
+  .closeBtn{
+    font-size: 30px;
+    color: black;
+  }
   .nombreProyecto {
 
     /* font-size: 20px; */
@@ -536,5 +539,10 @@
   }
   .featuresGrid{
      margin-right: 30px;
+  }
+
+  .navArrow{
+    color: black;
+    margin-right: 27px;
   }
 }
