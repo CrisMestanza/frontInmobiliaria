@@ -238,7 +238,7 @@ function MyMap() {
     const cached = getCached("lotes", id, "lotes");
     if (cached) return cached;
     const res = await fetch(
-      `https://apiinmo.y0urs.com/api/getLotesConPuntos/${id}`,
+      `https://api.geohabita.com/api/getLotesConPuntos/${id}`,
     );
     const data = await res.json();
     setCached("lotes", id, "lotes", data);
@@ -249,7 +249,7 @@ function MyMap() {
     const cached = getCached("puntos", id, "puntos");
     if (cached) return cached;
     const res = await fetch(
-      `https://apiinmo.y0urs.com/api/listPuntosProyecto/${id}`,
+      `https://api.geohabita.com/api/listPuntosProyecto/${id}`,
     );
     const data = await res.json();
     setCached("puntos", id, "puntos", data);
@@ -261,7 +261,7 @@ function MyMap() {
     const cached = getCached("inmo", cacheKey, "inmo");
     if (cached) return cached;
     const res = await fetch(
-      `https://apiinmo.y0urs.com/api/getInmobiliaria/${idInmo}`,
+      `https://api.geohabita.com/api/getInmobiliaria/${idInmo}`,
     );
     const data = await res.json();
     setCached("inmo", cacheKey, "inmo", data);
@@ -272,7 +272,7 @@ function MyMap() {
     const cached = getCached("iconos", id, "iconos");
     if (cached) return cached;
     const res = await fetch(
-      `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${id}`,
+      `https://api.geohabita.com/api/list_iconos_proyecto/${id}`,
     );
     const data = await res.json();
     setCached("iconos", id, "iconos", data);
@@ -461,7 +461,7 @@ function MyMap() {
       setSelectedRango("");
       setFiltroBotActivo(false);
 
-      const apiUrl = `https://apiinmo.y0urs.com/api/listProyectosInmobiliaria/${inmoId}`;
+      const apiUrl = `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`;
 
       fetch(apiUrl)
         .then((res) => res.json())
@@ -485,7 +485,7 @@ function MyMap() {
   useEffect(() => {
     if (selectedLote) {
       fetch(
-        `https://apiinmo.y0urs.com/api/list_imagen/${selectedLote.lote.idlote}`,
+        `https://api.geohabita.com/api/list_imagen/${selectedLote.lote.idlote}`,
       )
         .then((res) => res.json())
         .then((data) => setImagenesLote(data))
@@ -498,7 +498,7 @@ function MyMap() {
   useEffect(() => {
     if (selectedProyecto?.idproyecto) {
       fetch(
-        `https://apiinmo.y0urs.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`,
+        `https://api.geohabita.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`,
       )
         .then((res) => res.json())
         .then((data) => setImagenesProyecto(data))
@@ -554,7 +554,7 @@ function MyMap() {
   }, [proyecto, selectedProyecto]);
 
   useEffect(() => {
-    fetch("https://apiinmo.y0urs.com/api/listTipoInmobiliaria/")
+    fetch("https://api.geohabita.com/api/listTipoInmobiliaria/")
       .then((res) => res.json())
       .then(setTiposInmo)
       .catch(console.error);
@@ -595,7 +595,7 @@ function MyMap() {
       if (tipo) {
         if (tipo.idtipoinmobiliaria === 2) {
           fetch(
-            `https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`,
+            `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
           )
             .then((res) => res.json())
             .then((data) => {
@@ -604,7 +604,7 @@ function MyMap() {
             .catch(console.error);
         } else if (tipo.idtipoinmobiliaria === 1) {
           fetch(
-            `https://apiinmo.y0urs.com/api/filtroCasaProyecto/${selectedTipo}`,
+            `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
           )
             .then((res) => res.json())
             .then((data) => {
@@ -614,7 +614,7 @@ function MyMap() {
         }
       }
     } else if (selectedRango) {
-      fetch(`https://apiinmo.y0urs.com/api/rangoPrecio/${selectedRango}`)
+      fetch(`https://api.geohabita.com/api/rangoPrecio/${selectedRango}`)
         .then((res) => res.json())
         .then((data) => {
           setLotes(data.lotes || []);
@@ -643,7 +643,7 @@ function MyMap() {
         })
         .catch(console.error);
     } else {
-      fetch("https://apiinmo.y0urs.com/api/listProyectos/")
+      fetch("https://api.geohabita.com/api/listProyectos/")
         .then((res) => res.json())
         .then(setProyecto)
         .catch(console.error);
@@ -718,7 +718,7 @@ function MyMap() {
       const fecha = new Date().toISOString().split("T")[0];
       const hora = new Date().toLocaleTimeString("en-GB", { hour12: false });
 
-      await fetch("https://apiinmo.y0urs.com/api/registerClickProyecto/", {
+      await fetch("https://api.geohabita.com/api/registerClickProyecto/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1004,7 +1004,7 @@ function MyMap() {
               lng: parseFloat(ico.longitud),
             }}
             icon={{
-              url: `https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`,
+              url: `https://api.geohabita.com${ico.icono_detalle.imagen}`,
               scaledSize: new window.google.maps.Size(40, 40),
             }}
             title={ico.icono_detalle.nombre}
@@ -1065,7 +1065,7 @@ function MyMap() {
             try {
               if (selectedRango) {
                 const res = await fetch(
-                  `https://apiinmo.y0urs.com/api/rangoPrecio/${selectedRango}`,
+                  `https://api.geohabita.com/api/rangoPrecio/${selectedRango}`,
                 );
                 const data = await res.json();
                 setLotes(data.lotes || []);
@@ -1087,13 +1087,13 @@ function MyMap() {
                 setProyecto(proyectosUnicos);
               } else if (inmoId) {
                 const res = await fetch(
-                  `https://apiinmo.y0urs.com/api/listProyectosInmobiliaria/${inmoId}`,
+                  `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`,
                 );
                 const data = await res.json();
                 setProyecto(data);
               } else {
                 const res = await fetch(
-                  "https://apiinmo.y0urs.com/api/listProyectos/",
+                  "https://api.geohabita.com/api/listProyectos/",
                 );
                 const data = await res.json();
                 setProyecto(data);

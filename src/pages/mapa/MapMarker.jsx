@@ -9,7 +9,7 @@ export default function ProyectoMarker({ onClick, proyecto }) {
     async function fetchProyectos() {
       try {
         const res = await axios.get(
-          "https://apiinmo.y0urs.com/api/listProyectos",
+          "https://api.geohabita.com/api/listProyectos",
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("access")}`,

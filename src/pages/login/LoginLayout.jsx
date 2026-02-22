@@ -19,7 +19,7 @@ const LoginLayout = () => {
 
     setLoading(true);
     try {
-      const res = await fetch("https://apiinmo.y0urs.com/api/login/", {
+      const res = await fetch("https://api.geohabita.com/api/login/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo, password }),

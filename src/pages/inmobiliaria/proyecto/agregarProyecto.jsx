@@ -81,7 +81,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   // Cargar Tipos
   useEffect(() => {
-    fetch("https://apiinmo.y0urs.com/api/listTipoInmobiliaria/", {
+    fetch("https://api.geohabita.com/api/listTipoInmobiliaria/", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -272,7 +272,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
     try {
       const res = await fetch(
-        "https://apiinmo.y0urs.com/api/registerProyecto/",
+        "https://api.geohabita.com/api/registerProyecto/",
         {
           method: "POST",
           body: formData,

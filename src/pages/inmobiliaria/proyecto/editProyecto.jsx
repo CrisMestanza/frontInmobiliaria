@@ -31,7 +31,7 @@ export default function EditProyectoModal({
     const fetchPuntos = async () => {
       try {
         const res = await fetch(
-          `https://apiinmo.y0urs.com/api/listPuntosProyecto/${proyecto.idproyecto}`
+          `https://api.geohabita.com/api/listPuntosProyecto/${proyecto.idproyecto}`
         );
         const data = await res.json();
 
@@ -141,7 +141,7 @@ export default function EditProyectoModal({
       });
 
       const res = await fetch(
-        `https://apiinmo.y0urs.com/api/updateProyecto/${form.idproyecto}/`,
+        `https://api.geohabita.com/api/updateProyecto/${form.idproyecto}/`,
         {
           method: "PUT",
           headers: {

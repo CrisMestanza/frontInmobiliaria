@@ -110,6 +110,7 @@
   height: 100%;
   object-fit: cover;
   cursor: zoom-in;
+  transition: opacity 0.2s ease;
 }
 
 .sliderControls {

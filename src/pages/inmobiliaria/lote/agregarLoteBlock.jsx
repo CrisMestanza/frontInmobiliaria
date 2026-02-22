@@ -288,7 +288,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const fetchProyecto = useCallback(async () => {
     try {
       const resProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+        `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const data = await resProyecto.json();
@@ -304,7 +304,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       // 🔹 Cargar polígono del proyecto
       const resPuntosProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+        `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const puntosProyecto = await resPuntosProyecto.json();
@@ -882,7 +882,7 @@ setShowRegisterModal(true);      // Abrir modal
 
     try {
       const res = await fetch(
-        "https://apiinmo.y0urs.com/api/registerLotesMasivo/",
+        "https://api.geohabita.com/api/registerLotesMasivo/",
         {
           method: "POST",
           headers: {

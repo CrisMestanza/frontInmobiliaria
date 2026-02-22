@@ -29,7 +29,7 @@ const Summary = ({ onBack, formData }) => {
 
     try {
       const response = await fetch(
-        "https://apiinmo.y0urs.com/api/register_inmobiliaria_usuario/",
+        "https://api.geohabita.com/api/register_inmobiliaria_usuario/",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -30,7 +30,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
   const cerrarSidebar = () => {
     onClose();
-    if (mapRef?.current) mapRef.current.setZoom(17);
+    if (mapRef?.current) mapRef.current.setZoom(18);
   };
 
   useEffect(() => {
@@ -38,6 +38,15 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, []);
+
+  useEffect(() => {
+    if (!imagenes || imagenes.length === 0) return;
+
+    imagenes.forEach((img) => {
+      const image = new Image();
+      image.src = `https://api.geohabita.com${img.imagen}`;
+    });
+  }, [imagenes]);
 
   const handleScroll = () => {
     if (!contentRef.current) return;
@@ -67,7 +76,8 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
             {imagenes.length > 0 ? (
               <>
                 <img
-                  src={`https://apiinmo.y0urs.com${imagenes[currentImg].imagen}`}
+                  key={currentImg}
+                  src={`https://api.geohabita.com${imagenes[currentImg].imagen}`}
                   alt="Lote"
                   className={styles.mainImage}
                   onClick={() => setFullscreenImgIndex(currentImg)}
@@ -213,7 +223,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
       {fullscreenImgIndex !== null && (
         <div className={styles.fullscreenOverlay} onClick={() => setFullscreenImgIndex(null)}>
           <img
-            src={`https://apiinmo.y0urs.com${imagenes[fullscreenImgIndex].imagen}`}
+            src={`https://api.geohabita.com${imagenes[fullscreenImgIndex].imagen}`}
             className={styles.fullscreenImg}
             alt="Zoom"
           />

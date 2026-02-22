@@ -163,7 +163,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const fetchProyecto = useCallback(async () => {
     try {
       const res = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+        `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`,
       );
       const puntosProyecto = await res.json();
       if (!puntosProyecto || !puntosProyecto.length) return;
@@ -181,14 +181,14 @@ export default function LoteModal({ onClose, idproyecto }) {
       setProyectoCoords(coords);
 
       const resLotes = await fetch(
-        `https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}`,
+        `https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`,
       );
       const lotes = await resLotes.json();
 
       const lotesData = [];
       for (const lote of lotes) {
         const resPuntos = await fetch(
-          `https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}`,
+          `https://api.geohabita.com/api/listPuntos/${lote.idlote}`,
         );
         const puntos = await resPuntos.json();
         if (!puntos.length) continue;

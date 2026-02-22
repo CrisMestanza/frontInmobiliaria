@@ -261,7 +261,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   // const fetchProyecto = useCallback(async () => {
   //   try {
   //     const resProyecto = await fetch(
-  //       https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}
+  //       https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}
   //     );
   //     const puntosProyecto = await resProyecto.json();
 
@@ -281,14 +281,14 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   //     // cargar lotes
   //     const resLotes = await fetch(
-  //       https://apiinmo.y0urs.com/api/getLoteProyecto/${idproyecto}
+  //       https://api.geohabita.com/api/getLoteProyecto/${idproyecto}
   //     );
   //     const lotes = await resLotes.json();
 
   //     const lotesData = [];
   //     for (const lote of lotes) {
   //       const resPuntos = await fetch(
-  //         https://apiinmo.y0urs.com/api/listPuntos/${lote.idlote}
+  //         https://api.geohabita.com/api/listPuntos/${lote.idlote}
   //       );
   //       const puntos = await resPuntos.json();
   //       if (!puntos.length) continue;
@@ -330,7 +330,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     try {
       // 🔹 Polígono del proyecto (siempre debe cargarse, incluso sin lotes)
       const resPuntosProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`,
+        `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -355,7 +355,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       // 🔹 Lotes ya registrados (puede venir vacío en proyecto nuevo)
       const resProyecto = await fetch(
-        `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+        `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -388,7 +388,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     const fetchTipos = async () => {
       try {
         const res = await fetch(
-          `https://apiinmo.y0urs.com/api/listTipoInmobiliaria/`,
+          `https://api.geohabita.com/api/listTipoInmobiliaria/`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -556,7 +556,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     });
     console.log("Enviando formulario:", form);
     try {
-      const res = await fetch("https://apiinmo.y0urs.com/api/registerLote/", {
+      const res = await fetch("https://api.geohabita.com/api/registerLote/", {
         method: "POST",
         body: formData,
         headers: { Authorization: `Bearer ${token}` },

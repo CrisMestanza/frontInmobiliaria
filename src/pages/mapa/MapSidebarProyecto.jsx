@@ -70,7 +70,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
 
   const registrarClickContacto = async (redSocial) => {
     try {
-      await fetch("https://apiinmo.y0urs.com/api/registerClickContactos/", {
+      await fetch("https://api.geohabita.com/api/registerClickContactos/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -87,6 +87,13 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
       console.error("Error registrando click:", error);
     }
   };
+
+  useEffect(() => {
+    imagenes.forEach((img) => {
+      const image = new Image();
+      image.src = `https://api.geohabita.com${img.imagenproyecto}`;
+    });
+  }, [imagenes]);
 
 
   useEffect(() => {
@@ -128,7 +135,8 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
             {imagenes.length > 0 ? (
               <>
                 <img
-                  src={`https://apiinmo.y0urs.com${imagenes[currentImg].imagenproyecto}`}
+                  key={currentImg}
+                  src={`https://api.geohabita.com${imagenes[currentImg].imagenproyecto}`}
                   alt="Propiedad"
                   className={styles.mainImage}
                   onClick={() => setFullscreenImgIndex(currentImg)}
@@ -192,7 +200,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                 </span>
               )}
 
-                
+
               <h1 className={styles.nombreProyecto}>{proyecto.nombreproyecto}</h1>
               {/* <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p> */}
 
@@ -328,7 +336,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
           )}
 
           <img
-            src={`https://apiinmo.y0urs.com${imagenes[fullscreenImgIndex].imagenproyecto}`}
+            src={`https://api.geohabita.com${imagenes[fullscreenImgIndex].imagenproyecto}`}
             className={styles.fullscreenImg}
             alt="Zoom"
             onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen misma

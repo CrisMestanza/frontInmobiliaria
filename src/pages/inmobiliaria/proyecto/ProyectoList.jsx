@@ -15,7 +15,7 @@ export default function ProyectosList() {
     const fetchProyectos = async () => {
       try {
         const res = await fetch(
-          `https://apiinmo.y0urs.com/api/getProyectoInmo/${idinmobiliaria}`,
+          `https://api.geohabita.com/api/getProyectoInmo/${idinmobiliaria}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -160,7 +160,7 @@ export default function ProyectosList() {
                         )
                       ) {
                         await fetch(
-                          `https://apiinmo.y0urs.com/api/deleteProyecto/${proyecto.idproyecto}/`,
+                          `https://api.geohabita.com/api/deleteProyecto/${proyecto.idproyecto}/`,
                           {
                             method: "PUT",
                             headers: {

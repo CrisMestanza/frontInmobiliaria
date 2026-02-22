@@ -13,7 +13,7 @@ export default function Principal() {
     const fetchInmobiliarias = async () => {
       try {
         const res = await fetch(
-          "https://apiinmo.y0urs.com/api/listInmobiliaria/",
+          "https://api.geohabita.com/api/listInmobiliaria/",
         );
         const data = await res.json();
         setInmobiliarias(data);
@@ -36,7 +36,7 @@ export default function Principal() {
     if (confirm) {
       try {
         const res = await fetch(
-          `https://apiinmo.y0urs.com/api/deleteInmobiliaria/${idinmobiliaria}/`,
+          `https://api.geohabita.com/api/deleteInmobiliaria/${idinmobiliaria}/`,
           {
             method: "PUT",
           },

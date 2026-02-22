@@ -69,13 +69,13 @@ export default function IconoModal({ onClose, idproyecto }) {
     const loadProjectGeometries = async () => {
       try {
         const [resProyecto, resLotes, resIconosProyecto] = await Promise.all([
-          fetch(`https://apiinmo.y0urs.com/api/listPuntosProyecto/${idproyecto}`, {
+          fetch(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }),
           fetch(
-            `https://apiinmo.y0urs.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+            `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -83,7 +83,7 @@ export default function IconoModal({ onClose, idproyecto }) {
             },
           ),
           fetch(
-            `https://apiinmo.y0urs.com/api/list_iconos_proyecto/${idproyecto}`,
+            `https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -157,7 +157,7 @@ export default function IconoModal({ onClose, idproyecto }) {
               },
               map: map.mapInstance,
               icon: {
-                url: `https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`,
+                url: `https://api.geohabita.com${ico.icono_detalle.imagen}`,
                 scaledSize: new window.google.maps.Size(40, 40),
               },
               draggable: true,
@@ -212,7 +212,7 @@ export default function IconoModal({ onClose, idproyecto }) {
       position: latLng,
       map: map.mapInstance,
       icon: {
-        url: `https://apiinmo.y0urs.com${draggedIcono.imagen}`,
+        url: `https://api.geohabita.com${draggedIcono.imagen}`,
         scaledSize: new window.google.maps.Size(40, 40),
       },
       draggable: true,
@@ -277,7 +277,7 @@ export default function IconoModal({ onClose, idproyecto }) {
 
   useEffect(() => {
     const fetchIconos = async () => {
-      const res = await fetch("https://apiinmo.y0urs.com/api/listIconos/");
+      const res = await fetch("https://api.geohabita.com/api/listIconos/");
       const data = await res.json();
       setIconosDisponibles(data);
     };
@@ -305,7 +305,7 @@ export default function IconoModal({ onClose, idproyecto }) {
           )
       );
 
-    await fetch("https://apiinmo.y0urs.com/api/add_iconos_proyecto/", {
+    await fetch("https://api.geohabita.com/api/add_iconos_proyecto/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -328,7 +328,7 @@ export default function IconoModal({ onClose, idproyecto }) {
           {iconosDisponibles.map((ico) => (
             <img
               key={ico.idicono}
-              src={`https://apiinmo.y0urs.com${ico.imagen}`}
+              src={`https://api.geohabita.com${ico.imagen}`}
               alt={ico.nombre}
               title={ico.nombre}
               draggable
@@ -357,7 +357,7 @@ export default function IconoModal({ onClose, idproyecto }) {
               return (
                 //   <img
                 //     key={idx}
-                //     src={`https://apiinmo.y0urs.com${imagen}`}
+                //     src={`https://api.geohabita.com${imagen}`}
                 //     alt={nombre}
                 //     title={nombre}
                 //     style={{ width: 30, height: 30 }}
@@ -365,7 +365,7 @@ export default function IconoModal({ onClose, idproyecto }) {
                 // );
                 <img
                   key={idx}
-                  src={`https://apiinmo.y0urs.com${ico.icono_detalle.imagen}`}
+                  src={`https://api.geohabita.com${ico.icono_detalle.imagen}`}
                   alt={ico.icono_detalle.nombre}
                   title={ico.icono_detalle.nombre}
                   className={style.iconRegisteredItem}

@@ -65,7 +65,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
 
   useEffect(() => {
     fetch(
-      `https://apiinmo.y0urs.com/api/list_imagen_proyecto/${proyecto.idproyecto}`,
+      `https://api.geohabita.com/api/list_imagen_proyecto/${proyecto.idproyecto}`,
     )
       .then((res) => res.json())
       .then((data) => {
@@ -84,7 +84,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
     if (imagenes.length === 0) return null;
     const path = imagenes[index].imagenproyecto;
     if (!path) return null;
-    return path.startsWith("http") ? path : `https://apiinmo.y0urs.com${path}`;
+    return path.startsWith("http") ? path : `https://api.geohabita.com${path}`;
   };
 
   const currentImg = getImageUrl();
@@ -243,7 +243,7 @@ const PanelInmo = () => {
     try {
       setLoading(true);
       const resProy = await fetch(
-        `https://apiinmo.y0urs.com/api/getProyectoInmo/${idInmo}`,
+        `https://api.geohabita.com/api/getProyectoInmo/${idInmo}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -255,7 +255,7 @@ const PanelInmo = () => {
       let lotesAcumulados = [];
       for (let proy of cleanProyectos) {
         const resLotes = await fetch(
-          `https://apiinmo.y0urs.com/api/getLoteProyecto/${proy.idproyecto}`,
+          `https://api.geohabita.com/api/getLoteProyecto/${proy.idproyecto}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -283,7 +283,7 @@ const PanelInmo = () => {
       });
 
       const resClicks = await fetch(
-        `https://apiinmo.y0urs.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
+        `https://api.geohabita.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -324,7 +324,7 @@ const PanelInmo = () => {
 
     try {
       const res = await fetch(
-        `https://apiinmo.y0urs.com/api/deleteProyecto/${idproyecto}/`,
+        `https://api.geohabita.com/api/deleteProyecto/${idproyecto}/`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },

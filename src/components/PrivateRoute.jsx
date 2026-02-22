@@ -14,7 +14,7 @@ const PrivateRoute = ({ children }) => {
       }
 
       try {
-        const res = await fetch("https://apiinmo.y0urs.com/api/check_auth/", {
+        const res = await fetch("https://api.geohabita.com/api/check_auth/", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -32,7 +32,7 @@ const PrivateRoute = ({ children }) => {
           const newToken = await refreshAccessToken();
           if (newToken) {
             // reintentar
-            const r2 = await fetch("https://apiinmo.y0urs.com/api/check_auth/", {
+            const r2 = await fetch("https://api.geohabita.com/api/check_auth/", {
               headers: { Authorization: `Bearer ${newToken}` },
             });
             setIsAuth(r2.ok);
@@ -51,7 +51,7 @@ const PrivateRoute = ({ children }) => {
       const refresh = localStorage.getItem("refresh");
       if (!refresh) return null;
       try {
-        const res = await fetch("https://apiinmo.y0urs.com/api/token/refresh/", {
+        const res = await fetch("https://api.geohabita.com/api/token/refresh/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh }),
