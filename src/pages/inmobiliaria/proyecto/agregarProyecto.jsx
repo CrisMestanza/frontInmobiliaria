@@ -43,6 +43,23 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   });
   const isCasa = parseInt(form.idtipoinmobiliaria, 10) === 2;
+  const casaDimensionFields = [
+    { name: "area_total_m2", label: "Area total", step: "0.01" },
+    { name: "ancho", label: "Ancho", step: "0.01", required: true },
+    { name: "largo", label: "Largo", step: "0.01", required: true },
+  ];
+  const casaAmbienteFields = [
+    { name: "dormitorios", label: "Dormitorios" },
+    { name: "banos", label: "Baños" },
+    { name: "cuartos", label: "Cuartos" },
+    { name: "cochera", label: "Cochera" },
+    { name: "cocina", label: "Cocina" },
+    { name: "sala", label: "Sala" },
+    { name: "patio", label: "Patio" },
+    { name: "jardin", label: "Jardín" },
+    { name: "terraza", label: "Terraza" },
+    { name: "azotea", label: "Azotea" },
+  ];
 
 
   // useEffect(() => {
@@ -426,160 +443,40 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                       />
                     </div>
 
-                    <div className={styles.inputGroup}>
-                      <label>Area total:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        name="area_total_m2"
-                        value={form.area_total_m2}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
+                    <div className={styles.compactGrid}>
+                      {casaDimensionFields.map((field) => (
+                        <div key={field.name} className={styles.compactField}>
+                          <label htmlFor={field.name}>{field.label}</label>
+                          <input
+                            id={field.name}
+                            type="number"
+                            min="0"
+                            step={field.step}
+                            name={field.name}
+                            value={form[field.name]}
+                            onChange={handleChange}
+                            className={`${styles.input} ${styles.compactInput}`}
+                            required={field.required}
+                          />
+                        </div>
+                      ))}
                     </div>
 
-                    <div className={styles.inputGroup}>
-                      <label>Ancho:</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        name="ancho"
-                        value={form.ancho}
-                        onChange={handleChange}
-                        className={styles.input}
-                        required
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Largo:</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        name="largo"
-                        value={form.largo}
-                        onChange={handleChange}
-                        className={styles.input}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label>Dormitorios:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="dormitorios"
-                        value={form.dormitorios}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-
-                    <div className={styles.inputGroup}>
-                      <label>Baños:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="banos"
-                        value={form.banos}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Cuartos:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="cuartos"
-                        value={form.cuartos}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Cochera:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="cochera"
-                        value={form.cochera}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-
-                      <label>Cocina:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="cocina"
-                        value={form.cocina}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Sala:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="sala"
-                        value={form.sala}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-
-                      <label>Patio:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="patio"
-                        value={form.patio}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-                      <label>Jardín:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="jardin"
-                        value={form.jardin}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-
-                      <label>Terraza:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="terraza"
-                        value={form.terraza}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
-                    </div>
-                    <div className={styles.inputGroup}>
-
-                      <label>Azotea:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        name="azotea"
-                        value={form.azotea}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
+                    <div className={styles.compactGrid}>
+                      {casaAmbienteFields.map((field) => (
+                        <div key={field.name} className={styles.compactField}>
+                          <label htmlFor={field.name}>{field.label}</label>
+                          <input
+                            id={field.name}
+                            type="number"
+                            min="0"
+                            name={field.name}
+                            value={form[field.name]}
+                            onChange={handleChange}
+                            className={`${styles.input} ${styles.compactInput}`}
+                          />
+                        </div>
+                      ))}
                     </div>
                   </>
                 )}

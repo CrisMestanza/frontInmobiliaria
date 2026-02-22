@@ -179,6 +179,36 @@
   box-shadow: 0 0 0 2.25px rgba(30, 64, 175, 0.1); /* 3px * 0.75 */
 }
 
+.compactGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.compactField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.compactField label {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.compactInput {
+  min-height: 33px;
+  padding: 0.42rem 0.52rem;
+}
+
+@media (min-width: 768px) {
+  .compactGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* Contenedor principal de imágenes */
 .imageUploadContainer {
   display: flex;
