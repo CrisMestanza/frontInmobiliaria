@@ -37,7 +37,9 @@
   justify-content: center;
 
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-  transition: transform 0.25s ease, background 0.25s ease;
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease;
 }
 
 .navArrowFS:hover {
@@ -54,7 +56,6 @@
   right: 18px;
 }
 
-
 .sidebar {
   position: fixed;
   bottom: 25px;
@@ -68,6 +69,7 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
   z-index: 999;
   overflow: hidden;
+  overscroll-behavior: contain;
   transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -326,7 +328,6 @@
   font-size: 15px;
 }
 
-
 .sliderControls {
   position: absolute;
   top: 50%;
@@ -370,6 +371,8 @@
   width: 55%;
   padding: 25px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   scroll-behavior: smooth;
   /* align-items: center;
   text-align: center; */
@@ -526,7 +529,7 @@
 }
 
 .socialFooter a:nth-child(1):hover {
-  color: #1877F2;
+  color: #1877f2;
 }
 
 /* Azul Facebook */
@@ -587,7 +590,6 @@
 }
 
 @keyframes bounceDown {
-
   0%,
   100% {
     transform: translate(-50%, 0);
@@ -599,7 +601,6 @@
     opacity: 1;
   }
 }
-
 
 /* ===== CARD CONTENEDOR ===== */
 .inmoCard {
@@ -700,6 +701,7 @@
     left: 50%;
     transform: translateX(-50%);
     overflow-y: auto;
+    overscroll-behavior: contain;
     display: block;
     padding-bottom: 20px;
   }
@@ -709,7 +711,7 @@
   }
 
   .mobileExpanded {
-    height: 90vh;
+    height: 95vh;
   }
 
   .mobileCollapsed {
@@ -732,6 +734,7 @@
     padding: 10px 12px;
     background: #ffffff;
     border-bottom: 1px solid #e5e7eb;
+    touch-action: none;
   }
 
   .mobileDragHandle {
@@ -771,18 +774,16 @@
     text-overflow: ellipsis;
   }
 
-  .closeBtn{
+  .closeBtn {
     display: none;
   }
 
-  .navArrow{
+  .navArrow {
     color: black;
     margin-right: 27px;
   }
 
-
   .nombreProyecto {
-
     font-size: 20px;
     margin-right: 15px;
     color: #0f172a;
@@ -810,6 +811,7 @@
     padding: 0 16px 16px;
     box-sizing: border-box;
     overflow-y: visible;
+    overscroll-behavior: contain;
     height: auto;
   }
 
@@ -861,22 +863,17 @@
     margin-right: 0;
   }
 
-  .quickGrid{
-     margin-right: 0;
+  .quickGrid {
+    margin-right: 0;
   }
-  .featuresGrid{
-     margin-right: 0;
+  .featuresGrid {
+    margin-right: 0;
   }
 }
-
-
-
-
 
 /* SOLO PC / DESKTOP */
 @media (min-width: 1024px) {
   .sidebar {
-
     top: 0;
     bottom: 0;
     right: 0;
@@ -922,5 +919,3 @@
     margin-top: 30%;
   }
 }
-
-

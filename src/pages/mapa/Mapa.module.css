@@ -6,6 +6,11 @@
   overflow-x: hidden;
 }
 
+:global(html),
+:global(body) {
+  overscroll-behavior-y: none;
+}
+
 /* FRANJA SUPERIOR */
 .cabecera {
   display: flex;
@@ -1475,19 +1480,19 @@
   .mobileAnunciaPropiedad::after {
     content: "";
     position: absolute;
-    inset: -6px;
+    inset: -1.5px;
     border-radius: 999px;
     pointer-events: none;
     z-index: 1;
-    border: 2px solid rgba(20, 195, 142, 0.42);
-    box-shadow: 0 0 0 1px rgba(20, 195, 142, 0.2);
+    border: 1px solid rgba(20, 195, 142, 0.28);
+    box-shadow: 0 0 0 1px rgba(20, 195, 142, 0.12);
     opacity: 0;
     transform: scale(1);
-    animation: seaWavePulse 2.6s linear infinite;
+    /* animation: seaWavePulse 2.5s linear infinite; */
   }
 
   .mobileAnunciaPropiedad::after {
-    animation-delay: 1.3s;
+    animation-delay: 1.5;
   }
 
   .mobileAnunciaPropiedad .anuncioTextViewport {
