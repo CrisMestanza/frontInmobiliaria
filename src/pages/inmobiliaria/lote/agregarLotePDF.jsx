@@ -838,7 +838,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     };
 
     const factor = factors[intensity] || factors.normal;
-    const scaleFactor = direction === "in" ? 1 - factor : 1 + factor;
+    const scaleFactor = direction === "in" ? 1 + factor : 1 - factor;
 
     const centerLat = (overlayBounds.north + overlayBounds.south) / 2;
     const centerLng = (overlayBounds.east + overlayBounds.west) / 2;

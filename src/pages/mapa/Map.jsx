@@ -136,6 +136,9 @@ function MyMap() {
   const [activeAnuncioIndex, setActiveAnuncioIndex] = useState(0);
   const [prevAnuncioIndex, setPrevAnuncioIndex] = useState(null);
   const [isAnuncioAnimating, setIsAnuncioAnimating] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 950 : false,
+  );
 
   const mapRef = useRef(null);
   const inputRef = useRef(null);
@@ -193,6 +196,15 @@ function MyMap() {
     [],
   );
   const CACHE_TTL_MS = 10 * 60 * 1000;
+  const anuncioTextWidthPx = useMemo(() => {
+    const activeText = anuncioSlides[activeAnuncioIndex]?.text || "";
+    // En móvil usamos el texto activo para evitar espacio lateral sobrante.
+    return Math.max(128, Math.ceil(activeText.length * 8.2) + 6);
+  }, [anuncioSlides, activeAnuncioIndex]);
+  const anuncioButtonWidthPx = useMemo(
+    () => Math.max(184, anuncioTextWidthPx + 42),
+    [anuncioTextWidthPx],
+  );
   const getCacheKey = (prefix, id) => `${prefix}_${id}`;
 
   const readSessionCache = (key) => {
@@ -312,6 +324,15 @@ function MyMap() {
         clearTimeout(boundsDebounceRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onResize = () => {
+      setIsMobileViewport(window.innerWidth <= 950);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   useEffect(() => {
@@ -852,7 +873,7 @@ function MyMap() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.cabecera}>
+      <header className={`${styles.cabecera} ${selectedProyecto ? styles.cabeceraHiddenOnProject : ""}`}>
         {/* Logo a la izquierda fuera de la barra central */}
         <div className={styles.logoContainer}>
           <img
@@ -928,36 +949,39 @@ function MyMap() {
         </div>
         {/* Botones de la derecha (User / Menu) */}
         <div className={styles.rightActions}>
-          <Link to="/login" className={styles.anunciaPropiedad}>
-            <span className={styles.anuncioIconViewport}>
-              {prevAnuncioIndex !== null && isAnuncioAnimating && (
+          {!isMobileViewport && (
+            <Link to="/login" className={styles.anunciaPropiedad}>
+              <span className={styles.anuncioSweep} aria-hidden="true" />
+              <span className={styles.anuncioIconViewport}>
+                {prevAnuncioIndex !== null && isAnuncioAnimating && (
+                  <span
+                    className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
+                  >
+                    {anuncioSlides[prevAnuncioIndex].icon}
+                  </span>
+                )}
                 <span
-                  className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
+                  className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
                 >
-                  {anuncioSlides[prevAnuncioIndex].icon}
+                  {anuncioSlides[activeAnuncioIndex].icon}
                 </span>
-              )}
-              <span
-                className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-              >
-                {anuncioSlides[activeAnuncioIndex].icon}
               </span>
-            </span>
-            <span className={styles.anuncioTextViewport}>
-              {prevAnuncioIndex !== null && isAnuncioAnimating && (
+              <span className={styles.anuncioTextViewport}>
+                {prevAnuncioIndex !== null && isAnuncioAnimating && (
+                  <span
+                    className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
+                  >
+                    {anuncioSlides[prevAnuncioIndex].text}
+                  </span>
+                )}
                 <span
-                  className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
+                  className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
                 >
-                  {anuncioSlides[prevAnuncioIndex].text}
+                  {anuncioSlides[activeAnuncioIndex].text}
                 </span>
-              )}
-              <span
-                className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-              >
-                {anuncioSlides[activeAnuncioIndex].text}
               </span>
-            </span>
-          </Link>
+            </Link>
+          )}
         </div>
       </header>
 
@@ -972,8 +996,8 @@ function MyMap() {
         onIdle={scheduleBoundsUpdate}
         options={{
           gestureHandling: "greedy",
-          zoomControl: true,
-          mapTypeControl: true,
+          zoomControl: false,
+          mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
         }}
@@ -1038,9 +1062,46 @@ function MyMap() {
         {directions && <DirectionsRenderer directions={directions} />}
       </GoogleMap>
 
-      {showHintClickLote && (
-        <div className={styles.clickHint}>Toca un lote</div>
+      {!selectedProyecto && !selectedLote && (
+        <Link
+          to="/login"
+          className={styles.mobileAnunciaPropiedad}
+          style={{ width: `${anuncioButtonWidthPx}px` }}
+        >
+          <span className={styles.anuncioSweep} aria-hidden="true" />
+          <span className={styles.anuncioIconViewport}>
+            {prevAnuncioIndex !== null && isAnuncioAnimating && (
+              <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+                {anuncioSlides[prevAnuncioIndex].icon}
+              </span>
+            )}
+            <span
+              className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
+            >
+              {anuncioSlides[activeAnuncioIndex].icon}
+            </span>
+          </span>
+          <span
+            className={styles.anuncioTextViewport}
+            style={{ width: `${anuncioTextWidthPx}px` }}
+          >
+            {prevAnuncioIndex !== null && isAnuncioAnimating && (
+              <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+                {anuncioSlides[prevAnuncioIndex].text}
+              </span>
+            )}
+            <span
+              className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
+            >
+              {anuncioSlides[activeAnuncioIndex].text}
+            </span>
+          </span>
+        </Link>
       )}
+
+      {/* {showHintClickLote && (
+        <div className={styles.clickHint}>Toca un lote</div>
+      )} */}
 
       {selectedProyecto && (
         <ProyectoSidebar

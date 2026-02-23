@@ -24,6 +24,10 @@
   /* Fondo blanco para visibilidad */
 }
 
+.cabeceraHiddenOnProject {
+  /* hidden only on mobile via media query */
+}
+
 .mapWrapper {
   position: relative;
   width: 100%;
@@ -65,6 +69,8 @@
   align-items: center;
   cursor: pointer;
   font-size: 14px;
+  line-height: 1.2;
+  min-height: 16px;
   color: #484848;
   padding: 2px 0;
   width: 100%;
@@ -196,6 +202,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  gap: 2px;
   padding: 0 16px;
   flex: 1;
 }
@@ -223,11 +230,14 @@
 }
 
 .searchLabel {
+  display: block;
   font-size: 10px;
+  line-height: 1;
+  min-height: 10px;
   font-weight: 800;
   color: #545252;
   /* Gris de la imagen */
-  margin-bottom: 2px;
+  margin: 0;
 }
 
 .searchInput,
@@ -235,6 +245,7 @@
   border: none;
   background: transparent;
   padding: 0;
+  line-height: 1.2;
   font-size: 14px;
   color: #545454;
   width: 100%;
@@ -332,12 +343,68 @@
   text-decoration: none;
   cursor: pointer;
   display: inline-flex;
+  position: relative;
+  overflow: visible;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: all 0.25s ease;
+  transition:
+    width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    filter 0.25s ease;
   box-shadow: 0 6px 16px rgba(20, 195, 142, 0.35);
   white-space: nowrap;
+  will-change: width, transform;
+  isolation: isolate;
+}
+
+.anunciaPropiedad .anuncioIconViewport,
+.anunciaPropiedad .anuncioTextViewport {
+  position: relative;
+  z-index: 2;
+}
+
+.anuncioSweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.anuncioSweep::before {
+  content: "";
+  position: absolute;
+  inset: -35% -30%;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0) 35%,
+    rgba(255, 255, 255, 0.34) 50%,
+    rgba(255, 255, 255, 0) 65%
+  );
+  transform: translateX(-140%) skewX(-18deg);
+  animation: ctaSweep 3.2s ease-in-out infinite;
+}
+
+.anunciaPropiedad::before,
+.anunciaPropiedad::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 1;
+  border: 2px solid rgba(20, 195, 142, 0.42);
+  box-shadow: 0 0 0 1px rgba(20, 195, 142, 0.2);
+  opacity: 0;
+  transform: scale(1);
+  animation: seaWavePulse 2.6s linear infinite;
+}
+
+.anunciaPropiedad::after {
+  animation-delay: 1.3s;
 }
 
 .anuncioIconViewport {
@@ -351,10 +418,11 @@
 .anuncioTextViewport {
   position: relative;
   width: 170px;
-  height: 18px;
+  height: 24px;
   overflow: hidden;
   display: inline-block;
   text-align: center;
+  line-height: 24px;
 }
 
 .anuncioItem {
@@ -362,10 +430,12 @@
   left: 0;
   right: 0;
   top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .anuncioIconViewport .anuncioItem {
@@ -421,6 +491,60 @@
 .anunciaPropiedad:active {
   transform: translateY(0);
   box-shadow: 0 4px 10px rgba(20, 195, 142, 0.3);
+}
+
+.mobileAnunciaPropiedad {
+  display: none;
+}
+
+@keyframes anuncioGlow {
+  0% {
+    box-shadow: 0 8px 18px rgba(20, 195, 142, 0.34);
+  }
+  50% {
+    box-shadow:
+      0 12px 26px rgba(20, 195, 142, 0.46),
+      0 0 0 5px rgba(20, 195, 142, 0.12);
+  }
+  100% {
+    box-shadow: 0 8px 18px rgba(20, 195, 142, 0.34);
+  }
+}
+
+@keyframes seaWavePulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  55% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+@keyframes ctaSweep {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  52% {
+    transform: translateX(140%) skewX(-18deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(140%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+.map :global(.gm-control-active) {
+  display: none !important;
 }
 
 .userMenu {
@@ -1306,266 +1430,158 @@
   text-decoration: underline;
 }
 
-/* === HEADER MINI tipo Airbnb (420px) === */
-@media screen and (max-width: 420px) {
-  .clickHint {
-    position: absolute;
-    bottom: 80%;
-    left: 5%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.75);
-    color: #fff;
-    padding: 10px 16px;
-    border-radius: 20px;
-    font-size: 14px;
-    z-index: 9999;
-    animation: pulse 1.6s infinite;
-    pointer-events: none;
-  }
-
-  /* Header fijo y bajo */
-  .cabecera {
-    height: 64px; /* ⬅ clave */
-    padding: 6px 10px;
-    gap: 8px;
-    align-items: center;
-  }
-
-  /* Logo fuera */
-
-  .brandName {
-    display: none !important;
-  }
-
-  /* Barra principal tipo "¿A dónde vas?" */
-  .topBar {
-    height: 48px; /* ⬅ estilo Airbnb */
-    min-width: unset;
-    width: 100%;
-    padding: 0 10px;
-    border-radius: 999px;
-  }
-
-  /* Secciones internas */
-  .searchSection {
-    padding: 0 8px;
-  }
-
-  .searchLabel {
-    display: none; /* ⬅ Airbnb no muestra label */
-  }
-
-  .searchBox {
-    height: 40px;
-    font-size: 14px;
-    padding: 0 12px;
-  }
-
-  /* Botón buscar oculto */
-  .searchButton {
+@media screen and (max-width: 950px) {
+  .rightActions {
     display: none;
   }
 
-  /* Botones redondos pequeños */
-  .filterToggle,
-  .authButton {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
-  }
-
-  .authButtonContainer {
-    display: none; /* opcional */
-  }
-
-  /* ===== FILTROS ===== */
-
-  .filterPanel {
-    top: 70px;
-    left: 10px;
-    width: calc(100% - 20px); /* ocupa casi toda la pantalla */
-    max-width: none;
-    padding: 10px;
-    border-radius: 14px;
-    gap: 10px;
-  }
-
-  .filterGroup h4 {
-    font-size: 13px;
-  }
-
-  .filterChip {
-    font-size: 12px;
-    padding: 6px 10px;
-    border-radius: 999px;
-  }
-
-  /* Sidebar info más compacta */
-  .sidebar {
-    width: 85%;
-    max-width: 300px;
-    padding: 10px;
-    font-size: 0.8rem;
-    max-height: 55vh;
-  }
-
-  .toggleArrow {
-    width: 24px;
-    height: 24px;
-    font-size: 0.9rem;
-    left: -6px;
-  }
-
-  .customOptionsList {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    transform: none;
+  .mobileAnunciaPropiedad {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(18px, env(safe-area-inset-bottom));
+    height: 50px;
     width: max-content;
-    min-width: 100%;
-    max-width: min(92vw, 320px);
-    border-radius: 14px;
-    padding: 10px 0;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-    z-index: 3000;
+    max-width: calc(100vw - 24px);
+    padding: 0 12px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #0ea66b, #14c38e);
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 10px 24px rgba(20, 195, 142, 0.35);
+    z-index: 997;
+    font-weight: 700;
+    overflow: visible;
+    transition:
+      width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+    animation: anuncioGlow 2.8s ease-in-out infinite;
+    will-change: width, transform;
+    isolation: isolate;
   }
 
-  .customOption {
-    width: 50vh; /* ocupa todo el contenedor */
-    text-align: center; /* centra el texto */
+  .mobileAnunciaPropiedad .anuncioIconViewport,
+  .mobileAnunciaPropiedad .anuncioTextViewport {
+    position: relative;
+    z-index: 2;
   }
 
-  .topBarExpanded {
+  .mobileAnunciaPropiedad::before,
+  .mobileAnunciaPropiedad::after {
+    content: "";
     position: absolute;
-    left: 5px;
-    right: 10px;
-    width: calc(100% - 35px) !important;
-    z-index: 1001;
+    inset: -6px;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 1;
+    border: 2px solid rgba(20, 195, 142, 0.42);
+    box-shadow: 0 0 0 1px rgba(20, 195, 142, 0.2);
+    opacity: 0;
+    transform: scale(1);
+    animation: seaWavePulse 2.6s linear infinite;
   }
 
-  /* Ocultar elementos cuando se busca */
-  .hiddenMobile {
-    display: none !important;
+  .mobileAnunciaPropiedad::after {
+    animation-delay: 1.3s;
   }
 
-  .topBarExpanded .searchSection {
-    flex: 2; /* Toma todo el espacio disponible */
+  .mobileAnunciaPropiedad .anuncioTextViewport {
+    width: auto;
+    max-width: none;
+    text-align: left;
+    height: 24px;
   }
+}
 
-  /* Ocultar el logo o branding si es necesario para ganar espacio */
-  .topBarExpanded ~ .logoContainer {
+@media screen and (max-width: 675px) {
+  .brandName {
     display: none;
   }
 }
 
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 550px) {
   .cabecera {
-    height: 64px;
+    height: 66px;
     padding: 6px 8px;
     gap: 6px;
-    align-items: center;
-    flex-wrap: nowrap;
-  }
-
-  .logoContainer {
-    flex: 0 0 auto;
   }
 
   .logo {
-    height: 38px;
-  }
-
-  .brandName {
-    display: none;
-  }
-
-  .rightActions {
-    flex: 0 0 auto;
-    margin-left: 0;
-    gap: 6px;
-  }
-
-  .anunciaPropiedad {
-    width: 40px;
     height: 40px;
-    padding: 0;
-    border-radius: 50%;
-    justify-content: center;
-    min-width: 40px;
-  }
-
-  .anuncioTextViewport {
-    display: none;
   }
 
   .topBar {
     flex: 1 1 auto;
     min-width: 0;
-    height: 46px;
-    border-radius: 999px;
-    padding: 0 6px;
+    height: 52px;
+    padding: 0 8px;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
-    justify-items: center;
     gap: 4px;
-    overflow: visible;
   }
 
   .searchSection {
-    position: relative;
     min-width: 0;
     width: 100%;
-    padding: 0 4px;
-    flex: initial;
+    justify-content: flex-start;
+    padding: 0 5px;
     overflow: visible;
+  }
+
+  .customSelect {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .searchLabel {
+    display: block;
+    font-size: 8px;
+    letter-spacing: 0.15px;
+    line-height: 1;
+    min-height: 8px;
+    margin: 0 0 2px 0;
+    text-align: center;
+  }
+
+  .searchInput {
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .customTrigger {
+    font-size: 11px;
+    width: 100%;
+    justify-content: center;
+    line-height: 1.2;
+    gap: 2px;
+  }
+
+  .triggerText {
+    margin-right: 0;
+    text-align: center;
   }
 
   .divider {
     display: none;
   }
 
-  .customSelect {
-    width: 100%;
-    min-width: 0;
-    flex: initial;
-  }
-
   .searchButton {
     display: none;
-  }
-
-  .searchLabel {
-    display: none;
-  }
-
-  .searchInput {
-    font-size: 12px;
-    min-width: 0;
-  }
-
-  .customTrigger {
-    font-size: 12px;
-    min-width: 0;
-    padding: 0;
-    justify-content: center;
-    gap: 4px;
-  }
-
-  .triggerText {
-    display: block;
-    max-width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: center;
   }
 
   .searchSection,
   .topBar .customSelect {
     border-right: 1px solid #e5e7eb;
-    height: 30px;
+    height: 34px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
@@ -1574,37 +1590,10 @@
   .topBar .customSelect:last-of-type {
     border-right: none;
   }
+}
 
-  .customOptionsList {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    transform: none;
-    width: max-content;
-    min-width: 100%;
-    max-width: min(92vw, 320px);
-    z-index: 3000;
-  }
-
-  :global(.pac-container) {
-    z-index: 99999 !important;
-    width: calc(100vw - 20px) !important;
-    left: 10px !important;
-    right: 10px !important;
-    transform: none !important;
-    border-radius: 12px;
-    margin-top: 6px;
-  }
-
-  :global(.pac-item) {
-    min-height: 42px;
-    display: flex;
-    align-items: center;
-    white-space: normal;
-    line-height: 1.25;
-  }
-
-  :global(.pac-item-query) {
-    font-size: 14px;
+@media screen and (max-width: 768px) {
+  .cabeceraHiddenOnProject {
+    display: none;
   }
 }

@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   FaBed, FaBath, FaCar, FaTree, FaHome, FaUtensils,
   FaChair, FaSun, FaBuilding, FaBorderAll, FaCampground,
   FaRulerHorizontal, FaRulerVertical, FaRulerCombined,
-  FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe, FaVectorSquare, FaArrowsAltH, FaArrowsAltV
+  FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe, FaVectorSquare, FaArrowsAltH, FaArrowsAltV, FaPhoneAlt, FaWalking
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
 import { FaChevronDown } from "react-icons/fa";
@@ -13,9 +13,26 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
+  const [isMobileView, setIsMobileView] = useState(
+    () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false),
+  );
+  const [sheetMode, setSheetMode] = useState("mid");
   const contentRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
+  const sheetTouchStartY = useRef(0);
+  const sheetTouchDeltaY = useRef(0);
+  const validImages = useMemo(
+    () =>
+      imagenes.filter((img) => {
+        const src = img?.imagenproyecto;
+        if (typeof src !== "string") return false;
+        const trimmed = src.trim();
+        if (!trimmed) return false;
+        return !trimmed.toLowerCase().includes("no hay imagenes referenciales");
+      }),
+    [imagenes],
+  );
 
   const mensajeWhatsapp = encodeURIComponent(
     `Hola, vengo desde GeoHabita.\n` +
@@ -23,10 +40,52 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
     `Me gustaría recibir más información sobre disponibilidad, valor y formas de pago.\n` +
     `¡Quedo atento(a)!`
   );
+  const phoneNumber = useMemo(() => {
+    const raw =
+      inmo?.telefono ||
+      inmo?.celular ||
+      inmo?.whatsapp ||
+      inmo?.telefono1 ||
+      "";
+    return String(raw).replace(/[^\d+]/g, "");
+  }, [inmo]);
+
+  const parseMinutes = (durationText) => {
+    if (!durationText) return "---";
+    const hMatch = durationText.match(/(\d+)\s*h/i);
+    const mMatch = durationText.match(/(\d+)\s*min/i);
+    if (hMatch || mMatch) {
+      const total = (Number(hMatch?.[1] || 0) * 60) + Number(mMatch?.[1] || 0);
+      return total > 0 ? `${total}` : "---";
+    }
+    const n = durationText.match(/[\d.,]+/);
+    if (!n) return "---";
+    return `${Math.round(Number(n[0].replace(",", ".")))}`;
+  };
+
+  const parseKm = (distanceText) => {
+    if (!distanceText) return "---";
+    const n = distanceText.match(/[\d.,]+/);
+    if (!n) return "---";
+    return n[0].replace(",", ".");
+  };
+
+  const carMinutes = parseMinutes(drivingInfo?.duration);
+  const walkMinutes = parseMinutes(walkingInfo?.duration);
+  const carKm = parseKm(drivingInfo?.distance);
+  const walkKm = parseKm(walkingInfo?.distance);
+
+  const prevImgIndex = validImages.length > 0
+    ? (currentImg === 0 ? validImages.length - 1 : currentImg - 1)
+    : 0;
+  const nextImgIndex = validImages.length > 0
+    ? (currentImg === validImages.length - 1 ? 0 : currentImg + 1)
+    : 0;
 
   const minSwipeDistance = 50;
   const onTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX;
   };
 
   const onTouchMove = (e) => {
@@ -34,33 +93,33 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
   };
 
   const onTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
-
     const distance = touchStartX.current - touchEndX.current;
+    touchStartX.current = 0;
+    touchEndX.current = 0;
 
     if (Math.abs(distance) < minSwipeDistance) return;
 
     if (distance > 0) {
       // 👉 Swipe izquierda (siguiente)
-      setFullscreenImgIndex(prev =>
-        prev === imagenes.length - 1 ? 0 : prev + 1
+      setFullscreenImgIndex((prev) =>
+        prev === validImages.length - 1 ? 0 : prev + 1,
       );
     } else {
       // 👈 Swipe derecha (anterior)
-      setFullscreenImgIndex(prev =>
-        prev === 0 ? imagenes.length - 1 : prev - 1
+      setFullscreenImgIndex((prev) =>
+        prev === 0 ? validImages.length - 1 : prev - 1,
       );
     }
   };
 
   const nextSlide = (e) => {
     e.stopPropagation();
-    setCurrentImg((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+    setCurrentImg((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
   };
 
   const prevSlide = (e) => {
     e.stopPropagation();
-    setCurrentImg((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+    setCurrentImg((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
   };
 
   const cerrarSidebar = () => {
@@ -89,11 +148,20 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
   };
 
   useEffect(() => {
-    imagenes.forEach((img) => {
+    validImages.forEach((img) => {
       const image = new Image();
       image.src = `https://api.geohabita.com${img.imagenproyecto}`;
     });
-  }, [imagenes]);
+  }, [validImages]);
+
+  useEffect(() => {
+    if (currentImg >= validImages.length) {
+      setCurrentImg(0);
+    }
+    if (fullscreenImgIndex !== null && fullscreenImgIndex >= validImages.length) {
+      setFullscreenImgIndex(validImages.length > 0 ? 0 : null);
+    }
+  }, [validImages, currentImg, fullscreenImgIndex]);
 
 
   useEffect(() => {
@@ -101,6 +169,43 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobileView(mobile);
+      if (!mobile) {
+        setSheetMode("mid");
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const onSheetTouchStart = (e) => {
+    if (!isMobileView) return;
+    sheetTouchStartY.current = e.targetTouches[0].clientY;
+    sheetTouchDeltaY.current = 0;
+  };
+
+  const onSheetTouchMove = (e) => {
+    if (!isMobileView || !sheetTouchStartY.current) return;
+    sheetTouchDeltaY.current = e.targetTouches[0].clientY - sheetTouchStartY.current;
+  };
+
+  const onSheetTouchEnd = () => {
+    if (!isMobileView) return;
+    if (sheetTouchDeltaY.current < -45) {
+      if (sheetMode === "collapsed") setSheetMode("mid");
+      else setSheetMode("expanded");
+    } else if (sheetTouchDeltaY.current > 45) {
+      if (sheetMode === "expanded") setSheetMode("mid");
+      else setSheetMode("collapsed");
+    }
+    sheetTouchStartY.current = 0;
+    sheetTouchDeltaY.current = 0;
+  };
 
   const handleScroll = () => {
     if (!contentRef.current) return;
@@ -111,53 +216,118 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
 
   if (!proyecto) return null;
 
+  const overlayActive = isMobileView ? false : expanded;
+
   return (
     <>
 
       <div
         className={styles.overlay}
         style={{
-          opacity: expanded ? 1 : 0,
-          background: "rgba(15, 23, 42, 0.2)",
-          // CAMBIO AQUÍ: Solo "auto" cuando esté expandido. 
-          // Si no está expandido, debe ser "none" para que el mapa se pueda mover.
-          pointerEvents: expanded ? "auto" : "none"
+          opacity: overlayActive ? 1 : 0,
+          background: isMobileView ? "transparent" : "rgba(15, 23, 42, 0.2)",
+          pointerEvents: isMobileView ? "none" : (overlayActive ? "auto" : "none")
         }}
-        onClick={cerrarSidebar}
+        onClick={isMobileView ? undefined : cerrarSidebar}
       />
 
-      <div className={`${styles.sidebar} ${expanded ? styles.expanded : ""}`}>
+      <div
+        className={`${styles.sidebar} ${expanded ? styles.expanded : ""} ${isMobileView ? styles.mobileSidebar : ""} ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""} ${sheetMode === "expanded" ? styles.mobileExpanded : ""}`}
+      >
+        {isMobileView && (
+          <div className={styles.mobileTopHeader}>
+            <h3 className={styles.mobileHeaderTitle}>{proyecto.nombreproyecto}</h3>
+            <button className={styles.mobileHeaderClose} onClick={cerrarSidebar} aria-label="Cerrar">
+              ✕
+            </button>
+            <div
+              className={styles.mobileDragHandle}
+              onTouchStart={onSheetTouchStart}
+              onTouchMove={onSheetTouchMove}
+              onTouchEnd={onSheetTouchEnd}
+            />
+          </div>
+        )}
+
         <button className={styles.closeBtn} onClick={cerrarSidebar} aria-label="Cerrar">✕</button>
 
-        <div className={styles.splitLayout}>
+        <div className={`${styles.splitLayout} ${validImages.length === 0 ? styles.noImageLayout : ""} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}>
           {/* SECCIÓN IMAGEN / SLIDER */}
-          <div className={styles.imageSection}>
-            {imagenes.length > 0 ? (
-              <>
-                <img
-                  key={currentImg}
-                  src={`https://api.geohabita.com${imagenes[currentImg].imagenproyecto}`}
-                  alt="Propiedad"
-                  className={styles.mainImage}
-                  onClick={() => setFullscreenImgIndex(currentImg)}
-                />
-                {imagenes.length > 1 && (
-                  <div className={styles.sliderControls}>
-                    <button onClick={prevSlide} className={styles.navArrow}><FaChevronLeft /></button>
-                    <button onClick={nextSlide} className={styles.navArrow}><FaChevronRight /></button>
+          {validImages.length > 0 && (
+            <div className={styles.imageSection}>
+              {isMobileView ? (
+                <div className={styles.mobileCarouselWrap}>
+                  <div className={styles.mobileCarouselTrack}>
+                    {validImages.length > 1 && (
+                      <button
+                        className={`${styles.mobileSideSlide} ${styles.mobileSideLeft}`}
+                        onClick={prevSlide}
+                        aria-label="Imagen anterior"
+                      >
+                        <img
+                          src={`https://api.geohabita.com${validImages[prevImgIndex].imagenproyecto}`}
+                          alt="Anterior"
+                          className={styles.mobileSideImage}
+                        />
+                      </button>
+                    )}
+                    <img
+                      key={currentImg}
+                      src={`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`}
+                      alt="Propiedad"
+                      className={styles.mobileMainImage}
+                      onClick={() => setFullscreenImgIndex(currentImg)}
+                    />
+                    {validImages.length > 1 && (
+                      <button
+                        className={`${styles.mobileSideSlide} ${styles.mobileSideRight}`}
+                        onClick={nextSlide}
+                        aria-label="Imagen siguiente"
+                      >
+                        <img
+                          src={`https://api.geohabita.com${validImages[nextImgIndex].imagenproyecto}`}
+                          alt="Siguiente"
+                          className={styles.mobileSideImage}
+                        />
+                      </button>
+                    )}
                   </div>
-                )}
-                <div className={styles.imageBadge}>{currentImg + 1} / {imagenes.length} FOTOS</div>
-              </>
-            ) : (
-              <div className={styles.noImage}>No hay imagenes referenciales</div>
-            )}
-          </div>
+                  <div className={styles.mobileDots}>
+                    {validImages.map((_, idx) => (
+                      <button
+                        key={`dot-${idx}`}
+                        className={`${styles.mobileDot} ${idx === currentImg ? styles.mobileDotActive : ""}`}
+                        onClick={() => setCurrentImg(idx)}
+                        aria-label={`Ir a imagen ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <img
+                    key={currentImg}
+                    src={`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`}
+                    alt="Propiedad"
+                    className={styles.mainImage}
+                    onClick={() => setFullscreenImgIndex(currentImg)}
+                  />
+                  {validImages.length > 1 && (
+                    <div className={styles.sliderControls}>
+                      <button onClick={prevSlide} className={styles.navArrow}><FaChevronLeft /></button>
+                      <button onClick={nextSlide} className={styles.navArrow}><FaChevronRight /></button>
+                    </div>
+                  )}
+                  <div className={styles.imageBadge}>{currentImg + 1} / {validImages.length} FOTOS</div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* SECCIÓN INFORMACIÓN */}
           <div className={styles.infoSection} ref={contentRef} onScroll={handleScroll}>
             {/* FLECHA SCROLL */}
-            {!expanded && (
+            {!isMobileView && !expanded && (
               <div
                 className={styles.scrollHint}
                 onClick={() =>
@@ -170,7 +340,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
             )}
 
             <div className={styles.primeInfo}>
-              <div className={styles.inmoCard}>
+              <div className={`${styles.inmoCard} ${isMobileView && validImages.length > 0 ? styles.mobileInmoCard : ""}`}>
                 <div className={styles.inmoHeader}>
                   <div className={styles.inmoIcon}>
                     🏢
@@ -203,9 +373,38 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
 
               <h1 className={styles.nombreProyecto}>{proyecto.nombreproyecto}</h1>
               {/* <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p> */}
+              {isMobileView && (
+                <div className={styles.mobileMetricsBox}>
+                  <div className={styles.mobileMetricsRow}>
+                    <div className={styles.mobileMetricGroup}>
+                      <div className={styles.mobileMetricItem}>
+                        <span className={styles.mobileMetricValue}>{carMinutes}</span>
+                        <span className={styles.mobileMetricUnit}>MIN</span>
+                        <FaCar className={styles.mobileMetricIcon} />
+                      </div>
+                      <div className={styles.mobileMetricItem}>
+                        <span className={styles.mobileMetricValue}>{carKm}</span>
+                        <span className={styles.mobileMetricUnit}>KM</span>
+                      </div>
+                    </div>
+                    <div className={styles.mobileMetricDivider}></div>
+                    <div className={styles.mobileMetricGroup}>
+                      <div className={styles.mobileMetricItem}>
+                        <span className={styles.mobileMetricValue}>{walkMinutes}</span>
+                        <span className={styles.mobileMetricUnit}>MIN</span>
+                        <FaWalking className={styles.mobileMetricIcon} />
+                      </div>
+                      <div className={styles.mobileMetricItem}>
+                        <span className={styles.mobileMetricValue}>{walkKm}</span>
+                        <span className={styles.mobileMetricUnit}>KM</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className={styles.priceContainer}>
-                {proyecto.idtipoinmobiliaria === 2 && (
+                {!isMobileView && proyecto.idtipoinmobiliaria === 2 && (
 
                   <div>
                     <span className={styles.labelSmall}>Precio de venta del inmueble</span>
@@ -213,17 +412,44 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                     <span className={styles.priceValue}>${proyecto.precio}</span>
                   </div>
                 )}
-                <a
-                  href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.contactMiniBtn}
-                  onClick={() => registrarClickContacto("Whatsapp")}
-                >
-                  <FaWhatsapp /> Contactar
-                </a>
+                {isMobileView ? (
+                  <div className={styles.mobileContactRow}>
+                    <a
+                      href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`${styles.mobileContactBtn} ${styles.mobileWhatsappBtn}`}
+                      onClick={() => registrarClickContacto("Whatsapp")}
+                    >
+                      <FaWhatsapp /> Contactar por WhatsApp
+                    </a>
+                    <a
+                      href={phoneNumber ? `tel:${phoneNumber}` : undefined}
+                      className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
+                      onClick={() => registrarClickContacto("Llamada")}
+                    >
+                      <FaPhoneAlt /> Llamar ahora
+                    </a>
+                  </div>
+                ) : (
+                  <a
+                    href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.contactMiniBtn}
+                    onClick={() => registrarClickContacto("Whatsapp")}
+                  >
+                    <FaWhatsapp /> Contactar
+                  </a>
+                )}
 
               </div>
+              {isMobileView && (
+                <div className={styles.mobileSocialRow}>
+                  <a href={inmo.facebook} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Facebook")}><FaFacebook /></a>
+                  <a href={inmo.pagina} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Web")}><FaGlobe /></a>
+                </div>
+              )}
               {proyecto.idtipoinmobiliaria === 2 && (
                 <div className={styles.quickGrid}>
                   <div className={styles.qBadge}>
@@ -255,7 +481,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
             <div className={styles.extraContent}>
               {/* <hr className={styles.divider} /> */}
               <br></br>
-              <h3 className={styles.sectionTitle}>Descripción</h3>
+              <h3 className={styles.sectionTitle}>Acerca del Proyecto</h3>
               <p className={styles.fullDescription}>{proyecto.descripcion}</p>
 
               {proyecto.idtipoinmobiliaria === 2 && (
@@ -281,16 +507,20 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                 </>
               )}
 
-              <h3 className={styles.sectionTitle}>Distancia (actual o buscada)</h3>
-              <div className={styles.distanciaBox}>
-                <span>🚶 {walkingInfo?.duration || "Calc..."}</span>
-                <span>🚗 {drivingInfo?.duration || "Calc..."}</span>
-              </div>
+              {!isMobileView && (
+                <>
+                  <h3 className={styles.sectionTitle}>Distancia (actual o buscada)</h3>
+                  <div className={styles.distanciaBox}>
+                    <span>🚶 {walkingInfo?.duration || "Calc..."}</span>
+                    <span>🚗 {drivingInfo?.duration || "Calc..."}</span>
+                  </div>
 
-              <div className={styles.socialFooter}>
-                <a href={inmo.facebook} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Facebook")}><FaFacebook /></a>
-                <a href={inmo.pagina} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Web")}><FaGlobe /></a>
-              </div>
+                  <div className={styles.socialFooter}>
+                    <a href={inmo.facebook} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Facebook")}><FaFacebook /></a>
+                    <a href={inmo.pagina} target="_blank" rel="noreferrer" onClick={() => registrarClickContacto("Web")}><FaGlobe /></a>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -298,7 +528,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
 
 
 
-      {fullscreenImgIndex !== null && (
+      {fullscreenImgIndex !== null && validImages.length > 0 && (
         <div
           className={styles.fullscreenOverlay}
           onClick={() => setFullscreenImgIndex(null)}
@@ -308,16 +538,24 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
         >
 
           {/* Botón Cerrar (opcional, ya que el fondo cierra) */}
-          <button className={styles.closeBtn} onClick={() => setFullscreenImgIndex(null)}> ✕</button>
+          <button
+            className={styles.closeBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullscreenImgIndex(null);
+            }}
+          >
+            ✕
+          </button>
 
-          {imagenes.length > 1 && (
+          {validImages.length > 1 && (
             <>
               {/* Navegación Pantalla Completa */}
               <button
                 className={`${styles.navArrowFS} ${styles.prevFS}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setFullscreenImgIndex(prev => (prev === 0 ? imagenes.length - 1 : prev - 1));
+                  setFullscreenImgIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
                 }}
               >
                 <FaChevronLeft />
@@ -327,7 +565,7 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
                 className={`${styles.navArrowFS} ${styles.nextFS}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setFullscreenImgIndex(prev => (prev === imagenes.length - 1 ? 0 : prev + 1));
+                  setFullscreenImgIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
                 }}
               >
                 <FaChevronRight />
@@ -336,14 +574,14 @@ const ProyectoSidebar = ({ inmo, proyecto, imagenes = [], onClose, walkingInfo, 
           )}
 
           <img
-            src={`https://api.geohabita.com${imagenes[fullscreenImgIndex].imagenproyecto}`}
+            src={`https://api.geohabita.com${validImages[fullscreenImgIndex].imagenproyecto}`}
             className={styles.fullscreenImg}
             alt="Zoom"
             onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen misma
           />
 
           <div className={styles.fsBadge}>
-            {fullscreenImgIndex + 1} / {imagenes.length}
+            {fullscreenImgIndex + 1} / {validImages.length}
           </div>
         </div>
       )}

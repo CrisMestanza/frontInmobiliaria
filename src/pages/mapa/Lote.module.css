@@ -499,11 +499,10 @@
   }
 
   .closeBtn {
-    position: fixed;
-    top: 15px;
-    right: 15px;
-  }
-  .closeBtn{
+    position: sticky;
+    top: 12px;
+    right: auto;
+    margin-left: calc(100% - 52px);
     font-size: 30px;
     color: black;
   }
