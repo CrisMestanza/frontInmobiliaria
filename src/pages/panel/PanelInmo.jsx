@@ -58,6 +58,8 @@ import ProyectoModal from "../inmobiliaria/proyecto/agregarProyecto";
 import LotesModal from "../inmobiliaria/lote/LotesModal";
 import EditProyectoModal from "../inmobiliaria/proyecto/editProyecto";
 import IconoModal from "../inmobiliaria/proyecto/icono/IconoModal";
+import ThemeSwitch from "../../components/ThemeSwitch";
+import { useTheme } from "../../context/ThemeContext";
 
 const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
   const [imagenes, setImagenes] = useState([]);
@@ -154,6 +156,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
 };
 
 const PanelInmo = () => {
+  const { isDark, toggleTheme } = useTheme();
   const [resumen, setResumen] = useState(null);
   const [clicks, setClicks] = useState(null);
   const [proyectos, setProyectos] = useState([]);
@@ -368,6 +371,7 @@ const PanelInmo = () => {
           </div>
         </div>
         <div className="header-user">
+          <ThemeSwitch checked={isDark} onChange={toggleTheme} />
           <div className="user-info">
             <div className="user-avatar">
               <User size={20} />

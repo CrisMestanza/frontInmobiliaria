@@ -25,7 +25,8 @@
   width: 100%;
   z-index: 1000;
   box-sizing: border-box;
-  background-color: white;
+  background-color: var(--theme-bg-surface);
+  border-bottom: 1px solid var(--theme-border-color);
   /* Fondo blanco para visibilidad */
 }
 
@@ -76,7 +77,7 @@
   font-size: 14px;
   line-height: 1.2;
   min-height: 16px;
-  color: #484848;
+  color: var(--theme-text-main);
   padding: 2px 0;
   width: 100%;
 }
@@ -118,17 +119,17 @@
   min-width: 100%;
   width: max-content;
   max-width: 340px;
-  background: white;
+  background: var(--theme-bg-surface);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   z-index: 9999;
   padding: 10px 0;
-  border: 1px solid #ebebeb;
+  border: 1px solid var(--theme-border-color);
 }
 
 /* Sección activa resaltada */
 .searchSectionActive {
-  background: white !important;
+  background: var(--theme-bg-surface) !important;
   border-radius: 40px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
@@ -163,12 +164,12 @@
 .topBar {
   display: flex;
   align-items: center;
-  background: #fff;
+  background: var(--theme-bg-surface);
   border-radius: 40px;
   height: 66px;
   min-width: 400px;
   padding: 0 10px 0 24px;
-  border: 2px solid #404341; /* borde verde llamativo */
+  border: 2px solid var(--theme-border-color); /* borde verde llamativo */
 
   /* Sombra más llamativa con verde suave */
   box-shadow:
@@ -183,7 +184,7 @@
   /* Para suavizar el texto y hacerlo más moderno */
   font-family: "Inter", sans-serif;
   font-size: 16px;
-  color: #333;
+  color: var(--theme-text-main);
 }
 
 /* Hover: efecto de elevación y sombra verde más intensa */
@@ -240,7 +241,7 @@
   line-height: 1;
   min-height: 10px;
   font-weight: 800;
-  color: #545252;
+  color: var(--theme-text-muted);
   /* Gris de la imagen */
   margin: 0;
 }
@@ -252,7 +253,7 @@
   padding: 0;
   line-height: 1.2;
   font-size: 14px;
-  color: #545454;
+  color: var(--theme-text-main);
   width: 100%;
   outline: none;
 }
@@ -260,7 +261,7 @@
 .divider {
   width: 1px;
   height: 32px;
-  background-color: #ddd;
+  background-color: var(--theme-border-color);
 }
 
 .customSelect {
@@ -335,6 +336,10 @@
   display: flex;
   align-items: center;
   gap: 20px;
+}
+
+.mobileThemeControl {
+  display: none;
 }
 
 .anunciaPropiedad {
@@ -578,7 +583,7 @@
 }
 
 .geo {
-  color: #1a2b4c;
+  color: var(--theme-text-main);
   font-weight: 900;
 }
 
@@ -1583,7 +1588,7 @@
 
   .searchSection,
   .topBar .customSelect {
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid var(--theme-border-color);
     height: 34px;
     display: flex;
     flex-direction: column;
@@ -1594,6 +1599,13 @@
 
   .topBar .customSelect:last-of-type {
     border-right: none;
+  }
+}
+
+@media screen and (max-width: 950px) {
+  .mobileThemeControl {
+    display: inline-flex;
+    margin-left: 6px;
   }
 }
 

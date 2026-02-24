@@ -1,6 +1,27 @@
 :root {
-  --main-bg: #ffffff; /* gris claro */
-  --main-text-color: #ffffff; /* texto oscuro */
+  --theme-bg-main: #f8fafc;
+  --theme-bg-surface: #ffffff;
+  --theme-bg-soft: #f1f5f9;
+  --theme-text-main: #0f172a;
+  --theme-text-muted: #64748b;
+  --theme-border-color: #e2e8f0;
+  --theme-overlay: rgba(15, 23, 42, 0.75);
+  --theme-switch-track: #dbe4ef;
+  --theme-switch-thumb: #ffffff;
+  --theme-switch-icon: #1f2937;
+}
+
+[data-theme="dark"] {
+  --theme-bg-main: #0f172a;
+  --theme-bg-surface: #111827;
+  --theme-bg-soft: #1f2937;
+  --theme-text-main: #e5e7eb;
+  --theme-text-muted: #94a3b8;
+  --theme-border-color: #334155;
+  --theme-overlay: rgba(2, 6, 23, 0.86);
+  --theme-switch-track: #1e293b;
+  --theme-switch-thumb: #0f172a;
+  --theme-switch-icon: #e2e8f0;
 }
 
 html,
@@ -9,6 +30,15 @@ body {
   padding: 0;
   height: 100%;
   font-family: "Inter", sans-serif;
-  background: var(--main-bg);
-  color: var(--main-text-color);
+  background: var(--theme-bg-main);
+  color: var(--theme-text-main);
+}
+
+*,
+*::before,
+*::after {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
 }

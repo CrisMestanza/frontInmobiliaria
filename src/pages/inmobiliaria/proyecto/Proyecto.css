@@ -5,7 +5,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--theme-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -14,7 +14,7 @@
 
 /* ===== CONTENIDO DEL MODAL ===== */
 .modalContent {
-  background: #ffffff;
+  background: var(--theme-bg-surface);
   padding: 30px;
   border-radius: 12px;
   width: 90%;
@@ -35,10 +35,10 @@
   width: calc(100% - 24px);
   padding: 8px 12px;
   font-size: 14px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--theme-border-color);
   border-radius: 6px;
   outline: none;
-  background: white;
+  background: var(--theme-bg-surface);
   /* box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); */
 }
 
@@ -91,24 +91,24 @@
 .formContainer h2 {
   font-size: 22px;
   font-weight: 700;
-  color: #003366;
+  color: var(--theme-text-main);
   margin: 0 0 15px;
   text-align: center;
 }
 
 .formContainer label {
   margin: 10px 0 5px;
-  color: #000;
+  color: var(--theme-text-main);
   font-weight: bold;
 }
 
 .input {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--theme-border-color);
   border-radius: 8px;
-  background-color: #fff;
-  color: rgb(0, 0, 0);
+  background-color: var(--theme-bg-surface);
+  color: var(--theme-text-main);
   transition: border 0.2s, box-shadow 0.2s;
 }
 
@@ -133,7 +133,7 @@ textarea.input {
 
 .help-text {
   font-size: 14px;
-  color: gray;
+  color: var(--theme-text-muted);
 }
 
 /* ===== PREVIEW DE IMÁGENES ===== */

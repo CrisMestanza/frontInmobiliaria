@@ -4,7 +4,7 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #f9fafb;
+  background: var(--theme-bg-main);
 }
 
 .previewGrid {
@@ -132,7 +132,7 @@ tbody tr:hover {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--theme-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -141,7 +141,7 @@ tbody tr:hover {
 
 /* ============= CONTENIDO DEL MODAL ============= */
 .modalContent {
-  background: #ffffff;
+  background: var(--theme-bg-surface);
   padding: 30px;
   border-radius: 12px;
   width: 90%;
@@ -190,16 +190,16 @@ tbody tr:hover {
 
 .formContainer label {
   margin: 10px 0 5px;
-  color: #000;
+  color: var(--theme-text-main);
   font-weight: bold;
 }
 
 .input {
   padding: 10px 14px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--theme-border-color);
   border-radius: 8px;
-  background-color: #fff;
-  color: rgb(0, 0, 0);
+  background-color: var(--theme-bg-surface);
+  color: var(--theme-text-main);
   transition:
     border 0.2s,
     box-shadow 0.2s;
@@ -256,7 +256,7 @@ textarea.input {
 }
 
 .iconModalTitle {
-  color: #0f172a;
+  color: var(--theme-text-main);
   font-size: 1.1rem;
   margin: 0 0 0.75rem;
   padding-right: 2rem;
@@ -280,7 +280,7 @@ textarea.input {
 }
 
 .iconSectionTitle {
-  color: #0f172a;
+  color: var(--theme-text-main);
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
 }
@@ -297,7 +297,7 @@ textarea.input {
 }
 
 .iconEmpty {
-  color: #64748b;
+  color: var(--theme-text-muted);
   margin: 0;
 }
 

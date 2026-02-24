@@ -9,13 +9,17 @@
   --accent-red: #ef4444;
   --accent-black: #000000;
   --accent-blue: #13158ffb;
-  --bg-main: #f8fafc;
-  --border-color: #e2e8f0;
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --white: #ffffff;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --bg-main: var(--theme-bg-main);
+  --border-color: var(--theme-border-color);
+  --text-main: var(--theme-text-main);
+  --text-muted: var(--theme-text-muted);
+  --white: var(--theme-bg-surface);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.12);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.2);
+}
+
+[data-theme="dark"] {
+  --accent-black: #f8fafc;
 }
 
 /* Reset & Base */
@@ -144,12 +148,12 @@
 }
 
 .input-styled {
-  background: #f1f5f9;
+  background: var(--theme-bg-soft);
   border: 1px solid var(--border-color);
   padding: 0.6rem 1rem;
   border-radius: 0.5rem;
   font-size: 0.875rem;
-  color: var(--text-muted);
+  color: var(--text-main);
 }
 
 .btn-copy {
@@ -521,13 +525,13 @@
   padding: 0.5rem;
   border-radius: 8px;
   border: none;
-  background: #f8fafc;
+  background: var(--theme-bg-soft);
   color: var(--text-muted);
   cursor: pointer;
 }
 
 .btn-icon-small:hover {
-  background: #f1f5f9;
+  background: var(--theme-bg-main);
   color: var(--primary);
 }
 
@@ -550,7 +554,7 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #f8fafc;
+  background: var(--theme-bg-soft);
 }
 
 table {
@@ -564,7 +568,7 @@ table {
 }
 
 th {
-  background: #f8fafc;
+  background: var(--theme-bg-soft);
   padding: 1rem 1.5rem;
   font-size: 0.75rem;
   font-weight: 700;
@@ -575,7 +579,7 @@ th {
 
 td {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--theme-border-color);
 }
 
 .status-pill {
@@ -612,7 +616,11 @@ td {
 
 .tutorial-section {
   padding: 0.5rem;
-  background: linear-gradient(135deg, #f8fafc, #eef2ff);
+  background: linear-gradient(
+    135deg,
+    var(--theme-bg-soft),
+    var(--theme-bg-main)
+  );
   border-radius: 18px;
   overflow: hidden;
 }
@@ -621,7 +629,7 @@ td {
   font-weight: 800;
   font-size: 1.2rem;
   margin-bottom: 1.2rem;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .tutorial-carousel-wrapper {
@@ -764,7 +772,7 @@ td {
 }
 
 .user-avatar {
-  background: #f1f5f9;
+  background: var(--theme-bg-soft);
   padding: 4px;
   border-radius: 50%;
 }
@@ -845,7 +853,7 @@ td {
   position: absolute;
   left: 10px;
   top: 10px;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .th-right,

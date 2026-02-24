@@ -4,8 +4,8 @@
   flex-direction: column;
   height: 100vh;
   /* width: 100vw; */
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--theme-bg-main);
+  color: var(--theme-text-main);
   overflow: hidden;
   font-family: "Inter", sans-serif;
 }
@@ -13,8 +13,8 @@
 .header {
   /* min-height: 64px; */
   /* height: auto; */
-  border-bottom: 1px solid #e2e8f0;
-  background-color: #ffffff;
+  border-bottom: 1px solid var(--theme-border-color);
+  background-color: var(--theme-bg-surface);
   padding: 12px 24px;
   display: flex;
   align-items: center;
@@ -59,8 +59,8 @@
 .sidebar {
   width: 320px;
   min-width: 320px;
-  border-right: 1px solid #e2e8f0;
-  background-color: #ffffff;
+  border-right: 1px solid var(--theme-border-color);
+  background-color: var(--theme-bg-surface);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -85,7 +85,7 @@
 
 .section {
   padding: 24px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--theme-border-color);
   flex-shrink: 0;
 }
 
@@ -134,10 +134,10 @@
 
 /* NUEVOS CONTROLES COMPACTOS */
 .compactControlBox {
-  background-color: #f8fafc;
+  background-color: var(--theme-bg-soft);
   border-radius: 12px;
   padding: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--theme-border-color);
 }
 
 .compactControlHeader {
@@ -173,8 +173,8 @@
   width: 58px;
   height: 58px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid var(--theme-border-color);
+  background: var(--theme-bg-surface);
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
@@ -220,8 +220,8 @@
   flex: 1;
   padding: 6px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid var(--theme-border-color);
+  background: var(--theme-bg-surface);
   font-size: 12px;
   font-weight: 600;
   color: #475569;
@@ -258,8 +258,8 @@
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
+  border: 1px solid var(--theme-border-color);
+  background: var(--theme-bg-surface);
   cursor: pointer;
   transition: all 0.15s ease;
   display: flex;
@@ -312,7 +312,7 @@
 .mapSection {
   flex: 1;
   position: relative;
-  background-color: #e2e8f0;
+  background-color: var(--theme-bg-soft);
   min-width: 0;
 }
 
@@ -399,8 +399,8 @@
 }
 
 .btnSecondary {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--theme-bg-surface);
+  border: 1px solid var(--theme-border-color);
   padding: 8px 14px;
   border-radius: 10px;
   font-size: 13px;
@@ -443,23 +443,23 @@
 .inputNumber {
   width: 100%;
   padding: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--theme-border-color);
   border-radius: 8px;
-  background-color: #f8fafc;
+  background-color: var(--theme-bg-soft);
   font-size: 14px;
 }
 
 .inputNumber:focus {
   outline: none;
   border-color: #0ea5e9;
-  background-color: white;
+  background-color: var(--theme-bg-surface);
 }
 
 .footer {
   height: auto;
   min-height: 40px;
-  background-color: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  background-color: var(--theme-bg-soft);
+  border-top: 1px solid var(--theme-border-color);
   padding: 10px 20px;
   display: flex;
   align-items: center;
@@ -517,7 +517,7 @@
   width: 96vw;
   max-width: 1600px;
   height: 92vh;
-  background: #fff;
+  background: var(--theme-bg-surface);
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 50px 120px rgba(0, 0, 0, 0.4);
@@ -603,7 +603,7 @@
     min-width: 100%;
     max-height: 50vh;
     border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--theme-border-color);
   }
 
   .mapSection {

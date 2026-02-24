@@ -949,7 +949,7 @@ setRegisterMessage("✅ Registro con éxito!");
           ✖
         </button>
 
-        <h2 style={{ color: "black" }}>
+        <h2 style={{ color: "var(--theme-text-main)" }}>
           Generar Lotes - Alineado a Lados del Polígono
         </h2>
 
@@ -1039,7 +1039,11 @@ setRegisterMessage("✅ Registro con éxito!");
         </div>
 
         <div
-          style={{ marginBottom: "0.5rem", color: "#333", fontSize: "14px" }}
+          style={{
+            marginBottom: "0.5rem",
+            color: "var(--theme-text-main)",
+            fontSize: "14px",
+          }}
         >
           {!basePolygonCoords && (
             <span>
@@ -1053,7 +1057,7 @@ setRegisterMessage("✅ Registro con éxito!");
                 {selectedLote && ` | Seleccionado: Lote ${selectedLote}`}
               </span>
               <br />
-              <span style={{ fontSize: "12px", color: "#666" }}>
+              <span style={{ fontSize: "12px", color: "var(--theme-text-muted)" }}>
                 📐 Ángulo detectado: {detectedAngle.toFixed(1)}° | Ajuste
                 aplicado: {rotationDeg}°
               </span>
@@ -1417,7 +1421,7 @@ setRegisterMessage("✅ Registro con éxito!");
 
 
 
-            <h4 style={{ color: "#333" }}>📷 Imágenes del inmueble</h4>
+            <h4 style={{ color: "var(--theme-text-main)" }}>📷 Imágenes del inmueble</h4>
 
             <input
               type="file"

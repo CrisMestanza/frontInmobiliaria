@@ -16,6 +16,8 @@ import ChatBotPanel from "../mybot/ChatBotPanel";
 import loader from "../../components/loader";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
+import ThemeSwitch from "../../components/ThemeSwitch";
+import { useTheme } from "../../context/ThemeContext";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const LIBRARIES = ["places"];
@@ -108,6 +110,7 @@ const LotesOverlay = ({
 };
 
 function MyMap() {
+  const { isDark, toggleTheme } = useTheme();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -949,6 +952,7 @@ function MyMap() {
         </div>
         {/* Botones de la derecha (User / Menu) */}
         <div className={styles.rightActions}>
+          <ThemeSwitch checked={isDark} onChange={toggleTheme} />
           {!isMobileViewport && (
             <Link to="/login" className={styles.anunciaPropiedad}>
               <span className={styles.anuncioSweep} aria-hidden="true" />
@@ -983,6 +987,11 @@ function MyMap() {
             </Link>
           )}
         </div>
+        {isMobileViewport && (
+          <div className={styles.mobileThemeControl}>
+            <ThemeSwitch checked={isDark} onChange={toggleTheme} />
+          </div>
+        )}
       </header>
 
       <GoogleMap

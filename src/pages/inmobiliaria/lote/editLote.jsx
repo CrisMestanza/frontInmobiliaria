@@ -222,7 +222,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
           ✖
         </button>
         <form className={style.formContainer} onSubmit={handleSubmit}>
-          <h2 style={{ color: "black" }}>Editar Lote</h2>
+          <h2 style={{ color: "var(--theme-text-main)" }}>Editar Lote</h2>
           <div
             ref={mapRef}
             style={{ width: "100%", height: "300px", marginBottom: "1rem" }}

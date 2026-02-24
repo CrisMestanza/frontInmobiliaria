@@ -585,7 +585,7 @@ export default function LoteModal({ onClose, idproyecto }) {
           ✖
         </button>
         <form className={style.formContainer} onSubmit={handleSubmit}>
-          <h2 style={{ color: "black" }}>Registrar Lote</h2>
+          <h2 style={{ color: "var(--theme-text-main)" }}>Registrar Lote</h2>
 
           {/* 📍 Google Map */}
           <GoogleMap
