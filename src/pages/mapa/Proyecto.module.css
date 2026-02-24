@@ -122,9 +122,7 @@
   touch-action: none;
 }
 
-.noImageLayout .infoSection {
-  width: 100%;
-}
+
 
 .imageSection {
   width: 45%;
@@ -549,10 +547,6 @@
   align-items: center;
 }
 
-.noImage {
-  margin-left: 30px;
-  margin-top: 30px;
-}
 
 .fullscreenImg {
   max-width: 90%;
@@ -602,6 +596,21 @@
   }
 }
 
+.noImage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%; /* mismo alto aproximado del slider */
+  width: 35%;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  /* border: 2px dashed #cbd5e1; */
+  color: #475569;
+  text-align: center;
+  padding: 20px;
+  font-weight: 500;
+  font-size: 15px;
+}
 /* ===== CARD CONTENEDOR ===== */
 .inmoCard {
   margin-top: 20px;
@@ -836,7 +845,7 @@
     padding: 0;
     margin: 12px 0 4px;
     margin-right: 0;
-    display: block;
+    display: flex;
     width: 100%;
     box-sizing: border-box;
   }
@@ -868,6 +877,9 @@
   }
   .featuresGrid {
     margin-right: 0;
+  }
+  .noImage{
+    display: none;
   }
 }
 
@@ -915,7 +927,5 @@
     transform: scale(0.95) rotate(90deg);
   }
 
-  .noImage {
-    margin-top: 30%;
-  }
+
 }

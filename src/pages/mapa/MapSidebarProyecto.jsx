@@ -69,9 +69,9 @@ const ProyectoSidebar = ({
 
   const mensajeWhatsapp = encodeURIComponent(
     `Hola, vengo desde GeoHabita.\n` +
-      `Estoy interesado en el proyecto *"${proyecto.nombreproyecto}"*.\n` +
-      `Me gustaría recibir más información sobre disponibilidad, valor y formas de pago.\n` +
-      `¡Quedo atento(a)!`,
+    `Estoy interesado en el proyecto *"${proyecto.nombreproyecto}"*.\n` +
+    `Me gustaría recibir más información sobre disponibilidad, valor y formas de pago.\n` +
+    `¡Quedo atento(a)!`,
   );
   const phoneNumber = useMemo(() => {
     const raw =
@@ -400,82 +400,86 @@ const ProyectoSidebar = ({
           className={`${styles.splitLayout} ${validImages.length === 0 ? styles.noImageLayout : ""} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
           {/* SECCIÓN IMAGEN / SLIDER */}
-          {validImages.length > 0 && (
-            <div className={styles.imageSection}>
-              {isMobileView ? (
-                <div className={styles.mobileCarouselWrap}>
-                  <div className={styles.mobileCarouselTrack}>
-                    {validImages.length > 1 && (
-                      <button
-                        className={`${styles.mobileSideSlide} ${styles.mobileSideLeft}`}
-                        onClick={prevSlide}
-                        aria-label="Imagen anterior"
-                      >
-                        <img
-                          src={`https://api.geohabita.com${validImages[prevImgIndex].imagenproyecto}`}
-                          alt="Anterior"
-                          className={styles.mobileSideImage}
-                        />
-                      </button>
-                    )}
-                    <img
-                      key={currentImg}
-                      src={`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`}
-                      alt="Propiedad"
-                      className={styles.mobileMainImage}
-                      onClick={() => setFullscreenImgIndex(currentImg)}
-                    />
-                    {validImages.length > 1 && (
-                      <button
-                        className={`${styles.mobileSideSlide} ${styles.mobileSideRight}`}
-                        onClick={nextSlide}
-                        aria-label="Imagen siguiente"
-                      >
-                        <img
-                          src={`https://api.geohabita.com${validImages[nextImgIndex].imagenproyecto}`}
-                          alt="Siguiente"
-                          className={styles.mobileSideImage}
-                        />
-                      </button>
-                    )}
-                  </div>
-                  <div className={styles.mobileDots}>
-                    {validImages.map((_, idx) => (
-                      <button
-                        key={`dot-${idx}`}
-                        className={`${styles.mobileDot} ${idx === currentImg ? styles.mobileDotActive : ""}`}
-                        onClick={() => setCurrentImg(idx)}
-                        aria-label={`Ir a imagen ${idx + 1}`}
+          {validImages.length  == 0 ? (
+            <div className={styles.noImage}>
+              <p>No hay imágenes disponibles</p>
+            </div>
+          ) : (
+          <div className={styles.imageSection}>
+            {isMobileView ? (
+              <div className={styles.mobileCarouselWrap}>
+                <div className={styles.mobileCarouselTrack}>
+                  {validImages.length > 1 && (
+                    <button
+                      className={`${styles.mobileSideSlide} ${styles.mobileSideLeft}`}
+                      onClick={prevSlide}
+                      aria-label="Imagen anterior"
+                    >
+                      <img
+                        src={`https://api.geohabita.com${validImages[prevImgIndex].imagenproyecto}`}
+                        alt="Anterior"
+                        className={styles.mobileSideImage}
                       />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <>
+                    </button>
+                  )}
                   <img
                     key={currentImg}
                     src={`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`}
                     alt="Propiedad"
-                    className={styles.mainImage}
+                    className={styles.mobileMainImage}
                     onClick={() => setFullscreenImgIndex(currentImg)}
                   />
                   {validImages.length > 1 && (
-                    <div className={styles.sliderControls}>
-                      <button onClick={prevSlide} className={styles.navArrow}>
-                        <FaChevronLeft />
-                      </button>
-                      <button onClick={nextSlide} className={styles.navArrow}>
-                        <FaChevronRight />
-                      </button>
-                    </div>
+                    <button
+                      className={`${styles.mobileSideSlide} ${styles.mobileSideRight}`}
+                      onClick={nextSlide}
+                      aria-label="Imagen siguiente"
+                    >
+                      <img
+                        src={`https://api.geohabita.com${validImages[nextImgIndex].imagenproyecto}`}
+                        alt="Siguiente"
+                        className={styles.mobileSideImage}
+                      />
+                    </button>
                   )}
-                  <div className={styles.imageBadge}>
-                    {currentImg + 1} / {validImages.length} FOTOS
+                </div>
+                <div className={styles.mobileDots}>
+                  {validImages.map((_, idx) => (
+                    <button
+                      key={`dot-${idx}`}
+                      className={`${styles.mobileDot} ${idx === currentImg ? styles.mobileDotActive : ""}`}
+                      onClick={() => setCurrentImg(idx)}
+                      aria-label={`Ir a imagen ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <img
+                  key={currentImg}
+                  src={`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`}
+                  alt="Propiedad"
+                  className={styles.mainImage}
+                  onClick={() => setFullscreenImgIndex(currentImg)}
+                />
+                {validImages.length > 1 && (
+                  <div className={styles.sliderControls}>
+                    <button onClick={prevSlide} className={styles.navArrow}>
+                      <FaChevronLeft />
+                    </button>
+                    <button onClick={nextSlide} className={styles.navArrow}>
+                      <FaChevronRight />
+                    </button>
                   </div>
-                </>
-              )}
-            </div>
-          )}
+                )}
+                <div className={styles.imageBadge}>
+                  {currentImg + 1} / {validImages.length} FOTOS
+                </div>
+              </>
+            )}
+          </div>
+)}
 
           {/* SECCIÓN INFORMACIÓN */}
           <div
@@ -606,15 +610,26 @@ const ProyectoSidebar = ({
                     </a>
                   </div>
                 ) : (
-                  <a
-                    href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={styles.contactMiniBtn}
-                    onClick={() => registrarClickContacto("Whatsapp")}
-                  >
-                    <FaWhatsapp /> Contactar
-                  </a>
+                  <div className={styles.pantallaContactos}>
+
+                    <a
+                      href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.contactMiniBtn}
+                      onClick={() => registrarClickContacto("Whatsapp")}
+                    >
+                      <FaWhatsapp /> Contactar
+                    </a>
+
+                    <a
+                      href={phoneNumber ? `tel:${phoneNumber}` : undefined}
+                      className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
+                      onClick={() => registrarClickContacto("Llamada")}
+                    >
+                      <FaPhoneAlt /> Llamar
+                    </a>
+                  </div>
                 )}
               </div>
               {isMobileView && (
