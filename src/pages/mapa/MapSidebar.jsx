@@ -1,20 +1,75 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   FaRulerCombined, FaRulerHorizontal, FaRulerVertical,
   FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe,
   FaMapMarkerAlt, FaCheckCircle, FaTimesCircle,
   // ESTOS SON LOS QUE FALTABAN:
   FaBed, FaBath, FaHome, FaChair, FaUtensils, FaCar,
-  FaCampground, FaTree, FaSun, FaBuilding
+  FaCampground, FaTree, FaSun, FaBuilding, FaPhoneAlt,
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
 
 const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
+  const phoneNumber = useMemo(() => {
+    const raw =
+      inmo?.telefono ||
+      inmo?.celular ||
+      inmo?.whatsapp ||
+      inmo?.telefono1 ||
+      "";
+    return String(raw).replace(/[^\d+]/g, "");
+  }, [inmo]);
   console.log(lote)
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
   const contentRef = useRef(null);
+  const [isMobileView, setIsMobileView] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false,
+  );
+  const [sheetMode, setSheetMode] = useState("mid");
+
+
+
+  const sidebarRef = useRef(null);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+  const sheetTouchStartY = useRef(0);
+  const sheetTouchDeltaY = useRef(0);
+  const nestedTouchStartY = useRef(0);
+  const nestedTouchDeltaY = useRef(0);
+  const nestedStartAtTop = useRef(false);
+  const nestedStartAtBottom = useRef(false);
+  const nestedScrollableTarget = useRef(null);
+
+  const onSheetTouchStart = (e) => {
+    if (!isMobileView) return;
+    sheetTouchStartY.current = e.targetTouches[0].clientY;
+    sheetTouchDeltaY.current = 0;
+    e.stopPropagation();
+  };
+
+  const onSheetTouchMove = (e) => {
+    if (!isMobileView || !sheetTouchStartY.current) return;
+    sheetTouchDeltaY.current =
+      e.targetTouches[0].clientY - sheetTouchStartY.current;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+
+  const onSheetTouchEnd = () => {
+    if (!isMobileView) return;
+    if (sheetTouchDeltaY.current < -45) {
+      if (sheetMode === "collapsed") setSheetMode("mid");
+      else setSheetMode("expanded");
+    } else if (sheetTouchDeltaY.current > 45) {
+      if (sheetMode === "expanded") setSheetMode("mid");
+      else setSheetMode("collapsed");
+    }
+    sheetTouchStartY.current = 0;
+    sheetTouchDeltaY.current = 0;
+  };
 
   const hasValue = (val) => val !== null && val !== undefined && val > 0;
 
@@ -33,6 +88,8 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
     if (mapRef?.current) mapRef.current.setZoom(18);
   };
 
+
+
   useEffect(() => {
     const esc = (e) => e.key === "Escape" && cerrarSidebar();
     window.addEventListener("keydown", esc);
@@ -47,7 +104,14 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
       image.src = `https://api.geohabita.com${img.imagen}`;
     });
   }, [imagenes]);
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth <= 768);
+    };
 
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   const handleScroll = () => {
     if (!contentRef.current) return;
     const { scrollTop } = contentRef.current;
@@ -68,7 +132,39 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
         onClick={cerrarSidebar}
       />
 
-      <div className={`${styles.sidebar} ${expanded ? styles.expanded : ""}`}>
+      <div
+        ref={sidebarRef}
+        className={`
+    ${styles.sidebar}
+    ${expanded ? styles.expanded : ""}
+    ${isMobileView ? styles.mobileSidebar : ""}
+    ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""}
+    ${sheetMode === "expanded" ? styles.mobileExpanded : ""}
+  `}
+      >
+
+        {isMobileView && (
+          <div
+            className={styles.mobileTopHeader}
+            onTouchStart={onSheetTouchStart}
+            onTouchMove={onSheetTouchMove}
+            onTouchEnd={onSheetTouchEnd}
+          >
+            <h3 className={styles.mobileHeaderTitle}>
+              {lote.nombre}
+            </h3>
+            <button
+              className={styles.mobileHeaderClose}
+              onClick={cerrarSidebar}
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+            <div className={styles.mobileDragHandle} />
+          </div>
+        )}
+
+
         <button className={styles.closeBtn} onClick={cerrarSidebar} aria-label="Cerrar">✕</button>
 
         <div className={styles.splitLayout}>
@@ -138,16 +234,28 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                   <span className={styles.labelSmall}>Precio del Lote en dolares</span>
                   <span className={styles.priceValue}>$. {lote.precio}</span>
                 </div>
-                <a
-                  href={`https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
-                    `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto.nombreproyecto}"* y en el lote/inmueble *"${lote.nombre}"*`
-                  )}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.contactMiniBtn}
-                >
-                  <FaWhatsapp /> Contactar
-                </a>
+
+                <div className={styles.pantallaCelul}>
+                  
+                  <a
+                    href={`https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
+                      `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto.nombreproyecto}"* y en el lote/inmueble *"${lote.nombre}"*`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.contactMiniBtn}
+                  >
+                    <FaWhatsapp /> Contactar
+                  </a>
+
+                  <a
+                    href={phoneNumber ? `tel:${phoneNumber}` : undefined}
+                    className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
+                    onClick={() => registrarClickContacto("Llamada")}
+                  >
+                    <FaPhoneAlt /> Llamar
+                  </a>
+                  </div>
               </div>
 
 

@@ -876,7 +876,7 @@ function MyMap() {
 
   return (
     <div className={styles.container}>
-      <header className={`${styles.cabecera} ${selectedProyecto ? styles.cabeceraHiddenOnProject : ""}`}>
+      <header className={`${styles.cabecera} `}>
         {/* Logo a la izquierda fuera de la barra central */}
         <div className={styles.logoContainer}>
           <img

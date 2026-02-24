@@ -222,7 +222,7 @@
 }
 
 .mobileContactBtn {
-  min-height: 48px;
+  min-height: 30px;
   border-radius: 12px;
   text-decoration: none;
   color: #fff;
@@ -703,7 +703,7 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    height: 50vh;
+    height: 320px;
     width: 100%;
     bottom: 0;
     border-radius: 25px 25px 0 0;

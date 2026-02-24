@@ -774,7 +774,7 @@ const ProyectoSidebar = ({
 
       {fullscreenImgIndex !== null && validImages.length > 0 && (
         <div
-          className={styles.fullscreenOverlay}
+          className={styles.fullscreenOverlay}mobileSidebar
           onClick={() => setFullscreenImgIndex(null)}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}

@@ -54,7 +54,24 @@
 }
 
 @media (max-width: 550px) {
+
   .label {
     display: none;
   }
+
+  /* Switch vertical */
+  .track {
+    width: 30px;
+    height: 56px;
+    padding: 3px;
+  }
+
+  .thumb {
+    transform: translateY(0);
+  }
+
+  .switchOn .thumb {
+    transform: translateY(26px);
+  }
+
 }
