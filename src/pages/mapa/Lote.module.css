@@ -507,6 +507,54 @@
   display: flex;
 }
 
+.fullscreenOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  touch-action: none; /* Previene scroll del fondo en móviles */
+}
+
+.navArrowFullscreen {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  transition: background 0.3s;
+  z-index: 2100;
+}
+
+.navArrowFullscreen:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.arrowLeft { left: 20px; }
+.arrowRight { right: 20px; }
+
+.closeFsBtn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
 @media (max-width: 768px) {
 
   .mobileTopHeader {

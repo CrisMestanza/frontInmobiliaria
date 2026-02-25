@@ -222,6 +222,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
         <button className={styles.closeBtn} onClick={cerrarSidebar} aria-label="Cerrar">✕</button>
 
         <div className={styles.splitLayout}>
+
           <div className={styles.imageSection}>
             {imagenes.length > 0 ? (
               isMobileView ? (
@@ -247,13 +248,26 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                 </div>
               ) : (
                 <>
+
                   <img
                     key={currentImg}
                     src={`https://api.geohabita.com${imagenes[currentImg].imagen}`}
                     alt="Lote"
                     className={styles.mainImage}
+                    fetchpriority="high" // Le dice al navegador que esta es la prioridad #1
                     onClick={() => setFullscreenImgIndex(currentImg)}
                   />
+
+
+                  {imagenes.map((img, index) => (
+                    <img
+                      key={index}
+                      src={`https://api.geohabita.com${img.imagen}`}
+                      loading="lazy" // Solo carga cuando el usuario hace scroll hacia ella
+                      className={styles.mobileGalleryImage}
+                    // ... rest
+                    />
+                  ))}
                   {imagenes.length > 1 && (
                     <div className={styles.sliderControls}>
                       <button onClick={prevSlide} className={styles.navArrow}>
@@ -412,14 +426,59 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
         </div>
       </div>
 
+      {/* VISOR PANTALLA COMPLETA INTERACTIVO */}
       {fullscreenImgIndex !== null && (
-        <div className={styles.fullscreenOverlay} onClick={() => setFullscreenImgIndex(null)}>
+        <div
+          className={styles.fullscreenOverlay}
+          onClick={() => setFullscreenImgIndex(null)}
+          // Eventos para Swipe en celular
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const diff = touchStartX.current - touchEndX;
+            if (Math.abs(diff) > 50) { // Sensibilidad
+              if (diff > 0) {
+                // Swipe Izquierda -> Siguiente
+                setFullscreenImgIndex((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+              } else {
+                // Swipe Derecha -> Anterior
+                setFullscreenImgIndex((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+              }
+            }
+          }}
+        >
+          {/* Botón Anterior */}
+          <button
+            className={`${styles.navArrowFullscreen} ${styles.arrowLeft}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullscreenImgIndex((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+            }}
+          >
+            <FaChevronLeft />
+          </button>
+
           <img
             src={`https://api.geohabita.com${imagenes[fullscreenImgIndex].imagen}`}
             className={styles.fullscreenImg}
             alt="Zoom"
+            onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen
           />
+
+          {/* Botón Siguiente */}
+          <button
+            className={`${styles.navArrowFullscreen} ${styles.arrowRight}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullscreenImgIndex((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+            }}
+          >
+            <FaChevronRight />
+          </button>
+
           <div className={styles.fsBadge}>{fullscreenImgIndex + 1} / {imagenes.length}</div>
+
+          <button className={styles.closeFsBtn}>✕</button>
         </div>
       )}
     </>
