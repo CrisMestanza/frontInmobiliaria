@@ -810,6 +810,19 @@
   }
 
   .imageSection {
+    height: 100%; /* Obliga a la sección a ocupar todo el alto del sidebar */
+    display: block; 
+    min-width: 400px; /* Asegura un ancho mínimo en PC */
+  }
+  
+  .mainImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Evita que la imagen se deforme */
+  }
+
+  
+  .imageSection {
     width: 100%;
     height: auto;
     position: relative;

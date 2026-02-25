@@ -1108,9 +1108,9 @@ function MyMap() {
         </Link>
       )}
 
-      {/* {showHintClickLote && (
+      {showHintClickLote && (
         <div className={styles.clickHint}>Toca un lote</div>
-      )} */}
+      )}
 
       {selectedProyecto && (
         <ProyectoSidebar

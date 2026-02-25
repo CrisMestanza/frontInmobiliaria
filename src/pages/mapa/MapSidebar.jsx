@@ -30,7 +30,61 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
   const [sheetMode, setSheetMode] = useState("mid");
 
 
+  const minSwipeDistance = 50;
 
+  const onTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    const distance = touchStartX.current - touchEndX.current;
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+
+    if (Math.abs(distance) < minSwipeDistance) return;
+
+    if (distance > 0) {
+      // Swipe izquierda
+      setCurrentImg((prev) =>
+        prev === imagenes.length - 1 ? 0 : prev + 1
+      );
+    } else {
+      // Swipe derecha
+      setCurrentImg((prev) =>
+        prev === 0 ? imagenes.length - 1 : prev - 1
+      );
+    }
+  };
+  const galleryRef = useRef(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleGalleryScroll = () => {
+    if (!galleryRef.current) return;
+
+    const container = galleryRef.current;
+    const center = container.scrollLeft + container.offsetWidth / 2;
+
+    // Buscamos cuál imagen está más cerca del centro del contenedor
+    const children = Array.from(container.children);
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    children.forEach((child, index) => {
+      const childCenter = child.offsetLeft + child.offsetWidth / 2;
+      const distance = Math.abs(center - childCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    setActiveIndex(closestIndex);
+  };
   const sidebarRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -170,24 +224,55 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
         <div className={styles.splitLayout}>
           <div className={styles.imageSection}>
             {imagenes.length > 0 ? (
-              <>
-                <img
-                  key={currentImg}
-                  src={`https://api.geohabita.com${imagenes[currentImg].imagen}`}
-                  alt="Lote"
-                  className={styles.mainImage}
-                  onClick={() => setFullscreenImgIndex(currentImg)}
-                />
-                {imagenes.length > 1 && (
-                  <div className={styles.sliderControls}>
-                    <button onClick={prevSlide} className={styles.navArrow}><FaChevronLeft /></button>
-                    <button onClick={nextSlide} className={styles.navArrow}><FaChevronRight /></button>
+              isMobileView ? (
+                <div
+                  className={styles.mobileHorizontalGallery}
+                  ref={galleryRef}
+                  onScroll={handleGalleryScroll}
+                >
+                  {imagenes.map((img, index) => (
+                    <div
+                      key={index}
+                      className={styles.galleryItem}
+                    >
+                      <img
+                        src={`https://api.geohabita.com${img.imagen}`}
+                        alt="Lote"
+                        className={`${styles.mobileGalleryImage} ${activeIndex === index ? styles.activeImage : ""
+                          }`}
+                        onClick={() => setFullscreenImgIndex(index)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <img
+                    key={currentImg}
+                    src={`https://api.geohabita.com${imagenes[currentImg].imagen}`}
+                    alt="Lote"
+                    className={styles.mainImage}
+                    onClick={() => setFullscreenImgIndex(currentImg)}
+                  />
+                  {imagenes.length > 1 && (
+                    <div className={styles.sliderControls}>
+                      <button onClick={prevSlide} className={styles.navArrow}>
+                        <FaChevronLeft />
+                      </button>
+                      <button onClick={nextSlide} className={styles.navArrow}>
+                        <FaChevronRight />
+                      </button>
+                    </div>
+                  )}
+                  <div className={styles.imageBadge}>
+                    {currentImg + 1} / {imagenes.length} FOTOS
                   </div>
-                )}
-                <div className={styles.imageBadge}>{currentImg + 1} / {imagenes.length} FOTOS</div>
-              </>
+                </>
+              )
             ) : (
-              <div className={styles.noImage}>No hay imagenes referenciales</div>
+              <div className={styles.noImage}>
+                No hay imagenes referenciales
+              </div>
             )}
           </div>
 
@@ -225,7 +310,6 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                   <><FaTimesCircle /> Sin título de propiedad</>
                 )}
               </span>
-
               <h1 className={styles.nombreLote}>{lote.nombre}</h1>
               <p className={styles.ubicacion}><FaMapMarkerAlt /> Ubicación referencial</p>
 
@@ -236,7 +320,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                 </div>
 
                 <div className={styles.pantallaCelul}>
-                  
+
                   <a
                     href={`https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
                       `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto.nombreproyecto}"* y en el lote/inmueble *"${lote.nombre}"*`
@@ -255,7 +339,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                   >
                     <FaPhoneAlt /> Llamar
                   </a>
-                  </div>
+                </div>
               </div>
 
 

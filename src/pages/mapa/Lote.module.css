@@ -503,11 +503,12 @@
   pointer-events: none;
 }
 
-.pantallaCelularBotones{
+.pantallaCelularBotones {
   display: flex;
 }
 
 @media (max-width: 768px) {
+
   .mobileTopHeader {
     position: sticky;
     top: 0;
@@ -569,7 +570,7 @@
     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-.sidebar.mobileCollapsed {
+  .sidebar.mobileCollapsed {
     transform: translateY(71%);
   }
 
@@ -581,7 +582,55 @@
     touch-action: none;
   }
 
+  /* ===================== */
+  /* MOBILE HORIZONTAL GALLERY */
+  /* ===================== */
 
+  .mobileHorizontalGallery {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px 0;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    align-items: center;
+    /* Centrado de la primera y última imagen */
+    padding-left: calc(50% - 35%);
+    padding-right: calc(50% - 35%);
+  }
+
+  .mobileHorizontalGallery::-webkit-scrollbar {
+    display: none;
+  }
+
+  .galleryItem {
+    flex: 0 0 70%;
+    /* Ajustado para que las de los lados asomen más */
+    height: 200px;
+    /* Un poco más de altura para el efecto */
+    scroll-snap-align: center;
+    transition: transform 0.3s ease, filter 0.3s ease;
+    perspective: 1000px;
+  }
+
+  .mobileGalleryImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 22px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    /* Estado inicial: más pequeña y algo opaca */
+    transform: scale(0.85);
+    filter: brightness(0.7);
+    transition: all 0.3s ease;
+  }
+
+  /* Esta clase se aplicará dinámicamente con JS al elemento central */
+  .activeImage {
+    transform: scale(1.05);
+    filter: brightness(1);
+    z-index: 2;
+  }
 
 
   .sidebar {
@@ -595,9 +644,9 @@
     overflow-y: auto;
   }
 
-  .imageSection {
+  /* .imageSection {
     display: none;
-  }
+  } */
 
   .expanded {
     height: 75vh;
@@ -610,7 +659,8 @@
 
   .imageSection {
     width: 100%;
-    height: 250px;
+    height: auto;
+    padding-top: 10px;
   }
 
   .infoSection {
