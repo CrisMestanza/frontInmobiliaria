@@ -188,14 +188,14 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                 className={`${style.actionBtn} ${style.btnPrimary}`}
                 onClick={() => setShowModalBlock(true)}
               >
-                <span className={style.btnDot}></span> Lotes por Bloques
+                <span className={style.btnDot}></span> Agregar Lotes
               </button>
-              <button
+              {/* <button
                 className={`${style.actionBtn} ${style.btnSecondary}`}
                 onClick={() => setShowModalLote(true)}
               >
                 Lotes Irregulares
-              </button>
+              </button> */}
               <button
                 className={`${style.actionBtn} ${style.btnGhost}`}
                 onClick={() => {
