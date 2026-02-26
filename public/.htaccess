@@ -2,11 +2,19 @@
   RewriteEngine On
   RewriteBase /
 
-  # Si el archivo existe, no reescribir
+  # 1. Forzar HTTPS
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://www.geohabita.com/$1 [L,R=301]
+
+  # 2. Forzar WWW
+  RewriteCond %{HTTP_HOST} ^geohabita\.com [NC]
+  RewriteRule ^(.*)$ https://www.geohabita.com/$1 [L,R=301]
+
+  # 3. Si el archivo o carpeta existe, no reescribir
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Todo lo demás va a index.html
+  # 4. React Router (SPA)
   RewriteRule ^ index.html [L]
 </IfModule>
