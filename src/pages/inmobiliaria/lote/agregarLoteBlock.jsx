@@ -808,8 +808,8 @@ export default function LoteModal({ onClose, idproyecto }) {
   };
 
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
-  const [isRegistering, setIsRegistering] = useState(false);
+const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
+const [isRegistering, setIsRegistering] = useState(false);
 
   const handleRegisterAll = async () => {
     for (const l of generatedLotes) {
@@ -819,9 +819,9 @@ export default function LoteModal({ onClose, idproyecto }) {
       }
     }
 
-    setShowRegisterModal(true);      // Abrir modal
-    setRegisterMessage("Registrando inmuebles...");
-    setIsRegistering(true);
+setShowRegisterModal(true);      // Abrir modal
+  setRegisterMessage("Registrando inmuebles...");
+  setIsRegistering(true);
 
     const formData = new FormData();
 
@@ -895,15 +895,15 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       if (!res.ok) throw new Error("Error en registro masivo");
 
-      setRegisterMessage("✅ Registro con éxito!");
+setRegisterMessage("✅ Registro con éxito!");
       onClose();
     } catch (error) {
       console.error(error);
-      setRegisterMessage("❌ Error al registrar los inmuebles");
+          setRegisterMessage("❌ Error al registrar los inmuebles");
 
-    } finally {
-      setIsRegistering(false);
-    }
+    }finally {
+    setIsRegistering(false);
+  }
   };
 
 
@@ -941,10 +941,10 @@ export default function LoteModal({ onClose, idproyecto }) {
 
 
   return (
-
+    
     <div className={style.modalOverlay}>
       <div className={style.modalContent}>
-
+        
 
         <button className={style.closeBtn} onClick={onClose}>
           ✖
@@ -1065,30 +1065,30 @@ export default function LoteModal({ onClose, idproyecto }) {
             </div>
           )}
         </div>
-        {showRegisterModal && (
-          <div className={style.modalOverlay}>
-            <div
-              className={style.modalContent}
-              style={{ maxWidth: "400px", textAlign: "center" }}
-            >
-              <h3>{registerMessage}</h3>
-              {!isRegistering && (
-                <button
-                  className={style.submitBtn}
-                  onClick={() => setShowRegisterModal(false)}
-                  style={{ marginTop: "1rem" }}
-                >
-                  Cerrar
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+{showRegisterModal && (
+  <div className={style.modalOverlay}>
+    <div
+      className={style.modalContent}
+      style={{ maxWidth: "400px", textAlign: "center" }}
+    >
+      <h3>{registerMessage}</h3>
+      {!isRegistering && (
+        <button
+          className={style.submitBtn}
+          onClick={() => setShowRegisterModal(false)}
+          style={{ marginTop: "1rem" }}
+        >
+          Cerrar
+        </button>
+      )}
+    </div>
+  </div>
+)}
         <GoogleMap
           onLoad={onMapLoad}
           mapContainerStyle={{
             width: "100%",
-            height: "370px",
+            height: "360px",
             marginBottom: "1rem",
           }}
           zoom={mapZoom}
@@ -1493,7 +1493,7 @@ export default function LoteModal({ onClose, idproyecto }) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem"}}>
           <button
             onClick={handleRegisterAll}
             className={style.submitBtn}
