@@ -18,6 +18,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const [success, setSuccess] = useState(false);
 
   const [form, setForm] = useState({
+    tipo_registro: "",
     idinmobiliaria,
     idtipoinmobiliaria: "",
     nombreproyecto: "",
@@ -89,7 +90,16 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const mapRef = useRef(null);
   const fileInputRef = useRef(null);
   const autocompleteRef = useRef(null);
+  const isLoteUnico = form.tipo_registro === "lote_unico";
 
+  useEffect(() => {
+  if (form.tipo_registro === "lote_unico") {
+    setForm(prev => ({
+      ...prev,
+      idtipoinmobiliaria: 1 // 👈 Forzamos ID 1 cuando es lote único
+    }));
+  }
+}, [form.tipo_registro]);
   // Cargar Google Maps
   useEffect(() => {
     loader
@@ -308,7 +318,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
         setTimeout(() => {
           setIsSubmitting(false);
           onClose();
-        }, 1500);
+        }, 500);
       } else {
         setIsSubmitting(false);
         alert("⚠️ Error en registro");
@@ -374,26 +384,56 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                   <span className="material-icons-outlined">info</span>{" "}
                   Información
                 </h2>
+
                 <div className={styles.inputGroup}>
-                  <label>Tipo de Proyecto</label>
+                  <label>Agregar proyecto o lote único</label>
                   <select
-                    name="idtipoinmobiliaria"
-                    value={form.idtipoinmobiliaria}
+                    name="tipo_registro"
+                    value={form.tipo_registro}
                     onChange={handleChange}
                     className={styles.select}
                     required
                   >
                     <option value="">Seleccione...</option>
-                    {tipo.map((t) => (
-                      <option
-                        key={t.idtipoinmobiliaria}
-                        value={t.idtipoinmobiliaria}
-                      >
-                        {t.nombre}
-                      </option>
-                    ))}
+                    <option value="proyecto">Proyecto</option>
+                    <option value="lote_unico">Lote único</option>
                   </select>
                 </div>
+
+                {!isLoteUnico && (
+                  <div className={styles.inputGroup}>
+                    <label>Tipo de Proyecto o casa única</label>
+                    <select
+                      name="idtipoinmobiliaria"
+                      value={form.idtipoinmobiliaria}
+                      onChange={handleChange}
+                      className={styles.select}
+                      required
+                    >
+                      <option value="">Seleccione...</option>
+                      {tipo.map((t) => {
+                        let nombrePersonalizado = t.nombre;
+
+                        if (t.nombre === "LOTE") {
+                          nombrePersonalizado = "Conjunto Lotes/Casas/Departamentos";
+                        }
+
+                        if (t.nombre === "CASA") {
+                          nombrePersonalizado = "Casa única";
+                        }
+
+                        return (
+                          <option
+                            key={t.idtipoinmobiliaria}
+                            value={t.idtipoinmobiliaria}
+                          >
+                            {nombrePersonalizado}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
                 <div className={styles.inputGroup}>
                   <label>Nombre</label>
                   <input
@@ -404,6 +444,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     required
                   />
                 </div>
+
                 <div className={styles.inputGroup}>
                   <label>Descripción</label>
                   <textarea
@@ -415,6 +456,73 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     required
                   />
                 </div>
+
+                {isLoteUnico && (
+                  <>
+                    <div className={styles.inputGroup}>
+                      <label>¿Cuenta con título de propiedad?</label>
+                      <select
+                        name="titulo_propiedad"
+                        value={form.titulo_propiedad}
+                        onChange={handleChange}
+                        className={styles.select}
+                      >
+                        <option value={0}>No</option>
+                        <option value={1}>Sí</option>
+                      </select>
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label>Precio en dólares</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        name="precio"
+                        value={form.precio}
+                        onChange={handleChange}
+                        className={styles.input}
+                      />
+                    </div>
+
+                    <div className={styles.compactGrid}>
+                      <div className={styles.compactField}>
+                        <label>Área total (m²)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="area_total_m2"
+                          value={form.area_total_m2}
+                          onChange={handleChange}
+                          className={styles.input}
+                        />
+                      </div>
+
+                      <div className={styles.compactField}>
+                        <label>Ancho</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="ancho"
+                          value={form.ancho}
+                          onChange={handleChange}
+                          className={styles.input}
+                        />
+                      </div>
+
+                      <div className={styles.compactField}>
+                        <label>Largo</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="largo"
+                          value={form.largo}
+                          onChange={handleChange}
+                          className={styles.input}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {isCasa && (
                   <>

@@ -1089,7 +1089,7 @@ setRegisterMessage("✅ Registro con éxito!");
           onLoad={onMapLoad}
           mapContainerStyle={{
             width: "100%",
-            height: "480px",
+            height: "360px",
             marginBottom: "1rem",
           }}
           zoom={mapZoom}
@@ -1423,7 +1423,7 @@ setRegisterMessage("✅ Registro con éxito!");
 
 
 
-            <h4 style={{ color: "var(--theme-text-main)" }}>📷 Imágenes del inmueble</h4>
+            <label style={{ color: "var(--theme-text-main)" }}>📷 Imágenes del inmueble</label>
 
             <input
               type="file"
@@ -1494,7 +1494,7 @@ setRegisterMessage("✅ Registro con éxito!");
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem"}}>
           <button
             onClick={handleRegisterAll}
             className={style.submitBtn}

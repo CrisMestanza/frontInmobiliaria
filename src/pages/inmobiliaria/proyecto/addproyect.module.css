@@ -629,24 +629,7 @@ gmp-place-autocomplete input::placeholder {
     gap: 4px;
   }
 
-  .mapBtn {
-    padding: 7px;
-    font-size: 0;
-  }
 
-  .mapBtn span.material-icons-outlined {
-    font-size: 15px;
-  }
-
-  /* Ocultar texto en móviles, solo mostrar iconos */
-  .mapBtn {
-    min-width: 30px; /* 40px * 0.75 */
-    justify-content: center;
-  }
-
-  .mapBtn span:not(.material-icons-outlined) {
-    display: none;
-  }
 
   .modalContent {
     max-width: 100%;

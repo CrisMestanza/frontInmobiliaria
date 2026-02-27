@@ -954,6 +954,7 @@ function MyMap() {
           setHasSearchedLocation(true); // ✅ CLAVE
 
           if (mapRef.current) {
+
             if (place.geometry.viewport) {
               mapRef.current.fitBounds(place.geometry.viewport);
             } else {
@@ -1242,6 +1243,15 @@ function MyMap() {
           drivingInfo={drivingInfo}
           mapRef={mapRef}
           onClose={async () => {
+            if (mapRef.current && window.google?.maps) {
+              const map = mapRef.current;
+
+              // 🔹 Si tienes posición actual
+              map.panTo(currentPosition);
+
+              // 🔹 Zoom 17
+              map.setZoom(13);
+            }
             setselectedProyecto(null);
             setDirections(null);
             setWalkingInfo(null);
