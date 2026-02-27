@@ -1,4 +1,5 @@
 import { withApiBase } from "../../../config/api.js";
+import { authFetch } from "../../../config/authFetch.js";
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
@@ -288,7 +289,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   const fetchProyecto = useCallback(async () => {
     try {
-      const resProyecto = await fetch(
+      const resProyecto = await authFetch(
         withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -304,7 +305,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       setLotesCoords(lotesData);
 
       // 🔹 Cargar polígono del proyecto
-      const resPuntosProyecto = await fetch(
+      const resPuntosProyecto = await authFetch(
         withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`),
         { headers: { Authorization: `Bearer ${token}` } },
       );
@@ -882,7 +883,7 @@ setShowRegisterModal(true);      // Abrir modal
     }
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         withApiBase("https://api.geohabita.com/api/registerLotesMasivo/"),
         {
           method: "POST",

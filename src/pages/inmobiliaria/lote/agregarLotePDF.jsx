@@ -1,4 +1,5 @@
 import { withApiBase } from "../../../config/api.js";
+import { authFetch } from "../../../config/authFetch.js";
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
@@ -13,6 +14,7 @@ import {
 } from "../../../components/utils/indexedDB";
 
 export default function LoteModal({ onClose, idproyecto }) {
+  const token = localStorage.getItem("access");
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapCenter, setMapCenter] = useState(null);
   const [proyectoCoords, setProyectoCoords] = useState([]);
@@ -163,7 +165,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   const fetchProyecto = useCallback(async () => {
     try {
-      const res = await fetch(
+      const res = await authFetch(
         withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`),
       );
       const puntosProyecto = await res.json();
@@ -181,14 +183,17 @@ export default function LoteModal({ onClose, idproyecto }) {
       }));
       setProyectoCoords(coords);
 
-      const resLotes = await fetch(
+      const resLotes = await authFetch(
         withApiBase(`https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`),
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
       const lotes = await resLotes.json();
 
       const lotesData = [];
       for (const lote of lotes) {
-        const resPuntos = await fetch(
+        const resPuntos = await authFetch(
           withApiBase(`https://api.geohabita.com/api/listPuntos/${lote.idlote}`),
         );
         const puntos = await resPuntos.json();

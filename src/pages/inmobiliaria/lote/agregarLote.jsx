@@ -1,4 +1,5 @@
 import { withApiBase } from "../../../config/api.js";
+import { authFetch } from "../../../config/authFetch.js";
 // components/LoteModal.jsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
@@ -330,7 +331,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const fetchProyecto = useCallback(async () => {
     try {
       // 🔹 Polígono del proyecto (siempre debe cargarse, incluso sin lotes)
-      const resPuntosProyecto = await fetch(
+      const resPuntosProyecto = await authFetch(
         withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`),
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -355,7 +356,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       setProyectoCoords(orderedProyecto);
 
       // 🔹 Lotes ya registrados (puede venir vacío en proyecto nuevo)
-      const resProyecto = await fetch(
+      const resProyecto = await authFetch(
         withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -388,7 +389,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   useEffect(() => {
     const fetchTipos = async () => {
       try {
-        const res = await fetch(
+        const res = await authFetch(
           withApiBase(`https://api.geohabita.com/api/listTipoInmobiliaria/`),
           {
             headers: {
@@ -557,7 +558,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     });
     console.log("Enviando formulario:", form);
     try {
-      const res = await fetch(withApiBase("https://api.geohabita.com/api/registerLote/"), {
+      const res = await authFetch(withApiBase("https://api.geohabita.com/api/registerLote/"), {
         method: "POST",
         body: formData,
         headers: { Authorization: `Bearer ${token}` },

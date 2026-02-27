@@ -1,4 +1,5 @@
 import { withApiBase } from "../config/api.js";
+import { authFetch } from "../config/authFetch.js";
 // src/components/PrivateRoute.jsx
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
@@ -9,16 +10,20 @@ const PrivateRoute = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       let token = localStorage.getItem("access");
+      const idInmo = localStorage.getItem("idinmobiliaria");
       if (!token) {
+        setIsAuth(false);
+        return;
+      }
+      if (!idInmo) {
         setIsAuth(false);
         return;
       }
 
       try {
-        const res = await fetch(withApiBase("https://api.geohabita.com/api/check_auth/"), {
+        const res = await authFetch(withApiBase("https://api.geohabita.com/api/check_auth/"), {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
@@ -28,42 +33,10 @@ const PrivateRoute = ({ children }) => {
           return;
         }
 
-        if (res.status === 401) {
-          // intentar refresh
-          const newToken = await refreshAccessToken();
-          if (newToken) {
-            // reintentar
-            const r2 = await fetch(withApiBase("https://api.geohabita.com/api/check_auth/"), {
-              headers: { Authorization: `Bearer ${newToken}` },
-            });
-            setIsAuth(r2.ok);
-            return;
-          }
-        }
-
         setIsAuth(false);
       } catch (err) {
         console.error("Error check_auth:", err);
         setIsAuth(false);
-      }
-    };
-
-    const refreshAccessToken = async () => {
-      const refresh = localStorage.getItem("refresh");
-      if (!refresh) return null;
-      try {
-        const res = await fetch(withApiBase("https://api.geohabita.com/api/token/refresh/"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh }),
-        });
-        if (!res.ok) return null;
-        const data = await res.json();
-        localStorage.setItem("access", data.access);
-        return data.access;
-      } catch (err) {
-        console.error("Refresh error:", err);
-        return null;
       }
     };
 

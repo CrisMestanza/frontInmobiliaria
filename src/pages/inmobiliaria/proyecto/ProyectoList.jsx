@@ -1,4 +1,5 @@
 import { withApiBase } from "../../../config/api.js";
+import { authFetch } from "../../../config/authFetch.js";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Aside from "../../../components/Aside";
@@ -15,7 +16,7 @@ export default function ProyectosList() {
   useEffect(() => {
     const fetchProyectos = async () => {
       try {
-        const res = await fetch(
+        const res = await authFetch(
           withApiBase(`https://api.geohabita.com/api/getProyectoInmo/${idinmobiliaria}`),
           {
             headers: {
@@ -160,10 +161,10 @@ export default function ProyectosList() {
                           "¿Seguro que quieres eliminar este proyecto?"
                         )
                       ) {
-                        await fetch(
+                        await authFetch(
                           withApiBase(`https://api.geohabita.com/api/deleteProyecto/${proyecto.idproyecto}/`),
                           {
-                            method: "PUT",
+                            method: "DELETE",
                             headers: {
                               Authorization: `Bearer ${token}`,
                             },

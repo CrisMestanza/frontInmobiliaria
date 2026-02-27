@@ -1,4 +1,5 @@
 import { withApiBase } from "../../../config/api.js";
+import { authFetch } from "../../../config/authFetch.js";
 // src/pages/inmobiliaria/proyecto/editProyecto.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { GoogleMap, DrawingManager, Polygon } from "@react-google-maps/api";
@@ -31,7 +32,7 @@ export default function EditProyectoModal({
 
     const fetchPuntos = async () => {
       try {
-        const res = await fetch(
+        const res = await authFetch(
           withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${proyecto.idproyecto}`)
         );
         const data = await res.json();
@@ -141,7 +142,7 @@ export default function EditProyectoModal({
         formData.append("imagenes", img.file);
       });
 
-      const res = await fetch(
+      const res = await authFetch(
         withApiBase(`https://api.geohabita.com/api/updateProyecto/${form.idproyecto}/`),
         {
           method: "PUT",

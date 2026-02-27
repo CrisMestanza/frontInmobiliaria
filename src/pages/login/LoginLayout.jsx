@@ -8,6 +8,20 @@ const LoginLayout = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  const parseErrorMessage = (data) => {
+    if (!data) return "Credenciales incorrectas";
+    if (typeof data.detail === "string") return data.detail;
+    if (typeof data.error === "string") return data.error;
+    if (Array.isArray(data.non_field_errors) && data.non_field_errors.length) {
+      return data.non_field_errors[0];
+    }
+    const firstKey = Object.keys(data)[0];
+    if (firstKey && Array.isArray(data[firstKey]) && data[firstKey].length) {
+      return data[firstKey][0];
+    }
+    return "Credenciales incorrectas";
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const correo = e.target.email.value;
@@ -48,9 +62,14 @@ const LoginLayout = () => {
           localStorage.setItem("nombreinmobiliaria", "");
         }
 
+        if (!data?.inmobiliaria?.idinmobiliaria) {
+          alert("Tu cuenta no tiene inmobiliaria asociada. Contacta soporte.");
+          return;
+        }
+
         navigate("/dashboard");
       } else {
-        alert(data.detail || "Credenciales incorrectas");
+        alert(parseErrorMessage(data));
       }
     } catch (err) {
       console.error("Error:", err);

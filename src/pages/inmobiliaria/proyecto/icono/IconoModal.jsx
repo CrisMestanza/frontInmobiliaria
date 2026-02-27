@@ -1,4 +1,5 @@
 import { withApiBase } from "../../../../config/api.js";
+import { authFetch } from "../../../../config/authFetch.js";
 // components/IconoModal.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import style from "../../agregarInmo.module.css";
@@ -70,12 +71,12 @@ export default function IconoModal({ onClose, idproyecto }) {
     const loadProjectGeometries = async () => {
       try {
         const [resProyecto, resLotes, resIconosProyecto] = await Promise.all([
-          fetch(withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`), {
+          authFetch(withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`), {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           }),
-          fetch(
+          authFetch(
             withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
             {
               headers: {
@@ -83,7 +84,7 @@ export default function IconoModal({ onClose, idproyecto }) {
               },
             },
           ),
-          fetch(
+          authFetch(
             withApiBase(`https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}`),
             {
               headers: {
@@ -278,7 +279,7 @@ export default function IconoModal({ onClose, idproyecto }) {
 
   useEffect(() => {
     const fetchIconos = async () => {
-      const res = await fetch(withApiBase("https://api.geohabita.com/api/listIconos/"));
+      const res = await authFetch(withApiBase("https://api.geohabita.com/api/listIconos/"));
       const data = await res.json();
       setIconosDisponibles(data);
     };
@@ -306,7 +307,7 @@ export default function IconoModal({ onClose, idproyecto }) {
           )
       );
 
-    await fetch(withApiBase("https://api.geohabita.com/api/add_iconos_proyecto/"), {
+    await authFetch(withApiBase("https://api.geohabita.com/api/add_iconos_proyecto/"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

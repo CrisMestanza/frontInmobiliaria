@@ -1,4 +1,5 @@
 import { withApiBase } from "../../config/api.js";
+import { authFetch } from "../../config/authFetch.js";
 import React, { useEffect, useRef, useState } from "react";
 import "./PanelInmo.css";
 import {
@@ -250,7 +251,7 @@ const PanelInmo = () => {
     }
     try {
       setLoading(true);
-      const resProy = await fetch(
+      const resProy = await authFetch(
         withApiBase(`https://api.geohabita.com/api/getProyectoInmo/${idInmo}`),
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -262,7 +263,7 @@ const PanelInmo = () => {
 
       let lotesAcumulados = [];
       for (let proy of cleanProyectos) {
-        const resLotes = await fetch(
+        const resLotes = await authFetch(
           withApiBase(
             `https://api.geohabita.com/api/getLoteProyecto/${proy.idproyecto}`,
           ),
@@ -292,7 +293,7 @@ const PanelInmo = () => {
           .length,
       });
 
-      const resClicks = await fetch(
+      const resClicks = await authFetch(
         withApiBase(
           `https://api.geohabita.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
         ),
@@ -327,15 +328,27 @@ const PanelInmo = () => {
   }, [tutoriales.length]);
 
   const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = "/";
+    const doLogout = async () => {
+      try {
+        await authFetch(withApiBase("https://api.geohabita.com/api/logout/"), {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+      } catch (err) {
+        console.error("Error al cerrar sesión:", err);
+      } finally {
+        localStorage.clear();
+        window.location.href = "/";
+      }
+    };
+    doLogout();
   };
 
   const handleDeleteProyecto = async (idproyecto) => {
     if (!window.confirm("¿Seguro que deseas eliminar este proyecto?")) return;
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         withApiBase(
           `https://api.geohabita.com/api/deleteProyecto/${idproyecto}/`,
         ),
