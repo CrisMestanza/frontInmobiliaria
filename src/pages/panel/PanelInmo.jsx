@@ -124,26 +124,31 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
           </div>
           <div className="card-footer">
             <div className="card-actions-left">
+
               <button
                 onClick={() => onViewLotes(proyecto.idproyecto)}
-                className="btn-icon-overlay"
+                className="btn-gestionar-unidades"
                 title="Ver Lotes"
               >
-                <Eye size={16} />
+                <Layers size={16} style={{ marginRight: "6px" }} />
+                Gestionar inmuebles
               </button>
+
               <button
                 onClick={() => onEdit(proyecto.idproyecto)}
-                className="btn-icon-overlay"
+                className="btn-gestionar-unidades"
                 title="Editar"
               >
                 <Edit size={16} />
+                Editar
               </button>
               <button
                 onClick={() => onIcon(proyecto.idproyecto)}
-                className="btn-icon-overlay"
+                className="btn-gestionar-unidades"
                 title="Íconos"
               >
                 <MapPlus size={16} />
+                Agregar iconos
               </button>
             </div>
             <button
