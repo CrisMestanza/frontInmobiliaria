@@ -151,6 +151,7 @@ tbody tr:hover {
   position: relative;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
   animation: scaleIn 0.3s ease;
+  /* margin-bottom: 100px; */
 }
 
 @keyframes scaleIn {
