@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import style from "./agregarInmo.module.css";
@@ -13,7 +14,7 @@ export default function Principal() {
     const fetchInmobiliarias = async () => {
       try {
         const res = await fetch(
-          "https://api.geohabita.com/api/listInmobiliaria/",
+          withApiBase("https://api.geohabita.com/api/listInmobiliaria/"),
         );
         const data = await res.json();
         setInmobiliarias(data);
@@ -36,7 +37,7 @@ export default function Principal() {
     if (confirm) {
       try {
         const res = await fetch(
-          `https://api.geohabita.com/api/deleteInmobiliaria/${idinmobiliaria}/`,
+          withApiBase(`https://api.geohabita.com/api/deleteInmobiliaria/${idinmobiliaria}/`),
           {
             method: "PUT",
           },

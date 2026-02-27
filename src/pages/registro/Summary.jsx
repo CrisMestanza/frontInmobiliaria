@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 // src/components/Registro/Summary.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -29,7 +30,7 @@ const Summary = ({ onBack, formData }) => {
 
     try {
       const response = await fetch(
-        "https://api.geohabita.com/api/register_inmobiliaria_usuario/",
+        withApiBase("https://api.geohabita.com/api/register_inmobiliaria_usuario/"),
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

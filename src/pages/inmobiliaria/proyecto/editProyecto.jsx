@@ -1,3 +1,4 @@
+import { withApiBase } from "../../../config/api.js";
 // src/pages/inmobiliaria/proyecto/editProyecto.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { GoogleMap, DrawingManager, Polygon } from "@react-google-maps/api";
@@ -31,7 +32,7 @@ export default function EditProyectoModal({
     const fetchPuntos = async () => {
       try {
         const res = await fetch(
-          `https://api.geohabita.com/api/listPuntosProyecto/${proyecto.idproyecto}`
+          withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${proyecto.idproyecto}`)
         );
         const data = await res.json();
 
@@ -141,7 +142,7 @@ export default function EditProyectoModal({
       });
 
       const res = await fetch(
-        `https://api.geohabita.com/api/updateProyecto/${form.idproyecto}/`,
+        withApiBase(`https://api.geohabita.com/api/updateProyecto/${form.idproyecto}/`),
         {
           method: "PUT",
           headers: {

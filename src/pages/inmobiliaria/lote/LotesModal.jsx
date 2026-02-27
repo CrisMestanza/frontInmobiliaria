@@ -1,3 +1,4 @@
+import { withApiBase } from "../../../config/api.js";
 import React, { useEffect, useState } from "react";
 import style from "./lotesModal.module.css";
 import InmobiliariaModal from "./agregarLoteBlock";
@@ -32,7 +33,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
         setRefreshing(true);
       }
       const resLotes = await fetch(
-        `https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`,
+        withApiBase(`https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`),
       );
       if (!resLotes.ok) {
         throw new Error("Error al obtener lotes");
@@ -71,7 +72,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
   const handleEstadoChange = async (idlote, nuevoEstado) => {
     try {
       const res = await fetch(
-        `https://api.geohabita.com/api/updateLoteVendido/${idlote}/`,
+        withApiBase(`https://api.geohabita.com/api/updateLoteVendido/${idlote}/`),
         {
           method: "PATCH",
           headers: {
@@ -95,7 +96,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
     if (!window.confirm("¿Seguro que deseas eliminar este lote?")) return;
     try {
       const res = await fetch(
-        `https://api.geohabita.com/api/deleteLote/${idlote}/`,
+        withApiBase(`https://api.geohabita.com/api/deleteLote/${idlote}/`),
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },

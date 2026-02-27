@@ -1,3 +1,4 @@
+import { withApiBase } from "../../../config/api.js";
 import React, { useState, useRef, useEffect } from "react";
 import { GoogleMap, Polygon, Marker } from "@react-google-maps/api";
 import loader from "../../../components/loader";
@@ -98,7 +99,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   // Cargar Tipos
   useEffect(() => {
-    fetch("https://api.geohabita.com/api/listTipoInmobiliaria/", {
+    fetch(withApiBase("https://api.geohabita.com/api/listTipoInmobiliaria/"), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -289,7 +290,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
     try {
       const res = await fetch(
-        "https://api.geohabita.com/api/registerProyecto/",
+        withApiBase("https://api.geohabita.com/api/registerProyecto/"),
         {
           method: "POST",
           body: formData,

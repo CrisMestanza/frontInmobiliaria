@@ -603,6 +603,18 @@
   height: 100%;
 }
 
+.mapViewport {
+  position: relative;
+  width: 100%;
+  height: calc(100% - var(--map-header-offset, 0px));
+  margin-top: var(--map-header-offset, 0px);
+  transition: width 0.35s ease;
+}
+
+.mapViewportWithSidebar {
+  width: 55%;
+}
+
 .sidebar {
   position: relative;
   top: 10px;
@@ -1599,6 +1611,12 @@
 
   .topBar .customSelect:last-of-type {
     border-right: none;
+  }
+}
+
+@media screen and (max-width: 1023px) {
+  .mapViewportWithSidebar {
+    width: 100%;
   }
 }
 

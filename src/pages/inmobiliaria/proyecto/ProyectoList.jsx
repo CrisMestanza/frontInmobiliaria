@@ -1,3 +1,4 @@
+import { withApiBase } from "../../../config/api.js";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Aside from "../../../components/Aside";
@@ -15,7 +16,7 @@ export default function ProyectosList() {
     const fetchProyectos = async () => {
       try {
         const res = await fetch(
-          `https://api.geohabita.com/api/getProyectoInmo/${idinmobiliaria}`,
+          withApiBase(`https://api.geohabita.com/api/getProyectoInmo/${idinmobiliaria}`),
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -160,7 +161,7 @@ export default function ProyectosList() {
                         )
                       ) {
                         await fetch(
-                          `https://api.geohabita.com/api/deleteProyecto/${proyecto.idproyecto}/`,
+                          withApiBase(`https://api.geohabita.com/api/deleteProyecto/${proyecto.idproyecto}/`),
                           {
                             method: "PUT",
                             headers: {

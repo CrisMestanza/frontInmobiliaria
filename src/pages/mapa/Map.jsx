@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 import React, {
   useState,
   useEffect,
@@ -77,11 +78,11 @@ const LotesOverlay = ({
   return (
     <>
       {lotes
-        .filter((lote) =>
-          selectedLote ? lote.idlote === selectedLote.lote.idlote : true,
-        )
         .map((lote) => {
           const isLibre = lote.vendido === 0;
+          const hasSelected = !!selectedLote?.lote?.idlote;
+          const isSelected = selectedLote?.lote?.idlote === lote.idlote;
+          const isDimmed = hasSelected && !isSelected;
 
           return (
             <PolygonOverlay
@@ -93,13 +94,17 @@ const LotesOverlay = ({
                 isLibre ? () => onLoteMouseOver(lote.idlote) : undefined
               }
               onMouseOut={isLibre ? onLoteMouseOut : undefined}
-              label={hoveredLote === lote.idlote ? lote.nombre : null}
+              label={
+                hoveredLote === lote.idlote || isSelected ? lote.nombre : null
+              }
               options={{
-                zIndex: hoveredLote === lote.idlote ? 11 : 10,
+                zIndex: isSelected ? 12 : hoveredLote === lote.idlote ? 11 : 10,
                 clickable: isLibre,
                 draggable: false,
                 editable: false,
-                strokeWeight: 2,
+                fillOpacity: isSelected ? 0.42 : isDimmed ? 0.12 : 0.3,
+                strokeOpacity: isSelected ? 1 : isDimmed ? 0.55 : 1,
+                strokeWeight: isSelected ? 3 : 2,
                 strokeColor: "black",
               }}
             />
@@ -142,12 +147,19 @@ function MyMap() {
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth <= 950 : false,
   );
+  const [isDesktopSidebarViewport, setIsDesktopSidebarViewport] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
+  );
 
   const mapRef = useRef(null);
+  const headerRef = useRef(null);
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const boundsDebounceRef = useRef(null);
   const anuncioTimeoutRef = useRef(null);
+  const [mapHeaderOffsetPx, setMapHeaderOffsetPx] = useState(() =>
+    typeof window !== "undefined" ? (window.innerWidth <= 550 ? 66 : 80) : 80,
+  );
   const cacheRef = useRef({
     lotes: new Map(),
     puntos: new Map(),
@@ -253,7 +265,7 @@ function MyMap() {
     const cached = getCached("lotes", id, "lotes");
     if (cached) return cached;
     const res = await fetch(
-      `https://api.geohabita.com/api/getLotesConPuntos/${id}`,
+      withApiBase(`https://api.geohabita.com/api/getLotesConPuntos/${id}`),
     );
     const data = await res.json();
     setCached("lotes", id, "lotes", data);
@@ -264,7 +276,7 @@ function MyMap() {
     const cached = getCached("puntos", id, "puntos");
     if (cached) return cached;
     const res = await fetch(
-      `https://api.geohabita.com/api/listPuntosProyecto/${id}`,
+      withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${id}`),
     );
     const data = await res.json();
     setCached("puntos", id, "puntos", data);
@@ -276,7 +288,7 @@ function MyMap() {
     const cached = getCached("inmo", cacheKey, "inmo");
     if (cached) return cached;
     const res = await fetch(
-      `https://api.geohabita.com/api/getInmobiliaria/${idInmo}`,
+      withApiBase(`https://api.geohabita.com/api/getInmobiliaria/${idInmo}`),
     );
     const data = await res.json();
     setCached("inmo", cacheKey, "inmo", data);
@@ -287,7 +299,7 @@ function MyMap() {
     const cached = getCached("iconos", id, "iconos");
     if (cached) return cached;
     const res = await fetch(
-      `https://api.geohabita.com/api/list_iconos_proyecto/${id}`,
+      withApiBase(`https://api.geohabita.com/api/list_iconos_proyecto/${id}`),
     );
     const data = await res.json();
     setCached("iconos", id, "iconos", data);
@@ -331,12 +343,48 @@ function MyMap() {
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
+    const measureHeaderOffset = () => {
+      const el = headerRef.current;
+      if (!el) {
+        setMapHeaderOffsetPx(window.innerWidth <= 550 ? 66 : 80);
+        return;
+      }
+      const styles = window.getComputedStyle(el);
+      const isHidden =
+        styles.display === "none" ||
+        styles.visibility === "hidden" ||
+        Number(styles.opacity) === 0;
+      if (isHidden) {
+        setMapHeaderOffsetPx(0);
+        return;
+      }
+      setMapHeaderOffsetPx(Math.round(el.getBoundingClientRect().height));
+    };
+
     const onResize = () => {
       setIsMobileViewport(window.innerWidth <= 950);
+      setIsDesktopSidebarViewport(window.innerWidth >= 1024);
+      measureHeaderOffset();
     };
+
+    measureHeaderOffset();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  const isSidebarOpen = !!(selectedProyecto || selectedLote);
+  const shouldShrinkMapForSidebar = isDesktopSidebarViewport && isSidebarOpen;
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !window.google?.maps) return;
+
+    const t = setTimeout(() => {
+      window.google.maps.event.trigger(map, "resize");
+    }, 220);
+
+    return () => clearTimeout(t);
+  }, [shouldShrinkMapForSidebar]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -360,13 +408,16 @@ function MyMap() {
   }, [anuncioSlides.length]);
 
   const getProjectIconUrl = (p) => {
+    const tipoInmo = Number(p.idtipoinmobiliaria);
+    const estado = Number(p.estado);
+
     if (filtroBotActivo) {
       return p.iconoTipo === "casa"
         ? "https://cdn-icons-png.freepik.com/512/11130/11130373.png"
         : "/proyectoicono.png";
     }
 
-    return p.estado === 1 && p.idtipoinmobiliaria === 1
+    return estado === 1 && tipoInmo === 1
       ? "/proyectoicono.png"
       : "https://cdn-icons-png.freepik.com/512/11130/11130373.png";
   };
@@ -485,7 +536,9 @@ function MyMap() {
       setSelectedRango("");
       setFiltroBotActivo(false);
 
-      const apiUrl = `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`;
+      const apiUrl = withApiBase(
+        `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`,
+      );
 
       fetch(apiUrl)
         .then((res) => res.json())
@@ -509,7 +562,9 @@ function MyMap() {
   useEffect(() => {
     if (selectedLote) {
       fetch(
-        `https://api.geohabita.com/api/list_imagen/${selectedLote.lote.idlote}`,
+        withApiBase(
+          `https://api.geohabita.com/api/list_imagen/${selectedLote.lote.idlote}`,
+        ),
       )
         .then((res) => res.json())
         .then((data) => setImagenesLote(data))
@@ -522,7 +577,9 @@ function MyMap() {
   useEffect(() => {
     if (selectedProyecto?.idproyecto) {
       fetch(
-        `https://api.geohabita.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`,
+        withApiBase(
+          `https://api.geohabita.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`,
+        ),
       )
         .then((res) => res.json())
         .then((data) => setImagenesProyecto(data))
@@ -578,7 +635,7 @@ function MyMap() {
   }, [proyecto, selectedProyecto]);
 
   useEffect(() => {
-    fetch("https://api.geohabita.com/api/listTipoInmobiliaria/")
+    fetch(withApiBase("https://api.geohabita.com/api/listTipoInmobiliaria/"))
       .then((res) => res.json())
       .then(setTiposInmo)
       .catch(console.error);
@@ -619,7 +676,9 @@ function MyMap() {
       if (tipo) {
         if (tipo.idtipoinmobiliaria === 2) {
           fetch(
-            `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
+            withApiBase(
+              `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
+            ),
           )
             .then((res) => res.json())
             .then((data) => {
@@ -628,7 +687,9 @@ function MyMap() {
             .catch(console.error);
         } else if (tipo.idtipoinmobiliaria === 1) {
           fetch(
-            `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
+            withApiBase(
+              `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
+            ),
           )
             .then((res) => res.json())
             .then((data) => {
@@ -638,7 +699,11 @@ function MyMap() {
         }
       }
     } else if (selectedRango) {
-      fetch(`https://api.geohabita.com/api/rangoPrecio/${selectedRango}`)
+      fetch(
+        withApiBase(
+          `https://api.geohabita.com/api/rangoPrecio/${selectedRango}`,
+        ),
+      )
         .then((res) => res.json())
         .then((data) => {
           setLotes(data.lotes || []);
@@ -667,7 +732,7 @@ function MyMap() {
         })
         .catch(console.error);
     } else {
-      fetch("https://api.geohabita.com/api/listProyectos/")
+      fetch(withApiBase("https://api.geohabita.com/api/listProyectos/"))
         .then((res) => res.json())
         .then(setProyecto)
         .catch(console.error);
@@ -710,12 +775,25 @@ function MyMap() {
       setShowFilters(false);
     }
 
-    if (mapRef.current) {
-      mapRef.current.panTo({
-        lat: parseFloat(lote.latitud),
-        lng: parseFloat(lote.longitud),
-      });
-      mapRef.current.setZoom(18);
+    if (mapRef.current && window.google?.maps) {
+      const lat = parseFloat(lote.latitud);
+      const lng = parseFloat(lote.longitud);
+
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        const map = mapRef.current;
+        const target = { lat, lng };
+        const currentBounds = map.getBounds();
+        const targetLatLng = new window.google.maps.LatLng(lat, lng);
+
+        if (!currentBounds || !currentBounds.contains(targetLatLng)) {
+          map.panTo(target);
+        }
+
+        const currentZoom = map.getZoom() ?? 0;
+        if (currentZoom < 17) {
+          map.setZoom(18);
+        }
+      }
     }
 
     setSelectedLote({
@@ -742,15 +820,18 @@ function MyMap() {
       const fecha = new Date().toISOString().split("T")[0];
       const hora = new Date().toLocaleTimeString("en-GB", { hour12: false });
 
-      await fetch("https://api.geohabita.com/api/registerClickProyecto/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idproyecto: proyecto.idproyecto,
-          fecha: fecha,
-          hora: hora,
-        }),
-      });
+      await fetch(
+        withApiBase("https://api.geohabita.com/api/registerClickProyecto/"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            idproyecto: proyecto.idproyecto,
+            fecha: fecha,
+            hora: hora,
+          }),
+        },
+      );
 
       calculateInfo("WALKING", proyecto);
       calculateInfo("DRIVING", proyecto);
@@ -776,16 +857,22 @@ function MyMap() {
       const cachedIconos = getCached("iconos", proyecto.idproyecto, "iconos");
       if (cachedIconos) setIconosProyecto(cachedIconos);
 
-      const inmoCacheKey = `${proyecto.idproyecto}_${proyecto.idinmobiliaria}`;
+      const projectInmoId =
+        proyecto.idinmobiliaria ??
+        proyecto.idinmo ??
+        proyecto.inmo?.idinmobiliaria;
+      const inmoCacheKey = `${proyecto.idproyecto}_${projectInmoId ?? "none"}`;
       const cachedInmo = getCached("inmo", inmoCacheKey, "inmo");
 
       const [dataPuntos, lotesConPuntos, inmoData, dataIconos] =
         await Promise.all([
           loadPuntosProyecto(proyecto.idproyecto),
           loadLotesConPuntos(proyecto.idproyecto),
-          cachedInmo
-            ? Promise.resolve(cachedInmo)
-            : loadInmobiliaria(proyecto.idinmobiliaria, proyecto.idproyecto),
+          projectInmoId
+            ? cachedInmo
+              ? Promise.resolve(cachedInmo)
+              : loadInmobiliaria(projectInmoId, proyecto.idproyecto)
+            : Promise.resolve([]),
           loadIconosProyecto(proyecto.idproyecto),
         ]);
 
@@ -808,6 +895,33 @@ function MyMap() {
         ...proyecto,
         inmo: inmoData[0] ?? null,
       });
+
+      // Ajuste final: primero se abre sidebar (viewport reducido) y luego
+      // reenfocamos con la misma lógica base que ya funcionaba.
+      setTimeout(() => {
+        const map = mapRef.current;
+        if (!map || !window.google?.maps) return;
+
+        window.google.maps.event.trigger(map, "resize");
+
+        if (dataPuntos.length > 0) {
+          const bounds = new window.google.maps.LatLngBounds();
+          dataPuntos.forEach((p) =>
+            bounds.extend({
+              lat: parseFloat(p.latitud),
+              lng: parseFloat(p.longitud),
+            }),
+          );
+          map.fitBounds(bounds);
+          return;
+        }
+
+        const lat = parseFloat(proyecto.latitud);
+        const lng = parseFloat(proyecto.longitud);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+          map.panTo({ lat, lng });
+        }
+      }, 260);
     } catch (err) {
       console.error("Error cargando inmobiliaria:", err);
     }
@@ -876,7 +990,7 @@ function MyMap() {
 
   return (
     <div className={styles.container}>
-      <header className={`${styles.cabecera} `}>
+      <header ref={headerRef} className={`${styles.cabecera} `}>
         {/* Logo a la izquierda fuera de la barra central */}
         <div className={styles.logoContainer}>
           <img
@@ -994,82 +1108,89 @@ function MyMap() {
         )}
       </header>
 
-      <GoogleMap
-        mapContainerClassName={styles.map}
-        center={currentPosition}
-        zoom={13}
-        onLoad={(map) => {
-          mapRef.current = map;
-          updateBoundsFromMap();
-        }}
-        onIdle={scheduleBoundsUpdate}
-        options={{
-          gestureHandling: "greedy",
-          zoomControl: false,
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-        }}
+      <div
+        className={`${styles.mapViewport} ${shouldShrinkMapForSidebar ? styles.mapViewportWithSidebar : ""}`}
+        style={{ "--map-header-offset": `${mapHeaderOffsetPx}px` }}
       >
-        {puntos.length === 0 && <Marker position={currentPosition} />}
+        <GoogleMap
+          mapContainerClassName={styles.map}
+          center={currentPosition}
+          zoom={13}
+          onLoad={(map) => {
+            mapRef.current = map;
+            updateBoundsFromMap();
+          }}
+          onIdle={scheduleBoundsUpdate}
+          options={{
+            gestureHandling: "greedy",
+            zoomControl: false,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+          }}
+        >
+          {puntos.length === 0 && <Marker position={currentPosition} />}
 
-        {visibleProyectos.map((p) => (
-          <Marker
-            key={p.idproyecto}
-            position={{
-              lat: parseFloat(p.latitud),
-              lng: parseFloat(p.longitud),
-            }}
-            icon={{
-              url: getProjectIconUrl(p),
-              scaledSize: new window.google.maps.Size(40, 40),
-            }}
-            title={p.nombreproyecto}
-            onClick={() => handleMarkerClick(p)}
-          />
-        ))}
+          {visibleProyectos.map((p) => (
+            <Marker
+              key={p.idproyecto}
+              position={{
+                lat: parseFloat(p.latitud),
+                lng: parseFloat(p.longitud),
+              }}
+              icon={{
+                url: getProjectIconUrl(p),
+                scaledSize: new window.google.maps.Size(40, 40),
+              }}
+              title={p.nombreproyecto}
+              onClick={() => handleMarkerClick(p)}
+            />
+          ))}
 
-        {iconosProyecto.map((ico) => (
-          <Marker
-            key={ico.idiconoproyecto}
-            position={{
-              lat: parseFloat(ico.latitud),
-              lng: parseFloat(ico.longitud),
-            }}
-            icon={{
-              url: `https://api.geohabita.com${ico.icono_detalle.imagen}`,
-              scaledSize: new window.google.maps.Size(40, 40),
-            }}
-            title={ico.icono_detalle.nombre}
-          />
-        ))}
+          {iconosProyecto.map((ico) => (
+            <Marker
+              key={ico.idiconoproyecto}
+              position={{
+                lat: parseFloat(ico.latitud),
+                lng: parseFloat(ico.longitud),
+              }}
+              icon={{
+                url: withApiBase(
+                  `https://api.geohabita.com${ico.icono_detalle.imagen}`,
+                ),
+                scaledSize: new window.google.maps.Size(40, 40),
+              }}
+              title={ico.icono_detalle.nombre}
+            />
+          ))}
 
-        {puntos.length > 0 && (
-          <PolygonOverlay
-            puntos={puntos}
-            color="#106e2eff"
-            showLados={false}
-            options={{
-              clickable: false,
-              fillColor: "transparent",
-              strokeWeight: 2,
-            }}
-          />
-        )}
+          {puntos.length > 0 && (
+            <PolygonOverlay
+              puntos={puntos}
+              color="#106e2eff"
+              showLados={false}
+              options={{
+                clickable: false,
+                fillColor: "transparent",
+                strokeWeight: 2,
+              }}
+            />
+          )}
 
-        {selectedProyecto && lotesProyecto.length > 0 && (
-          <LotesOverlay
-            lotes={lotesProyecto}
-            selectedLote={selectedLote}
-            hoveredLote={hoveredLote}
-            onLoteClick={handleLoteClick}
-            onLoteMouseOver={setHoveredLote}
-            onLoteMouseOut={() => setHoveredLote(null)}
-          />
-        )}
+          {selectedProyecto && lotesProyecto.length > 0 && (
+            <LotesOverlay
+              lotes={lotesProyecto}
+              selectedLote={selectedLote}
+              hoveredLote={hoveredLote}
+              onLoteClick={handleLoteClick}
+              onLoteMouseOver={setHoveredLote}
+              onLoteMouseOut={() => setHoveredLote(null)}
+            />
+          )}
 
-        {directions && <DirectionsRenderer directions={directions} />}
-      </GoogleMap>
+          {directions && <DirectionsRenderer directions={directions} />}
+        </GoogleMap>
+      </div>
 
       {!selectedProyecto && !selectedLote && (
         <Link
@@ -1135,7 +1256,9 @@ function MyMap() {
             try {
               if (selectedRango) {
                 const res = await fetch(
-                  `https://api.geohabita.com/api/rangoPrecio/${selectedRango}`,
+                  withApiBase(
+                    `https://api.geohabita.com/api/rangoPrecio/${selectedRango}`,
+                  ),
                 );
                 const data = await res.json();
                 setLotes(data.lotes || []);
@@ -1157,13 +1280,15 @@ function MyMap() {
                 setProyecto(proyectosUnicos);
               } else if (inmoId) {
                 const res = await fetch(
-                  `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`,
+                  withApiBase(
+                    `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`,
+                  ),
                 );
                 const data = await res.json();
                 setProyecto(data);
               } else {
                 const res = await fetch(
-                  "https://api.geohabita.com/api/listProyectos/",
+                  withApiBase("https://api.geohabita.com/api/listProyectos/"),
                 );
                 const data = await res.json();
                 setProyecto(data);

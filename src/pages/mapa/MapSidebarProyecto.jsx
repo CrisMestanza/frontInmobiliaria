@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   FaBed,
@@ -35,7 +36,6 @@ const ProyectoSidebar = ({
   onClose,
   walkingInfo,
   drivingInfo,
-  mapRef,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
@@ -107,6 +107,11 @@ const ProyectoSidebar = ({
   const walkMinutes = parseMinutes(walkingInfo?.duration);
   const carKm = parseKm(drivingInfo?.distance);
   const walkKm = parseKm(walkingInfo?.distance);
+  const whatsappHref = inmo?.whatsapp
+    ? `https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`
+    : undefined;
+  const facebookHref = inmo?.facebook || undefined;
+  const webHref = inmo?.pagina || undefined;
 
   const prevImgIndex =
     validImages.length > 0
@@ -163,12 +168,11 @@ const ProyectoSidebar = ({
 
   const cerrarSidebar = () => {
     onClose();
-    if (mapRef?.current) mapRef.current.setZoom(13);
   };
 
   const registrarClickContacto = async (redSocial) => {
     try {
-      await fetch("https://api.geohabita.com/api/registerClickContactos/", {
+      await fetch(withApiBase("https://api.geohabita.com/api/registerClickContactos/"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -189,7 +193,7 @@ const ProyectoSidebar = ({
   useEffect(() => {
     validImages.forEach((img) => {
       const image = new Image();
-      image.src = `https://api.geohabita.com${img.imagenproyecto}`;
+      image.src = withApiBase(`https://api.geohabita.com${img.imagenproyecto}`);
     });
   }, [validImages]);
 
@@ -416,7 +420,7 @@ const ProyectoSidebar = ({
                       aria-label="Imagen anterior"
                     >
                       <img
-                        src={`https://api.geohabita.com${validImages[prevImgIndex].imagenproyecto}`}
+                        src={withApiBase(`https://api.geohabita.com${validImages[prevImgIndex].imagenproyecto}`)}
                         alt="Anterior"
                         className={styles.mobileSideImage}
                       />
@@ -424,7 +428,7 @@ const ProyectoSidebar = ({
                   )}
                   <img
                     key={currentImg}
-                    src={`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`}
+                    src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
                     alt="Propiedad"
                     className={styles.mobileMainImage}
                     onClick={() => setFullscreenImgIndex(currentImg)}
@@ -436,7 +440,7 @@ const ProyectoSidebar = ({
                       aria-label="Imagen siguiente"
                     >
                       <img
-                        src={`https://api.geohabita.com${validImages[nextImgIndex].imagenproyecto}`}
+                        src={withApiBase(`https://api.geohabita.com${validImages[nextImgIndex].imagenproyecto}`)}
                         alt="Siguiente"
                         className={styles.mobileSideImage}
                       />
@@ -458,7 +462,7 @@ const ProyectoSidebar = ({
               <>
                 <img
                   key={currentImg}
-                  src={`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`}
+                  src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
                   alt="Propiedad"
                   className={styles.mainImage}
                   onClick={() => setFullscreenImgIndex(currentImg)}
@@ -592,7 +596,7 @@ const ProyectoSidebar = ({
                 {isMobileView ? (
                   <div className={styles.mobileContactRow}>
                     <a
-                      href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
+                      href={whatsappHref}
                       target="_blank"
                       rel="noreferrer"
                       className={`${styles.mobileContactBtn} ${styles.mobileWhatsappBtn}`}
@@ -613,7 +617,7 @@ const ProyectoSidebar = ({
                   <div className={styles.pantallaContactos}>
 
                     <a
-                      href={`https://wa.me/${inmo.whatsapp}?text=${mensajeWhatsapp}`}
+                      href={whatsappHref}
                       target="_blank"
                       rel="noreferrer"
                       className={styles.contactMiniBtn}
@@ -635,7 +639,7 @@ const ProyectoSidebar = ({
               {isMobileView && (
                 <div className={styles.mobileSocialRow}>
                   <a
-                    href={inmo.facebook}
+                    href={facebookHref}
                     target="_blank"
                     rel="noreferrer"
                     onClick={() => registrarClickContacto("Facebook")}
@@ -643,7 +647,7 @@ const ProyectoSidebar = ({
                     <FaFacebook />
                   </a>
                   <a
-                    href={inmo.pagina}
+                    href={webHref}
                     target="_blank"
                     rel="noreferrer"
                     onClick={() => registrarClickContacto("Web")}
@@ -749,7 +753,7 @@ const ProyectoSidebar = ({
 
                   <div className={styles.socialFooter}>
                     <a
-                      href={inmo.facebook}
+                      href={facebookHref}
                       target="_blank"
                       rel="noreferrer"
                       onClick={() => registrarClickContacto("Facebook")}
@@ -757,7 +761,7 @@ const ProyectoSidebar = ({
                       <FaFacebook />
                     </a>
                     <a
-                      href={inmo.pagina}
+                      href={webHref}
                       target="_blank"
                       rel="noreferrer"
                       onClick={() => registrarClickContacto("Web")}
@@ -821,7 +825,7 @@ const ProyectoSidebar = ({
           )}
 
           <img
-            src={`https://api.geohabita.com${validImages[fullscreenImgIndex].imagenproyecto}`}
+            src={withApiBase(`https://api.geohabita.com${validImages[fullscreenImgIndex].imagenproyecto}`)}
             className={styles.fullscreenImg}
             alt="Zoom"
             onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen misma

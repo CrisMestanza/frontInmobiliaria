@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 import React, { useEffect, useState } from "react";
 import { Marker } from "@react-google-maps/api";
 import axios from "axios";
@@ -9,12 +10,12 @@ export default function ProyectoMarker({ onClick, proyecto }) {
     async function fetchProyectos() {
       try {
         const res = await axios.get(
-          "https://api.geohabita.com/api/listProyectos",
+          withApiBase("https://api.geohabita.com/api/listProyectos"),
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("access")}`,
             },
-          }
+          },
         );
         setProyectos(res.data);
       } catch (err) {
@@ -25,7 +26,7 @@ export default function ProyectoMarker({ onClick, proyecto }) {
     fetchProyectos();
   }, []);
 
- return (
+  return (
     <Marker
       key={proyecto.idproyecto}
       position={{
@@ -37,10 +38,9 @@ export default function ProyectoMarker({ onClick, proyecto }) {
         url:
           proyecto.estado === 1 && proyecto.idtipoinmobiliaria === 1
             ? "/proyectoicono.png" // icono principal
-            : "/iconoCasa.png",    // icono alternativo
+            : "/loteicono.png", // icono alternativo
         scaledSize: { width: 50, height: 50 },
       }}
     />
   );
-
 }

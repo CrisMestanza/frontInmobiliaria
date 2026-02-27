@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Login.css";
@@ -19,7 +20,7 @@ const LoginLayout = () => {
 
     setLoading(true);
     try {
-      const res = await fetch("https://api.geohabita.com/api/login/", {
+      const res = await fetch(withApiBase("https://api.geohabita.com/api/login/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo, password }),

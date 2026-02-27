@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   FaRulerCombined, FaRulerHorizontal, FaRulerVertical,
@@ -9,7 +10,15 @@ import {
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
 
-const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walkingInfo, drivingInfo, mapRef }) => {
+const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walkingInfo, drivingInfo }) => {
+  const validImages = useMemo(
+    () =>
+      imagenes.filter((img) => {
+        const src = img?.imagen;
+        return typeof src === "string" && src.trim().length > 0;
+      }),
+    [imagenes],
+  );
   const phoneNumber = useMemo(() => {
     const raw =
       inmo?.telefono ||
@@ -19,7 +28,13 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
       "";
     return String(raw).replace(/[^\d+]/g, "");
   }, [inmo]);
-  console.log(lote)
+  const whatsappHref = inmo?.whatsapp
+    ? `https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
+        `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto?.nombreproyecto || ""}"* y en el lote/inmueble *"${lote?.nombre || ""}"*`,
+      )}`
+    : undefined;
+  const facebookHref = inmo?.facebook || undefined;
+  const webHref = inmo?.pagina || undefined;
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
@@ -29,37 +44,6 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
   );
   const [sheetMode, setSheetMode] = useState("mid");
 
-
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e) => {
-    touchStartX.current = e.targetTouches[0].clientX;
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const onTouchMove = (e) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const onTouchEnd = () => {
-    const distance = touchStartX.current - touchEndX.current;
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-
-    if (Math.abs(distance) < minSwipeDistance) return;
-
-    if (distance > 0) {
-      // Swipe izquierda
-      setCurrentImg((prev) =>
-        prev === imagenes.length - 1 ? 0 : prev + 1
-      );
-    } else {
-      // Swipe derecha
-      setCurrentImg((prev) =>
-        prev === 0 ? imagenes.length - 1 : prev - 1
-      );
-    }
-  };
   const galleryRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -87,14 +71,8 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
   };
   const sidebarRef = useRef(null);
   const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
   const sheetTouchStartY = useRef(0);
   const sheetTouchDeltaY = useRef(0);
-  const nestedTouchStartY = useRef(0);
-  const nestedTouchDeltaY = useRef(0);
-  const nestedStartAtTop = useRef(false);
-  const nestedStartAtBottom = useRef(false);
-  const nestedScrollableTarget = useRef(null);
 
   const onSheetTouchStart = (e) => {
     if (!isMobileView) return;
@@ -129,20 +107,34 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
   const nextSlide = (e) => {
     e.stopPropagation();
-    setCurrentImg((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+    setCurrentImg((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
   };
 
   const prevSlide = (e) => {
     e.stopPropagation();
-    setCurrentImg((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+    setCurrentImg((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
   };
 
   const cerrarSidebar = () => {
     onClose();
-    if (mapRef?.current) mapRef.current.setZoom(18);
   };
 
-
+  const registrarClickContacto = async (redSocial) => {
+    try {
+      await fetch(withApiBase("https://api.geohabita.com/api/registerClickContactos/"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idproyecto: proyecto?.idproyecto ?? null,
+          dia: new Date().toISOString().split("T")[0],
+          hora: new Date().toLocaleTimeString(),
+          redSocial,
+        }),
+      });
+    } catch (error) {
+      console.error("Error registrando click de contacto:", error);
+    }
+  };
 
   useEffect(() => {
     const esc = (e) => e.key === "Escape" && cerrarSidebar();
@@ -151,13 +143,21 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
   }, []);
 
   useEffect(() => {
-    if (!imagenes || imagenes.length === 0) return;
+    if (validImages.length === 0) return;
 
-    imagenes.forEach((img) => {
+    validImages.forEach((img) => {
       const image = new Image();
-      image.src = `https://api.geohabita.com${img.imagen}`;
+      image.src = withApiBase(`https://api.geohabita.com${img.imagen}`);
     });
-  }, [imagenes]);
+  }, [validImages]);
+  useEffect(() => {
+    if (currentImg >= validImages.length) {
+      setCurrentImg(0);
+    }
+    if (fullscreenImgIndex !== null && fullscreenImgIndex >= validImages.length) {
+      setFullscreenImgIndex(validImages.length > 0 ? 0 : null);
+    }
+  }, [validImages, currentImg, fullscreenImgIndex]);
   useEffect(() => {
     const handleResize = () => {
       setIsMobileView(window.innerWidth <= 768);
@@ -224,20 +224,20 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
         <div className={styles.splitLayout}>
 
           <div className={styles.imageSection}>
-            {imagenes.length > 0 ? (
+            {validImages.length > 0 ? (
               isMobileView ? (
                 <div
                   className={styles.mobileHorizontalGallery}
                   ref={galleryRef}
                   onScroll={handleGalleryScroll}
                 >
-                  {imagenes.map((img, index) => (
+                  {validImages.map((img, index) => (
                     <div
                       key={index}
                       className={styles.galleryItem}
                     >
                       <img
-                        src={`https://api.geohabita.com${img.imagen}`}
+                        src={withApiBase(`https://api.geohabita.com${img.imagen}`)}
                         alt="Lote"
                         className={`${styles.mobileGalleryImage} ${activeIndex === index ? styles.activeImage : ""
                           }`}
@@ -251,7 +251,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
                   <img
                     key={currentImg}
-                    src={`https://api.geohabita.com${imagenes[currentImg].imagen}`}
+                    src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagen}`)}
                     alt="Lote"
                     className={styles.mainImage}
                     fetchpriority="high" // Le dice al navegador que esta es la prioridad #1
@@ -259,16 +259,16 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                   />
 
 
-                  {imagenes.map((img, index) => (
+                  {validImages.map((img, index) => (
                     <img
                       key={index}
-                      src={`https://api.geohabita.com${img.imagen}`}
+                      src={withApiBase(`https://api.geohabita.com${img.imagen}`)}
                       loading="lazy" // Solo carga cuando el usuario hace scroll hacia ella
                       className={styles.mobileGalleryImage}
                     // ... rest
                     />
                   ))}
-                  {imagenes.length > 1 && (
+                  {validImages.length > 1 && (
                     <div className={styles.sliderControls}>
                       <button onClick={prevSlide} className={styles.navArrow}>
                         <FaChevronLeft />
@@ -279,7 +279,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                     </div>
                   )}
                   <div className={styles.imageBadge}>
-                    {currentImg + 1} / {imagenes.length} FOTOS
+                    {currentImg + 1} / {validImages.length} FOTOS
                   </div>
                 </>
               )
@@ -336,12 +336,11 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                 <div className={styles.pantallaCelul}>
 
                   <a
-                    href={`https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
-                      `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto.nombreproyecto}"* y en el lote/inmueble *"${lote.nombre}"*`
-                    )}`}
+                    href={whatsappHref}
                     target="_blank"
                     rel="noreferrer"
                     className={styles.contactMiniBtn}
+                    onClick={() => registrarClickContacto("Whatsapp")}
                   >
                     <FaWhatsapp /> Contactar
                   </a>
@@ -350,6 +349,10 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
                     href={phoneNumber ? `tel:${phoneNumber}` : undefined}
                     className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
                     onClick={() => registrarClickContacto("Llamada")}
+                    aria-disabled={!phoneNumber}
+                    onMouseDown={(e) => {
+                      if (!phoneNumber) e.preventDefault();
+                    }}
                   >
                     <FaPhoneAlt /> Llamar
                   </a>
@@ -418,8 +421,8 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
               </div>
 
               <div className={styles.socialFooter}>
-                <a href={inmo.facebook} target="_blank" rel="noreferrer" className={styles.fb}><FaFacebook /></a>
-                <a href={inmo.pagina} target="_blank" rel="noreferrer" className={styles.web}><FaGlobe /></a>
+                <a href={facebookHref} target="_blank" rel="noreferrer" className={styles.fb} onClick={() => registrarClickContacto("Facebook")}><FaFacebook /></a>
+                <a href={webHref} target="_blank" rel="noreferrer" className={styles.web} onClick={() => registrarClickContacto("Web")}><FaGlobe /></a>
               </div>
             </div>
           </div>
@@ -427,7 +430,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
       </div>
 
       {/* VISOR PANTALLA COMPLETA INTERACTIVO */}
-      {fullscreenImgIndex !== null && (
+      {fullscreenImgIndex !== null && validImages.length > 0 && (
         <div
           className={styles.fullscreenOverlay}
           onClick={() => setFullscreenImgIndex(null)}
@@ -439,10 +442,10 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
             if (Math.abs(diff) > 50) { // Sensibilidad
               if (diff > 0) {
                 // Swipe Izquierda -> Siguiente
-                setFullscreenImgIndex((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+                setFullscreenImgIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
               } else {
                 // Swipe Derecha -> Anterior
-                setFullscreenImgIndex((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+                setFullscreenImgIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
               }
             }
           }}
@@ -452,14 +455,14 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
             className={`${styles.navArrowFullscreen} ${styles.arrowLeft}`}
             onClick={(e) => {
               e.stopPropagation();
-              setFullscreenImgIndex((prev) => (prev === 0 ? imagenes.length - 1 : prev - 1));
+              setFullscreenImgIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
             }}
           >
             <FaChevronLeft />
           </button>
 
           <img
-            src={`https://api.geohabita.com${imagenes[fullscreenImgIndex].imagen}`}
+            src={withApiBase(`https://api.geohabita.com${validImages[fullscreenImgIndex].imagen}`)}
             className={styles.fullscreenImg}
             alt="Zoom"
             onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen
@@ -470,15 +473,24 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
             className={`${styles.navArrowFullscreen} ${styles.arrowRight}`}
             onClick={(e) => {
               e.stopPropagation();
-              setFullscreenImgIndex((prev) => (prev === imagenes.length - 1 ? 0 : prev + 1));
+              setFullscreenImgIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
             }}
           >
             <FaChevronRight />
           </button>
 
-          <div className={styles.fsBadge}>{fullscreenImgIndex + 1} / {imagenes.length}</div>
+          <div className={styles.fsBadge}>{fullscreenImgIndex + 1} / {validImages.length}</div>
 
-          <button className={styles.closeFsBtn}>✕</button>
+          <button
+            className={styles.closeFsBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullscreenImgIndex(null);
+            }}
+            aria-label="Cerrar visor"
+          >
+            ✕
+          </button>
         </div>
       )}
     </>

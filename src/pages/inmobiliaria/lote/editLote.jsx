@@ -1,3 +1,4 @@
+import { withApiBase } from "../../../config/api.js";
 // components/editLote.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
@@ -32,7 +33,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
     const fetchData = async () => {
       try {
         const resPuntos = await fetch(
-          `https://api.geohabita.com/api/listPuntos/${lote.idlote}`
+          withApiBase(`https://api.geohabita.com/api/listPuntos/${lote.idlote}`)
         );
         const puntos = await resPuntos.json();
 
@@ -68,7 +69,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
 
       // traer puntos del proyecto para centrar/dibujar
       const resProyecto = await fetch(
-        `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`
+        withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`)
       );
       const puntosProyecto = await resProyecto.json();
       if (!puntosProyecto || puntosProyecto.length === 0) {
@@ -161,7 +162,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
     const fetchTipos = async () => {
       try {
         const res = await fetch(
-          "https://api.geohabita.com/api/listTipoInmobiliaria/"
+          withApiBase("https://api.geohabita.com/api/listTipoInmobiliaria/")
         );
         const data = await res.json();
         setTipos(data || []);
@@ -191,7 +192,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
       formData.append("vendido", form.vendido);
 
       const res = await fetch(
-        `https://api.geohabita.com/api/updateLote/${lote.idlote}/`,
+        withApiBase(`https://api.geohabita.com/api/updateLote/${lote.idlote}/`),
         {
           method: "PUT",
           body: formData,

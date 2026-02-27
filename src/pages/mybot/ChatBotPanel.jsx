@@ -1,3 +1,4 @@
+import { withApiBase } from "../../config/api.js";
 import React, { useState, useEffect } from "react";
 import styles from "./ChatBot.module.css";
 
@@ -34,7 +35,7 @@ export default function ChatBotPanel({ onBotResponse }) {
     setBotTyping(true); // 👈 Mostrar que el bot escribe
 
     try {
-      const res = await fetch("https://api.geohabita.com/api/chatBot/", {
+      const res = await fetch(withApiBase("https://api.geohabita.com/api/chatBot/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mensaje: input }),
