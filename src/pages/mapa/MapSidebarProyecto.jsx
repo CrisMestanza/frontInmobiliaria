@@ -582,7 +582,7 @@ const ProyectoSidebar = ({
               )}
 
               <div className={styles.priceContainer}>
-                {!isMobileView && proyecto.idtipoinmobiliaria === 2 && (
+                {!isMobileView && proyecto.precio > 0 && (
                   <div>
                     <span className={styles.labelSmall}>
                       Precio de venta del inmueble
@@ -656,7 +656,7 @@ const ProyectoSidebar = ({
                   </a>
                 </div>
               )}
-              {proyecto.idtipoinmobiliaria === 2 && (
+              {proyecto.area_total_m2 > 0 && (
                 <div className={styles.quickGrid}>
                   <div className={styles.qBadge}>
                     <FaRulerCombined />

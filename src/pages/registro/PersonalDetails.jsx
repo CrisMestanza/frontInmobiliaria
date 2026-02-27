@@ -42,6 +42,10 @@ const PersonalDetails = ({ onNext, formData }) => {
       </div>
       <div className="form-row">
         <label>Código del país y Teléfono</label>
+        <p>Se recomienda poner número personal, no bussines para que le lleguen mensajes 
+          personalizados por los clientes
+        </p>
+
         <div className="input-group whatsapp-input-group">
           <span className="plus-sign">+</span>
           <input
