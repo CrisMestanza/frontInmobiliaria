@@ -92,13 +92,13 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const isLoteUnico = form.tipo_registro === "lote_unico";
 
   useEffect(() => {
-  if (form.tipo_registro === "lote_unico") {
-    setForm(prev => ({
-      ...prev,
-      idtipoinmobiliaria: 1 // 👈 Forzamos ID 1 cuando es lote único
-    }));
-  }
-}, [form.tipo_registro]);
+    if (form.tipo_registro === "lote_unico") {
+      setForm(prev => ({
+        ...prev,
+        idtipoinmobiliaria: 1 // 👈 Forzamos ID 1 cuando es lote único
+      }));
+    }
+  }, [form.tipo_registro]);
   // Cargar Google Maps
   useEffect(() => {
     loader
@@ -379,6 +379,19 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
           <div className={styles.gridContainer}>
             <div className={styles.leftColumn}>
               <section>
+                <h4 class="info-title">¿Qué opción debo seleccionar?</h4>
+                <p className={styles.smallInfo}>
+                  • <strong>Único lote:</strong><br />Selecciona “Lote único” en <strong>Agregar proyecto o lote único</strong>.<br /><br />
+
+                  • <strong>Casa única:</strong> 
+                  <br />
+                  Selecciona “Proyecto” y luego “Casa única” en <strong>Tipo de proyecto</strong>.<br /><br />
+
+                  • <strong>Conjunto lotes/casas/departamentos:</strong>
+                  <br />
+                   Selecciona “Proyecto” y luego “Conjunto de Lotes / Casas / Departamentos” en <strong>Tipo de proyecto</strong>.
+                </p>
+
                 <h2 className={styles.sectionTitle}>
                   <span className="material-icons-outlined">info</span>{" "}
                   Información

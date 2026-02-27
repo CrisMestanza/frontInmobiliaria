@@ -579,7 +579,7 @@ const PanelInmo = () => {
           <div className="section-header">
             <h2 className="section-title">Mis Proyectos</h2>
             <button onClick={() => setShowModal(true)} className="btn-copy">
-              <PlusCircle size={18} /> Nuevo Proyecto o Agregar lote individual
+              <PlusCircle size={18} /> Agregar inmuebles
             </button>
           </div>
           <div className="projects-grid">
