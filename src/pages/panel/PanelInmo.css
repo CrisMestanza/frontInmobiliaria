@@ -969,6 +969,7 @@ td {
 }
 
 @media (max-width: 768px) {
+  
   .dashboard-header {
     padding: 0.55rem 0.8rem;
     align-items: flex-start;
