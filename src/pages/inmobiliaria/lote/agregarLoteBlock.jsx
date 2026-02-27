@@ -1088,7 +1088,7 @@ export default function LoteModal({ onClose, idproyecto }) {
           onLoad={onMapLoad}
           mapContainerStyle={{
             width: "100%",
-            height: "430px",
+            height: "370px",
             marginBottom: "1rem",
           }}
           zoom={mapZoom}
