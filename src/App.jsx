@@ -4,7 +4,7 @@ import LoginLayout from "./pages/login/LoginLayout.jsx";
 import Register from "./pages/registro/Registro.jsx";
 import PanelInmo from "./pages/panel/PanelInmo.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
-
+import GeoHabita from "./pages/landing/Landing.jsx";
 function App() {
   return (
     <BrowserRouter>
@@ -15,6 +15,7 @@ function App() {
         <Route path="/mapa/:inmoId" element={<MyMap />} />
         <Route path="/login" element={<LoginLayout />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/inicio" element={<GeoHabita />} />
         <Route
           path="/dashboard"
           element={
