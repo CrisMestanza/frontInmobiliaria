@@ -2,6 +2,44 @@ import React from "react";
 import { Polygon } from "@react-google-maps/api";
 import LabelOverlay from "./LabelOverlay";
 
+const parseOrder = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const getCoordsWithFallbackOrder = (puntos = []) => {
+  const normalized = puntos
+    .map((p) => ({
+      ...p,
+      lat: parseFloat(p.latitud),
+      lng: parseFloat(p.longitud),
+      _orden: parseOrder(p.orden),
+    }))
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
+  if (normalized.length < 2) return [];
+
+  const hasCompleteOrder = normalized.every((p) => p._orden !== null);
+  if (hasCompleteOrder) {
+    return normalized.sort((a, b) => a._orden - b._orden);
+  }
+
+  // Fallback robusto: ordenar por angulo alrededor del centroide simple.
+  const center = normalized.reduce(
+    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    { lat: 0, lng: 0 },
+  );
+  center.lat /= normalized.length;
+  center.lng /= normalized.length;
+
+  return normalized.sort((a, b) => {
+    const angleA = Math.atan2(a.lat - center.lat, a.lng - center.lng);
+    const angleB = Math.atan2(b.lat - center.lat, b.lng - center.lng);
+    return angleA - angleB;
+  });
+};
+
 const calcularCentroide = (path) => {
   let area = 0;
   let cx = 0;
@@ -57,12 +95,13 @@ const PolygonOverlay = ({
 }) => {
   if (!puntos || puntos.length < 2) return null;
 
-  // 🔹 Aseguramos que estén en orden
-  const puntosOrdenados = [...puntos].sort((a, b) => a.orden - b.orden);
+  // 🔹 Aseguramos un orden valido aun si "orden" viene null.
+  const puntosOrdenados = getCoordsWithFallbackOrder(puntos);
+  if (puntosOrdenados.length < 2) return null;
 
   const path = puntosOrdenados.map((p) => ({
-    lat: parseFloat(p.latitud),
-    lng: parseFloat(p.longitud),
+    lat: p.lat,
+    lng: p.lng,
   }));
 
   // if (path.length > 2) {

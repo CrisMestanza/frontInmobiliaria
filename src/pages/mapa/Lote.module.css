@@ -20,6 +20,7 @@
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
   z-index: 999;
   overflow: hidden;
+  overscroll-behavior: contain;
   transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -478,6 +479,22 @@
   touch-action: none;
 }
 
+.mobileSidebar {
+  /* class hook for mobile behavior */
+}
+
+.mobileCollapsed {
+  /* toggled in mobile */
+}
+
+.mobileExpanded {
+  /* toggled in mobile */
+}
+
+.mobileHiddenContent {
+  /* hidden only in mobile media query */
+}
+
 
 .mobileContactBtn {
   min-height: 30px;
@@ -557,6 +574,19 @@
 
 @media (max-width: 768px) {
 
+  .sidebar {
+    height: 360px;
+    width: 100%;
+    bottom: 0;
+    border-radius: 25px 25px 0 0;
+    left: 50%;
+    transform: translateX(-50%);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: block;
+    padding-bottom: 20px;
+  }
+
   .mobileTopHeader {
     position: sticky;
     top: 0;
@@ -611,19 +641,21 @@
 
 
   .mobileSidebar {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    height: 60vh;
-    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    bottom: auto;
+    transition: none;
   }
 
-  .sidebar.mobileCollapsed {
-    transform: translateY(71%);
+  .mobileExpanded {
+    /* altura controlada por JS para respetar el header del mapa */
   }
 
-  .sidebar.mobileExpanded {
-    transform: translateY(0%);
+  .mobileCollapsed {
+    height: 74px;
+    overflow: hidden;
+  }
+
+  .mobileHiddenContent {
+    display: none;
   }
 
   .mobileTopHeader {
@@ -680,21 +712,6 @@
     z-index: 2;
   }
 
-
-  .sidebar {
-    left: 0px;
-    transform: translateY(0%);
-    height: 340px;
-    width: 100%;
-    bottom: 0;
-    border-radius: 25px 25px 0 0;
-    display: block;
-    overflow-y: auto;
-  }
-
-  /* .imageSection {
-    display: none;
-  } */
 
   .expanded {
     height: 75vh;

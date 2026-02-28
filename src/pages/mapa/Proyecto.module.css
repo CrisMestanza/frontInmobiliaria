@@ -703,7 +703,7 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    height: 320px;
+    height: 360px;
     width: 100%;
     bottom: 0;
     border-radius: 25px 25px 0 0;
@@ -716,11 +716,12 @@
   }
 
   .mobileSidebar {
-    transition: height 0.35s ease;
+    bottom: auto;
+    transition: none;
   }
 
   .mobileExpanded {
-    height: 95vh;
+    /* altura controlada por JS para respetar el header del mapa */
   }
 
   .mobileCollapsed {

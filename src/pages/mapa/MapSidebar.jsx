@@ -1,5 +1,5 @@
 import { withApiBase } from "../../config/api.js";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   FaRulerCombined, FaRulerHorizontal, FaRulerVertical,
   FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe,
@@ -10,7 +10,16 @@ import {
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
 
-const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walkingInfo, drivingInfo }) => {
+const LoteSidebarOverlay = ({
+  inmo,
+  proyecto,
+  lote,
+  imagenes = [],
+  onClose,
+  walkingInfo,
+  drivingInfo,
+  mapHeaderOffsetPx = 0,
+}) => {
   const validImages = useMemo(
     () =>
       imagenes.filter((img) => {
@@ -43,6 +52,8 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
     typeof window !== "undefined" ? window.innerWidth <= 768 : false,
   );
   const [sheetMode, setSheetMode] = useState("mid");
+  const [mobileSheetTop, setMobileSheetTop] = useState(null);
+  const [isSheetDragging, setIsSheetDragging] = useState(false);
 
   const galleryRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -73,11 +84,84 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
   const touchStartX = useRef(0);
   const sheetTouchStartY = useRef(0);
   const sheetTouchDeltaY = useRef(0);
+  const sheetTouchStartTop = useRef(0);
+  const nestedTouchStartY = useRef(0);
+  const nestedTouchDeltaY = useRef(0);
+  const nestedScrollableTarget = useRef(null);
+
+  const getSheetAnchors = useCallback(() => {
+    if (typeof window === "undefined") {
+      return { expandedTop: 0, midTop: 360, collapsedTop: 0 };
+    }
+    const vh = window.innerHeight;
+    const headerTop = Math.max(0, Number(mapHeaderOffsetPx) || 0);
+    const available = Math.max(220, vh - headerTop);
+    const collapsedHeight = 74;
+    const expandedTop = headerTop;
+    const midTop = headerTop + available * 0.5;
+    const collapsedTop = vh - collapsedHeight;
+
+    return {
+      expandedTop,
+      midTop: Math.min(Math.max(midTop, expandedTop + 70), collapsedTop - 70),
+      collapsedTop,
+    };
+  }, [mapHeaderOffsetPx]);
+
+  const clampSheetTop = (top) => {
+    const { expandedTop, collapsedTop } = getSheetAnchors();
+    return Math.min(Math.max(top, expandedTop), collapsedTop);
+  };
+
+  const getModeByTop = (top) => {
+    const { expandedTop, collapsedTop } = getSheetAnchors();
+    if (top <= expandedTop + 24) return "expanded";
+    if (top >= collapsedTop - 24) return "collapsed";
+    return "mid";
+  };
+
+  const setSheetTopAndMode = (nextTop) => {
+    const safeTop = clampSheetTop(nextTop);
+    setMobileSheetTop(safeTop);
+    setSheetMode(getModeByTop(safeTop));
+  };
+
+  useEffect(() => {
+    if (!isMobileView || typeof window === "undefined") {
+      setMobileSheetTop(null);
+      return;
+    }
+    const { midTop } = getSheetAnchors();
+    setMobileSheetTop(midTop);
+    setSheetMode("mid");
+  }, [isMobileView, lote?.idlote, getSheetAnchors]);
+
+  const stepSheetUp = () => {
+    const { expandedTop, midTop } = getSheetAnchors();
+    const currentTop = mobileSheetTop ?? midTop;
+    if (currentTop > midTop + 12) {
+      setSheetTopAndMode(midTop);
+      return;
+    }
+    setSheetTopAndMode(expandedTop);
+  };
+
+  const stepSheetDown = () => {
+    const { midTop, collapsedTop } = getSheetAnchors();
+    const currentTop = mobileSheetTop ?? midTop;
+    if (currentTop < midTop - 12) {
+      setSheetTopAndMode(midTop);
+      return;
+    }
+    setSheetTopAndMode(collapsedTop);
+  };
 
   const onSheetTouchStart = (e) => {
     if (!isMobileView) return;
     sheetTouchStartY.current = e.targetTouches[0].clientY;
     sheetTouchDeltaY.current = 0;
+    sheetTouchStartTop.current = mobileSheetTop ?? getSheetAnchors().midTop;
+    setIsSheetDragging(true);
     e.stopPropagation();
   };
 
@@ -85,6 +169,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
     if (!isMobileView || !sheetTouchStartY.current) return;
     sheetTouchDeltaY.current =
       e.targetTouches[0].clientY - sheetTouchStartY.current;
+    setSheetTopAndMode(sheetTouchStartTop.current + sheetTouchDeltaY.current);
     e.preventDefault();
     e.stopPropagation();
   };
@@ -92,15 +177,66 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
   const onSheetTouchEnd = () => {
     if (!isMobileView) return;
-    if (sheetTouchDeltaY.current < -45) {
-      if (sheetMode === "collapsed") setSheetMode("mid");
-      else setSheetMode("expanded");
-    } else if (sheetTouchDeltaY.current > 45) {
-      if (sheetMode === "expanded") setSheetMode("mid");
-      else setSheetMode("collapsed");
+    if (mobileSheetTop !== null) {
+      setSheetMode(getModeByTop(mobileSheetTop));
     }
+    setIsSheetDragging(false);
     sheetTouchStartY.current = 0;
     sheetTouchDeltaY.current = 0;
+    sheetTouchStartTop.current = 0;
+  };
+
+  const onNestedTouchStart = (e) => {
+    if (!isMobileView) return;
+    nestedTouchStartY.current = e.targetTouches[0].clientY;
+    nestedTouchDeltaY.current = 0;
+    const contentEl = contentRef.current;
+    const sidebarEl = sidebarRef.current;
+    const contentScrollable =
+      !!contentEl && contentEl.scrollHeight > contentEl.clientHeight + 2;
+    nestedScrollableTarget.current = contentScrollable ? contentEl : sidebarEl;
+    e.stopPropagation();
+  };
+
+  const onNestedTouchMove = (e) => {
+    if (!isMobileView || !nestedTouchStartY.current) return;
+    nestedTouchDeltaY.current =
+      e.targetTouches[0].clientY - nestedTouchStartY.current;
+
+    const scrollEl = nestedScrollableTarget.current;
+    const atTop = (scrollEl?.scrollTop || 0) <= 0;
+    const atBottom =
+      !!scrollEl &&
+      scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2;
+    const sheetAtTop = (sidebarRef.current?.scrollTop || 0) <= 0;
+
+    if (nestedTouchDeltaY.current > 0 && atTop && sheetAtTop) {
+      e.preventDefault();
+    }
+    if (nestedTouchDeltaY.current < 0 && atBottom) {
+      e.preventDefault();
+    }
+  };
+
+  const onNestedTouchEnd = () => {
+    if (!isMobileView) return;
+    const scrollEl = nestedScrollableTarget.current;
+    const atTop = (scrollEl?.scrollTop || 0) <= 0;
+    const atBottom =
+      !!scrollEl &&
+      scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2;
+    const sheetAtTop = (sidebarRef.current?.scrollTop || 0) <= 0;
+
+    if (nestedTouchDeltaY.current > 50 && atTop && sheetAtTop) {
+      stepSheetDown();
+    }
+    if (nestedTouchDeltaY.current < -40 && atBottom) {
+      stepSheetUp();
+    }
+
+    nestedTouchStartY.current = 0;
+    nestedTouchDeltaY.current = 0;
+    nestedScrollableTarget.current = null;
   };
 
   const hasValue = (val) => val !== null && val !== undefined && val > 0;
@@ -115,9 +251,9 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
     setCurrentImg((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
   };
 
-  const cerrarSidebar = () => {
+  const cerrarSidebar = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const registrarClickContacto = async (redSocial) => {
     try {
@@ -140,7 +276,7 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
     const esc = (e) => e.key === "Escape" && cerrarSidebar();
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
-  }, []);
+  }, [cerrarSidebar]);
 
   useEffect(() => {
     if (validImages.length === 0) return;
@@ -180,10 +316,11 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
       <div
         className={styles.overlay}
         style={{
-          opacity: expanded ? 1 : 0,
-          pointerEvents: expanded ? "auto" : "none"
+          opacity: isMobileView ? 0 : expanded ? 1 : 0,
+          background: isMobileView ? "transparent" : "rgba(15, 23, 42, 0.2)",
+          pointerEvents: isMobileView ? "none" : expanded ? "auto" : "none",
         }}
-        onClick={cerrarSidebar}
+        onClick={isMobileView ? undefined : cerrarSidebar}
       />
 
       <div
@@ -195,6 +332,17 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
     ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""}
     ${sheetMode === "expanded" ? styles.mobileExpanded : ""}
   `}
+        style={
+          isMobileView && mobileSheetTop !== null
+            ? {
+                top: `${mobileSheetTop}px`,
+                height: `calc(100dvh - ${mobileSheetTop}px)`,
+                transition: isSheetDragging
+                  ? "none"
+                  : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
+              }
+            : undefined
+        }
       >
 
         {isMobileView && (
@@ -221,7 +369,9 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
 
         <button className={styles.closeBtn} onClick={cerrarSidebar} aria-label="Cerrar">✕</button>
 
-        <div className={styles.splitLayout}>
+        <div
+          className={`${styles.splitLayout} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
+        >
 
           <div className={styles.imageSection}>
             {validImages.length > 0 ? (
@@ -290,7 +440,14 @@ const LoteSidebarOverlay = ({ inmo, proyecto, lote, imagenes = [], onClose, walk
             )}
           </div>
 
-          <div className={styles.infoSection} ref={contentRef} onScroll={handleScroll}>
+          <div
+            className={styles.infoSection}
+            ref={contentRef}
+            onScroll={handleScroll}
+            onTouchStart={onNestedTouchStart}
+            onTouchMove={onNestedTouchMove}
+            onTouchEnd={onNestedTouchEnd}
+          >
             <div className={styles.primeInfo}>
               <div className={styles.inmoCard}>
                 <div className={styles.inmoHeader}>

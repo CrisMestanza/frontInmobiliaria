@@ -1231,7 +1231,13 @@ function MyMap() {
       )}
 
       {showHintClickLote && (
-        <div className={styles.clickHint}>Toca un lote</div>
+        <div className={styles.clickHint} aria-live="polite">
+          <div className={styles.clickHintChip}>Lotes disponibles</div>
+          <div className={styles.clickHintMain}>
+            <span className={styles.clickHintPulse} aria-hidden="true" />
+            <span className={styles.clickHintText}>Toca un lote para ver detalles</span>
+          </div>
+        </div>
       )}
 
       {selectedProyecto && (
@@ -1241,6 +1247,8 @@ function MyMap() {
           imagenes={imagenesProyecto}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
+          mapHeaderOffsetPx={mapHeaderOffsetPx}
+          forceCompactForLote={!!selectedLote}
           mapRef={mapRef}
           onClose={async () => {
             if (mapRef.current && window.google?.maps) {
@@ -1318,6 +1326,7 @@ function MyMap() {
           proyecto={selectedProyecto}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
+          mapHeaderOffsetPx={mapHeaderOffsetPx}
           mapRef={mapRef}
           onClose={() => {
             setSelectedLote(null);

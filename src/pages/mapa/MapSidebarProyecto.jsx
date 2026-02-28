@@ -1,5 +1,5 @@
 import { withApiBase } from "../../config/api.js";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   FaBed,
   FaBath,
@@ -36,6 +36,8 @@ const ProyectoSidebar = ({
   onClose,
   walkingInfo,
   drivingInfo,
+  mapHeaderOffsetPx = 0,
+  forceCompactForLote = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
@@ -44,17 +46,21 @@ const ProyectoSidebar = ({
     typeof window !== "undefined" ? window.innerWidth <= 768 : false,
   );
   const [sheetMode, setSheetMode] = useState("mid");
+  const [mobileSheetTop, setMobileSheetTop] = useState(null);
+  const [isSheetDragging, setIsSheetDragging] = useState(false);
   const sidebarRef = useRef(null);
   const contentRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const sheetTouchStartY = useRef(0);
   const sheetTouchDeltaY = useRef(0);
+  const sheetTouchStartTop = useRef(0);
   const nestedTouchStartY = useRef(0);
   const nestedTouchDeltaY = useRef(0);
   const nestedStartAtTop = useRef(false);
   const nestedStartAtBottom = useRef(false);
   const nestedScrollableTarget = useRef(null);
+  const previousSheetStateRef = useRef(null);
   const validImages = useMemo(
     () =>
       imagenes.filter((img) => {
@@ -166,9 +172,9 @@ const ProyectoSidebar = ({
     setCurrentImg((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
   };
 
-  const cerrarSidebar = () => {
+  const cerrarSidebar = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const registrarClickContacto = async (redSocial) => {
     try {
@@ -213,7 +219,7 @@ const ProyectoSidebar = ({
     const esc = (e) => e.key === "Escape" && cerrarSidebar();
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
-  }, []);
+  }, [cerrarSidebar]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -228,10 +234,91 @@ const ProyectoSidebar = ({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  const getSheetAnchors = useCallback(() => {
+    if (typeof window === "undefined") {
+      return { expandedTop: 0, midTop: 360, collapsedTop: 0 };
+    }
+    const vh = window.innerHeight;
+    const headerTop = Math.max(0, Number(mapHeaderOffsetPx) || 0);
+    const available = Math.max(220, vh - headerTop);
+    const collapsedHeight = 74;
+    const expandedTop = headerTop;
+    // Abre un poco mas alto que antes (mid mas grande de alto).
+    const midTop = headerTop + available * 0.5;
+    const collapsedTop = vh - collapsedHeight;
+
+    return {
+      expandedTop,
+      midTop: Math.min(Math.max(midTop, expandedTop + 70), collapsedTop - 70),
+      collapsedTop,
+    };
+  }, [mapHeaderOffsetPx]);
+
+  const clampSheetTop = useCallback((top) => {
+    const { expandedTop, collapsedTop } = getSheetAnchors();
+    return Math.min(Math.max(top, expandedTop), collapsedTop);
+  }, [getSheetAnchors]);
+
+  const getModeByTop = useCallback((top) => {
+    const { expandedTop, collapsedTop } = getSheetAnchors();
+    if (top <= expandedTop + 24) return "expanded";
+    if (top >= collapsedTop - 24) return "collapsed";
+    return "mid";
+  }, [getSheetAnchors]);
+
+  const setSheetTopAndMode = useCallback((nextTop) => {
+    const safeTop = clampSheetTop(nextTop);
+    setMobileSheetTop(safeTop);
+    setSheetMode(getModeByTop(safeTop));
+  }, [clampSheetTop, getModeByTop]);
+
+  useEffect(() => {
+    if (!isMobileView || typeof window === "undefined") {
+      setMobileSheetTop(null);
+      return;
+    }
+    const { midTop } = getSheetAnchors();
+    setMobileSheetTop(midTop);
+    setSheetMode("mid");
+  }, [isMobileView, proyecto?.idproyecto, getSheetAnchors]);
+
+  useEffect(() => {
+    if (!isMobileView) {
+      previousSheetStateRef.current = null;
+      return;
+    }
+
+    if (forceCompactForLote) {
+      if (!previousSheetStateRef.current) {
+        const { midTop } = getSheetAnchors();
+        previousSheetStateRef.current = {
+          top: mobileSheetTop ?? midTop,
+        };
+      }
+      const { collapsedTop } = getSheetAnchors();
+      setSheetTopAndMode(collapsedTop);
+      return;
+    }
+
+    if (previousSheetStateRef.current) {
+      setSheetTopAndMode(previousSheetStateRef.current.top);
+      previousSheetStateRef.current = null;
+    }
+  }, [
+    forceCompactForLote,
+    isMobileView,
+    mobileSheetTop,
+    getSheetAnchors,
+    setSheetTopAndMode,
+  ]);
+
   const onSheetTouchStart = (e) => {
     if (!isMobileView) return;
     sheetTouchStartY.current = e.targetTouches[0].clientY;
     sheetTouchDeltaY.current = 0;
+    sheetTouchStartTop.current =
+      mobileSheetTop ?? getSheetAnchors().midTop;
+    setIsSheetDragging(true);
     e.stopPropagation();
   };
 
@@ -239,41 +326,40 @@ const ProyectoSidebar = ({
     if (!isMobileView || !sheetTouchStartY.current) return;
     sheetTouchDeltaY.current =
       e.targetTouches[0].clientY - sheetTouchStartY.current;
+    setSheetTopAndMode(sheetTouchStartTop.current + sheetTouchDeltaY.current);
     e.preventDefault();
     e.stopPropagation();
   };
 
   const onSheetTouchEnd = () => {
     if (!isMobileView) return;
-    if (sheetTouchDeltaY.current < -45) {
-      if (sheetMode === "collapsed") setSheetMode("mid");
-      else setSheetMode("expanded");
-    } else if (sheetTouchDeltaY.current > 45) {
-      if (sheetMode === "expanded") setSheetMode("mid");
-      else setSheetMode("collapsed");
+    if (mobileSheetTop !== null) {
+      setSheetMode(getModeByTop(mobileSheetTop));
     }
+    setIsSheetDragging(false);
     sheetTouchStartY.current = 0;
     sheetTouchDeltaY.current = 0;
+    sheetTouchStartTop.current = 0;
   };
 
   const stepSheetUp = () => {
-    if (sheetMode === "collapsed") {
-      setSheetMode("mid");
+    const { expandedTop, midTop } = getSheetAnchors();
+    const currentTop = mobileSheetTop ?? midTop;
+    if (currentTop > midTop + 12) {
+      setSheetTopAndMode(midTop);
       return;
     }
-    if (sheetMode === "mid") {
-      setSheetMode("expanded");
-    }
+    setSheetTopAndMode(expandedTop);
   };
 
   const stepSheetDown = () => {
-    if (sheetMode === "expanded") {
-      setSheetMode("mid");
+    const { midTop, collapsedTop } = getSheetAnchors();
+    const currentTop = mobileSheetTop ?? midTop;
+    if (currentTop < midTop - 12) {
+      setSheetTopAndMode(midTop);
       return;
     }
-    if (sheetMode === "mid") {
-      setSheetMode("collapsed");
-    }
+    setSheetTopAndMode(collapsedTop);
   };
 
   const onNestedTouchStart = (e) => {
@@ -370,6 +456,17 @@ const ProyectoSidebar = ({
       <div
         ref={sidebarRef}
         className={`${styles.sidebar} ${expanded ? styles.expanded : ""} ${isMobileView ? styles.mobileSidebar : ""} ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""} ${sheetMode === "expanded" ? styles.mobileExpanded : ""}`}
+        style={
+          isMobileView && mobileSheetTop !== null
+            ? {
+                top: `${mobileSheetTop}px`,
+                height: `calc(100dvh - ${mobileSheetTop}px)`,
+                transition: isSheetDragging
+                  ? "none"
+                  : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
+              }
+            : undefined
+        }
       >
         {isMobileView && (
           <div
