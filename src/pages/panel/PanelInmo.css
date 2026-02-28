@@ -200,6 +200,7 @@ body.dark .btn-gestionar-unidades {
   align-items: center;
   gap: 0.5rem;
   min-height: 42px;
+  font-size: 20px;
 }
 
 .btn-share {
