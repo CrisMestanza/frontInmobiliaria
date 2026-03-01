@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 /* ─── LIVE NOTIFICATIONS ──────────────────────────────────────── */
 const NOTIFICATIONS = [
@@ -12,8 +13,7 @@ const NOTIFICATIONS = [
 const IMG = {
   heroMap:
     "https://lh3.googleusercontent.com/aida-public/AB6AXuDqzlmrbsjBMaLgAiBRtwG39nT76IWG7NSURccufEKOLXd11voXnlnyjLWEoIHkse3Q1iYiISNcajU9AJEaDT7V0f7Bt5h_CjmgJvaRq05HS0frRdPzw-ieJba8PfAIm6Sc3svsgcTP4J2lOTQJ1B693YDaV5b1yzfkoTKqrFuLW5zEx9V9BrJPILMFalT8lOlhXUVKnE2umkqNdRwj1M45eV8ymjVqPbpcwjbghug-RfAuVCkbSZwT0rSmm63mBpSxMQad487CBAQ",
-  dashboard:
-    "https://lh3.googleusercontent.com/aida-public/AB6AXuAkMnx3g24iNxFpy-zjI1Dl4toad-Gfoogt_U324zDjTS5cUt_fmDZHcsMlwJonmrwFAT-Nb8PjLiSWlKMJrnYpPtdOn10TsQCT6rIbqK92-2ykvNFm3TZbaRH90geGG87vbFBrNfwgZbxZHfIHdaDJg5IvSPkl_T9qGRRlj99UEK7wIljnIXkLxReLOxNwYP5txvaKIdWVqDngXewNYYE9TWiTHBS8Q6AIsTLxxjDh7MAepErAqFbZ3dBjZfPZkpFWk4w9zaQK96o",
+  dashboard: "/dashboard.png",
   topoPattern: "https://wallpaperaccess.com/full/6501599.jpg",
   buyerBg:
     "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80",
@@ -22,6 +22,311 @@ const IMG = {
   realEstateBg:
     "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&q=80",
 };
+
+function parseJwtPayload(token) {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload.padEnd(
+      payload.length + ((4 - (payload.length % 4)) % 4),
+      "=",
+    );
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function isAccessTokenExpired(token) {
+  if (!token) return true;
+  const payload = parseJwtPayload(token);
+  const exp = Number(payload?.exp);
+  if (!Number.isFinite(exp)) return true;
+  const now = Math.floor(Date.now() / 1000);
+  return exp <= now;
+}
+
+function getAuthStatus() {
+  const access = localStorage.getItem("access");
+  const idInmo = (localStorage.getItem("idinmobiliaria") || "").trim();
+
+  if (!access) return "guest";
+  if (isAccessTokenExpired(access)) return "expired";
+  if (!idInmo) return "incomplete";
+  return "active";
+}
+
+function getRegisterDestination() {
+  const authStatus = getAuthStatus();
+  if (authStatus === "active") return "/dashboard";
+  if (authStatus === "expired" || authStatus === "incomplete") return "/login";
+  return "/register";
+}
+
+function getDashboardDestination() {
+  return getAuthStatus() === "active" ? "/dashboard" : "/login";
+}
+
+function GreenIcon({
+  name = "globe",
+  size = 22,
+  className = "",
+  strokeWidth = 1.5,
+}) {
+  const props = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    width: size,
+    height: size,
+    className,
+    "aria-hidden": "true",
+  };
+
+  switch (name) {
+    case "folder":
+      return (
+        <svg {...props}>
+          <path d="M3 7h6l2 2h10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <path d="M3 7V6a2 2 0 0 1 2-2h4l2 2h3" />
+        </svg>
+      );
+    case "rocket":
+      return (
+        <svg {...props}>
+          <path d="M8 16l-1 5 5-1 7-7a5 5 0 0 0-7-7z" />
+          <circle cx="14.5" cy="9.5" r="1.2" />
+          <path d="M5 19l-2 2M9 15l-3 3" />
+        </svg>
+      );
+    case "clipboard":
+      return (
+        <svg {...props}>
+          <rect x="5" y="4" width="14" height="17" rx="2" />
+          <rect x="9" y="2" width="6" height="4" rx="1" />
+          <path d="M8 11h8M8 15h8" />
+        </svg>
+      );
+    case "phone":
+      return (
+        <svg {...props}>
+          <path d="M4 5c0 8 7 15 15 15l2-4-4-2-2 2a11 11 0 0 1-7-7l2-2-2-4z" />
+        </svg>
+      );
+    case "calendar":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M8 3v4M16 3v4M3 10h18" />
+        </svg>
+      );
+    case "chart":
+      return (
+        <svg {...props}>
+          <path d="M3 20h18" />
+          <rect x="6" y="11" width="3" height="7" rx="1" />
+          <rect x="11" y="8" width="3" height="10" rx="1" />
+          <rect x="16" y="5" width="3" height="13" rx="1" />
+        </svg>
+      );
+    case "hourglass":
+      return (
+        <svg {...props}>
+          <path d="M7 3h10M7 21h10M8 3c0 4 3 5 4 6-1 1-4 2-4 6M16 3c0 4-3 5-4 6 1 1 4 2 4 6" />
+        </svg>
+      );
+    case "help":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.5 9a2.5 2.5 0 1 1 3.9 2l-1 1v1" />
+          <circle cx="12" cy="17" r="0.8" />
+        </svg>
+      );
+    case "search":
+      return (
+        <svg {...props}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-4.2-4.2" />
+        </svg>
+      );
+    case "ruler":
+      return (
+        <svg {...props}>
+          <rect x="3" y="8" width="18" height="8" rx="2" />
+          <path d="M7 8v3M10 8v2M13 8v3M16 8v2" />
+        </svg>
+      );
+    case "buildings":
+      return (
+        <svg {...props}>
+          <rect x="3" y="10" width="8" height="10" rx="1" />
+          <rect x="13" y="6" width="8" height="14" rx="1" />
+          <path d="M6 13h2M6 16h2M16 9h2M16 12h2M16 15h2" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...props}>
+          <path d="M12 3l7 3v5c0 5-3.2 8.3-7 10-3.8-1.7-7-5-7-10V6z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      );
+    case "mobile":
+      return (
+        <svg {...props}>
+          <rect x="8" y="2.5" width="8" height="19" rx="2" />
+          <circle cx="12" cy="17.5" r="0.8" />
+        </svg>
+      );
+    case "pin":
+      return (
+        <svg {...props}>
+          <path d="M12 21s7-5.8 7-11a7 7 0 1 0-14 0c0 5.2 7 11 7 11z" />
+          <circle cx="12" cy="10" r="2.5" />
+        </svg>
+      );
+    case "map":
+      return (
+        <svg {...props}>
+          <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z" />
+          <path d="M9 4v14M15 6v14" />
+        </svg>
+      );
+    case "bolt":
+      return (
+        <svg {...props}>
+          <path d="M13 2L6 13h5l-1 9 8-12h-5z" />
+        </svg>
+      );
+    case "target":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="8" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="12" cy="12" r="1" />
+        </svg>
+      );
+    case "handshake":
+      return (
+        <svg {...props}>
+          <path d="M3 9l4-3 4 3 2-1 4 3-4 4-2-1-2 2-4-3z" />
+          <path d="M10 10l1 1M12 11l1 1M14 12l1 1" />
+        </svg>
+      );
+    case "tag":
+      return (
+        <svg {...props}>
+          <path d="M3 12l9 9 9-9V5H14z" />
+          <circle cx="16.5" cy="7.5" r="1" />
+        </svg>
+      );
+    case "home":
+      return (
+        <svg {...props}>
+          <path d="M3 10.5L12 3l9 7.5" />
+          <path d="M5 9.5V20h14V9.5" />
+          <path d="M10 20v-6h4v6" />
+        </svg>
+      );
+    case "layers":
+      return (
+        <svg {...props}>
+          <path d="M12 4l8 4-8 4-8-4z" />
+          <path d="M4 12l8 4 8-4" />
+          <path d="M4 16l8 4 8-4" />
+        </svg>
+      );
+    case "user":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20a8 8 0 0 1 16 0" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg {...props}>
+          <circle cx="9" cy="8" r="3" />
+          <circle cx="16.5" cy="9" r="2.5" />
+          <path d="M3.5 19a6.5 6.5 0 0 1 11 0" />
+          <path d="M14 19a4.8 4.8 0 0 1 7 0" />
+        </svg>
+      );
+    case "satellite":
+      return (
+        <svg {...props}>
+          <path d="M5 19l4-4M15 9l4-4" />
+          <rect x="9" y="9" width="6" height="6" rx="1" />
+          <path d="M2 14l4 4M18 6l4 4M11 11l2 2" />
+        </svg>
+      );
+    case "lock":
+      return (
+        <svg {...props}>
+          <rect x="5" y="10" width="14" height="10" rx="2" />
+          <path d="M8 10V7a4 4 0 1 1 8 0v3" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M8 12l2.5 2.5L16 9" />
+        </svg>
+      );
+    case "xmark":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9 9l6 6M15 9l-6 6" />
+        </svg>
+      );
+    case "alert":
+      return (
+        <svg {...props}>
+          <path d="M12 3l9 16H3z" />
+          <path d="M12 9v5" />
+          <circle cx="12" cy="17" r="0.8" />
+        </svg>
+      );
+    case "trophy":
+      return (
+        <svg {...props}>
+          <path d="M8 4h8v3a4 4 0 0 1-8 0z" />
+          <path d="M8 6H5a3 3 0 0 0 3 3M16 6h3a3 3 0 0 1-3 3" />
+          <path d="M12 10v4M9 20h6M10 14h4" />
+        </svg>
+      );
+    case "menu":
+      return (
+        <svg {...props}>
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      );
+    case "login":
+      return (
+        <svg {...props}>
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <path d="M10 17l5-5-5-5" />
+          <path d="M15 12H3" />
+        </svg>
+      );
+    case "globe":
+    default:
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+      );
+  }
+}
 
 /* ─── COUNTER HOOK ────────────────────────────────────────────── */
 function useCountUp(target, duration = 1800, start = false) {
@@ -289,7 +594,10 @@ function LotMap() {
         </div>
       </div>
       <div className="gh-lotmap-footer">
-        <span>🛰️ Vista satelital · Tarapoto, San Martín, Perú</span>
+        <span className="gh-lotmap-footer-label">
+          <GreenIcon name="satellite" size={16} />
+          Vista satelital · Tarapoto, San Martín, Perú
+        </span>
         <span className="gh-lotmap-available">
           {LOT_DATA.filter((l) => l.status === "available").length} lotes
           disponibles
@@ -427,32 +735,32 @@ function ComparisonSection() {
 
   const rows = [
     {
-      icon: "📋",
+      icon: "clipboard",
       trad: "Planos en papel, difíciles de leer",
       geo: "Mapa interactivo satelital preciso",
     },
     {
-      icon: "📞",
+      icon: "phone",
       trad: "Llamadas para consultar disponibilidad",
       geo: "Disponibilidad en tiempo real 24/7",
     },
     {
-      icon: "🗓️",
+      icon: "calendar",
       trad: "Visitas físicas obligatorias",
       geo: "Explora virtualmente desde cualquier lugar",
     },
     {
-      icon: "📊",
+      icon: "chart",
       trad: "Excel para gestión de inventario",
       geo: "Panel intuitivo desde el móvil",
     },
     {
-      icon: "⏳",
+      icon: "hourglass",
       trad: "Semanas para actualizar inventario",
       geo: "Actualización instantánea con un clic",
     },
     {
-      icon: "❓",
+      icon: "help",
       trad: "Precios opacos sin transparencia",
       geo: "Precios visibles y transparentes",
     },
@@ -479,7 +787,9 @@ function ComparisonSection() {
       <div className={`gh-cmp-header-row ${inView ? "gh-fade-up" : ""}`}>
         <div className="gh-cmp-col-label gh-cmp-col-label--trad">
           <div className="gh-cmp-header-badge gh-cmp-header-badge--trad">
-            <span className="gh-cmp-header-icon">📁</span>
+            <span className="gh-cmp-header-icon">
+              <GreenIcon name="folder" />
+            </span>
             <div>
               <div className="gh-cmp-header-title">Método Tradicional</div>
               <div className="gh-cmp-header-sub">Lento · Opaco · Limitado</div>
@@ -489,7 +799,9 @@ function ComparisonSection() {
         <div className="gh-cmp-divider-head" />
         <div className="gh-cmp-col-label gh-cmp-col-label--geo">
           <div className="gh-cmp-header-badge gh-cmp-header-badge--geo">
-            <span className="gh-cmp-header-icon">🚀</span>
+            <span className="gh-cmp-header-icon">
+              <GreenIcon name="rocket" />
+            </span>
             <div>
               <div className="gh-cmp-header-title">GeoHabita</div>
               <div className="gh-cmp-header-sub">Rápido · Claro · Poderoso</div>
@@ -507,15 +819,21 @@ function ComparisonSection() {
             style={{ animationDelay: `${i * 0.08}s` }}
           >
             <div className="gh-cmp-cell gh-cmp-cell--trad">
-              <span className="gh-cmp-x-icon">✗</span>
+              <span className="gh-cmp-x-icon">
+                <GreenIcon name="xmark" size={15} />
+              </span>
               <span className="gh-cmp-cell-text">{row.trad}</span>
             </div>
             <div className="gh-cmp-center">
-              <div className="gh-cmp-icon-bubble">{row.icon}</div>
+              <div className="gh-cmp-icon-bubble">
+                <GreenIcon name={row.icon} size={18} />
+              </div>
             </div>
             <div className="gh-cmp-cell gh-cmp-cell--geo">
               <span className="gh-cmp-cell-text">{row.geo}</span>
-              <span className="gh-cmp-check-icon">✓</span>
+              <span className="gh-cmp-check-icon">
+                <GreenIcon name="check" size={15} />
+              </span>
             </div>
           </div>
         ))}
@@ -527,14 +845,20 @@ function ComparisonSection() {
         style={{ animationDelay: "0.6s" }}
       >
         <div className="gh-cmp-score gh-cmp-score--trad">
-          <span className="gh-cmp-score-val">⚠ Baja conversión</span>
+          <span className="gh-cmp-score-val">
+            <GreenIcon name="alert" size={17} />
+            Baja conversión
+          </span>
           <span className="gh-cmp-score-sub">
             Hasta 3× menos leads calificados
           </span>
         </div>
         <div className="gh-cmp-score-vs">VS</div>
         <div className="gh-cmp-score gh-cmp-score--geo">
-          <span className="gh-cmp-score-val">🏆 Alta conversión</span>
+          <span className="gh-cmp-score-val">
+            <GreenIcon name="trophy" size={17} />
+            Alta conversión
+          </span>
           <span className="gh-cmp-score-sub">+45% más leads calificados</span>
         </div>
       </div>
@@ -543,7 +867,7 @@ function ComparisonSection() {
 }
 
 /* ─── BUYER SECTION ───────────────────────────────────────────── */
-function BuyerSection() {
+function BuyerSection({ onExploreProjects }) {
   const [parallaxRef, parallaxOffset] = useParallax(0.45);
   const [ref, inView] = useInView(0.15);
 
@@ -575,32 +899,32 @@ function BuyerSection() {
           <div className="gh-buyer-benefits">
             {[
               {
-                icon: "🔍",
+                icon: "search",
                 title: "Búsqueda visual",
                 desc: "Encuentra tu lote ideal directamente en el mapa, filtrando por zona, precio y disponibilidad.",
               },
               {
-                icon: "📐",
+                icon: "ruler",
                 title: "Datos precisos",
                 desc: "Área exacta en m², precio, orientación y acceso vial antes de la primera visita.",
               },
               {
-                icon: "🏘️",
+                icon: "buildings",
                 title: "Contexto real",
                 desc: "Vista satelital del entorno: servicios cercanos, accesos, topografía y más.",
               },
               {
-                icon: "🔒",
+                icon: "shield",
                 title: "Reserva segura",
                 desc: "Reserva tu lote con un clic y recibe confirmación inmediata. Sin llamadas, sin filas.",
               },
               {
-                icon: "📊",
+                icon: "chart",
                 title: "Transparencia total",
                 desc: "Historial de precios y comparativas del mercado. Compra con datos, no con promesas.",
               },
               {
-                icon: "📱",
+                icon: "mobile",
                 title: "Desde tu celular",
                 desc: "Explora proyectos completos desde cualquier dispositivo. La feria inmobiliaria en tu bolsillo.",
               },
@@ -610,7 +934,9 @@ function BuyerSection() {
                 className="gh-buyer-benefit"
                 style={{ animationDelay: `${i * 0.08}s` }}
               >
-                <div className="gh-buyer-benefit-icon">{b.icon}</div>
+                <div className="gh-buyer-benefit-icon">
+                  <GreenIcon name={b.icon} size={18} />
+                </div>
                 <div>
                   <h4 className="gh-buyer-benefit-title">{b.title}</h4>
                   <p className="gh-buyer-benefit-desc">{b.desc}</p>
@@ -618,7 +944,10 @@ function BuyerSection() {
               </div>
             ))}
           </div>
-          <button className="gh-btn-glow gh-buyer-cta">
+          <button
+            className="gh-btn-glow gh-buyer-cta"
+            onClick={onExploreProjects}
+          >
             Explorar Proyectos →
           </button>
         </div>
@@ -633,14 +962,18 @@ function BuyerSection() {
               />
               <div className="gh-buyer-img-overlay" />
               <div className="gh-buyer-badge gh-buyer-badge--1">
-                <span className="gh-buyer-badge-icon">📍</span>
+                <span className="gh-buyer-badge-icon">
+                  <GreenIcon name="pin" size={16} />
+                </span>
                 <div>
                   <div className="gh-buyer-badge-title">Lote A-12</div>
                   <div className="gh-buyer-badge-val">Disponible · 320 m²</div>
                 </div>
               </div>
               <div className="gh-buyer-badge gh-buyer-badge--2">
-                <span className="gh-buyer-badge-icon">✅</span>
+                <span className="gh-buyer-badge-icon">
+                  <GreenIcon name="check" size={16} />
+                </span>
                 <div>
                   <div className="gh-buyer-badge-title">Reservado</div>
                   <div className="gh-buyer-badge-val">
@@ -669,44 +1002,44 @@ function BuyerSection() {
 }
 
 /* ─── REAL ESTATE SECTION ─────────────────────────────────────── */
-function RealEstateSection() {
+function RealEstateSection({ onPublishProject }) {
   const [parallaxRef, parallaxOffset] = useParallax(0.4);
   const [ref, inView] = useInView(0.1);
   const [activeCard, setActiveCard] = useState(0);
 
   const features = [
     {
-      icon: "🗺️",
+      icon: "map",
       title: "Mapa Interactivo",
       desc: "Publica tu proyecto sobre mapa satelital real. Tus clientes entienden tu inventario en segundos.",
       metric: "+60% consultas",
     },
     {
-      icon: "⚡",
+      icon: "bolt",
       title: "Actualización Instantánea",
       desc: "Cambia el estado de cualquier lote a 'Vendido' desde tu celular. El mundo lo ve en segundos.",
       metric: "0 errores de stock",
     },
     {
-      icon: "📊",
+      icon: "chart",
       title: "CRM de Leads",
       desc: "Captura, califica y gestiona tus prospectos automáticamente. Nunca más pierdas un lead caliente.",
       metric: "3× más cierres",
     },
     {
-      icon: "🎯",
+      icon: "target",
       title: "Analíticas Avanzadas",
       desc: "Descubre qué lotes generan más interés, de dónde vienen tus visitantes y cuándo convierten.",
       metric: "Decisiones data-driven",
     },
     {
-      icon: "🤝",
+      icon: "handshake",
       title: "Red de Compradores",
       desc: "Accede a miles de compradores activos que buscan exactamente lo que tú ofreces.",
       metric: "+2,000 compradores/mes",
     },
     {
-      icon: "🏷️",
+      icon: "tag",
       title: "Marca Blanca",
       desc: "Presenta GeoHabita con tu propia marca. Profesionalismo que impresiona desde el primer clic.",
       metric: "Tu imagen, amplificada",
@@ -750,7 +1083,9 @@ function RealEstateSection() {
                 style={{ animationDelay: `${i * 0.07}s` }}
               >
                 <div className="gh-re-card-top">
-                  <span className="gh-re-card-icon">{f.icon}</span>
+                  <span className="gh-re-card-icon">
+                    <GreenIcon name={f.icon} size={20} />
+                  </span>
                   <span className="gh-re-card-metric">{f.metric}</span>
                 </div>
                 <h4 className="gh-re-card-title">{f.title}</h4>
@@ -829,17 +1164,24 @@ function RealEstateSection() {
                 <p className="gh-roi-cta-text">
                   Únete a +120 inmobiliarias que ya publican en GeoHabita
                 </p>
-                <button className="gh-btn-glow">Publicar mi proyecto →</button>
+                <button className="gh-btn-glow" onClick={onPublishProject}>
+                  Publicar mi proyecto →
+                </button>
               </div>
             </div>
             <div className="gh-re-trust-badges">
               {[
-                { icon: "🏆", text: "Mejor Plataforma Inmobiliaria 2024" },
-                { icon: "🔒", text: "Datos 100% seguros y encriptados" },
-                { icon: "🌎", text: "Visible en toda Latinoamérica" },
+                {
+                  icon: "trophy",
+                  text: "Mejor Plataforma Inmobiliaria 2024",
+                },
+                { icon: "shield", text: "Datos 100% seguros y encriptados" },
+                { icon: "globe", text: "Visible en toda Latinoamérica" },
               ].map((b, i) => (
                 <div key={i} className="gh-re-trust-badge">
-                  <span>{b.icon}</span>
+                  <span className="gh-re-trust-icon">
+                    <GreenIcon name={b.icon} size={16} />
+                  </span>
                   <span>{b.text}</span>
                 </div>
               ))}
@@ -909,7 +1251,7 @@ function ScrollReveal({ children, delay = 0, className = "" }) {
 }
 
 /* ─── WHAT IS GEOHABITA — REDESIGNED ─────────────────────────── */
-function WhatIsSection() {
+function WhatIsSection({ id }) {
   const [ref, inView] = useInView(0.1);
 
   const features = [
@@ -990,12 +1332,12 @@ function WhatIsSection() {
       tag: "CONEXIÓN",
       title: "Contacto directo",
       desc: "Conecta compradores calificados con desarrolladores sin fricción ni intermediarios.",
-      stat: "+2000 usuarios",
+      stat: "+20 usuarios",
     },
   ];
 
   return (
-    <section className="gh-what-section" ref={ref}>
+    <section className="gh-what-section" ref={ref} id={id}>
       <div className="gh-what-bg-glow" />
       <div className="gh-section-inner">
         <div className="gh-what-intro">
@@ -1056,7 +1398,9 @@ function WhatIsSection() {
                 <span className="gh-t-green">vendido</span>
               </div>
               <div className="gh-terminal-line gh-t-output">
-                <span className="gh-t-key">✓ Actualizado</span>{" "}
+                <span className="gh-t-key gh-inline-key-icon">
+                  <GreenIcon name="check" size={14} /> Actualizado
+                </span>{" "}
                 <span className="gh-t-muted">
                   en 0.3s · visible globalmente
                 </span>
@@ -1092,10 +1436,10 @@ function WhatIsSection() {
 /* ─── MAIN ────────────────────────────────────────────────────── */
 export default function GeoHabita() {
   const [scrolled, setScrolled] = useState(false);
-  const [yearly, setYearly] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // const [yearly, setYearly] = useState(false);
   const [statsRef, statsInView] = useInView(0.3);
   const [heroParallaxRef, heroParallaxOffset] = useParallax(0.5);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 40);
@@ -1114,6 +1458,24 @@ export default function GeoHabita() {
     "ProLotes",
   ];
 
+  const goToLogin = () => navigate("/login");
+  const goToMap = () => navigate("/");
+  const goToRegister = () => navigate(getRegisterDestination());
+  const goToDashboard = () => navigate(getDashboardDestination());
+  const scrollToSection = (id) => {
+    const section = document.getElementById(id);
+    if (!section) return;
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const navItems = [
+    { id: "inicio", label: "Inicio", icon: "home" },
+    { id: "plataforma", label: "Plataforma", icon: "layers" },
+    // { id: "precios", label: "Precios", icon: "tag" },
+    { id: "nosotros", label: "Nosotros", icon: "users" },
+    { id: "iniciar-sesion", label: "Iniciar Sesión", icon: "login" },
+  ];
+
   return (
     <div className="gh-root">
       <style>{CSS}</style>
@@ -1123,65 +1485,50 @@ export default function GeoHabita() {
       <header className={`gh-header${scrolled ? " gh-header--scrolled" : ""}`}>
         <div className="gh-header-inner">
           <div className="gh-logo">
-            <div className="gh-logo-icon">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                width="18"
-                height="18"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-            </div>
+            <img
+              src="/geohabita.png"
+              alt="Logo GeoHabita"
+              className="gh-logo-image"
+            />
             <span className="gh-logo-name">GeoHabita</span>
           </div>
           <LiveFeed />
           <nav className="gh-nav">
-            {["Inicio", "Plataforma", "Precios", "Nosotros"].map((l) => (
-              <a key={l} href="#" className="gh-nav-link">
-                {l}
-              </a>
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                className="gh-nav-link gh-nav-link-btn"
+                onClick={() =>
+                  item.id === "iniciar-sesion"
+                    ? goToLogin()
+                    : scrollToSection(item.id)
+                }
+              >
+                <span className="gh-nav-link-icon">
+                  <GreenIcon name={item.icon} size={14} />
+                </span>
+                <span>{item.label}</span>
+              </button>
             ))}
           </nav>
           <div className="gh-header-actions">
-            <a href="#" className="gh-link-plain">
-              Iniciar Sesión
-            </a>
-            <button className="gh-btn-primary">Publicar proyecto</button>
+            <button
+              className="gh-btn-primary"
+              onClick={goToDashboard}
+              aria-label="Publicar proyecto"
+            >
+              <span className="gh-btn-primary-label">Publicar proyecto</span>
+              <span className="gh-btn-primary-icon">
+                <GreenIcon name="tag" size={16} />
+              </span>
+            </button>
           </div>
-          <button
-            className="gh-menu-btn"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            ☰
-          </button>
         </div>
-        {menuOpen && (
-          <div className="gh-mobile-menu">
-            {[
-              "Inicio",
-              "Plataforma",
-              "Precios",
-              "Nosotros",
-              "Iniciar Sesión",
-            ].map((l) => (
-              <a key={l} href="#" className="gh-mobile-link">
-                {l}
-              </a>
-            ))}
-          </div>
-        )}
       </header>
 
       <main className="gh-main">
         {/* HERO with parallax */}
-        <section className="gh-hero">
+        <section className="gh-hero" id="inicio">
           <div className="gh-hero-bg" ref={heroParallaxRef}>
             <img
               src={IMG.heroMap}
@@ -1199,7 +1546,7 @@ export default function GeoHabita() {
             <div className="gh-hero-content">
               <div className="gh-badge">
                 <span className="gh-badge-dot" />
-                Mapa Interactivo v2.0 · En vivo
+                Mapa Interactivo · En vivo
               </div>
               <h1 className="gh-hero-title">
                 La nueva era de
@@ -1212,7 +1559,7 @@ export default function GeoHabita() {
                 milimétrica.
               </p>
               <div className="gh-hero-btns">
-                <button className="gh-btn-glow">
+                <button className="gh-btn-glow" onClick={goToRegister}>
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -1223,9 +1570,9 @@ export default function GeoHabita() {
                   >
                     <path d="M3 11l19-9-9 19-2-8-8-2z" />
                   </svg>
-                  Ver proyectos
+                  Regístrate
                 </button>
-                <button className="gh-btn-outline">
+                <button className="gh-btn-outline" onClick={goToDashboard}>
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
@@ -1237,14 +1584,14 @@ export default function GeoHabita() {
                     <circle cx="12" cy="12" r="10" />
                     <polygon points="10 8 16 12 10 16 10 8" />
                   </svg>
-                  Ver Demo
+                  Dashboard
                 </button>
               </div>
               <div className="gh-hero-quickstats">
                 {[
-                  { v: "+2,000", l: "Lotes" },
-                  { v: "15", l: "Proyectos" },
-                  { v: "45%", l: "Más leads" },
+                  { v: "+200", l: "Lotes" },
+                  { v: "10", l: "Proyectos" },
+                  { v: "21%", l: "Más leads" },
                 ].map((s, i) => (
                   <div key={i} className="gh-qs-item">
                     <span className="gh-qs-val">{s.v}</span>
@@ -1260,9 +1607,9 @@ export default function GeoHabita() {
                   <span className="gh-map-topbar-dot gh-dot-yellow" />
                   <span className="gh-map-topbar-dot gh-dot-green" />
                   <span className="gh-map-topbar-title">
-                    Tarapoto Norte · Vista Satelital
+                    Mapa de Proyectos · Vista Satelital
                   </span>
-                  <span className="gh-map-live">● LIVE</span>
+                  <span className="gh-map-live">LIVE</span>
                 </div>
                 <div className="gh-map-img-wrap">
                   <img
@@ -1273,21 +1620,27 @@ export default function GeoHabita() {
                   <div className="gh-map-img-overlay" />
                   <div className="gh-map-radar" />
                   <div className="gh-lot-badge gh-lot-badge--a">
-                    <div className="gh-lbadge-icon gh-lbadge-green">✓</div>
+                    <div className="gh-lbadge-icon gh-lbadge-green">
+                      <GreenIcon name="check" size={14} />
+                    </div>
                     <div>
                       <div className="gh-lbadge-label">Lote A-12</div>
                       <div className="gh-lbadge-val">Disponible</div>
                     </div>
                   </div>
                   <div className="gh-lot-badge gh-lot-badge--b">
-                    <div className="gh-lbadge-icon gh-lbadge-red">🔒</div>
+                    <div className="gh-lbadge-icon gh-lbadge-red">
+                      <GreenIcon name="lock" size={14} />
+                    </div>
                     <div>
                       <div className="gh-lbadge-label">Lote B-04</div>
                       <div className="gh-lbadge-val gh-red">Vendido</div>
                     </div>
                   </div>
                   <div className="gh-lot-badge gh-lot-badge--c">
-                    <div className="gh-lbadge-icon gh-lbadge-yellow">⏳</div>
+                    <div className="gh-lbadge-icon gh-lbadge-yellow">
+                      <GreenIcon name="hourglass" size={14} />
+                    </div>
                     <div>
                       <div className="gh-lbadge-label">Lote C-08</div>
                       <div className="gh-lbadge-val gh-yellow">Reservado</div>
@@ -1296,8 +1649,8 @@ export default function GeoHabita() {
                 </div>
                 <div className="gh-map-footer-stats">
                   {[
-                    { v: "2,047", l: "Lotes totales" },
-                    { v: "894", l: "Disponibles" },
+                    { v: "200", l: "Lotes totales" },
+                    { v: "89", l: "Disponibles" },
                     { v: "24/7", l: "Actualizado" },
                   ].map((s, i) => (
                     <div key={i} className="gh-mfstat">
@@ -1331,7 +1684,7 @@ export default function GeoHabita() {
         </section>
 
         {/* WHAT IS — REDESIGNED */}
-        <WhatIsSection />
+        <WhatIsSection id="plataforma" />
 
         {/* INTERACTIVE LOT MAP */}
         <section className="gh-lotmap-section">
@@ -1355,17 +1708,17 @@ export default function GeoHabita() {
         </section>
 
         {/* COMPARISON SECTION — REDESIGNED */}
-        <section className="gh-section gh-section--dark">
+        <section className="gh-section gh-section--dark" id="precios">
           <div className="gh-section-inner">
             <ComparisonSection />
           </div>
         </section>
 
         {/* BUYER SECTION */}
-        <BuyerSection />
+        <BuyerSection onExploreProjects={goToMap} />
 
         {/* REAL ESTATE SECTION */}
-        <RealEstateSection />
+        <RealEstateSection onPublishProject={goToDashboard} />
 
         {/* HOW IT WORKS */}
         <section className="gh-section">
@@ -1383,25 +1736,27 @@ export default function GeoHabita() {
                   n: "1",
                   title: "Regístrate",
                   desc: "Crea tu cuenta profesional en segundos y configura tu perfil de empresa.",
-                  icon: "👤",
+                  icon: "user",
                 },
                 {
                   n: "2",
                   title: "Sube al mapa",
                   desc: "Dibuja tus lotes o importa archivos CAD/GIS directamente sobre el mapa satelital.",
-                  icon: "📍",
+                  icon: "pin",
                 },
                 {
                   n: "3",
                   title: "Recibe clientes",
                   desc: "Tu proyecto se vuelve visible para miles. Gestiona solicitudes en tiempo real.",
-                  icon: "📱",
+                  icon: "mobile",
                 },
               ].map((s, i) => (
                 <ScrollReveal key={i} delay={i * 120}>
                   <div className="gh-step">
                     <div className="gh-step-num">
-                      <span className="gh-step-emoji">{s.icon}</span>
+                      <span className="gh-step-emoji">
+                        <GreenIcon name={s.icon} size={20} />
+                      </span>
                       <span className="gh-step-n">{s.n}</span>
                     </div>
                     <h3 className="gh-step-title">{s.title}</h3>
@@ -1455,23 +1810,25 @@ export default function GeoHabita() {
               <div className="gh-feature-rows">
                 {[
                   {
-                    icon: "🛰️",
+                    icon: "satellite",
                     title: "Geolocalización Satelital",
-                    desc: "Integra vistas actualizadas para mostrar el progreso de obras y el contexto real del entorno.",
+                    desc: "Integra vistas actualizadas para mostrar el progreso de obras, distribución de proyecto y el contexto real del entorno.",
                   },
                   {
-                    icon: "📊",
+                    icon: "chart",
                     title: "Gestión en Tiempo Real",
-                    desc: "Cambia el estado de un lote de 'Disponible' a 'Vendido' desde tu celular al instante.",
+                    desc: "Cambia el estado de un lote de 'Disponible' a 'Reservado' o 'Vendido' desde tu celular al instante.",
                   },
                   {
-                    icon: "🔗",
+                    icon: "globe",
                     title: "Inventario Conectado",
-                    desc: "Tu equipo siempre trabaja sobre datos actualizados, eliminando errores y dobles reservas.",
+                    desc: "Tu equipo siempre podrá trabajar sobre datos actualizados, eliminando errores y dobles reservas.",
                   },
                 ].map((f, i) => (
                   <div key={i} className="gh-feature-row">
-                    <div className="gh-feature-row-icon">{f.icon}</div>
+                    <div className="gh-feature-row-icon">
+                      <GreenIcon name={f.icon} size={18} />
+                    </div>
                     <div>
                       <h4 className="gh-feature-row-title">{f.title}</h4>
                       <p className="gh-feature-row-desc">{f.desc}</p>
@@ -1507,24 +1864,24 @@ export default function GeoHabita() {
             </p>
             <div className="gh-stats-grid">
               <StatItem
-                val="+2000"
+                val="+200"
                 suffix=""
                 label="Lotes Mapeados"
                 trigger={statsInView}
               />
               <StatItem
-                val="15"
+                val="8"
                 label="Proyectos Activos"
                 trigger={statsInView}
               />
               <StatItem
-                val="45"
+                val="21"
                 suffix="%"
                 label="Aumento en Leads"
                 trigger={statsInView}
               />
               <StatItem
-                val="24/7"
+                val="Siempre"
                 label="Disponibilidad"
                 trigger={statsInView}
               />
@@ -1533,7 +1890,7 @@ export default function GeoHabita() {
         </section>
 
         {/* TESTIMONIALS */}
-        <section className="gh-section">
+        {/* <section className="gh-section">
           <div className="gh-section-inner">
             <div className="gh-benefits-header">
               <span className="gh-overline">Clientes reales</span>
@@ -1543,7 +1900,7 @@ export default function GeoHabita() {
             </div>
             <Testimonials />
           </div>
-        </section>
+        </section> */}
 
         {/* PRECISION / CHART */}
         <section className="gh-section">
@@ -1562,18 +1919,20 @@ export default function GeoHabita() {
               <div className="gh-cards-stacked">
                 {[
                   {
-                    icon: "📐",
+                    icon: "ruler",
                     title: "Análisis Multi-Capa",
                     desc: "Superpone datos demográficos, ambientales y financieros en tiempo real.",
                   },
                   {
-                    icon: "📈",
-                    title: "ROI Predictivo",
+                    icon: "chart",
+                    title: "ROI Predictivo (Proximamente)",
                     desc: "Pronóstico IA para apreciación de valor a 5, 10 y 20 años.",
                   },
                 ].map((c, i) => (
                   <div key={i} className="gh-info-card">
-                    <div className="gh-info-card-icon">{c.icon}</div>
+                    <div className="gh-info-card-icon">
+                      <GreenIcon name={c.icon} size={18} />
+                    </div>
                     <div>
                       <h4 className="gh-info-card-title">{c.title}</h4>
                       <p className="gh-info-card-desc">{c.desc}</p>
@@ -1622,7 +1981,7 @@ export default function GeoHabita() {
         </section>
 
         {/* PRICING */}
-        <section className="gh-section gh-section--alt" id="pricing">
+        {/* <section className="gh-section gh-section--alt" id="pricing">
           <div className="gh-section-inner">
             <div className="gh-benefits-header">
               <span className="gh-overline">Planes</span>
@@ -1670,7 +2029,9 @@ export default function GeoHabita() {
                   <ul className="gh-price-features">
                     {p.features.map((f, j) => (
                       <li key={j}>
-                        <span className="gh-check">✓</span>
+                        <span className="gh-check">
+                          <GreenIcon name="check" size={13} />
+                        </span>
                         {f}
                       </li>
                     ))}
@@ -1684,10 +2045,10 @@ export default function GeoHabita() {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* CTA */}
-        <section className="gh-cta-section">
+        <section className="gh-cta-section" id="iniciar-sesion">
           <div className="gh-cta-topobg">
             <img src={IMG.topoPattern} alt="" className="gh-cta-topoimg" />
             <div className="gh-cta-topooverlay" />
@@ -1703,14 +2064,14 @@ export default function GeoHabita() {
               Deja de perder ventas por planos difíciles de entender. Moderniza
               tu presentación hoy mismo.
             </p>
-            <div className="gh-cta-form">
+            {/* <div className="gh-cta-form">
               <input
                 className="gh-cta-input"
                 type="email"
                 placeholder="Tu email profesional"
               />
               <button className="gh-btn-glow">Solicitar Acceso</button>
-            </div>
+            </div> */}
             <div className="gh-cta-actions">
               <button className="gh-btn-whatsapp">
                 <svg
@@ -1723,36 +2084,29 @@ export default function GeoHabita() {
                 </svg>
                 Contactar por WhatsApp
               </button>
-              <button className="gh-btn-white">Publicar Propiedad</button>
+              <button className="gh-btn-white" onClick={goToDashboard}>
+                Publicar Propiedad
+              </button>
             </div>
             <p className="gh-cta-note">
-              ★ Spots limitados para el cohort Q2 2025
+              ★ GeoHabita es la plataforma de visualización geoespacial líder
+              para el sector inmobiliario. Transforma tus datos en ventas con
+              tecnología de vanguardia. Solicita acceso hoy mismo.
             </p>
           </div>
         </section>
       </main>
 
       {/* FOOTER */}
-      <footer className="gh-footer">
+      <footer className="gh-footer" id="nosotros">
         <div className="gh-footer-inner">
           <div className="gh-footer-brand">
             <div className="gh-logo">
-              <div className="gh-logo-icon">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  width="18"
-                  height="18"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              </div>
+              <img
+                src="/geohabita.png"
+                alt="Logo GeoHabita"
+                className="gh-logo-image"
+              />
               <span className="gh-logo-name">GeoHabita</span>
             </div>
             <p className="gh-footer-tagline">
@@ -1800,8 +2154,8 @@ export default function GeoHabita() {
           </div>
         </div>
         <div className="gh-footer-bottom">
-          <span>© 2025 GeoHabita Inc. · Tarapoto, Perú</span>
-          <span>Operación Global · Todos los derechos reservados</span>
+          <span>© 2025 GeoHabita</span>
+          <span>Todos los derechos reservados</span>
         </div>
       </footer>
     </div>
@@ -1833,6 +2187,9 @@ html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
 img{display:block;max-width:100%}
 button{cursor:none}
+#inicio,#plataforma,#precios,#nosotros,#iniciar-sesion{scroll-margin-top:92px}
+.gh-root{width:100%;max-width:100%;background:var(--bg);overflow-x:clip}
+.gh-main{width:100%;max-width:100%;overflow-x:clip}
 
 /* SCROLL REVEAL */
 .gh-scroll-reveal{opacity:0;transform:translateY(28px);transition:opacity 0.65s ease,transform 0.65s ease}
@@ -1855,22 +2212,24 @@ button{cursor:none}
 /* HEADER */
 .gh-header{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 28px;transition:background 0.4s,box-shadow 0.4s,backdrop-filter 0.4s}
 .gh-header--scrolled{background:rgba(7,15,9,0.92);backdrop-filter:blur(20px);box-shadow:0 1px 0 var(--green-faint)}
-.gh-header-inner{max-width:1360px;margin:0 auto;display:flex;align-items:center;gap:32px;height:68px}
+.gh-header-inner{max-width:1360px;margin:0 auto;display:flex;align-items:center;gap:32px;height:68px;width:100%;min-width:0}
 .gh-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
 .gh-logo-icon{width:32px;height:32px;border-radius:8px;background:var(--green-dim);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;color:var(--green)}
-.gh-logo-name{font-weight:800;font-size:1.05rem;color:#fff;letter-spacing:-0.02em}
-.gh-nav{display:flex;align-items:center;gap:4px;margin-left:auto}
+.gh-logo-image{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(6,249,87,0.4))}
+.gh-logo-name{font-weight:800;font-size:1.05rem;color:#fff;letter-spacing:-0.02em;white-space:nowrap}
+.gh-nav{display:flex;align-items:center;gap:4px;margin-left:auto;min-width:0}
 .gh-nav-link{padding:8px 14px;border-radius:8px;color:var(--muted);font-size:0.88rem;font-weight:500;text-decoration:none;transition:color 0.2s,background 0.2s}
 .gh-nav-link:hover{color:#fff;background:rgba(255,255,255,0.05)}
+.gh-nav-link-btn{display:inline-flex;align-items:center;gap:8px;background:none;border:none}
+.gh-nav-link-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--green)}
 .gh-header-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
 .gh-link-plain{color:var(--muted);font-size:0.9rem;text-decoration:none;transition:color 0.2s;font-weight:500}
+.gh-link-button{background:none;border:none;padding:0}
 .gh-link-plain:hover{color:#fff}
-.gh-btn-primary{background:var(--green);color:var(--bg);font-weight:700;font-size:0.88rem;padding:9px 18px;border-radius:9px;border:none;font-family:var(--font);transition:background 0.2s,transform 0.15s}
+.gh-btn-primary{background:var(--green);color:var(--bg);font-weight:700;font-size:0.88rem;padding:9px 18px;border-radius:9px;border:none;font-family:var(--font);transition:background 0.2s,transform 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .gh-btn-primary:hover{background:#2dfb6b;transform:translateY(-1px)}
-.gh-menu-btn{display:none;background:none;border:1px solid var(--border);color:var(--muted);padding:8px 12px;border-radius:8px;font-size:1rem}
-.gh-mobile-menu{border-top:1px solid var(--border);padding:16px 28px;display:flex;flex-direction:column;gap:4px;background:rgba(7,15,9,0.97)}
-.gh-mobile-link{color:var(--muted);padding:12px 0;text-decoration:none;border-bottom:1px solid var(--border);font-size:1rem;transition:color 0.2s}
-.gh-mobile-link:hover{color:var(--green)}
+.gh-btn-primary-icon{display:none;line-height:0}
+.gh-btn-primary-icon svg{display:block}
 
 /* LIVEFEED */
 .gh-livefeed{display:flex;align-items:center;gap:8px;background:rgba(6,249,87,0.06);border:1px solid rgba(6,249,87,0.14);border-radius:40px;padding:6px 14px;font-size:0.78rem;color:var(--muted);font-family:var(--mono);flex-shrink:0}
@@ -1925,6 +2284,7 @@ button{cursor:none}
 .gh-lot-badge--c{bottom:30px;right:14px;animation:float 3s 0.5s ease-in-out infinite}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 .gh-lbadge-icon{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700}
+.gh-lbadge-icon svg{display:block}
 .gh-lbadge-green{background:rgba(6,249,87,0.15);color:var(--green)}
 .gh-lbadge-red{background:rgba(239,68,68,0.15);color:#ef4444}
 .gh-lbadge-yellow{background:rgba(251,191,36,0.15);color:#fbbf24}
@@ -1938,16 +2298,16 @@ button{cursor:none}
 .gh-mfstat-l{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em}
 
 /* CAROUSEL */
-.gh-carousel-section{padding:28px 0;border-top:1px solid var(--green-faint);border-bottom:1px solid var(--green-faint);overflow:hidden;background:rgba(6,249,87,0.02)}
-.gh-carousel-label{text-align:center;font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.14em;font-family:var(--mono);margin-bottom:18px}
-.gh-carousel-track-wrap{position:relative;overflow:hidden}
+.gh-carousel-section{padding:58px 0;border-top:1px solid rgba(6,249,87,0.22);border-bottom:1px solid rgba(6,249,87,0.22);overflow:hidden;background:radial-gradient(circle at 50% 50%,rgba(6,249,87,0.2),rgba(6,249,87,0.09) 45%,rgba(6,249,87,0.18));box-shadow:inset 0 0 80px rgba(6,249,87,0.2)}
+.gh-carousel-label{text-align:center;font-size:0.88rem;color:#d2ffe2;text-transform:uppercase;letter-spacing:0.19em;font-family:var(--mono);margin-bottom:28px;text-shadow:0 0 16px rgba(6,249,87,0.45)}
+.gh-carousel-track-wrap{position:relative;overflow:hidden;padding:12px 0}
 .gh-cf-left,.gh-cf-right{position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
-.gh-cf-left{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
-.gh-cf-right{right:0;background:linear-gradient(-90deg,var(--bg),transparent)}
-.gh-carousel-track{display:flex;width:max-content;animation:scroll 28s linear infinite}
+.gh-cf-left{left:0;background:linear-gradient(90deg,rgba(8,28,13,0.95),transparent)}
+.gh-cf-right{right:0;background:linear-gradient(-90deg,rgba(8,28,13,0.95),transparent)}
+.gh-carousel-track{display:flex;width:max-content;animation:scroll 18s linear infinite}
 @keyframes scroll{to{transform:translateX(-50%)}}
-.gh-brand-item{display:flex;align-items:center;gap:10px;padding:0 30px;font-size:0.9rem;font-weight:700;color:var(--muted);white-space:nowrap;font-family:var(--mono)}
-.gh-brand-dot{width:4px;height:4px;border-radius:50%;background:var(--green-border)}
+.gh-brand-item{display:flex;align-items:center;gap:12px;margin:0 10px;padding:11px 18px;font-size:1.02rem;font-weight:800;color:#d8ffe6;white-space:nowrap;font-family:var(--mono);text-shadow:0 0 14px rgba(6,249,87,0.45);background:rgba(8,25,12,0.88);border:1px solid rgba(6,249,87,0.26);border-radius:999px;box-shadow:0 0 24px rgba(6,249,87,0.12)}
+.gh-brand-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 14px rgba(6,249,87,0.85)}
 
 /* SECTIONS */
 .gh-section{padding:100px 0;position:relative}
@@ -1964,6 +2324,7 @@ button{cursor:none}
 .gh-link-arrow{color:var(--green);font-size:0.9rem;font-weight:600;text-decoration:none;transition:gap 0.2s}
 .gh-link-arrow:hover{opacity:0.8}
 .gh-check{color:var(--green);font-weight:700;margin-right:6px}
+.gh-check svg{display:block}
 
 /* ─── WHAT IS SECTION — REDESIGNED ──────────────────────────── */
 .gh-what-section{padding:100px 0;position:relative;overflow:hidden;background:var(--bg)}
@@ -1991,6 +2352,7 @@ button{cursor:none}
 .gh-t-muted{color:rgba(100,160,115,0.5)}
 .gh-t-output{padding-left:16px;color:var(--muted)}
 .gh-terminal-cursor{color:var(--green);animation:blink 1s step-end infinite;font-size:0.85rem}
+.gh-inline-key-icon{display:inline-flex;align-items:center;gap:6px}
 
 /* Feature cards - redesigned */
 .gh-what-features{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;position:relative;z-index:1}
@@ -2007,17 +2369,17 @@ button{cursor:none}
 .gh-what-feat-stat-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0}
 
 /* LOT MAP */
-.gh-lotmap-section{padding:80px 0;position:relative;overflow:hidden}
+.gh-lotmap-section{padding:96px 0;position:relative;overflow:hidden}
 .gh-topo-bg{position:absolute;inset:0;z-index:0}
-.gh-topo-img{width:100%;height:100%;object-fit:cover;opacity:0.06;filter:hue-rotate(80deg)}
-.gh-topo-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(7,15,9,0.9),rgba(7,15,9,0.7),rgba(7,15,9,0.9))}
-.gh-lotmap{position:relative;z-index:1;background:rgba(10,22,12,0.88);border:1px solid var(--green-border);border-radius:20px;overflow:hidden;backdrop-filter:blur(16px)}
+.gh-topo-img{width:100%;height:100%;object-fit:cover;opacity:0.16;filter:hue-rotate(85deg) saturate(0.9)}
+.gh-topo-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(6,17,10,0.72),rgba(6,17,10,0.55),rgba(6,17,10,0.72))}
+.gh-lotmap{position:relative;z-index:1;background:rgba(12,30,17,0.92);border:1px solid rgba(6,249,87,0.26);border-radius:20px;overflow:hidden;backdrop-filter:blur(16px);box-shadow:0 0 60px rgba(6,249,87,0.16)}
 .gh-lotmap-filters{display:flex;gap:8px;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .gh-filter-btn{padding:6px 16px;border-radius:40px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:0.8rem;font-family:var(--mono);cursor:none;transition:all 0.2s}
 .gh-filter-btn--active,.gh-filter-btn:hover{border-color:var(--green-border);color:var(--green);background:var(--green-dim)}
 .gh-lotmap-wrap{position:relative}
-.gh-lotmap-bg{width:100%;height:280px;object-fit:cover;opacity:0.5}
-.gh-lotmap-overlay{position:absolute;inset:0;background:rgba(7,15,9,0.35)}
+.gh-lotmap-bg{width:100%;height:340px;object-fit:cover;opacity:0.72}
+.gh-lotmap-overlay{position:absolute;inset:0;background:rgba(7,15,9,0.2)}
 .gh-lotmap-svg{position:absolute;inset:0;width:100%;height:100%}
 .gh-lot-popup{position:absolute;top:14px;right:14px;width:200px;background:rgba(7,15,9,0.97);border:1px solid var(--green-border);border-radius:12px;padding:14px;backdrop-filter:blur(20px);z-index:10}
 .gh-lot-popup-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -2036,49 +2398,50 @@ button{cursor:none}
 .gh-legend-item{display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--muted);font-family:var(--mono)}
 .gh-legend-dot{width:8px;height:8px;border-radius:50%}
 .gh-lotmap-footer{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted);font-family:var(--mono);flex-wrap:wrap;gap:8px}
+.gh-lotmap-footer-label{display:inline-flex;align-items:center;gap:7px;color:#cbffd9}
 .gh-lotmap-available{color:var(--green);font-weight:700}
 .gh-benefits-header{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:52px}
 
 /* ─── COMPARISON SECTION — REDESIGNED ───────────────────────── */
-.gh-compare-section{padding:20px 0}
+.gh-compare-section{padding:34px 0}
 .gh-compare-label-row{text-align:center;margin-bottom:8px}
 
 /* Header row */
-.gh-cmp-header-row{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;margin-bottom:16px;opacity:0}
+.gh-cmp-header-row{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;margin-bottom:22px;opacity:0}
 .gh-cmp-header-row.gh-fade-up{opacity:1}
 .gh-cmp-col-label{display:flex;align-items:center}
 .gh-cmp-col-label--trad{justify-content:flex-end;padding-right:16px}
 .gh-cmp-col-label--geo{justify-content:flex-start;padding-left:16px}
-.gh-cmp-header-badge{display:flex;align-items:center;gap:14px;padding:16px 24px;border-radius:14px}
-.gh-cmp-header-badge--trad{background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.18)}
-.gh-cmp-header-badge--geo{background:rgba(6,249,87,0.07);border:1px solid rgba(6,249,87,0.25);box-shadow:0 0 30px rgba(6,249,87,0.06)}
-.gh-cmp-header-icon{font-size:2rem}
+.gh-cmp-header-badge{display:flex;align-items:center;gap:14px;padding:18px 24px;border-radius:14px}
+.gh-cmp-header-badge--trad{background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(57,10,10,0.5));border:1px solid rgba(239,68,68,0.3)}
+.gh-cmp-header-badge--geo{background:linear-gradient(135deg,rgba(6,249,87,0.24),rgba(8,30,14,0.72));border:1px solid rgba(6,249,87,0.45);box-shadow:0 0 40px rgba(6,249,87,0.2)}
+.gh-cmp-header-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--green)}
 .gh-cmp-header-title{font-size:0.9rem;font-weight:800;color:#fff;letter-spacing:-0.02em}
-.gh-cmp-header-sub{font-size:0.7rem;color:var(--muted);font-family:var(--mono)}
+.gh-cmp-header-sub{font-size:0.7rem;color:#c4fbd6;font-family:var(--mono)}
 .gh-cmp-divider-head{display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:rgba(6,249,87,0.3);font-family:var(--mono);letter-spacing:0.1em}
 
 /* Comparison rows */
-.gh-cmp-rows{display:flex;flex-direction:column;gap:8px}
+.gh-cmp-rows{display:flex;flex-direction:column;gap:10px}
 .gh-cmp-row{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;opacity:0;transform:translateY(10px);transition:opacity 0.5s ease,transform 0.5s ease}
 .gh-cmp-row--visible{opacity:1;transform:none}
-.gh-cmp-cell{display:flex;align-items:center;gap:12px;padding:14px 20px;border-radius:10px;font-size:0.85rem;transition:all 0.25s}
-.gh-cmp-cell--trad{background:rgba(10,5,5,0.7);border:1px solid rgba(239,68,68,0.1);justify-content:flex-end;text-align:right;flex-direction:row-reverse}
-.gh-cmp-cell--trad:hover{background:rgba(239,68,68,0.07);border-color:rgba(239,68,68,0.25)}
-.gh-cmp-cell--geo{background:rgba(5,14,7,0.7);border:1px solid rgba(6,249,87,0.1)}
-.gh-cmp-cell--geo:hover{background:rgba(6,249,87,0.05);border-color:rgba(6,249,87,0.25)}
+.gh-cmp-cell{display:flex;align-items:center;gap:12px;padding:16px 20px;border-radius:11px;font-size:0.87rem;transition:all 0.25s}
+.gh-cmp-cell--trad{background:rgba(33,10,10,0.84);border:1px solid rgba(239,68,68,0.24);justify-content:flex-end;text-align:right;flex-direction:row-reverse}
+.gh-cmp-cell--trad:hover{background:rgba(239,68,68,0.16);border-color:rgba(239,68,68,0.4)}
+.gh-cmp-cell--geo{background:rgba(9,26,12,0.86);border:1px solid rgba(6,249,87,0.28)}
+.gh-cmp-cell--geo:hover{background:rgba(6,249,87,0.13);border-color:rgba(6,249,87,0.52)}
 .gh-cmp-cell-text{color:var(--text);flex:1}
-.gh-cmp-x-icon{width:22px;height:22px;border-radius:50%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#ef4444;font-weight:700;flex-shrink:0;line-height:1}
-.gh-cmp-check-icon{width:22px;height:22px;border-radius:50%;background:rgba(6,249,87,0.15);border:1px solid rgba(6,249,87,0.3);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--green);font-weight:700;flex-shrink:0;line-height:1}
+.gh-cmp-x-icon{width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);display:flex;align-items:center;justify-content:center;color:#ef4444;flex-shrink:0;line-height:1}
+.gh-cmp-check-icon{width:24px;height:24px;border-radius:50%;background:rgba(6,249,87,0.15);border:1px solid rgba(6,249,87,0.35);display:flex;align-items:center;justify-content:center;color:var(--green);flex-shrink:0;line-height:1}
 .gh-cmp-center{display:flex;align-items:center;justify-content:center}
-.gh-cmp-icon-bubble{width:44px;height:44px;border-radius:50%;background:rgba(12,24,14,0.9);border:1px solid rgba(6,249,87,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 0 20px rgba(6,249,87,0.08);flex-shrink:0;z-index:1}
+.gh-cmp-icon-bubble{width:48px;height:48px;border-radius:50%;background:rgba(12,28,15,0.98);border:1px solid rgba(6,249,87,0.36);display:flex;align-items:center;justify-content:center;color:var(--green);box-shadow:0 0 26px rgba(6,249,87,0.24);flex-shrink:0;z-index:1}
 
 /* Score bar */
 .gh-cmp-scores{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin-top:28px;opacity:0}
 .gh-cmp-scores.gh-fade-up{opacity:1}
 .gh-cmp-score{padding:18px 24px;border-radius:14px;display:flex;flex-direction:column;gap:5px}
-.gh-cmp-score--trad{background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18)}
-.gh-cmp-score--geo{background:rgba(6,249,87,0.07);border:1px solid rgba(6,249,87,0.22);box-shadow:0 0 30px rgba(6,249,87,0.06)}
-.gh-cmp-score-val{font-weight:800;color:#fff;font-size:0.95rem}
+.gh-cmp-score--trad{background:linear-gradient(135deg,rgba(239,68,68,0.2),rgba(30,8,8,0.68));border:1px solid rgba(239,68,68,0.3)}
+.gh-cmp-score--geo{background:linear-gradient(135deg,rgba(6,249,87,0.24),rgba(10,32,16,0.78));border:1px solid rgba(6,249,87,0.42);box-shadow:0 0 36px rgba(6,249,87,0.18)}
+.gh-cmp-score-val{font-weight:800;color:#fff;font-size:0.95rem;display:inline-flex;align-items:center;gap:8px}
 .gh-cmp-score-sub{font-size:0.74rem;color:var(--muted);font-family:var(--mono)}
 .gh-cmp-score-vs{font-size:1.5rem;font-weight:900;color:rgba(6,249,87,0.3);font-family:var(--mono);text-align:center}
 
@@ -2094,7 +2457,7 @@ button{cursor:none}
 .gh-buyer-benefits{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:36px}
 .gh-buyer-benefit{display:flex;gap:12px;align-items:flex-start;background:rgba(12,24,14,0.7);border:1px solid var(--border);border-radius:12px;padding:14px;transition:border-color 0.3s,transform 0.3s;backdrop-filter:blur(8px)}
 .gh-buyer-benefit:hover{border-color:var(--green-border);transform:translateY(-3px)}
-.gh-buyer-benefit-icon{font-size:1.2rem;flex-shrink:0;width:32px;height:32px;background:var(--green-dim);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.gh-buyer-benefit-icon{flex-shrink:0;width:32px;height:32px;background:var(--green-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--green)}
 .gh-buyer-benefit-title{font-size:0.85rem;font-weight:700;color:#fff;margin-bottom:3px}
 .gh-buyer-benefit-desc{font-size:0.76rem;color:var(--muted);line-height:1.55}
 .gh-buyer-cta{margin-top:4px}
@@ -2107,7 +2470,7 @@ button{cursor:none}
 .gh-buyer-badge{position:absolute;display:flex;align-items:center;gap:8px;background:rgba(7,15,9,0.92);border:1px solid var(--green-border);border-radius:10px;padding:8px 14px;backdrop-filter:blur(14px);font-size:0.75rem}
 .gh-buyer-badge--1{top:18px;left:18px;animation:float 3.5s ease-in-out infinite}
 .gh-buyer-badge--2{bottom:22px;right:18px;animation:float 3.5s 1.5s ease-in-out infinite}
-.gh-buyer-badge-icon{font-size:1rem}
+.gh-buyer-badge-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--green)}
 .gh-buyer-badge-title{font-weight:700;color:#fff;font-size:0.78rem}
 .gh-buyer-badge-val{font-size:0.68rem;color:var(--muted);font-family:var(--mono)}
 .gh-buyer-stat-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1}
@@ -2130,7 +2493,7 @@ button{cursor:none}
 .gh-re-card{background:rgba(12,24,14,0.8);border:1px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;transition:all 0.3s;backdrop-filter:blur(12px)}
 .gh-re-card:hover,.gh-re-card--active{border-color:var(--green-border);background:rgba(6,249,87,0.05);transform:translateY(-3px);box-shadow:0 0 30px rgba(6,249,87,0.07)}
 .gh-re-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
-.gh-re-card-icon{font-size:1.5rem}
+.gh-re-card-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--green)}
 .gh-re-card-metric{font-size:0.62rem;font-weight:700;color:var(--green);font-family:var(--mono);background:var(--green-dim);border:1px solid var(--green-border);padding:3px 7px;border-radius:5px;text-align:right}
 .gh-re-card-title{font-size:0.9rem;font-weight:700;color:#fff;margin-bottom:6px}
 .gh-re-card-desc{font-size:0.78rem;color:var(--muted);line-height:1.55;margin-bottom:10px}
@@ -2159,6 +2522,7 @@ button{cursor:none}
 .gh-roi-cta-text{font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.55}
 .gh-re-trust-badges{display:flex;flex-direction:column;gap:10px}
 .gh-re-trust-badge{display:flex;align-items:center;gap:10px;background:rgba(12,24,14,0.7);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:0.82rem;color:var(--muted);backdrop-filter:blur(8px);transition:border-color 0.3s}
+.gh-re-trust-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--green)}
 .gh-re-trust-badge:hover{border-color:var(--green-border);color:var(--text)}
 
 /* STEPS */
@@ -2168,7 +2532,7 @@ button{cursor:none}
 .gh-step:hover{border-color:var(--green-border)}
 .gh-step-num{width:56px;height:56px;border-radius:50%;background:var(--green-dim);border:1px solid var(--green-border);margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;position:relative}
 .gh-step-n{position:absolute;bottom:-3px;right:-3px;width:18px;height:18px;background:var(--green);color:var(--bg);border-radius:50%;font-size:0.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:var(--mono)}
-.gh-step-emoji{font-size:1.4rem}
+.gh-step-emoji{display:inline-flex;align-items:center;justify-content:center;color:var(--green)}
 .gh-step-title{font-size:1rem;font-weight:700;color:#fff;margin-bottom:10px}
 .gh-step-desc{font-size:0.84rem;color:var(--muted);line-height:1.6}
 
@@ -2192,7 +2556,7 @@ button{cursor:none}
 .gh-feature-rows{display:flex;flex-direction:column;gap:16px;margin-top:24px}
 .gh-feature-row{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border-radius:12px;border:1px solid var(--border);background:var(--surface);transition:border-color 0.3s}
 .gh-feature-row:hover{border-color:var(--green-border)}
-.gh-feature-row-icon{font-size:1.2rem;width:38px;height:38px;border-radius:9px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gh-feature-row-icon{width:38px;height:38px;border-radius:9px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green)}
 .gh-feature-row-title{font-size:0.9rem;font-weight:700;color:#fff;margin-bottom:4px}
 .gh-feature-row-desc{font-size:0.81rem;color:var(--muted);line-height:1.55}
 
@@ -2231,7 +2595,7 @@ button{cursor:none}
 .gh-cards-stacked{display:flex;flex-direction:column;gap:14px}
 .gh-info-card{display:flex;gap:14px;padding:18px 22px;border-radius:14px;background:var(--surface);border:1px solid var(--border);transition:border-color 0.3s,transform 0.3s}
 .gh-info-card:hover{border-color:var(--green-border);transform:translateX(6px)}
-.gh-info-card-icon{font-size:1.3rem;width:42px;height:42px;border-radius:10px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gh-info-card-icon{width:42px;height:42px;border-radius:10px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--green)}
 .gh-info-card-title{font-size:0.92rem;font-weight:700;color:#fff;margin-bottom:3px}
 .gh-info-card-desc{font-size:0.8rem;color:var(--muted);line-height:1.55}
 .gh-growth-card{background:var(--surface);border:1px solid var(--green-border);border-radius:20px;padding:26px;box-shadow:0 0 50px rgba(6,249,87,0.04)}
@@ -2321,13 +2685,19 @@ button{cursor:none}
   .gh-cmp-icon-bubble{width:36px;height:36px;font-size:0.9rem}
 }
 @media(max-width:900px){
+  .gh-header{padding:0 14px}
+  .gh-header-inner{gap:10px;height:auto;min-height:68px;padding:8px 0;flex-wrap:wrap}
+  .gh-nav{order:3;width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
+  .gh-nav-link{font-size:0.78rem;padding:7px 10px;white-space:nowrap}
+  .gh-nav-link-icon{width:14px;height:14px}
+  .gh-btn-primary{font-size:0.76rem;padding:8px 11px}
+  .gh-btn-primary-label{display:none}
+  .gh-btn-primary-icon{display:inline-flex}
   .gh-hero-inner{grid-template-columns:1fr;padding-top:40px;padding-bottom:40px}
   .gh-hero-visual{display:none}
   .gh-dashboard-grid{grid-template-columns:1fr}
   .gh-mapping-grid{grid-template-columns:1fr}
-  .gh-nav{display:none}
-  .gh-header-actions{display:none}
-  .gh-menu-btn{display:block}
+  .gh-header-actions{display:flex;margin-left:auto}
   .gh-livefeed{display:none}
   .gh-footer-inner{grid-template-columns:1fr}
   .gh-buyer-inner{grid-template-columns:1fr}
@@ -2353,18 +2723,42 @@ button{cursor:none}
   .gh-buyer-img{height:240px}
   .gh-buyer-benefits{grid-template-columns:1fr}
   .gh-realestate-cards{grid-template-columns:1fr}
-  .gh-cmp-header-row{display:none}
-  .gh-cmp-row{grid-template-columns:1fr 40px 1fr;gap:0}
-  .gh-cmp-cell{padding:8px 10px;font-size:0.73rem;gap:6px}
-  .gh-cmp-cell-text{display:none}
-  .gh-cmp-icon-bubble{width:28px;height:28px;font-size:0.75rem}
-  .gh-cmp-scores{grid-template-columns:1fr;gap:8px}
+  .gh-cmp-header-row{display:grid;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr);gap:6px}
+  .gh-cmp-col-label--trad,.gh-cmp-col-label--geo{padding:0}
+  .gh-cmp-header-badge{width:100%;min-width:0;padding:10px 8px;gap:8px}
+  .gh-cmp-header-title{font-size:0.7rem;line-height:1.2}
+  .gh-cmp-header-sub{font-size:0.58rem;line-height:1.2}
+  .gh-cmp-row{grid-template-columns:1fr 28px 1fr;gap:8px}
+  .gh-cmp-cell{padding:10px 10px;font-size:0.72rem;gap:6px}
+  .gh-cmp-cell-text{display:block;font-size:0.68rem;line-height:1.35}
+  .gh-cmp-icon-bubble{width:26px;height:26px}
+  .gh-cmp-scores{grid-template-columns:1fr 1fr;gap:10px}
   .gh-cmp-score-vs{display:none}
+  .gh-cmp-score{padding:12px}
+  .gh-cmp-score-val{font-size:0.78rem}
+  .gh-cmp-score-sub{font-size:0.62rem}
 }
 @media(max-width:480px){
+  .gh-header-inner{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;row-gap:8px;align-items:center}
+  .gh-logo{min-width:0}
+  .gh-logo-name{display:block;font-size:0.9rem}
+  .gh-header-actions{display:flex;width:auto;min-width:0;gap:8px;justify-content:flex-end}
+  .gh-btn-primary{font-size:0.72rem;padding:8px;white-space:nowrap;min-width:36px;width:36px;height:36px;border-radius:10px}
+  .gh-btn-primary-label{display:none}
+  .gh-btn-primary-icon{display:inline-flex}
+  .gh-nav{grid-column:1 / -1;width:100%;max-width:100%;overflow-x:auto}
   .gh-what-features{grid-template-columns:1fr}
-  .gh-cmp-row{grid-template-columns:1fr 36px 1fr}
-  .gh-cmp-cell{padding:8px 6px}
+  .gh-cmp-header-row{grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr);gap:4px}
+  .gh-cmp-header-badge{padding:8px 6px;gap:6px}
+  .gh-cmp-header-icon svg{width:14px;height:14px}
+  .gh-cmp-header-title{font-size:0.62rem}
+  .gh-cmp-header-sub{font-size:0.52rem}
+  .gh-cmp-row{grid-template-columns:1fr 24px 1fr;gap:6px}
+  .gh-cmp-cell{padding:9px 8px}
+  .gh-cmp-cell-text{font-size:0.62rem}
+  .gh-cmp-icon-bubble{width:22px;height:22px}
+  .gh-cmp-check-icon,.gh-cmp-x-icon{width:18px;height:18px}
+  .gh-cmp-scores{grid-template-columns:1fr 1fr}
   .gh-hero-title{font-size:2rem}
   .gh-stats-grid{grid-template-columns:1fr 1fr}
 }

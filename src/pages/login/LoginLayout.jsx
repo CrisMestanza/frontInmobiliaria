@@ -81,6 +81,14 @@ const LoginLayout = () => {
 
   return (
     <div className="inmo-login-scope">
+      <div className="inmo-login-top-links">
+        <Link to="/" className="inmo-login-top-link">
+          Ir a Mapa
+        </Link>
+        <Link to="/inicio" className="inmo-login-top-link">
+          Ir a Inicio
+        </Link>
+      </div>
       <div className="inmo-login-container">
         {/* Sección de Imagen (Hero) */}
         <div className="inmo-login-hero-section">

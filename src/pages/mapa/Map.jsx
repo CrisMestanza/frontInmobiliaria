@@ -77,39 +77,38 @@ const LotesOverlay = ({
 
   return (
     <>
-      {lotes
-        .map((lote) => {
-          const isLibre = lote.vendido === 0;
-          const hasSelected = !!selectedLote?.lote?.idlote;
-          const isSelected = selectedLote?.lote?.idlote === lote.idlote;
-          const isDimmed = hasSelected && !isSelected;
+      {lotes.map((lote) => {
+        const isLibre = lote.vendido === 0;
+        const hasSelected = !!selectedLote?.lote?.idlote;
+        const isSelected = selectedLote?.lote?.idlote === lote.idlote;
+        const isDimmed = hasSelected && !isSelected;
 
-          return (
-            <PolygonOverlay
-              key={lote.idlote}
-              puntos={lote.puntos}
-              color={getColorLote(lote.vendido, hoveredLote === lote.idlote)}
-              onClick={isLibre ? () => onLoteClick(lote) : undefined}
-              onMouseOver={
-                isLibre ? () => onLoteMouseOver(lote.idlote) : undefined
-              }
-              onMouseOut={isLibre ? onLoteMouseOut : undefined}
-              label={
-                hoveredLote === lote.idlote || isSelected ? lote.nombre : null
-              }
-              options={{
-                zIndex: isSelected ? 12 : hoveredLote === lote.idlote ? 11 : 10,
-                clickable: isLibre,
-                draggable: false,
-                editable: false,
-                fillOpacity: isSelected ? 0.42 : isDimmed ? 0.12 : 0.3,
-                strokeOpacity: isSelected ? 1 : isDimmed ? 0.55 : 1,
-                strokeWeight: isSelected ? 3 : 2,
-                strokeColor: "black",
-              }}
-            />
-          );
-        })}
+        return (
+          <PolygonOverlay
+            key={lote.idlote}
+            puntos={lote.puntos}
+            color={getColorLote(lote.vendido, hoveredLote === lote.idlote)}
+            onClick={isLibre ? () => onLoteClick(lote) : undefined}
+            onMouseOver={
+              isLibre ? () => onLoteMouseOver(lote.idlote) : undefined
+            }
+            onMouseOut={isLibre ? onLoteMouseOut : undefined}
+            label={
+              hoveredLote === lote.idlote || isSelected ? lote.nombre : null
+            }
+            options={{
+              zIndex: isSelected ? 12 : hoveredLote === lote.idlote ? 11 : 10,
+              clickable: isLibre,
+              draggable: false,
+              editable: false,
+              fillOpacity: isSelected ? 0.42 : isDimmed ? 0.12 : 0.3,
+              strokeOpacity: isSelected ? 1 : isDimmed ? 0.55 : 1,
+              strokeWeight: isSelected ? 3 : 2,
+              strokeColor: "black",
+            }}
+          />
+        );
+      })}
     </>
   );
 };
@@ -147,8 +146,8 @@ function MyMap() {
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth <= 950 : false,
   );
-  const [isDesktopSidebarViewport, setIsDesktopSidebarViewport] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
+  const [isDesktopSidebarViewport, setIsDesktopSidebarViewport] = useState(
+    () => (typeof window !== "undefined" ? window.innerWidth >= 1024 : true),
   );
 
   const mapRef = useRef(null);
@@ -954,7 +953,6 @@ function MyMap() {
           setHasSearchedLocation(true); // ✅ CLAVE
 
           if (mapRef.current) {
-
             if (place.geometry.viewport) {
               mapRef.current.fitBounds(place.geometry.viewport);
             } else {
@@ -1069,7 +1067,7 @@ function MyMap() {
         <div className={styles.rightActions}>
           <ThemeSwitch checked={isDark} onChange={toggleTheme} />
           {!isMobileViewport && (
-            <Link to="/login" className={styles.anunciaPropiedad}>
+            <Link to="/inicio" className={styles.anunciaPropiedad}>
               <span className={styles.anuncioSweep} aria-hidden="true" />
               <span className={styles.anuncioIconViewport}>
                 {prevAnuncioIndex !== null && isAnuncioAnimating && (
@@ -1235,7 +1233,9 @@ function MyMap() {
           <div className={styles.clickHintChip}>Lotes disponibles</div>
           <div className={styles.clickHintMain}>
             <span className={styles.clickHintPulse} aria-hidden="true" />
-            <span className={styles.clickHintText}>Toca un lote para ver detalles</span>
+            <span className={styles.clickHintText}>
+              Toca un lote para ver detalles
+            </span>
           </div>
         </div>
       )}

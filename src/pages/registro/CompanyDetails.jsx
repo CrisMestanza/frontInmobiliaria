@@ -30,7 +30,7 @@ const CompanyDetails = ({ onNext, onBack, formData }) => {
           maxLength={450}
           required
         />
-        <span style={{ fontSize: "0.8rem", color: "#666", marginTop: "4px" }}>
+        <span className="char-counter">
           {data.descripcion.length} / 450
         </span>
       </div>

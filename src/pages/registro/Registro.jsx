@@ -114,7 +114,7 @@ const Register = () => {
               animate={{ opacity: 1, x: 0, height: "auto" }}
               exit={{ opacity: 0, x: -40, height: 0 }}
               transition={{ duration: 0.4, ease: "easeInOut" }}
-              style={{ overflow: "hidden" }}
+              style={{ width: "100%" }}
             >
               {renderStep()}
             </Motion.div>
