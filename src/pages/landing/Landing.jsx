@@ -1,13 +1,1106 @@
 import { useState, useEffect, useRef } from "react";
 
+/* ─── LIVE NOTIFICATIONS ──────────────────────────────────────── */
+const NOTIFICATIONS = [
+  { lot: "A-07", action: "reservado", time: "hace 2 min", city: "Tarapoto" },
+  { lot: "C-14", action: "vendido", time: "hace 5 min", city: "Moyobamba" },
+  { lot: "B-03", action: "consultado", time: "hace 8 min", city: "Tarapoto" },
+  { lot: "D-21", action: "reservado", time: "hace 11 min", city: "Lamas" },
+  { lot: "A-19", action: "vendido", time: "hace 15 min", city: "Tarapoto" },
+];
+
+const IMG = {
+  heroMap:
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuDqzlmrbsjBMaLgAiBRtwG39nT76IWG7NSURccufEKOLXd11voXnlnyjLWEoIHkse3Q1iYiISNcajU9AJEaDT7V0f7Bt5h_CjmgJvaRq05HS0frRdPzw-ieJba8PfAIm6Sc3svsgcTP4J2lOTQJ1B693YDaV5b1yzfkoTKqrFuLW5zEx9V9BrJPILMFalT8lOlhXUVKnE2umkqNdRwj1M45eV8ymjVqPbpcwjbghug-RfAuVCkbSZwT0rSmm63mBpSxMQad487CBAQ",
+  dashboard:
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuAkMnx3g24iNxFpy-zjI1Dl4toad-Gfoogt_U324zDjTS5cUt_fmDZHcsMlwJonmrwFAT-Nb8PjLiSWlKMJrnYpPtdOn10TsQCT6rIbqK92-2ykvNFm3TZbaRH90geGG87vbFBrNfwgZbxZHfIHdaDJg5IvSPkl_T9qGRRlj99UEK7wIljnIXkLxReLOxNwYP5txvaKIdWVqDngXewNYYE9TWiTHBS8Q6AIsTLxxjDh7MAepErAqFbZ3dBjZfPZkpFWk4w9zaQK96o",
+  topoPattern: "https://wallpaperaccess.com/full/6501599.jpg",
+  buyerBg:
+    "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80",
+  buyerCouple:
+    "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=900&q=80",
+  realEstateBg:
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&q=80",
+};
+
+/* ─── COUNTER HOOK ────────────────────────────────────────────── */
+function useCountUp(target, duration = 1800, start = false) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!start) return;
+    let startTime = null;
+    const step = (ts) => {
+      if (!startTime) startTime = ts;
+      const p = Math.min((ts - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setVal(Math.floor(eased * target));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [start, target, duration]);
+  return val;
+}
+
+/* ─── INTERSECTION OBSERVER ───────────────────────────────────── */
+function useInView(threshold = 0.15) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setInView(true);
+          obs.disconnect();
+        }
+      },
+      { threshold },
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return [ref, inView];
+}
+
+/* ─── PARALLAX HOOK — more noticeable ────────────────────────── */
+function useParallax(speed = 0.5) {
+  const ref = useRef(null);
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const scrolled = window.innerHeight / 2 - rect.top - rect.height / 2;
+      setOffset(scrolled * speed);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [speed]);
+  return [ref, offset];
+}
+
+/* ─── STAT ITEM ───────────────────────────────────────────────── */
+function StatItem({ val, suffix = "", label, trigger }) {
+  const numeric = parseInt(val.replace(/[^0-9]/g, "")) || 0;
+  const count = useCountUp(numeric, 1600, trigger);
+  const prefix = val.startsWith("+") ? "+" : "";
+  const isText = isNaN(parseInt(val));
+  return (
+    <div className="gh-stat-item">
+      <div className="gh-stat-val">
+        {isText ? val : `${prefix}${count.toLocaleString()}${suffix}`}
+      </div>
+      <div className="gh-stat-label">{label}</div>
+    </div>
+  );
+}
+
+/* ─── INTERACTIVE SVG LOT MAP ─────────────────────────────────── */
+const LOT_DATA = [
+  { id: "A-01", x: 40, y: 62, w: 78, h: 52, status: "sold" },
+  { id: "A-02", x: 128, y: 62, w: 68, h: 52, status: "available" },
+  { id: "A-03", x: 206, y: 62, w: 88, h: 52, status: "reserved" },
+  { id: "A-04", x: 304, y: 62, w: 72, h: 52, status: "available" },
+  { id: "B-01", x: 40, y: 128, w: 92, h: 58, status: "available" },
+  { id: "B-02", x: 142, y: 128, w: 62, h: 58, status: "sold" },
+  { id: "B-03", x: 214, y: 128, w: 82, h: 58, status: "sold" },
+  { id: "B-04", x: 306, y: 128, w: 70, h: 58, status: "reserved" },
+  { id: "C-01", x: 40, y: 200, w: 72, h: 54, status: "available" },
+  { id: "C-02", x: 122, y: 200, w: 78, h: 54, status: "available" },
+  { id: "C-03", x: 210, y: 200, w: 68, h: 54, status: "sold" },
+  { id: "C-04", x: 288, y: 200, w: 88, h: 54, status: "available" },
+];
+
+const STATUS_COLOR = {
+  available: {
+    fill: "rgba(6,249,87,0.28)",
+    stroke: "#06f957",
+    label: "Disponible",
+  },
+  sold: { fill: "rgba(239,68,68,0.28)", stroke: "#ef4444", label: "Vendido" },
+  reserved: {
+    fill: "rgba(251,191,36,0.28)",
+    stroke: "#fbbf24",
+    label: "Reservado",
+  },
+};
+
+function LotMap() {
+  const [active, setActive] = useState(null);
+  const [filter, setFilter] = useState("all");
+  return (
+    <div className="gh-lotmap">
+      <div className="gh-lotmap-filters">
+        {["all", "available", "sold", "reserved"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`gh-filter-btn${filter === f ? " gh-filter-btn--active" : ""} gh-filter-btn--${f}`}
+          >
+            {f === "all" ? "Todos" : STATUS_COLOR[f]?.label}
+          </button>
+        ))}
+      </div>
+      <div className="gh-lotmap-wrap">
+        <img src={IMG.heroMap} alt="mapa" className="gh-lotmap-bg" />
+        <div className="gh-lotmap-overlay" />
+        <svg
+          viewBox="0 30 430 240"
+          className="gh-lotmap-svg"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <line
+            x1="0"
+            y1="120"
+            x2="430"
+            y2="120"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="8"
+          />
+          <line
+            x1="0"
+            y1="192"
+            x2="430"
+            y2="192"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="8"
+          />
+          <line
+            x1="0"
+            y1="56"
+            x2="430"
+            y2="56"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="8"
+          />
+          <line
+            x1="30"
+            y1="30"
+            x2="30"
+            y2="280"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="8"
+          />
+          <line
+            x1="390"
+            y1="30"
+            x2="390"
+            y2="280"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth="8"
+          />
+          {LOT_DATA.map((lot) => {
+            const c = STATUS_COLOR[lot.status];
+            const hidden = filter !== "all" && lot.status !== filter;
+            const isActive = active?.id === lot.id;
+            return (
+              <g
+                key={lot.id}
+                style={{
+                  cursor: "pointer",
+                  opacity: hidden ? 0.12 : 1,
+                  transition: "opacity 0.3s",
+                }}
+                onClick={() => setActive(isActive ? null : lot)}
+              >
+                <rect
+                  x={lot.x}
+                  y={lot.y}
+                  width={lot.w}
+                  height={lot.h}
+                  fill={c.fill}
+                  stroke={isActive ? "#fff" : c.stroke}
+                  strokeWidth={isActive ? 2.5 : 2}
+                  rx="3"
+                  style={{
+                    filter: isActive
+                      ? `drop-shadow(0 0 10px ${c.stroke})`
+                      : `drop-shadow(0 0 4px ${c.stroke}60)`,
+                    transition: "all 0.2s",
+                  }}
+                />
+                <text
+                  x={lot.x + lot.w / 2}
+                  y={lot.y + lot.h / 2 - 4}
+                  textAnchor="middle"
+                  fill="#fff"
+                  fontSize="8"
+                  fontWeight="700"
+                  fontFamily="monospace"
+                >
+                  {lot.id}
+                </text>
+                <text
+                  x={lot.x + lot.w / 2}
+                  y={lot.y + lot.h / 2 + 8}
+                  textAnchor="middle"
+                  fill={c.stroke}
+                  fontSize="6.5"
+                  fontFamily="monospace"
+                >
+                  {c.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        {active && (
+          <div className="gh-lot-popup">
+            <div className="gh-lot-popup-header">
+              <span className="gh-lot-popup-id">{active.id}</span>
+              <button
+                onClick={() => setActive(null)}
+                className="gh-lot-popup-close"
+              >
+                ✕
+              </button>
+            </div>
+            <div
+              className={`gh-lot-popup-status gh-lot-popup-status--${active.status}`}
+            >
+              {STATUS_COLOR[active.status].label}
+            </div>
+            <div className="gh-lot-popup-details">
+              <div className="gh-lot-popup-row">
+                <span>Área</span>
+                <strong>{((active.w * active.h) / 10).toFixed(0)} m²</strong>
+              </div>
+              <div className="gh-lot-popup-row">
+                <span>Precio</span>
+                <strong>${(active.w * active.h * 12).toLocaleString()}</strong>
+              </div>
+              <div className="gh-lot-popup-row">
+                <span>Proyecto</span>
+                <strong>Tarapoto Norte</strong>
+              </div>
+            </div>
+            {active.status === "available" && (
+              <button className="gh-lot-popup-btn">Reservar este lote →</button>
+            )}
+          </div>
+        )}
+        <div className="gh-lotmap-legend">
+          {Object.entries(STATUS_COLOR).map(([k, v]) => (
+            <div key={k} className="gh-legend-item">
+              <div className="gh-legend-dot" style={{ background: v.stroke }} />
+              <span>{v.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="gh-lotmap-footer">
+        <span>🛰️ Vista satelital · Tarapoto, San Martín, Perú</span>
+        <span className="gh-lotmap-available">
+          {LOT_DATA.filter((l) => l.status === "available").length} lotes
+          disponibles
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── LIVE FEED ───────────────────────────────────────────────── */
+function LiveFeed() {
+  const [current, setCurrent] = useState(0);
+  const [vis, setVis] = useState(true);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setVis(false);
+      setTimeout(() => {
+        setCurrent((c) => (c + 1) % NOTIFICATIONS.length);
+        setVis(true);
+      }, 400);
+    }, 4000);
+    return () => clearInterval(iv);
+  }, []);
+  const n = NOTIFICATIONS[current];
+  const color =
+    n.action === "vendido"
+      ? "#ef4444"
+      : n.action === "reservado"
+        ? "#fbbf24"
+        : "#06f957";
+  return (
+    <div
+      className="gh-livefeed"
+      style={{ opacity: vis ? 1 : 0, transition: "opacity 0.4s" }}
+    >
+      <div className="gh-livefeed-dot" style={{ background: color }} />
+      <span>
+        <strong>Lote {n.lot}</strong> {n.action} en {n.city} ·{" "}
+        <span className="gh-livefeed-time">{n.time}</span>
+      </span>
+    </div>
+  );
+}
+
+/* ─── TESTIMONIALS ────────────────────────────────────────────── */
+const TESTIMONIALS = [
+  {
+    name: "María Rodríguez",
+    role: "Directora Comercial, TerraNova",
+    text: "GeoHabita transformó completamente cómo presentamos proyectos. Los clientes entienden el mapa en segundos y las consultas aumentaron un 60%.",
+    avatar: "MR",
+  },
+  {
+    name: "Carlos Vásquez",
+    role: "CEO, EcoLotes Perú",
+    text: "Antes tardábamos semanas en actualizar el inventario de lotes. Ahora lo hacemos en minutos desde el celular. Es como control de ventas en tiempo real.",
+    avatar: "CV",
+  },
+  {
+    name: "Ana Torres",
+    role: "Gerente de Ventas, Urbana SAC",
+    text: "Nuestros vendedores van a las visitas con el mapa en el teléfono. Los compradores ya llegan sabiendo qué lote quieren. Mucho más eficiente.",
+    avatar: "AT",
+  },
+];
+
+function Testimonials() {
+  const [idx, setIdx] = useState(0);
+  const go = (d) =>
+    setIdx((i) => (i + d + TESTIMONIALS.length) % TESTIMONIALS.length);
+  const t = TESTIMONIALS[idx];
+  return (
+    <div className="gh-testimonials">
+      <div className="gh-testimonial-card">
+        <div className="gh-testimonial-quote">"</div>
+        <p className="gh-testimonial-text">{t.text}</p>
+        <div className="gh-testimonial-author">
+          <div className="gh-testimonial-avatar">{t.avatar}</div>
+          <div>
+            <div className="gh-testimonial-name">{t.name}</div>
+            <div className="gh-testimonial-role">{t.role}</div>
+          </div>
+        </div>
+      </div>
+      <div className="gh-testimonial-nav">
+        <button onClick={() => go(-1)} className="gh-tnav-btn">
+          ←
+        </button>
+        <div className="gh-tnav-dots">
+          {TESTIMONIALS.map((_, i) => (
+            <div
+              key={i}
+              className={`gh-tnav-dot${i === idx ? " gh-tnav-dot--active" : ""}`}
+              onClick={() => setIdx(i)}
+            />
+          ))}
+        </div>
+        <button onClick={() => go(1)} className="gh-tnav-btn">
+          →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CURSOR GLOW ─────────────────────────────────────────────── */
+function CursorGlow() {
+  const dotRef = useRef(null);
+  const ringRef = useRef(null);
+  useEffect(() => {
+    const move = (e) => {
+      if (dotRef.current) {
+        dotRef.current.style.left = e.clientX + "px";
+        dotRef.current.style.top = e.clientY + "px";
+      }
+      if (ringRef.current) {
+        ringRef.current.style.left = e.clientX + "px";
+        ringRef.current.style.top = e.clientY + "px";
+      }
+    };
+    window.addEventListener("mousemove", move);
+    return () => window.removeEventListener("mousemove", move);
+  }, []);
+  return (
+    <>
+      <div ref={dotRef} className="gh-cursor-dot" />
+      <div ref={ringRef} className="gh-cursor-ring" />
+    </>
+  );
+}
+
+/* ─── REDESIGNED COMPARISON SECTION ──────────────────────────── */
+function ComparisonSection() {
+  const [ref, inView] = useInView(0.1);
+
+  const rows = [
+    {
+      icon: "📋",
+      trad: "Planos en papel, difíciles de leer",
+      geo: "Mapa interactivo satelital preciso",
+    },
+    {
+      icon: "📞",
+      trad: "Llamadas para consultar disponibilidad",
+      geo: "Disponibilidad en tiempo real 24/7",
+    },
+    {
+      icon: "🗓️",
+      trad: "Visitas físicas obligatorias",
+      geo: "Explora virtualmente desde cualquier lugar",
+    },
+    {
+      icon: "📊",
+      trad: "Excel para gestión de inventario",
+      geo: "Panel intuitivo desde el móvil",
+    },
+    {
+      icon: "⏳",
+      trad: "Semanas para actualizar inventario",
+      geo: "Actualización instantánea con un clic",
+    },
+    {
+      icon: "❓",
+      trad: "Precios opacos sin transparencia",
+      geo: "Precios visibles y transparentes",
+    },
+  ];
+
+  return (
+    <section className="gh-compare-section" ref={ref}>
+      <div className="gh-compare-label-row">
+        <span className="gh-overline" style={{ color: "var(--green)" }}>
+          Comparación
+        </span>
+      </div>
+      <h2 className="gh-section-title gh-text-center">
+        La diferencia es <span className="gh-gradient-text">visible</span>
+      </h2>
+      <p
+        className="gh-section-body gh-text-center gh-muted"
+        style={{ maxWidth: 540, margin: "0 auto 56px" }}
+      >
+        Elige el camino que convierte más, mucho más rápido.
+      </p>
+
+      {/* Header row */}
+      <div className={`gh-cmp-header-row ${inView ? "gh-fade-up" : ""}`}>
+        <div className="gh-cmp-col-label gh-cmp-col-label--trad">
+          <div className="gh-cmp-header-badge gh-cmp-header-badge--trad">
+            <span className="gh-cmp-header-icon">📁</span>
+            <div>
+              <div className="gh-cmp-header-title">Método Tradicional</div>
+              <div className="gh-cmp-header-sub">Lento · Opaco · Limitado</div>
+            </div>
+          </div>
+        </div>
+        <div className="gh-cmp-divider-head" />
+        <div className="gh-cmp-col-label gh-cmp-col-label--geo">
+          <div className="gh-cmp-header-badge gh-cmp-header-badge--geo">
+            <span className="gh-cmp-header-icon">🚀</span>
+            <div>
+              <div className="gh-cmp-header-title">GeoHabita</div>
+              <div className="gh-cmp-header-sub">Rápido · Claro · Poderoso</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparison rows */}
+      <div className="gh-cmp-rows">
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className={`gh-cmp-row ${inView ? "gh-cmp-row--visible" : ""}`}
+            style={{ animationDelay: `${i * 0.08}s` }}
+          >
+            <div className="gh-cmp-cell gh-cmp-cell--trad">
+              <span className="gh-cmp-x-icon">✗</span>
+              <span className="gh-cmp-cell-text">{row.trad}</span>
+            </div>
+            <div className="gh-cmp-center">
+              <div className="gh-cmp-icon-bubble">{row.icon}</div>
+            </div>
+            <div className="gh-cmp-cell gh-cmp-cell--geo">
+              <span className="gh-cmp-cell-text">{row.geo}</span>
+              <span className="gh-cmp-check-icon">✓</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom score */}
+      <div
+        className={`gh-cmp-scores ${inView ? "gh-fade-up" : ""}`}
+        style={{ animationDelay: "0.6s" }}
+      >
+        <div className="gh-cmp-score gh-cmp-score--trad">
+          <span className="gh-cmp-score-val">⚠ Baja conversión</span>
+          <span className="gh-cmp-score-sub">
+            Hasta 3× menos leads calificados
+          </span>
+        </div>
+        <div className="gh-cmp-score-vs">VS</div>
+        <div className="gh-cmp-score gh-cmp-score--geo">
+          <span className="gh-cmp-score-val">🏆 Alta conversión</span>
+          <span className="gh-cmp-score-sub">+45% más leads calificados</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── BUYER SECTION ───────────────────────────────────────────── */
+function BuyerSection() {
+  const [parallaxRef, parallaxOffset] = useParallax(0.45);
+  const [ref, inView] = useInView(0.15);
+
+  return (
+    <section className="gh-buyer-section" ref={ref}>
+      <div className="gh-buyer-bg-wrap" ref={parallaxRef}>
+        <img
+          src={IMG.buyerBg}
+          alt=""
+          className="gh-buyer-bg-img"
+          style={{ transform: `translateY(${parallaxOffset}px) scale(1.2)` }}
+        />
+        <div className="gh-buyer-bg-overlay" />
+      </div>
+      <div className="gh-buyer-inner">
+        <div className={`gh-buyer-text ${inView ? "gh-fade-up" : ""}`}>
+          <span className="gh-overline gh-overline--light">
+            Para Compradores
+          </span>
+          <h2 className="gh-buyer-title">
+            Inteligencia para el
+            <br />
+            <em>comprador moderno</em>
+          </h2>
+          <p className="gh-buyer-sub">
+            Ya no compras a ciegas. GeoHabita te da toda la información que
+            necesitas para tomar la mejor decisión desde donde estés.
+          </p>
+          <div className="gh-buyer-benefits">
+            {[
+              {
+                icon: "🔍",
+                title: "Búsqueda visual",
+                desc: "Encuentra tu lote ideal directamente en el mapa, filtrando por zona, precio y disponibilidad.",
+              },
+              {
+                icon: "📐",
+                title: "Datos precisos",
+                desc: "Área exacta en m², precio, orientación y acceso vial antes de la primera visita.",
+              },
+              {
+                icon: "🏘️",
+                title: "Contexto real",
+                desc: "Vista satelital del entorno: servicios cercanos, accesos, topografía y más.",
+              },
+              {
+                icon: "🔒",
+                title: "Reserva segura",
+                desc: "Reserva tu lote con un clic y recibe confirmación inmediata. Sin llamadas, sin filas.",
+              },
+              {
+                icon: "📊",
+                title: "Transparencia total",
+                desc: "Historial de precios y comparativas del mercado. Compra con datos, no con promesas.",
+              },
+              {
+                icon: "📱",
+                title: "Desde tu celular",
+                desc: "Explora proyectos completos desde cualquier dispositivo. La feria inmobiliaria en tu bolsillo.",
+              },
+            ].map((b, i) => (
+              <div
+                key={i}
+                className="gh-buyer-benefit"
+                style={{ animationDelay: `${i * 0.08}s` }}
+              >
+                <div className="gh-buyer-benefit-icon">{b.icon}</div>
+                <div>
+                  <h4 className="gh-buyer-benefit-title">{b.title}</h4>
+                  <p className="gh-buyer-benefit-desc">{b.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className="gh-btn-glow gh-buyer-cta">
+            Explorar Proyectos →
+          </button>
+        </div>
+        <div className={`gh-buyer-visual ${inView ? "gh-fade-up-delay" : ""}`}>
+          <div className="gh-buyer-img-stack">
+            <div className="gh-buyer-img-bg-card" />
+            <div className="gh-buyer-img-wrap">
+              <img
+                src={IMG.buyerCouple}
+                alt="Pareja comprando casa"
+                className="gh-buyer-img"
+              />
+              <div className="gh-buyer-img-overlay" />
+              <div className="gh-buyer-badge gh-buyer-badge--1">
+                <span className="gh-buyer-badge-icon">📍</span>
+                <div>
+                  <div className="gh-buyer-badge-title">Lote A-12</div>
+                  <div className="gh-buyer-badge-val">Disponible · 320 m²</div>
+                </div>
+              </div>
+              <div className="gh-buyer-badge gh-buyer-badge--2">
+                <span className="gh-buyer-badge-icon">✅</span>
+                <div>
+                  <div className="gh-buyer-badge-title">Reservado</div>
+                  <div className="gh-buyer-badge-val">
+                    hace 2 min · Tarapoto
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="gh-buyer-stat-row">
+            {[
+              ["98%", "Satisfacción"],
+              ["< 3min", "Para explorar"],
+              ["0 sorpresas", "Garantizado"],
+            ].map(([v, l], i) => (
+              <div key={i} className="gh-buyer-stat">
+                <span className="gh-buyer-stat-val">{v}</span>
+                <span className="gh-buyer-stat-label">{l}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── REAL ESTATE SECTION ─────────────────────────────────────── */
+function RealEstateSection() {
+  const [parallaxRef, parallaxOffset] = useParallax(0.4);
+  const [ref, inView] = useInView(0.1);
+  const [activeCard, setActiveCard] = useState(0);
+
+  const features = [
+    {
+      icon: "🗺️",
+      title: "Mapa Interactivo",
+      desc: "Publica tu proyecto sobre mapa satelital real. Tus clientes entienden tu inventario en segundos.",
+      metric: "+60% consultas",
+    },
+    {
+      icon: "⚡",
+      title: "Actualización Instantánea",
+      desc: "Cambia el estado de cualquier lote a 'Vendido' desde tu celular. El mundo lo ve en segundos.",
+      metric: "0 errores de stock",
+    },
+    {
+      icon: "📊",
+      title: "CRM de Leads",
+      desc: "Captura, califica y gestiona tus prospectos automáticamente. Nunca más pierdas un lead caliente.",
+      metric: "3× más cierres",
+    },
+    {
+      icon: "🎯",
+      title: "Analíticas Avanzadas",
+      desc: "Descubre qué lotes generan más interés, de dónde vienen tus visitantes y cuándo convierten.",
+      metric: "Decisiones data-driven",
+    },
+    {
+      icon: "🤝",
+      title: "Red de Compradores",
+      desc: "Accede a miles de compradores activos que buscan exactamente lo que tú ofreces.",
+      metric: "+2,000 compradores/mes",
+    },
+    {
+      icon: "🏷️",
+      title: "Marca Blanca",
+      desc: "Presenta GeoHabita con tu propia marca. Profesionalismo que impresiona desde el primer clic.",
+      metric: "Tu imagen, amplificada",
+    },
+  ];
+
+  return (
+    <section className="gh-realestate-section" ref={ref}>
+      <div className="gh-realestate-bg-wrap" ref={parallaxRef}>
+        <img
+          src={IMG.realEstateBg}
+          alt=""
+          className="gh-realestate-bg-img"
+          style={{ transform: `translateY(${parallaxOffset}px) scale(1.2)` }}
+        />
+        <div className="gh-realestate-bg-overlay" />
+        <div className="gh-realestate-bg-grid" />
+      </div>
+      <div className="gh-realestate-inner">
+        <div className={`gh-realestate-header ${inView ? "gh-fade-up" : ""}`}>
+          <span className="gh-overline gh-overline--green">
+            Para Inmobiliarias & Vendedores
+          </span>
+          <h2 className="gh-realestate-title">
+            Tu proyecto merece
+            <br />
+            <span className="gh-gradient-text">una vitrina del siglo XXI</span>
+          </h2>
+          <p className="gh-realestate-sub">
+            Deja de competir con PDF y fotos pixeladas. Las inmobiliarias
+            líderes ya venden diferente.
+          </p>
+        </div>
+        <div className="gh-realestate-content">
+          <div className="gh-realestate-cards">
+            {features.map((f, i) => (
+              <div
+                key={i}
+                className={`gh-re-card ${activeCard === i ? "gh-re-card--active" : ""}`}
+                onClick={() => setActiveCard(i)}
+                style={{ animationDelay: `${i * 0.07}s` }}
+              >
+                <div className="gh-re-card-top">
+                  <span className="gh-re-card-icon">{f.icon}</span>
+                  <span className="gh-re-card-metric">{f.metric}</span>
+                </div>
+                <h4 className="gh-re-card-title">{f.title}</h4>
+                <p className="gh-re-card-desc">{f.desc}</p>
+                <div className="gh-re-card-arrow">→</div>
+              </div>
+            ))}
+          </div>
+          <div
+            className={`gh-realestate-roi ${inView ? "gh-fade-up-delay" : ""}`}
+          >
+            <div className="gh-roi-card">
+              <div className="gh-roi-header">
+                <span className="gh-roi-label">ROI Promedio GeoHabita</span>
+                <span className="gh-roi-period">vs. Método Tradicional</span>
+              </div>
+              <div className="gh-roi-chart">
+                {[
+                  {
+                    label: "Tiempo de venta",
+                    trad: 25,
+                    geo: 85,
+                    tradVal: "8 sem",
+                    geoVal: "2 sem",
+                  },
+                  {
+                    label: "Leads calificados",
+                    trad: 30,
+                    geo: 92,
+                    tradVal: "12/mes",
+                    geoVal: "54/mes",
+                  },
+                  {
+                    label: "Tasa de cierre",
+                    trad: 20,
+                    geo: 78,
+                    tradVal: "8%",
+                    geoVal: "31%",
+                  },
+                  {
+                    label: "Satisfacción cliente",
+                    trad: 55,
+                    geo: 97,
+                    tradVal: "3.2★",
+                    geoVal: "4.9★",
+                  },
+                ].map((row, i) => (
+                  <div key={i} className="gh-roi-row">
+                    <span className="gh-roi-row-label">{row.label}</span>
+                    <div className="gh-roi-bars">
+                      <div className="gh-roi-bar-wrap">
+                        <div
+                          className="gh-roi-bar gh-roi-bar--trad"
+                          style={{ width: `${row.trad}%` }}
+                        >
+                          <span className="gh-roi-bar-val">{row.tradVal}</span>
+                        </div>
+                      </div>
+                      <div className="gh-roi-bar-wrap">
+                        <div
+                          className="gh-roi-bar gh-roi-bar--geo"
+                          style={{ width: `${row.geo}%` }}
+                        >
+                          <span className="gh-roi-bar-val">{row.geoVal}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="gh-roi-legend">
+                <span className="gh-roi-leg gh-roi-leg--trad">Tradicional</span>
+                <span className="gh-roi-leg gh-roi-leg--geo">GeoHabita</span>
+              </div>
+              <div className="gh-roi-cta-area">
+                <p className="gh-roi-cta-text">
+                  Únete a +120 inmobiliarias que ya publican en GeoHabita
+                </p>
+                <button className="gh-btn-glow">Publicar mi proyecto →</button>
+              </div>
+            </div>
+            <div className="gh-re-trust-badges">
+              {[
+                { icon: "🏆", text: "Mejor Plataforma Inmobiliaria 2024" },
+                { icon: "🔒", text: "Datos 100% seguros y encriptados" },
+                { icon: "🌎", text: "Visible en toda Latinoamérica" },
+              ].map((b, i) => (
+                <div key={i} className="gh-re-trust-badge">
+                  <span>{b.icon}</span>
+                  <span>{b.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── PLANS ───────────────────────────────────────────────────── */
+const PLANS = [
+  {
+    name: "Independiente",
+    monthly: 0,
+    yearly: 0,
+    desc: "Para propietarios de 1 o 2 lotes.",
+    features: ["Hasta 3 lotes", "Visibilidad básica", "Soporte por email"],
+    btn: "Empezar ahora",
+    featured: false,
+  },
+  {
+    name: "Inmobiliaria",
+    monthly: 49,
+    yearly: 39,
+    desc: "Para proyectos medianos en desarrollo.",
+    features: [
+      "Hasta 200 lotes",
+      "Panel de administración",
+      "Soporte prioritario",
+      "CRM de leads",
+      "Analytics avanzado",
+    ],
+    btn: "Seleccionar Plan",
+    featured: true,
+  },
+  {
+    name: "Enterprise",
+    monthly: null,
+    yearly: null,
+    desc: "Para desarrolladores a gran escala.",
+    features: [
+      "Lotes ilimitados",
+      "API personalizada",
+      "Marca blanca",
+      "SLA 99.9%",
+      "Onboarding dedicado",
+    ],
+    btn: "Contactar Ventas",
+    featured: false,
+  },
+];
+
+/* ─── SCROLL REVEAL WRAPPER ───────────────────────────────────── */
+function ScrollReveal({ children, delay = 0, className = "" }) {
+  const [ref, inView] = useInView(0.1);
+  return (
+    <div
+      ref={ref}
+      className={`gh-scroll-reveal ${inView ? "gh-scroll-reveal--visible" : ""} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ─── WHAT IS GEOHABITA — REDESIGNED ─────────────────────────── */
+function WhatIsSection() {
+  const [ref, inView] = useInView(0.1);
+
+  const features = [
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          width="22"
+          height="22"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+      ),
+      tag: "GEOESPACIAL",
+      title: "Basado en mapas",
+      desc: "Ubicación exacta con coordenadas georreferenciadas y límites precisos para certeza total.",
+      stat: "±0.1m precisión",
+    },
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          width="22"
+          height="22"
+        >
+          <path d="M1 6s+2-2 5-2 5.5 2 8 2 5-2 5-2V22s-2 2-5 2-5.5-2-8-2-5 2-5 2z" />
+          <line x1="1" y1="13" x2="22" y2="13" />
+        </svg>
+      ),
+      tag: "INMERSIVO",
+      title: "Visualización real",
+      desc: "Visualiza el entorno, topografía y características del terreno antes de la primera visita.",
+      stat: "Vista satelital HD",
+    },
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          width="22"
+          height="22"
+        >
+          <rect x="2" y="3" width="20" height="14" rx="2" />
+          <path d="M8 21h8M12 17v4" />
+          <path d="M7 8h10M7 12h6" />
+        </svg>
+      ),
+      tag: "TIEMPO REAL",
+      title: "Inventario digital",
+      desc: "Gestiona disponibilidad, estados y precios en tiempo real. Adiós a las hojas de cálculo.",
+      stat: "Sync instantáneo",
+    },
+    {
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          width="22"
+          height="22"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+      tag: "CONEXIÓN",
+      title: "Contacto directo",
+      desc: "Conecta compradores calificados con desarrolladores sin fricción ni intermediarios.",
+      stat: "+2000 usuarios",
+    },
+  ];
+
+  return (
+    <section className="gh-what-section" ref={ref}>
+      <div className="gh-what-bg-glow" />
+      <div className="gh-section-inner">
+        <div className="gh-what-intro">
+          <div
+            className={`gh-what-text-block ${inView ? "gh-slide-in-left" : ""}`}
+          >
+            <span className="gh-overline">Plataforma</span>
+            <h2 className="gh-section-title">
+              ¿Qué es
+              <br />
+              GeoHabita?
+            </h2>
+            <p className="gh-section-body">
+              La plataforma líder en visualización y gestión inmobiliaria basada
+              en mapas interactivos. Conectamos la realidad física con datos
+              digitales para transformar cómo se venden los terrenos.
+            </p>
+            <a href="#" className="gh-link-arrow">
+              Conoce nuestra historia →
+            </a>
+          </div>
+          <div
+            className={`gh-what-terminal ${inView ? "gh-slide-in-right" : ""}`}
+          >
+            <div className="gh-terminal-bar">
+              <span className="gh-tdot gh-tdot--r" />
+              <span className="gh-tdot gh-tdot--y" />
+              <span className="gh-tdot gh-tdot--g" />
+              <span className="gh-terminal-title">geohabita.api · v2.0.1</span>
+            </div>
+            <div className="gh-terminal-body">
+              <div className="gh-terminal-line">
+                <span className="gh-t-prompt">$</span>{" "}
+                <span className="gh-t-cmd">fetch</span>{" "}
+                <span className="gh-t-str">/lotes/disponibles</span>
+              </div>
+              <div className="gh-terminal-line gh-t-output">
+                <span className="gh-t-key">status</span>:{" "}
+                <span className="gh-t-val">"200 OK"</span>
+              </div>
+              <div className="gh-terminal-line gh-t-output">
+                <span className="gh-t-key">total</span>:{" "}
+                <span className="gh-t-num">2047</span>
+              </div>
+              <div className="gh-terminal-line gh-t-output">
+                <span className="gh-t-key">disponibles</span>:{" "}
+                <span className="gh-t-green">894</span>
+              </div>
+              <div className="gh-terminal-line gh-t-output">
+                <span className="gh-t-key">precisión</span>:{" "}
+                <span className="gh-t-green">"±0.1m GPS"</span>
+              </div>
+              <div className="gh-terminal-line">
+                <span className="gh-t-prompt">$</span>{" "}
+                <span className="gh-t-cmd">update</span>{" "}
+                <span className="gh-t-str">lote/A-07</span>{" "}
+                <span className="gh-t-key">--status</span>{" "}
+                <span className="gh-t-green">vendido</span>
+              </div>
+              <div className="gh-terminal-line gh-t-output">
+                <span className="gh-t-key">✓ Actualizado</span>{" "}
+                <span className="gh-t-muted">
+                  en 0.3s · visible globalmente
+                </span>
+              </div>
+              <div className="gh-terminal-cursor">▋</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="gh-what-features">
+          {features.map((f, i) => (
+            <ScrollReveal key={i} delay={i * 90}>
+              <div className="gh-what-feat-card">
+                <div className="gh-what-feat-top">
+                  <div className="gh-what-feat-icon-wrap">{f.icon}</div>
+                  <span className="gh-what-feat-tag">{f.tag}</span>
+                </div>
+                <h3 className="gh-what-feat-title">{f.title}</h3>
+                <p className="gh-what-feat-desc">{f.desc}</p>
+                <div className="gh-what-feat-stat">
+                  <span className="gh-what-feat-stat-dot" />
+                  {f.stat}
+                </div>
+              </div>
+            </ScrollReveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── MAIN ────────────────────────────────────────────────────── */
 export default function GeoHabita() {
   const [scrolled, setScrolled] = useState(false);
-  const carouselRef = useRef(null);
+  const [yearly, setYearly] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [statsRef, statsInView] = useInView(0.3);
+  const [heroParallaxRef, heroParallaxOffset] = useParallax(0.5);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const fn = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   const brands = [
@@ -18,16 +1111,15 @@ export default function GeoHabita() {
     "SurEstate",
     "Vanguardia",
     "Habitat",
+    "ProLotes",
   ];
 
   return (
     <div className="gh-root">
-      <style>{styles}</style>
+      <style>{CSS}</style>
+      <CursorGlow />
 
-      {/* Fixed BG */}
-      <div className="gh-bg-fixed" />
-
-      {/* Header */}
+      {/* HEADER */}
       <header className={`gh-header${scrolled ? " gh-header--scrolled" : ""}`}>
         <div className="gh-header-inner">
           <div className="gh-logo">
@@ -39,6 +1131,8 @@ export default function GeoHabita() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                width="18"
+                height="18"
               >
                 <circle cx="12" cy="12" r="10" />
                 <line x1="2" y1="12" x2="22" y2="12" />
@@ -47,19 +1141,13 @@ export default function GeoHabita() {
             </div>
             <span className="gh-logo-name">GeoHabita</span>
           </div>
+          <LiveFeed />
           <nav className="gh-nav">
-            <a href="#" className="gh-nav-link">
-              Inicio
-            </a>
-            <a href="#features" className="gh-nav-link">
-              Plataforma
-            </a>
-            <a href="#pricing" className="gh-nav-link">
-              Precios
-            </a>
-            <a href="#" className="gh-nav-link">
-              Nosotros
-            </a>
+            {["Inicio", "Plataforma", "Precios", "Nosotros"].map((l) => (
+              <a key={l} href="#" className="gh-nav-link">
+                {l}
+              </a>
+            ))}
           </nav>
           <div className="gh-header-actions">
             <a href="#" className="gh-link-plain">
@@ -67,121 +1155,171 @@ export default function GeoHabita() {
             </a>
             <button className="gh-btn-primary">Publicar proyecto</button>
           </div>
+          <button
+            className="gh-menu-btn"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            ☰
+          </button>
         </div>
+        {menuOpen && (
+          <div className="gh-mobile-menu">
+            {[
+              "Inicio",
+              "Plataforma",
+              "Precios",
+              "Nosotros",
+              "Iniciar Sesión",
+            ].map((l) => (
+              <a key={l} href="#" className="gh-mobile-link">
+                {l}
+              </a>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className="gh-main">
-        {/* Hero */}
+        {/* HERO with parallax */}
         <section className="gh-hero">
-          <div className="gh-hero-glow gh-hero-glow--tr" />
-          <div className="gh-hero-glow gh-hero-glow--bl" />
-          <div className="gh-hero-content">
-            <div className="gh-badge">
-              <span className="gh-badge-dot" />
-              Mapa Interactivo v2.0
-            </div>
-            <h1 className="gh-hero-title">
-              La nueva era de
-              <br />
-              <span className="gh-gradient-text">gestión inmobiliaria</span>
-            </h1>
-            <p className="gh-hero-sub">
-              Explora terrenos y propiedades con tecnología geoespacial de
-              vanguardia. Visualiza, vende y gestiona tu inventario con
-              precisión milimétrica.
-            </p>
-            <div className="gh-hero-btns">
-              <button className="gh-btn-glow">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="20"
-                  height="20"
-                >
-                  <path d="M3 11l19-9-9 19-2-8-8-2z" />
-                </svg>
-                Ver proyectos
-              </button>
-              <button className="gh-btn-outline">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="20"
-                  height="20"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <polygon points="10 8 16 12 10 16 10 8" />
-                </svg>
-                Ver Demo
-              </button>
-            </div>
+          <div className="gh-hero-bg" ref={heroParallaxRef}>
+            <img
+              src={IMG.heroMap}
+              alt=""
+              className="gh-hero-bg-img"
+              style={{
+                transform: `translateY(${heroParallaxOffset * 0.6}px) scale(1.2)`,
+              }}
+            />
+            <div className="gh-hero-bg-overlay" />
+            <div className="gh-scanline" />
+            <div className="gh-grid-overlay" />
           </div>
-
-          {/* Hero Map Visual */}
-          <div className="gh-hero-visual">
-            <div className="gh-map-card">
-              <div className="gh-map-scanline" />
-              <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqzlmrbsjBMaLgAiBRtwG39nT76IWG7NSURccufEKOLXd11voXnlnyjLWEoIHkse3Q1iYiISNcajU9AJEaDT7V0f7Bt5h_CjmgJvaRq05HS0frRdPzw-ieJba8PfAIm6Sc3svsgcTP4J2lOTQJ1B693YDaV5b1yzfkoTKqrFuLW5zEx9V9BrJPILMFalT8lOlhXUVKnE2umkqNdRwj1M45eV8ymjVqPbpcwjbghug-RfAuVCkbSZwT0rSmm63mBpSxMQad487CBAQ"
-                alt="Mapa satelital de lotes"
-                className="gh-map-img"
-              />
-              <div className="gh-map-overlay" />
-              {/* Floating badges */}
-              <div className="gh-lot-badge gh-lot-badge--available">
-                <div className="gh-lot-badge-icon gh-lot-badge-icon--green">
-                  ✓
-                </div>
-                <div>
-                  <div className="gh-lot-badge-label">Lote A-12</div>
-                  <div className="gh-lot-badge-status">Disponible</div>
-                </div>
+          <div className="gh-hero-inner">
+            <div className="gh-hero-content">
+              <div className="gh-badge">
+                <span className="gh-badge-dot" />
+                Mapa Interactivo v2.0 · En vivo
               </div>
-              <div className="gh-lot-badge gh-lot-badge--sold">
-                <div className="gh-lot-badge-icon gh-lot-badge-icon--red">
-                  🔒
-                </div>
-                <div>
-                  <div className="gh-lot-badge-label">Lote B-04</div>
-                  <div className="gh-lot-badge-status">Vendido</div>
-                </div>
+              <h1 className="gh-hero-title">
+                La nueva era de
+                <br />
+                <span className="gh-gradient-text">gestión inmobiliaria</span>
+              </h1>
+              <p className="gh-hero-sub">
+                Explora terrenos con tecnología geoespacial de vanguardia.
+                Visualiza, vende y gestiona tu inventario con precisión
+                milimétrica.
+              </p>
+              <div className="gh-hero-btns">
+                <button className="gh-btn-glow">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    width="18"
+                    height="18"
+                  >
+                    <path d="M3 11l19-9-9 19-2-8-8-2z" />
+                  </svg>
+                  Ver proyectos
+                </button>
+                <button className="gh-btn-outline">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    width="18"
+                    height="18"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <polygon points="10 8 16 12 10 16 10 8" />
+                  </svg>
+                  Ver Demo
+                </button>
               </div>
-              {/* Mini stats */}
-              <div className="gh-map-stats">
-                <div className="gh-map-stat">
-                  <span className="gh-map-stat-val">+2,000</span>
-                  <span className="gh-map-stat-key">Lotes</span>
-                </div>
-                <div className="gh-map-stat-divider" />
-                <div className="gh-map-stat">
-                  <span className="gh-map-stat-val gh-map-stat-val--green">
-                    +45%
+              <div className="gh-hero-quickstats">
+                {[
+                  { v: "+2,000", l: "Lotes" },
+                  { v: "15", l: "Proyectos" },
+                  { v: "45%", l: "Más leads" },
+                ].map((s, i) => (
+                  <div key={i} className="gh-qs-item">
+                    <span className="gh-qs-val">{s.v}</span>
+                    <span className="gh-qs-label">{s.l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="gh-hero-visual">
+              <div className="gh-map-card">
+                <div className="gh-map-topbar">
+                  <span className="gh-map-topbar-dot gh-dot-red" />
+                  <span className="gh-map-topbar-dot gh-dot-yellow" />
+                  <span className="gh-map-topbar-dot gh-dot-green" />
+                  <span className="gh-map-topbar-title">
+                    Tarapoto Norte · Vista Satelital
                   </span>
-                  <span className="gh-map-stat-key">Más Leads</span>
+                  <span className="gh-map-live">● LIVE</span>
                 </div>
-                <div className="gh-map-stat-divider" />
-                <div className="gh-map-stat">
-                  <span className="gh-map-stat-val">24/7</span>
-                  <span className="gh-map-stat-key">Online</span>
+                <div className="gh-map-img-wrap">
+                  <img
+                    src={IMG.heroMap}
+                    alt="Mapa satelital"
+                    className="gh-map-img"
+                  />
+                  <div className="gh-map-img-overlay" />
+                  <div className="gh-map-radar" />
+                  <div className="gh-lot-badge gh-lot-badge--a">
+                    <div className="gh-lbadge-icon gh-lbadge-green">✓</div>
+                    <div>
+                      <div className="gh-lbadge-label">Lote A-12</div>
+                      <div className="gh-lbadge-val">Disponible</div>
+                    </div>
+                  </div>
+                  <div className="gh-lot-badge gh-lot-badge--b">
+                    <div className="gh-lbadge-icon gh-lbadge-red">🔒</div>
+                    <div>
+                      <div className="gh-lbadge-label">Lote B-04</div>
+                      <div className="gh-lbadge-val gh-red">Vendido</div>
+                    </div>
+                  </div>
+                  <div className="gh-lot-badge gh-lot-badge--c">
+                    <div className="gh-lbadge-icon gh-lbadge-yellow">⏳</div>
+                    <div>
+                      <div className="gh-lbadge-label">Lote C-08</div>
+                      <div className="gh-lbadge-val gh-yellow">Reservado</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="gh-map-footer-stats">
+                  {[
+                    { v: "2,047", l: "Lotes totales" },
+                    { v: "894", l: "Disponibles" },
+                    { v: "24/7", l: "Actualizado" },
+                  ].map((s, i) => (
+                    <div key={i} className="gh-mfstat">
+                      <span className="gh-mfstat-v">{s.v}</span>
+                      <span className="gh-mfstat-l">{s.l}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Brand Carousel */}
+        {/* CAROUSEL */}
         <section className="gh-carousel-section">
           <p className="gh-carousel-label">
             Inmobiliarias que confían en nosotros
           </p>
           <div className="gh-carousel-track-wrap">
-            <div className="gh-carousel-fade gh-carousel-fade--left" />
-            <div className="gh-carousel-fade gh-carousel-fade--right" />
-            <div className="gh-carousel-track" ref={carouselRef}>
+            <div className="gh-cf-left" />
+            <div className="gh-cf-right" />
+            <div className="gh-carousel-track">
               {[...brands, ...brands].map((b, i) => (
                 <div key={i} className="gh-brand-item">
                   <div className="gh-brand-dot" />
@@ -192,224 +1330,144 @@ export default function GeoHabita() {
           </div>
         </section>
 
-        {/* What is GeoHabita */}
-        <section className="gh-section" id="features">
-          <div className="gh-section-inner gh-what-grid">
-            <div className="gh-what-left">
-              <h2 className="gh-section-title">
-                ¿Qué es
-                <br />
-                GeoHabita?
-              </h2>
-              <p className="gh-section-body">
-                La plataforma líder en visualización y gestión inmobiliaria
-                basada en mapas interactivos. Simplificamos la compra y venta de
-                terrenos conectando la realidad física con datos digitales.
-              </p>
-              <a href="#" className="gh-link-arrow">
-                Conoce nuestra historia
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="16"
-                  height="16"
-                >
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </a>
-            </div>
-            <div className="gh-feature-grid">
-              {[
-                {
-                  icon: "🗺️",
-                  color: "blue",
-                  title: "Basado en mapas",
-                  desc: "Ubicación exacta con coordenadas georreferenciadas y límites precisos para certeza total.",
-                },
-                {
-                  icon: "🌐",
-                  color: "green",
-                  title: "Visualización real",
-                  desc: "Visualiza el entorno, topografía y características del terreno antes de la primera visita.",
-                },
-                {
-                  icon: "📦",
-                  color: "purple",
-                  title: "Inventario digital",
-                  desc: "Gestiona disponibilidad, estados y precios en tiempo real. Adiós a las hojas de cálculo.",
-                },
-                {
-                  icon: "🤝",
-                  color: "orange",
-                  title: "Contacto directo",
-                  desc: "Conecta compradores calificados con desarrolladores sin fricción ni intermediarios.",
-                },
-              ].map((f, i) => (
-                <div
-                  key={i}
-                  className={`gh-feature-card gh-feature-card--${f.color}`}
-                >
-                  <div
-                    className={`gh-feature-icon gh-feature-icon--${f.color}`}
-                  >
-                    {f.icon}
-                  </div>
-                  <h3 className="gh-feature-title">{f.title}</h3>
-                  <p className="gh-feature-desc">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* WHAT IS — REDESIGNED */}
+        <WhatIsSection />
 
-        {/* Benefits */}
-        <section className="gh-benefits-section">
+        {/* INTERACTIVE LOT MAP */}
+        <section className="gh-lotmap-section">
+          <div className="gh-topo-bg">
+            <img src={IMG.topoPattern} alt="" className="gh-topo-img" />
+            <div className="gh-topo-overlay" />
+          </div>
           <div className="gh-section-inner">
             <div className="gh-benefits-header">
+              <span className="gh-overline">Demo en Vivo</span>
               <h2 className="gh-section-title gh-text-center">
-                Beneficios para el ecosistema
+                Explora lotes en tiempo real
               </h2>
               <p className="gh-section-body gh-text-center gh-muted">
-                Una plataforma diseñada para maximizar el valor tanto para quien
-                busca como para quien ofrece.
+                Haz clic sobre cualquier lote para ver detalles, precio y
+                disponibilidad instantánea.
               </p>
             </div>
-            <div className="gh-benefits-grid">
-              <div className="gh-benefit-card">
-                <div className="gh-benefit-bg-deco" />
-                <div className="gh-benefit-head">
-                  <div className="gh-benefit-icon">🔍</div>
-                  <h3 className="gh-benefit-title">Para Compradores</h3>
-                </div>
-                <ul className="gh-checklist">
-                  <li>
-                    <span className="gh-check">✓</span> Encuentra exactamente lo
-                    que buscas visualmente en el mapa.
-                  </li>
-                  <li>
-                    <span className="gh-check">✓</span> Evita visitas
-                    innecesarias con datos precisos y fotos reales.
-                  </li>
-                  <li>
-                    <span className="gh-check">✓</span> Precios transparentes y
-                    disponibilidad actualizada al instante.
-                  </li>
-                </ul>
-              </div>
-              <div className="gh-benefit-card gh-benefit-card--dark">
-                <div className="gh-benefit-head">
-                  <div className="gh-benefit-icon gh-benefit-icon--outline">
-                    🏢
-                  </div>
-                  <h3 className="gh-benefit-title">Para Inmobiliarias</h3>
-                </div>
-                <ul className="gh-checklist">
-                  <li>
-                    <span className="gh-check">✓</span> Sube y administra tu
-                    inventario masivo fácilmente.
-                  </li>
-                  <li>
-                    <span className="gh-check">✓</span> Llega a clientes con una
-                    experiencia visual superior.
-                  </li>
-                  <li>
-                    <span className="gh-check">✓</span> Analíticas de visitas y
-                    control total de leads (CRM).
-                  </li>
-                </ul>
-              </div>
-            </div>
+            <LotMap />
           </div>
         </section>
 
-        {/* How it works */}
+        {/* COMPARISON SECTION — REDESIGNED */}
+        <section className="gh-section gh-section--dark">
+          <div className="gh-section-inner">
+            <ComparisonSection />
+          </div>
+        </section>
+
+        {/* BUYER SECTION */}
+        <BuyerSection />
+
+        {/* REAL ESTATE SECTION */}
+        <RealEstateSection />
+
+        {/* HOW IT WORKS */}
         <section className="gh-section">
           <div className="gh-section-inner">
             <div className="gh-benefits-header">
-              <span className="gh-overline">Proceso Simplificado</span>
+              <span className="gh-overline">Proceso simplificado</span>
               <h2 className="gh-section-title gh-text-center">
                 Cómo funciona GeoHabita
               </h2>
             </div>
             <div className="gh-steps-grid">
-              <div className="gh-steps-line" />
+              <div className="gh-steps-connector" />
               {[
                 {
                   n: "1",
                   title: "Regístrate",
                   desc: "Crea tu cuenta profesional en segundos y configura tu perfil de empresa.",
+                  icon: "👤",
                 },
                 {
                   n: "2",
                   title: "Sube al mapa",
-                  desc: "Dibuja tus lotes o importa tus archivos CAD/GIS directamente sobre nuestro mapa satelital.",
+                  desc: "Dibuja tus lotes o importa archivos CAD/GIS directamente sobre el mapa satelital.",
+                  icon: "📍",
                 },
                 {
                   n: "3",
                   title: "Recibe clientes",
-                  desc: "Tu proyecto se vuelve visible para miles de interesados. Gestiona solicitudes en tiempo real.",
+                  desc: "Tu proyecto se vuelve visible para miles. Gestiona solicitudes en tiempo real.",
+                  icon: "📱",
                 },
               ].map((s, i) => (
-                <div key={i} className="gh-step">
-                  <div className="gh-step-num">{s.n}</div>
-                  <h3 className="gh-step-title">{s.title}</h3>
-                  <p className="gh-step-desc">{s.desc}</p>
-                </div>
+                <ScrollReveal key={i} delay={i * 120}>
+                  <div className="gh-step">
+                    <div className="gh-step-num">
+                      <span className="gh-step-emoji">{s.icon}</span>
+                      <span className="gh-step-n">{s.n}</span>
+                    </div>
+                    <h3 className="gh-step-title">{s.title}</h3>
+                    <p className="gh-step-desc">{s.desc}</p>
+                  </div>
+                </ScrollReveal>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Dashboard Feature */}
+        {/* DASHBOARD */}
         <section className="gh-dashboard-section">
+          <div className="gh-dash-bg">
+            <img src={IMG.dashboard} alt="" className="gh-dash-bg-img" />
+            <div className="gh-dash-bg-overlay" />
+          </div>
           <div className="gh-section-inner gh-dashboard-grid">
             <div className="gh-dashboard-visual">
               <div className="gh-browser-frame">
                 <div className="gh-browser-bar">
-                  <span className="gh-browser-dot" />
-                  <span className="gh-browser-dot" />
-                  <span className="gh-browser-dot" />
+                  <span className="gh-bdot" />
+                  <span className="gh-bdot" />
+                  <span className="gh-bdot" />
+                  <span className="gh-browser-url">
+                    geohabita.com/dashboard
+                  </span>
                 </div>
                 <div className="gh-browser-content">
                   <img
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkMnx3g24iNxFpy-zjI1Dl4toad-Gfoogt_U324zDjTS5cUt_fmDZHcsMlwJonmrwFAT-Nb8PjLiSWlKMJrnYpPtdOn10TsQCT6rIbqK92-2ykvNFm3TZbaRH90geGG87vbFBrNfwgZbxZHfIHdaDJg5IvSPkl_T9qGRRlj99UEK7wIljnIXkLxReLOxNwYP5txvaKIdWVqDngXewNYYE9TWiTHBS8Q6AIsTLxxjDh7MAepErAqFbZ3dBjZfPZkpFWk4w9zaQK96o"
+                    src={IMG.dashboard}
                     alt="Dashboard"
                     className="gh-browser-img"
                   />
                   <div className="gh-browser-widget">
-                    <div className="gh-widget-bar" />
-                    <div className="gh-widget-line" />
-                    <div className="gh-widget-line gh-widget-line--short" />
+                    <div className="gh-bw-bar" />
+                    <div className="gh-bw-line" />
+                    <div className="gh-bw-line gh-bw-line--short" />
                     <button className="gh-widget-btn">Reservar Lote</button>
                   </div>
                 </div>
               </div>
             </div>
-
             <div className="gh-dashboard-text">
+              <span className="gh-overline">Control total</span>
               <h2 className="gh-section-title">
-                Control total de
+                Tu proyecto,
                 <br />
-                tu proyecto
+                tu control
               </h2>
               <div className="gh-feature-rows">
                 {[
                   {
                     icon: "🛰️",
                     title: "Geolocalización Satelital",
-                    desc: "Integra vistas satelitales actualizadas para mostrar el progreso de obras y el contexto real del entorno.",
+                    desc: "Integra vistas actualizadas para mostrar el progreso de obras y el contexto real del entorno.",
                   },
                   {
                     icon: "📊",
                     title: "Gestión en Tiempo Real",
-                    desc: "Cambia el estado de un lote de 'Disponible' a 'Vendido' desde tu celular al instante. Sincronización automática.",
+                    desc: "Cambia el estado de un lote de 'Disponible' a 'Vendido' desde tu celular al instante.",
                   },
                   {
                     icon: "🔗",
                     title: "Inventario Conectado",
-                    desc: "Tu equipo de ventas siempre trabajará sobre datos actualizados, eliminando errores y dobles reservas.",
+                    desc: "Tu equipo siempre trabaja sobre datos actualizados, eliminando errores y dobles reservas.",
                   },
                 ].map((f, i) => (
                   <div key={i} className="gh-feature-row">
@@ -425,74 +1483,114 @@ export default function GeoHabita() {
           </div>
         </section>
 
-        {/* Stats Banner */}
-        <section className="gh-stats-section">
-          <div className="gh-stats-bg" />
+        {/* STATS */}
+        <section className="gh-stats-section" ref={statsRef}>
+          <div className="gh-stats-satbg">
+            <img src={IMG.heroMap} alt="" className="gh-stats-satimg" />
+            <div className="gh-stats-satoverlay" />
+          </div>
           <div className="gh-section-inner">
+            <span
+              className="gh-overline"
+              style={{
+                display: "block",
+                textAlign: "center",
+                marginBottom: "14px",
+              }}
+            >
+              Resultados reales
+            </span>
             <h2 className="gh-stats-title">Caso de Éxito: Tarapoto, Perú</h2>
             <p className="gh-stats-sub">
-              Nuestro lanzamiento inicial ha transformado la forma de vender
-              terrenos en la selva peruana.
+              Nuestro lanzamiento inicial transformó la forma de vender terrenos
+              en la selva peruana.
             </p>
             <div className="gh-stats-grid">
-              {[
-                { val: "+2,000", label: "Lotes Mapeados" },
-                { val: "15", label: "Proyectos Activos" },
-                { val: "45%", label: "Aumento en Leads" },
-                { val: "24/7", label: "Disponibilidad" },
-              ].map((s, i) => (
-                <div key={i} className="gh-stat-item">
-                  <div className="gh-stat-val">{s.val}</div>
-                  <div className="gh-stat-label">{s.label}</div>
-                </div>
-              ))}
+              <StatItem
+                val="+2000"
+                suffix=""
+                label="Lotes Mapeados"
+                trigger={statsInView}
+              />
+              <StatItem
+                val="15"
+                label="Proyectos Activos"
+                trigger={statsInView}
+              />
+              <StatItem
+                val="45"
+                suffix="%"
+                label="Aumento en Leads"
+                trigger={statsInView}
+              />
+              <StatItem
+                val="24/7"
+                label="Disponibilidad"
+                trigger={statsInView}
+              />
             </div>
           </div>
         </section>
 
-        {/* Precision Mapping */}
+        {/* TESTIMONIALS */}
+        <section className="gh-section">
+          <div className="gh-section-inner">
+            <div className="gh-benefits-header">
+              <span className="gh-overline">Clientes reales</span>
+              <h2 className="gh-section-title gh-text-center">
+                Lo que dicen nuestros usuarios
+              </h2>
+            </div>
+            <Testimonials />
+          </div>
+        </section>
+
+        {/* PRECISION / CHART */}
         <section className="gh-section">
           <div className="gh-section-inner gh-mapping-grid">
             <div>
+              <span className="gh-overline">Tecnología</span>
               <h2 className="gh-section-title">
                 Precisión
                 <br />a Gran Escala
               </h2>
               <p className="gh-section-body gh-muted">
-                Nuestra integración LiDAR permite una precisión a nivel
-                milimétrico en planificación urbana y gestión de activos.
-                Visualiza zonas antes de que sean construidas.
+                Nuestra integración LiDAR permite precisión milimétrica en
+                planificación urbana. Visualiza zonas antes de que sean
+                construidas.
               </p>
               <div className="gh-cards-stacked">
-                <div className="gh-info-card">
-                  <div className="gh-info-card-icon">📐</div>
-                  <div>
-                    <h4 className="gh-info-card-title">Análisis Multi-Capa</h4>
-                    <p className="gh-info-card-desc">
-                      Superpone datos demográficos, ambientales y financieros en
-                      tiempo real.
-                    </p>
+                {[
+                  {
+                    icon: "📐",
+                    title: "Análisis Multi-Capa",
+                    desc: "Superpone datos demográficos, ambientales y financieros en tiempo real.",
+                  },
+                  {
+                    icon: "📈",
+                    title: "ROI Predictivo",
+                    desc: "Pronóstico IA para apreciación de valor a 5, 10 y 20 años.",
+                  },
+                ].map((c, i) => (
+                  <div key={i} className="gh-info-card">
+                    <div className="gh-info-card-icon">{c.icon}</div>
+                    <div>
+                      <h4 className="gh-info-card-title">{c.title}</h4>
+                      <p className="gh-info-card-desc">{c.desc}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="gh-info-card">
-                  <div className="gh-info-card-icon">📈</div>
-                  <div>
-                    <h4 className="gh-info-card-title">ROI Predictivo</h4>
-                    <p className="gh-info-card-desc">
-                      Pronóstico IA para apreciación de valor de propiedad a 5,
-                      10 y 20 años.
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
             <div className="gh-growth-card">
               <div className="gh-growth-header">
-                <span className="gh-growth-label">Índice de Crecimiento</span>
+                <span className="gh-growth-label">
+                  Índice de Crecimiento · Tarapoto
+                </span>
                 <span className="gh-growth-pct">+12.4%</span>
               </div>
               <div className="gh-chart">
-                {[40, 55, 30, 75, 100, 50].map((h, i) => (
+                {[40, 55, 30, 75, 100, 60, 85].map((h, i) => (
                   <div
                     key={i}
                     className={`gh-bar${i === 4 ? " gh-bar--peak" : ""}`}
@@ -503,7 +1601,7 @@ export default function GeoHabita() {
                 ))}
               </div>
               <div className="gh-chart-labels">
-                {["Q1", "Q2", "Q3", "Q4", "Q5", "Q6"].map((q) => (
+                {["E", "F", "M", "A", "M", "J", "J"].map((q) => (
                   <span key={q}>{q}</span>
                 ))}
               </div>
@@ -523,62 +1621,31 @@ export default function GeoHabita() {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section className="gh-section" id="pricing">
+        {/* PRICING */}
+        <section className="gh-section gh-section--alt" id="pricing">
           <div className="gh-section-inner">
             <div className="gh-benefits-header">
+              <span className="gh-overline">Planes</span>
               <h2 className="gh-section-title gh-text-center">
                 Planes flexibles
               </h2>
-              <p className="gh-section-body gh-text-center gh-muted">
-                Elige la opción que mejor se adapte al tamaño de tu
-                inmobiliaria.
-              </p>
+              <div className="gh-billing-toggle">
+                <span className={!yearly ? "gh-bt-active" : ""}>Mensual</span>
+                <button
+                  className="gh-toggle"
+                  onClick={() => setYearly(!yearly)}
+                >
+                  <div
+                    className={`gh-toggle-thumb${yearly ? " gh-toggle-thumb--on" : ""}`}
+                  />
+                </button>
+                <span className={yearly ? "gh-bt-active" : ""}>
+                  Anual <span className="gh-bt-save">-20%</span>
+                </span>
+              </div>
             </div>
             <div className="gh-pricing-grid">
-              {[
-                {
-                  name: "Independiente",
-                  price: "Gratis",
-                  period: "",
-                  desc: "Para propietarios de 1 o 2 lotes que desean probar la plataforma.",
-                  features: [
-                    "Hasta 3 lotes",
-                    "Visibilidad básica",
-                    "Soporte por email",
-                  ],
-                  btn: "Empezar ahora",
-                  featured: false,
-                },
-                {
-                  name: "Inmobiliaria",
-                  price: "$49",
-                  period: "/mes",
-                  desc: "Para proyectos medianos en desarrollo activo.",
-                  features: [
-                    "Hasta 200 lotes",
-                    "Panel de administración",
-                    "Soporte prioritario",
-                    "CRM de leads",
-                  ],
-                  btn: "Seleccionar Plan",
-                  featured: true,
-                },
-                {
-                  name: "Enterprise",
-                  price: "Demo",
-                  period: "",
-                  desc: "Para desarrolladores de múltiples proyectos a gran escala.",
-                  features: [
-                    "Lotes ilimitados",
-                    "API personalizada",
-                    "Marca blanca",
-                    "SLA garantizado",
-                  ],
-                  btn: "Contactar Ventas",
-                  featured: false,
-                },
-              ].map((p, i) => (
+              {PLANS.map((p, i) => (
                 <div
                   key={i}
                   className={`gh-price-card${p.featured ? " gh-price-card--featured" : ""}`}
@@ -586,8 +1653,18 @@ export default function GeoHabita() {
                   {p.featured && <div className="gh-price-badge">POPULAR</div>}
                   <h3 className="gh-price-name">{p.name}</h3>
                   <div className="gh-price-amount">
-                    <span className="gh-price-val">{p.price}</span>
-                    <span className="gh-price-period">{p.period}</span>
+                    {p.monthly === null ? (
+                      <span className="gh-price-val">Demo</span>
+                    ) : p.monthly === 0 ? (
+                      <span className="gh-price-val">Gratis</span>
+                    ) : (
+                      <>
+                        <span className="gh-price-val">
+                          ${yearly ? p.yearly : p.monthly}
+                        </span>
+                        <span className="gh-price-period">/mes</span>
+                      </>
+                    )}
                   </div>
                   <p className="gh-price-desc">{p.desc}</p>
                   <ul className="gh-price-features">
@@ -611,8 +1688,10 @@ export default function GeoHabita() {
 
         {/* CTA */}
         <section className="gh-cta-section">
-          <div className="gh-cta-glow gh-cta-glow--l" />
-          <div className="gh-cta-glow gh-cta-glow--r" />
+          <div className="gh-cta-topobg">
+            <img src={IMG.topoPattern} alt="" className="gh-cta-topoimg" />
+            <div className="gh-cta-topooverlay" />
+          </div>
           <div className="gh-cta-box">
             <div className="gh-cta-scanline" />
             <h2 className="gh-cta-title">
@@ -622,7 +1701,7 @@ export default function GeoHabita() {
             </h2>
             <p className="gh-cta-sub">
               Deja de perder ventas por planos difíciles de entender. Moderniza
-              tu presentación hoy mismo y destaca sobre la competencia.
+              tu presentación hoy mismo.
             </p>
             <div className="gh-cta-form">
               <input
@@ -637,8 +1716,8 @@ export default function GeoHabita() {
                 <svg
                   viewBox="0 0 24 24"
                   fill="currentColor"
-                  width="20"
-                  height="20"
+                  width="18"
+                  height="18"
                 >
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                 </svg>
@@ -647,13 +1726,13 @@ export default function GeoHabita() {
               <button className="gh-btn-white">Publicar Propiedad</button>
             </div>
             <p className="gh-cta-note">
-              Spots limitados para el cohort Q2 2025.
+              ★ Spots limitados para el cohort Q2 2025
             </p>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
+      {/* FOOTER */}
       <footer className="gh-footer">
         <div className="gh-footer-inner">
           <div className="gh-footer-brand">
@@ -666,6 +1745,8 @@ export default function GeoHabita() {
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  width="18"
+                  height="18"
                 >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="2" y1="12" x2="22" y2="12" />
@@ -675,9 +1756,20 @@ export default function GeoHabita() {
               <span className="gh-logo-name">GeoHabita</span>
             </div>
             <p className="gh-footer-tagline">
-              Plataforma de visualización y gestión geoespacial para el sector
+              Plataforma de visualización geoespacial para el sector
               inmobiliario moderno. Transformando datos en ventas.
             </p>
+            <div className="gh-footer-socials">
+              <a href="#" className="gh-social">
+                in
+              </a>
+              <a href="#" className="gh-social">
+                tw
+              </a>
+              <a href="#" className="gh-social">
+                ig
+              </a>
+            </div>
           </div>
           <div className="gh-footer-links-grid">
             {[
@@ -708,504 +1800,572 @@ export default function GeoHabita() {
           </div>
         </div>
         <div className="gh-footer-bottom">
-          <span>© 2025 GeoHabita Inc. Todos los derechos reservados.</span>
-          <span>Tarapoto, Perú — Operación Global</span>
+          <span>© 2025 GeoHabita Inc. · Tarapoto, Perú</span>
+          <span>Operación Global · Todos los derechos reservados</span>
         </div>
       </footer>
     </div>
   );
 }
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+/* ═══════════════════════════════════════════════════════════════ */
+/*  CSS                                                            */
+/* ═══════════════════════════════════════════════════════════════ */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root{
+  --green:#06f957;
+  --green-dim:rgba(6,249,87,0.08);
+  --green-border:rgba(6,249,87,0.2);
+  --green-faint:rgba(6,249,87,0.07);
+  --bg:#070f09;
+  --surface:rgba(12,24,14,0.9);
+  --surface2:rgba(20,36,22,0.8);
+  --border:rgba(6,249,87,0.1);
+  --text:rgba(220,255,230,0.88);
+  --muted:rgba(100,160,115,0.7);
+  --font:'Syne',sans-serif;
+  --mono:'Space Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);overflow-x:hidden}
+img{display:block;max-width:100%}
+button{cursor:none}
 
-  :root {
-    --gh-green: #06f957;
-    --gh-green-dim: rgba(6,249,87,0.15);
-    --gh-green-glow: rgba(6,249,87,0.3);
-    --gh-bg: #0b1a10;
-    --gh-bg2: #0f2316;
-    --gh-surface: #162f21;
-    --gh-surface2: #1a3828;
-    --gh-border: rgba(6,249,87,0.12);
-    --gh-border2: rgba(6,249,87,0.06);
-    --gh-text: #e8f5ed;
-    --gh-muted: #7aab8a;
-    --gh-font: 'Space Grotesk', sans-serif;
-    --gh-mono: 'JetBrains Mono', monospace;
-  }
+/* SCROLL REVEAL */
+.gh-scroll-reveal{opacity:0;transform:translateY(28px);transition:opacity 0.65s ease,transform 0.65s ease}
+.gh-scroll-reveal--visible{opacity:1;transform:none}
 
-  .gh-root {
-    font-family: var(--gh-font);
-    background-color: var(--gh-bg);
-    color: var(--gh-text);
-    min-height: 100vh;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: #1f4a33 #0f2316;
-  }
+/* FADE ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+@keyframes fadeRight{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:none}}
+@keyframes fadeLeft{from{opacity:0;transform:translateX(60px)}to{opacity:1;transform:none}}
+@keyframes cmpRowIn{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:none}}
+.gh-fade-up{animation:fadeUp 0.7s ease forwards}
+.gh-fade-up-delay{animation:fadeUp 0.7s 0.2s ease both}
+.gh-slide-in-left{animation:fadeRight 0.75s ease forwards}
+.gh-slide-in-right{animation:fadeLeft 0.75s ease forwards}
 
-  .gh-root::-webkit-scrollbar { width: 6px; }
-  .gh-root::-webkit-scrollbar-track { background: var(--gh-bg); }
-  .gh-root::-webkit-scrollbar-thumb { background: #1f4a33; border-radius: 3px; }
-  .gh-root::-webkit-scrollbar-thumb:hover { background: var(--gh-green); }
+/* CURSOR */
+.gh-cursor-dot{position:fixed;width:8px;height:8px;background:var(--green);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform 0.1s}
+.gh-cursor-ring{position:fixed;width:28px;height:28px;border:1.5px solid rgba(6,249,87,0.45);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:left 0.12s ease,top 0.12s ease}
 
-  /* Fixed BG */
-  .gh-bg-fixed {
-    position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: radial-gradient(ellipse 80% 60% at 70% 20%, rgba(6,249,87,0.04) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 60% at 20% 80%, rgba(6,249,87,0.03) 0%, transparent 60%),
-                var(--gh-bg);
-  }
+/* HEADER */
+.gh-header{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 28px;transition:background 0.4s,box-shadow 0.4s,backdrop-filter 0.4s}
+.gh-header--scrolled{background:rgba(7,15,9,0.92);backdrop-filter:blur(20px);box-shadow:0 1px 0 var(--green-faint)}
+.gh-header-inner{max-width:1360px;margin:0 auto;display:flex;align-items:center;gap:32px;height:68px}
+.gh-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.gh-logo-icon{width:32px;height:32px;border-radius:8px;background:var(--green-dim);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;color:var(--green)}
+.gh-logo-name{font-weight:800;font-size:1.05rem;color:#fff;letter-spacing:-0.02em}
+.gh-nav{display:flex;align-items:center;gap:4px;margin-left:auto}
+.gh-nav-link{padding:8px 14px;border-radius:8px;color:var(--muted);font-size:0.88rem;font-weight:500;text-decoration:none;transition:color 0.2s,background 0.2s}
+.gh-nav-link:hover{color:#fff;background:rgba(255,255,255,0.05)}
+.gh-header-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.gh-link-plain{color:var(--muted);font-size:0.9rem;text-decoration:none;transition:color 0.2s;font-weight:500}
+.gh-link-plain:hover{color:#fff}
+.gh-btn-primary{background:var(--green);color:var(--bg);font-weight:700;font-size:0.88rem;padding:9px 18px;border-radius:9px;border:none;font-family:var(--font);transition:background 0.2s,transform 0.15s}
+.gh-btn-primary:hover{background:#2dfb6b;transform:translateY(-1px)}
+.gh-menu-btn{display:none;background:none;border:1px solid var(--border);color:var(--muted);padding:8px 12px;border-radius:8px;font-size:1rem}
+.gh-mobile-menu{border-top:1px solid var(--border);padding:16px 28px;display:flex;flex-direction:column;gap:4px;background:rgba(7,15,9,0.97)}
+.gh-mobile-link{color:var(--muted);padding:12px 0;text-decoration:none;border-bottom:1px solid var(--border);font-size:1rem;transition:color 0.2s}
+.gh-mobile-link:hover{color:var(--green)}
 
-  /* HEADER */
-  .gh-header {
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(11,26,16,0.75);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--gh-border2);
-    transition: border-color 0.3s, background 0.3s;
-  }
-  .gh-header--scrolled {
-    background: rgba(11,26,16,0.95);
-    border-color: var(--gh-border);
-  }
-  .gh-header-inner {
-    max-width: 1280px; margin: 0 auto; padding: 0 24px;
-    height: 72px; display: flex; align-items: center; gap: 32px;
-  }
-  .gh-logo { display: flex; align-items: center; gap: 10px; }
-  .gh-logo-icon {
-    width: 36px; height: 36px; border-radius: 8px;
-    background: var(--gh-green-dim); border: 1px solid var(--gh-green);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--gh-green);
-  }
-  .gh-logo-name { font-size: 1.2rem; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
-  .gh-nav { display: flex; align-items: center; gap: 32px; margin-left: auto; }
-  .gh-nav-link { color: #8ab99a; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
-  .gh-nav-link:hover { color: var(--gh-green); }
-  .gh-header-actions { display: flex; align-items: center; gap: 16px; }
-  .gh-link-plain { color: #8ab99a; font-size: 0.9rem; font-weight: 600; text-decoration: none; transition: color 0.2s; }
-  .gh-link-plain:hover { color: #fff; }
+/* LIVEFEED */
+.gh-livefeed{display:flex;align-items:center;gap:8px;background:rgba(6,249,87,0.06);border:1px solid rgba(6,249,87,0.14);border-radius:40px;padding:6px 14px;font-size:0.78rem;color:var(--muted);font-family:var(--mono);flex-shrink:0}
+.gh-livefeed-dot{width:7px;height:7px;border-radius:50%;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.gh-livefeed-time{color:var(--muted);opacity:0.65}
 
-  /* Buttons */
-  .gh-btn-primary {
-    background: #fff; color: #0b1a10; font-weight: 700; font-size: 0.875rem;
-    padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
-  }
-  .gh-btn-primary:hover { background: #d4ffe3; transform: translateY(-1px); }
-  .gh-btn-glow {
-    background: var(--gh-green); color: #0b1a10; font-weight: 700; font-size: 0.95rem;
-    padding: 14px 28px; border-radius: 12px; border: none; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 8px;
-    box-shadow: 0 0 24px var(--gh-green-glow);
-    transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
-  }
-  .gh-btn-glow:hover { background: #2dfb6b; transform: translateY(-2px); box-shadow: 0 0 40px var(--gh-green-glow); }
-  .gh-btn-outline {
-    background: var(--gh-surface); color: #fff; font-weight: 700; font-size: 0.95rem;
-    padding: 14px 28px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); cursor: pointer;
-    display: inline-flex; align-items: center; gap: 8px;
-    transition: border-color 0.2s, color 0.2s, transform 0.2s;
-  }
-  .gh-btn-outline:hover { border-color: var(--gh-green); color: var(--gh-green); transform: translateY(-2px); }
+/* MAIN */
+.gh-main{padding-top:68px}
 
-  /* MAIN */
-  .gh-main { position: relative; z-index: 1; }
+/* HERO */
+.gh-hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
+.gh-hero-bg{position:absolute;inset:0;z-index:0;overflow:hidden}
+.gh-hero-bg-img{width:100%;height:130%;object-fit:cover;opacity:0.28;will-change:transform}
+.gh-hero-bg-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(7,15,9,0.97) 0%,rgba(7,15,9,0.82) 40%,rgba(7,15,9,0.6) 100%)}
+.gh-scanline{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:0.4;animation:scanline 3s ease-in-out infinite}
+@keyframes scanline{0%{top:0;opacity:0.4}100%{top:100%;opacity:0}}
+.gh-grid-overlay{position:absolute;inset:0;background-image:linear-gradient(rgba(6,249,87,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(6,249,87,0.04) 1px,transparent 1px);background-size:60px 60px}
+.gh-hero-inner{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:80px 28px;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;width:100%}
+.gh-hero-content{display:flex;flex-direction:column;gap:22px}
+.gh-badge{display:inline-flex;align-items:center;gap:8px;background:var(--green-dim);border:1px solid var(--green-border);border-radius:40px;padding:6px 14px;font-size:0.78rem;color:var(--green);font-family:var(--mono);width:fit-content}
+.gh-badge-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.2s infinite}
+.gh-hero-title{font-size:clamp(2.4rem,5vw,4rem);font-weight:800;color:#fff;line-height:1.05;letter-spacing:-0.04em}
+.gh-gradient-text{background:linear-gradient(135deg,var(--green),#4dff91);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.gh-hero-sub{font-size:1.05rem;color:var(--muted);line-height:1.75;max-width:520px}
+.gh-hero-btns{display:flex;gap:14px;flex-wrap:wrap}
+.gh-btn-glow{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:var(--bg);font-weight:700;font-size:0.92rem;padding:13px 22px;border-radius:11px;border:none;font-family:var(--font);transition:background 0.2s,box-shadow 0.2s,transform 0.15s;box-shadow:0 0 24px rgba(6,249,87,0.28)}
+.gh-btn-glow:hover{background:#2dfb6b;box-shadow:0 0 40px rgba(6,249,87,0.45);transform:translateY(-2px)}
+.gh-btn-outline{display:inline-flex;align-items:center;gap:8px;background:transparent;color:#fff;font-weight:600;font-size:0.92rem;padding:13px 22px;border-radius:11px;border:1px solid rgba(255,255,255,0.18);font-family:var(--font);transition:background 0.2s,transform 0.15s}
+.gh-btn-outline:hover{background:rgba(255,255,255,0.06);transform:translateY(-2px)}
+.gh-hero-quickstats{display:flex;gap:28px;flex-wrap:wrap}
+.gh-qs-item{display:flex;flex-direction:column;gap:3px}
+.gh-qs-val{font-size:1.35rem;font-weight:800;color:#fff;font-family:var(--mono);letter-spacing:-0.02em}
+.gh-qs-label{font-size:0.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em}
 
-  /* HERO */
-  .gh-hero {
-    max-width: 1280px; margin: 0 auto; padding: 80px 24px 60px;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
-  }
-  @media (max-width: 900px) {
-    .gh-hero { grid-template-columns: 1fr; padding: 48px 24px 40px; }
-    .gh-nav { display: none; }
-  }
-  .gh-hero-glow {
-    position: absolute; width: 600px; height: 600px; border-radius: 50%; pointer-events: none;
-    filter: blur(120px); z-index: 0;
-  }
-  .gh-hero-glow--tr { top: -100px; right: -100px; background: rgba(6,249,87,0.06); }
-  .gh-hero-glow--bl { bottom: -100px; left: -100px; background: rgba(6,249,87,0.04); }
-  .gh-hero-content { display: flex; flex-direction: column; gap: 24px; position: relative; }
+/* MAP CARD */
+.gh-hero-visual{position:relative}
+.gh-map-card{background:rgba(10,22,12,0.92);border:1px solid var(--green-border);border-radius:18px;overflow:hidden;box-shadow:0 0 80px rgba(6,249,87,0.08),0 40px 100px rgba(0,0,0,0.6);backdrop-filter:blur(20px)}
+.gh-map-topbar{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.gh-map-topbar-dot{width:10px;height:10px;border-radius:50%}
+.gh-dot-red{background:#ef4444}.gh-dot-yellow{background:#fbbf24}.gh-dot-green{background:var(--green)}
+.gh-map-topbar-title{font-size:0.76rem;color:var(--muted);font-family:var(--mono);flex:1;text-align:center}
+.gh-map-live{font-size:0.7rem;color:var(--green);font-family:var(--mono);animation:blink 1.4s infinite}
+.gh-map-img-wrap{position:relative;height:220px;overflow:hidden}
+.gh-map-img{width:100%;height:100%;object-fit:cover}
+.gh-map-img-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 60%,rgba(10,22,12,0.9))}
+.gh-map-radar{position:absolute;top:50%;left:50%;width:80px;height:80px;border:2px solid rgba(6,249,87,0.3);border-radius:50%;transform:translate(-50%,-50%);animation:radar 2s ease-out infinite}
+@keyframes radar{0%{width:20px;height:20px;opacity:1}100%{width:120px;height:120px;opacity:0}}
+.gh-lot-badge{position:absolute;display:flex;align-items:center;gap:8px;background:rgba(7,15,9,0.9);border:1px solid var(--border);border-radius:10px;padding:8px 12px;backdrop-filter:blur(12px);font-size:0.72rem}
+.gh-lot-badge--a{top:14px;left:14px;animation:float 3s ease-in-out infinite}
+.gh-lot-badge--b{top:14px;right:14px;animation:float 3s 1s ease-in-out infinite}
+.gh-lot-badge--c{bottom:30px;right:14px;animation:float 3s 0.5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.gh-lbadge-icon{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700}
+.gh-lbadge-green{background:rgba(6,249,87,0.15);color:var(--green)}
+.gh-lbadge-red{background:rgba(239,68,68,0.15);color:#ef4444}
+.gh-lbadge-yellow{background:rgba(251,191,36,0.15);color:#fbbf24}
+.gh-lbadge-label{color:#fff;font-weight:700;font-size:0.72rem}
+.gh-lbadge-val{font-size:0.65rem;color:var(--muted)}
+.gh-red{color:#ef4444 !important}
+.gh-yellow{color:#fbbf24 !important}
+.gh-map-footer-stats{display:flex;justify-content:space-around;padding:14px 16px;border-top:1px solid var(--border)}
+.gh-mfstat{display:flex;flex-direction:column;align-items:center;gap:2px}
+.gh-mfstat-v{font-size:0.9rem;font-weight:800;color:#fff;font-family:var(--mono)}
+.gh-mfstat-l{font-size:0.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em}
 
-  .gh-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: rgba(6,249,87,0.08); border: 1px solid rgba(6,249,87,0.2);
-    color: var(--gh-green); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
-    text-transform: uppercase; padding: 6px 14px; border-radius: 100px;
-    width: fit-content;
-  }
-  .gh-badge-dot {
-    width: 8px; height: 8px; border-radius: 50%; background: var(--gh-green);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+/* CAROUSEL */
+.gh-carousel-section{padding:28px 0;border-top:1px solid var(--green-faint);border-bottom:1px solid var(--green-faint);overflow:hidden;background:rgba(6,249,87,0.02)}
+.gh-carousel-label{text-align:center;font-size:0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.14em;font-family:var(--mono);margin-bottom:18px}
+.gh-carousel-track-wrap{position:relative;overflow:hidden}
+.gh-cf-left,.gh-cf-right{position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
+.gh-cf-left{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
+.gh-cf-right{right:0;background:linear-gradient(-90deg,var(--bg),transparent)}
+.gh-carousel-track{display:flex;width:max-content;animation:scroll 28s linear infinite}
+@keyframes scroll{to{transform:translateX(-50%)}}
+.gh-brand-item{display:flex;align-items:center;gap:10px;padding:0 30px;font-size:0.9rem;font-weight:700;color:var(--muted);white-space:nowrap;font-family:var(--mono)}
+.gh-brand-dot{width:4px;height:4px;border-radius:50%;background:var(--green-border)}
 
-  .gh-hero-title {
-    font-size: clamp(2.8rem, 5vw, 4.5rem); font-weight: 800; line-height: 1.08;
-    letter-spacing: -0.04em; color: #fff;
-  }
-  .gh-gradient-text {
-    background: linear-gradient(135deg, var(--gh-green) 0%, #a8ffca 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  }
-  .gh-hero-sub { font-size: 1.1rem; color: var(--gh-muted); line-height: 1.7; max-width: 480px; }
-  .gh-hero-btns { display: flex; gap: 16px; flex-wrap: wrap; }
+/* SECTIONS */
+.gh-section{padding:100px 0;position:relative}
+.gh-section--alt{background:rgba(6,249,87,0.015)}
+.gh-section--dark{background:rgba(0,5,2,0.6)}
+.gh-section-inner{max-width:1360px;margin:0 auto;padding:0 28px}
+.gh-section-title{font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:800;color:#fff;line-height:1.1;letter-spacing:-0.04em;margin-bottom:16px}
+.gh-section-body{font-size:1rem;color:var(--muted);line-height:1.75;margin-bottom:20px}
+.gh-overline{font-size:0.7rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.18em;font-family:var(--mono);display:block;margin-bottom:12px}
+.gh-overline--light{color:rgba(255,255,255,0.6)}
+.gh-overline--green{color:var(--green)}
+.gh-text-center{text-align:center}
+.gh-muted{color:var(--muted) !important}
+.gh-link-arrow{color:var(--green);font-size:0.9rem;font-weight:600;text-decoration:none;transition:gap 0.2s}
+.gh-link-arrow:hover{opacity:0.8}
+.gh-check{color:var(--green);font-weight:700;margin-right:6px}
 
-  /* Map Visual */
-  .gh-hero-visual { position: relative; }
-  .gh-map-card {
-    border-radius: 20px; overflow: hidden; position: relative;
-    border: 1px solid var(--gh-border);
-    box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 40px rgba(6,249,87,0.05);
-    background: var(--gh-surface);
-  }
-  .gh-map-scanline {
-    position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--gh-green), transparent);
-    z-index: 5; opacity: 0.6;
-  }
-  .gh-map-img { width: 100%; height: 340px; object-fit: cover; display: block; }
-  .gh-map-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(to bottom, transparent 40%, var(--gh-bg) 100%);
-    pointer-events: none;
-  }
-  .gh-lot-badge {
-    position: absolute; display: flex; align-items: center; gap: 10px;
-    background: rgba(11,26,16,0.92); backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
-    padding: 10px 14px; z-index: 10;
-  }
-  .gh-lot-badge--available { top: 20px; left: 20px; animation: float 4s ease-in-out infinite; }
-  .gh-lot-badge--sold { bottom: 80px; right: 20px; }
-  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-  .gh-lot-badge-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-  .gh-lot-badge-icon--green { background: rgba(6,249,87,0.15); }
-  .gh-lot-badge-icon--red { background: rgba(239,68,68,0.15); }
-  .gh-lot-badge-label { font-size: 0.7rem; color: var(--gh-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
-  .gh-lot-badge-status { font-size: 0.95rem; font-weight: 700; color: #fff; }
+/* ─── WHAT IS SECTION — REDESIGNED ──────────────────────────── */
+.gh-what-section{padding:100px 0;position:relative;overflow:hidden;background:var(--bg)}
+.gh-what-bg-glow{position:absolute;top:50%;left:30%;transform:translate(-50%,-50%);width:700px;height:700px;background:radial-gradient(circle,rgba(6,249,87,0.05) 0%,transparent 70%);pointer-events:none;z-index:0}
+.gh-what-intro{display:grid;grid-template-columns:1fr 1.1fr;gap:72px;align-items:center;margin-bottom:72px;position:relative;z-index:1}
+.gh-what-text-block{display:flex;flex-direction:column;gap:18px}
 
-  .gh-map-stats {
-    position: absolute; bottom: 20px; left: 20px; right: 20px; z-index: 10;
-    background: rgba(11,26,16,0.92); backdrop-filter: blur(12px);
-    border: 1px solid var(--gh-border); border-radius: 12px;
-    display: flex; align-items: center; justify-content: space-around; padding: 14px;
-  }
-  .gh-map-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .gh-map-stat-val { font-size: 1.1rem; font-weight: 800; color: #fff; }
-  .gh-map-stat-val--green { color: var(--gh-green); }
-  .gh-map-stat-key { font-size: 0.68rem; color: var(--gh-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-  .gh-map-stat-divider { width: 1px; height: 32px; background: var(--gh-border); }
+/* Terminal */
+.gh-what-terminal{background:rgba(5,12,7,0.95);border:1px solid rgba(6,249,87,0.25);border-radius:16px;overflow:hidden;box-shadow:0 0 60px rgba(6,249,87,0.07),0 30px 80px rgba(0,0,0,0.5);font-family:var(--mono)}
+.gh-terminal-bar{display:flex;align-items:center;gap:7px;padding:11px 16px;background:rgba(6,249,87,0.04);border-bottom:1px solid rgba(6,249,87,0.12)}
+.gh-tdot{width:10px;height:10px;border-radius:50%}
+.gh-tdot--r{background:rgba(239,68,68,0.7)}
+.gh-tdot--y{background:rgba(251,191,36,0.7)}
+.gh-tdot--g{background:rgba(6,249,87,0.7)}
+.gh-terminal-title{font-size:0.68rem;color:var(--muted);flex:1;text-align:center}
+.gh-terminal-body{padding:20px 24px;display:flex;flex-direction:column;gap:6px;min-height:200px}
+.gh-terminal-line{font-size:0.78rem;line-height:1.7;display:flex;align-items:baseline;gap:8px}
+.gh-t-prompt{color:var(--green);font-weight:700;flex-shrink:0}
+.gh-t-cmd{color:#7dd3fc}
+.gh-t-str{color:#fbbf24}
+.gh-t-key{color:var(--muted)}
+.gh-t-val{color:#e2e8f0}
+.gh-t-num{color:#f97316}
+.gh-t-green{color:var(--green)}
+.gh-t-muted{color:rgba(100,160,115,0.5)}
+.gh-t-output{padding-left:16px;color:var(--muted)}
+.gh-terminal-cursor{color:var(--green);animation:blink 1s step-end infinite;font-size:0.85rem}
 
-  /* CAROUSEL */
-  .gh-carousel-section {
-    border-top: 1px solid var(--gh-border2); border-bottom: 1px solid var(--gh-border2);
-    background: rgba(15,35,22,0.6); padding: 32px 0; overflow: hidden;
-    position: relative;
-  }
-  .gh-carousel-label {
-    text-align: center; font-size: 0.72rem; font-weight: 700; color: rgba(6,249,87,0.4);
-    letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 20px;
-  }
-  .gh-carousel-track-wrap { position: relative; overflow: hidden; }
-  .gh-carousel-fade {
-    position: absolute; top: 0; bottom: 0; width: 100px; z-index: 2;
-  }
-  .gh-carousel-fade--left { left: 0; background: linear-gradient(90deg, rgba(11,26,16,1), transparent); }
-  .gh-carousel-fade--right { right: 0; background: linear-gradient(-90deg, rgba(11,26,16,1), transparent); }
-  .gh-carousel-track {
-    display: flex; width: fit-content;
-    animation: carousel-scroll 40s linear infinite;
-  }
-  @keyframes carousel-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .gh-brand-item {
-    display: flex; align-items: center; gap: 8px;
-    padding: 0 32px; font-size: 1.1rem; font-weight: 700; color: #4a7a5a;
-    white-space: nowrap; transition: color 0.3s;
-  }
-  .gh-brand-item:hover { color: var(--gh-green); }
-  .gh-brand-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gh-border); }
+/* Feature cards - redesigned */
+.gh-what-features{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;position:relative;z-index:1}
+.gh-what-feat-card{background:rgba(8,18,10,0.85);border:1px solid rgba(6,249,87,0.1);border-radius:16px;padding:24px;transition:border-color 0.3s,transform 0.3s,box-shadow 0.3s;position:relative;overflow:hidden}
+.gh-what-feat-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(6,249,87,0.04) 0%,transparent 60%);opacity:0;transition:opacity 0.3s}
+.gh-what-feat-card:hover{border-color:rgba(6,249,87,0.3);transform:translateY(-6px);box-shadow:0 20px 40px rgba(0,0,0,0.3),0 0 30px rgba(6,249,87,0.06)}
+.gh-what-feat-card:hover::before{opacity:1}
+.gh-what-feat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.gh-what-feat-icon-wrap{width:44px;height:44px;border-radius:11px;background:rgba(6,249,87,0.09);border:1px solid rgba(6,249,87,0.18);display:flex;align-items:center;justify-content:center;color:var(--green);flex-shrink:0}
+.gh-what-feat-tag{font-size:0.58rem;font-weight:700;color:rgba(6,249,87,0.5);letter-spacing:0.12em;font-family:var(--mono);background:rgba(6,249,87,0.06);border:1px solid rgba(6,249,87,0.12);padding:3px 8px;border-radius:4px}
+.gh-what-feat-title{font-size:0.98rem;font-weight:700;color:#fff;margin-bottom:8px;letter-spacing:-0.02em}
+.gh-what-feat-desc{font-size:0.8rem;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.gh-what-feat-stat{display:flex;align-items:center;gap:7px;font-size:0.72rem;color:var(--green);font-family:var(--mono);font-weight:700}
+.gh-what-feat-stat-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0}
 
-  /* SECTIONS */
-  .gh-section { padding: 96px 0; position: relative; }
-  .gh-section-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
-  .gh-section-title { font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 800; letter-spacing: -0.04em; color: #fff; line-height: 1.1; margin-bottom: 20px; }
-  .gh-section-body { font-size: 1.05rem; color: var(--gh-muted); line-height: 1.7; margin-bottom: 32px; }
-  .gh-text-center { text-align: center; }
-  .gh-muted { color: var(--gh-muted) !important; }
-  .gh-overline { display: block; text-align: center; font-size: 0.75rem; font-weight: 700; color: var(--gh-green); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 16px; }
+/* LOT MAP */
+.gh-lotmap-section{padding:80px 0;position:relative;overflow:hidden}
+.gh-topo-bg{position:absolute;inset:0;z-index:0}
+.gh-topo-img{width:100%;height:100%;object-fit:cover;opacity:0.06;filter:hue-rotate(80deg)}
+.gh-topo-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(7,15,9,0.9),rgba(7,15,9,0.7),rgba(7,15,9,0.9))}
+.gh-lotmap{position:relative;z-index:1;background:rgba(10,22,12,0.88);border:1px solid var(--green-border);border-radius:20px;overflow:hidden;backdrop-filter:blur(16px)}
+.gh-lotmap-filters{display:flex;gap:8px;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.gh-filter-btn{padding:6px 16px;border-radius:40px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:0.8rem;font-family:var(--mono);cursor:none;transition:all 0.2s}
+.gh-filter-btn--active,.gh-filter-btn:hover{border-color:var(--green-border);color:var(--green);background:var(--green-dim)}
+.gh-lotmap-wrap{position:relative}
+.gh-lotmap-bg{width:100%;height:280px;object-fit:cover;opacity:0.5}
+.gh-lotmap-overlay{position:absolute;inset:0;background:rgba(7,15,9,0.35)}
+.gh-lotmap-svg{position:absolute;inset:0;width:100%;height:100%}
+.gh-lot-popup{position:absolute;top:14px;right:14px;width:200px;background:rgba(7,15,9,0.97);border:1px solid var(--green-border);border-radius:12px;padding:14px;backdrop-filter:blur(20px);z-index:10}
+.gh-lot-popup-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.gh-lot-popup-id{font-family:var(--mono);font-weight:700;color:#fff;font-size:0.95rem}
+.gh-lot-popup-close{background:none;border:none;color:var(--muted);font-size:0.9rem;cursor:none}
+.gh-lot-popup-status{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-family:var(--mono);padding:3px 8px;border-radius:5px;width:fit-content;margin-bottom:12px}
+.gh-lot-popup-status--available{background:rgba(6,249,87,0.12);color:var(--green)}
+.gh-lot-popup-status--sold{background:rgba(239,68,68,0.12);color:#ef4444}
+.gh-lot-popup-status--reserved{background:rgba(251,191,36,0.12);color:#fbbf24}
+.gh-lot-popup-details{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.gh-lot-popup-row{display:flex;justify-content:space-between;font-size:0.8rem;color:var(--muted)}
+.gh-lot-popup-row strong{color:#fff;font-family:var(--mono)}
+.gh-lot-popup-btn{width:100%;padding:9px;background:var(--green);color:var(--bg);border:none;border-radius:8px;font-size:0.8rem;font-weight:700;font-family:var(--font);cursor:none;transition:background 0.2s}
+.gh-lot-popup-btn:hover{background:#2dfb6b}
+.gh-lotmap-legend{position:absolute;bottom:14px;left:14px;display:flex;gap:12px;background:rgba(7,15,9,0.85);border:1px solid var(--border);border-radius:8px;padding:7px 12px;backdrop-filter:blur(12px)}
+.gh-legend-item{display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--muted);font-family:var(--mono)}
+.gh-legend-dot{width:8px;height:8px;border-radius:50%}
+.gh-lotmap-footer{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted);font-family:var(--mono);flex-wrap:wrap;gap:8px}
+.gh-lotmap-available{color:var(--green);font-weight:700}
+.gh-benefits-header{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:52px}
 
-  /* WHAT GRID */
-  .gh-what-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 64px; align-items: start; }
-  @media (max-width: 900px) { .gh-what-grid { grid-template-columns: 1fr; } }
-  .gh-what-left { position: sticky; top: 100px; }
-  .gh-link-arrow {
-    display: inline-flex; align-items: center; gap: 6px;
-    color: var(--gh-green); font-weight: 700; font-size: 0.9rem; text-decoration: none;
-    transition: gap 0.2s;
-  }
-  .gh-link-arrow:hover { gap: 10px; }
+/* ─── COMPARISON SECTION — REDESIGNED ───────────────────────── */
+.gh-compare-section{padding:20px 0}
+.gh-compare-label-row{text-align:center;margin-bottom:8px}
 
-  .gh-feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  @media (max-width: 600px) { .gh-feature-grid { grid-template-columns: 1fr; } }
-  .gh-feature-card {
-    padding: 28px; border-radius: 20px; background: var(--gh-surface);
-    border: 1px solid var(--gh-border2); transition: border-color 0.3s, transform 0.3s;
-  }
-  .gh-feature-card:hover { border-color: var(--gh-border); transform: translateY(-4px); }
-  .gh-feature-icon { font-size: 1.8rem; margin-bottom: 16px; }
-  .gh-feature-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
-  .gh-feature-desc { font-size: 0.875rem; color: var(--gh-muted); line-height: 1.6; }
+/* Header row */
+.gh-cmp-header-row{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;margin-bottom:16px;opacity:0}
+.gh-cmp-header-row.gh-fade-up{opacity:1}
+.gh-cmp-col-label{display:flex;align-items:center}
+.gh-cmp-col-label--trad{justify-content:flex-end;padding-right:16px}
+.gh-cmp-col-label--geo{justify-content:flex-start;padding-left:16px}
+.gh-cmp-header-badge{display:flex;align-items:center;gap:14px;padding:16px 24px;border-radius:14px}
+.gh-cmp-header-badge--trad{background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.18)}
+.gh-cmp-header-badge--geo{background:rgba(6,249,87,0.07);border:1px solid rgba(6,249,87,0.25);box-shadow:0 0 30px rgba(6,249,87,0.06)}
+.gh-cmp-header-icon{font-size:2rem}
+.gh-cmp-header-title{font-size:0.9rem;font-weight:800;color:#fff;letter-spacing:-0.02em}
+.gh-cmp-header-sub{font-size:0.7rem;color:var(--muted);font-family:var(--mono)}
+.gh-cmp-divider-head{display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:rgba(6,249,87,0.3);font-family:var(--mono);letter-spacing:0.1em}
 
-  /* BENEFITS */
-  .gh-benefits-section { padding: 96px 0; background: rgba(15,35,22,0.5); }
-  .gh-benefits-header { text-align: center; margin-bottom: 56px; }
-  .gh-benefits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1280px; margin: 0 auto; padding: 0 24px; }
-  @media (max-width: 700px) { .gh-benefits-grid { grid-template-columns: 1fr; } }
-  .gh-benefit-card {
-    padding: 48px; border-radius: 24px; background: var(--gh-bg);
-    border: 1px solid var(--gh-border2); position: relative; overflow: hidden;
-    transition: border-color 0.3s;
-  }
-  .gh-benefit-card:hover { border-color: var(--gh-border); }
-  .gh-benefit-card--dark { background: var(--gh-surface); }
-  .gh-benefit-bg-deco {
-    position: absolute; top: -80px; right: -80px; width: 200px; height: 200px;
-    background: rgba(6,249,87,0.04); border-radius: 50%;
-  }
-  .gh-benefit-head { display: flex; align-items: center; gap: 20px; margin-bottom: 32px; }
-  .gh-benefit-icon { font-size: 2rem; padding: 16px; border-radius: 16px; background: var(--gh-green-dim); border: 1px solid var(--gh-border); }
-  .gh-benefit-icon--outline { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
-  .gh-benefit-title { font-size: 1.6rem; font-weight: 800; color: #fff; }
-  .gh-checklist { list-style: none; display: flex; flex-direction: column; gap: 20px; }
-  .gh-checklist li { display: flex; align-items: flex-start; gap: 12px; color: #c8e8d4; font-size: 1rem; line-height: 1.5; }
-  .gh-check { color: var(--gh-green); font-weight: 900; flex-shrink: 0; margin-top: 2px; }
+/* Comparison rows */
+.gh-cmp-rows{display:flex;flex-direction:column;gap:8px}
+.gh-cmp-row{display:grid;grid-template-columns:1fr 80px 1fr;gap:0;opacity:0;transform:translateY(10px);transition:opacity 0.5s ease,transform 0.5s ease}
+.gh-cmp-row--visible{opacity:1;transform:none}
+.gh-cmp-cell{display:flex;align-items:center;gap:12px;padding:14px 20px;border-radius:10px;font-size:0.85rem;transition:all 0.25s}
+.gh-cmp-cell--trad{background:rgba(10,5,5,0.7);border:1px solid rgba(239,68,68,0.1);justify-content:flex-end;text-align:right;flex-direction:row-reverse}
+.gh-cmp-cell--trad:hover{background:rgba(239,68,68,0.07);border-color:rgba(239,68,68,0.25)}
+.gh-cmp-cell--geo{background:rgba(5,14,7,0.7);border:1px solid rgba(6,249,87,0.1)}
+.gh-cmp-cell--geo:hover{background:rgba(6,249,87,0.05);border-color:rgba(6,249,87,0.25)}
+.gh-cmp-cell-text{color:var(--text);flex:1}
+.gh-cmp-x-icon{width:22px;height:22px;border-radius:50%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:#ef4444;font-weight:700;flex-shrink:0;line-height:1}
+.gh-cmp-check-icon{width:22px;height:22px;border-radius:50%;background:rgba(6,249,87,0.15);border:1px solid rgba(6,249,87,0.3);display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:var(--green);font-weight:700;flex-shrink:0;line-height:1}
+.gh-cmp-center{display:flex;align-items:center;justify-content:center}
+.gh-cmp-icon-bubble{width:44px;height:44px;border-radius:50%;background:rgba(12,24,14,0.9);border:1px solid rgba(6,249,87,0.2);display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 0 20px rgba(6,249,87,0.08);flex-shrink:0;z-index:1}
 
-  /* STEPS */
-  .gh-steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; position: relative; margin-top: 56px; }
-  @media (max-width: 700px) { .gh-steps-grid { grid-template-columns: 1fr; } }
-  .gh-steps-line {
-    display: none;
-    position: absolute; top: 56px; left: 0; right: 0; height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gh-surface2), transparent);
-    z-index: 0;
-  }
-  @media (min-width: 700px) { .gh-steps-line { display: block; } }
-  .gh-step { display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; z-index: 1; }
-  .gh-step-num {
-    width: 112px; height: 112px; border-radius: 24px;
-    background: var(--gh-bg); border: 1px solid var(--gh-surface2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 3rem; font-weight: 900; color: var(--gh-surface2);
-    margin-bottom: 24px; transition: border-color 0.3s, color 0.3s, transform 0.3s;
-    box-shadow: 0 16px 40px rgba(0,0,0,0.4);
-  }
-  .gh-step:hover .gh-step-num { border-color: var(--gh-green); color: var(--gh-green); transform: scale(1.08); }
-  .gh-step-title { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 12px; }
-  .gh-step-desc { font-size: 0.875rem; color: var(--gh-muted); line-height: 1.6; padding: 0 16px; }
+/* Score bar */
+.gh-cmp-scores{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin-top:28px;opacity:0}
+.gh-cmp-scores.gh-fade-up{opacity:1}
+.gh-cmp-score{padding:18px 24px;border-radius:14px;display:flex;flex-direction:column;gap:5px}
+.gh-cmp-score--trad{background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18)}
+.gh-cmp-score--geo{background:rgba(6,249,87,0.07);border:1px solid rgba(6,249,87,0.22);box-shadow:0 0 30px rgba(6,249,87,0.06)}
+.gh-cmp-score-val{font-weight:800;color:#fff;font-size:0.95rem}
+.gh-cmp-score-sub{font-size:0.74rem;color:var(--muted);font-family:var(--mono)}
+.gh-cmp-score-vs{font-size:1.5rem;font-weight:900;color:rgba(6,249,87,0.3);font-family:var(--mono);text-align:center}
 
-  /* DASHBOARD */
-  .gh-dashboard-section { padding: 96px 0; background: rgba(15,35,22,0.4); }
-  .gh-dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
-  @media (max-width: 900px) { .gh-dashboard-grid { grid-template-columns: 1fr; } }
+/* ─── BUYER SECTION ──────────────────────────────────────────── */
+.gh-buyer-section{position:relative;overflow:hidden;padding:120px 0;min-height:800px;display:flex;align-items:center}
+.gh-buyer-bg-wrap{position:absolute;inset:-30% 0;z-index:0;overflow:hidden}
+.gh-buyer-bg-img{width:100%;height:130%;object-fit:cover;opacity:0.18;will-change:transform}
+.gh-buyer-bg-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(7,15,9,0.97) 0%,rgba(7,15,9,0.88) 60%,rgba(7,15,9,0.75) 100%)}
+.gh-buyer-inner{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:0 28px;display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:center;width:100%}
+.gh-buyer-title{font-size:clamp(2rem,4vw,3.2rem);font-weight:800;color:#fff;line-height:1.1;letter-spacing:-0.04em;margin-bottom:18px}
+.gh-buyer-title em{font-style:normal;background:linear-gradient(90deg,var(--green),#4dff91);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.gh-buyer-sub{font-size:1rem;color:var(--muted);line-height:1.75;margin-bottom:36px}
+.gh-buyer-benefits{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:36px}
+.gh-buyer-benefit{display:flex;gap:12px;align-items:flex-start;background:rgba(12,24,14,0.7);border:1px solid var(--border);border-radius:12px;padding:14px;transition:border-color 0.3s,transform 0.3s;backdrop-filter:blur(8px)}
+.gh-buyer-benefit:hover{border-color:var(--green-border);transform:translateY(-3px)}
+.gh-buyer-benefit-icon{font-size:1.2rem;flex-shrink:0;width:32px;height:32px;background:var(--green-dim);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.gh-buyer-benefit-title{font-size:0.85rem;font-weight:700;color:#fff;margin-bottom:3px}
+.gh-buyer-benefit-desc{font-size:0.76rem;color:var(--muted);line-height:1.55}
+.gh-buyer-cta{margin-top:4px}
+.gh-buyer-visual{display:flex;flex-direction:column;gap:22px}
+.gh-buyer-img-stack{position:relative}
+.gh-buyer-img-bg-card{position:absolute;top:20px;left:20px;right:-20px;bottom:-20px;background:linear-gradient(135deg,rgba(6,249,87,0.12),rgba(6,249,87,0.04));border:1px solid rgba(6,249,87,0.18);border-radius:20px}
+.gh-buyer-img-wrap{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--green-border);box-shadow:0 30px 80px rgba(0,0,0,0.5)}
+.gh-buyer-img{width:100%;height:340px;object-fit:cover}
+.gh-buyer-img-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 60%,rgba(7,15,9,0.8))}
+.gh-buyer-badge{position:absolute;display:flex;align-items:center;gap:8px;background:rgba(7,15,9,0.92);border:1px solid var(--green-border);border-radius:10px;padding:8px 14px;backdrop-filter:blur(14px);font-size:0.75rem}
+.gh-buyer-badge--1{top:18px;left:18px;animation:float 3.5s ease-in-out infinite}
+.gh-buyer-badge--2{bottom:22px;right:18px;animation:float 3.5s 1.5s ease-in-out infinite}
+.gh-buyer-badge-icon{font-size:1rem}
+.gh-buyer-badge-title{font-weight:700;color:#fff;font-size:0.78rem}
+.gh-buyer-badge-val{font-size:0.68rem;color:var(--muted);font-family:var(--mono)}
+.gh-buyer-stat-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1}
+.gh-buyer-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 22px;text-align:center;flex:1;min-width:90px}
+.gh-buyer-stat-val{display:block;font-size:1.1rem;font-weight:800;color:#fff;font-family:var(--mono);letter-spacing:-0.02em}
+.gh-buyer-stat-label{font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em}
 
-  .gh-browser-frame { border-radius: 16px; overflow: hidden; border: 1px solid var(--gh-border); box-shadow: 0 32px 80px rgba(0,0,0,0.5); }
-  .gh-browser-bar { height: 40px; background: #0a1a0f; border-bottom: 1px solid var(--gh-border2); display: flex; align-items: center; padding: 0 16px; gap: 8px; }
-  .gh-browser-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--gh-surface2); }
-  .gh-browser-content { position: relative; }
-  .gh-browser-img { width: 100%; display: block; }
-  .gh-browser-widget {
-    position: absolute; top: 20px; right: 20px;
-    background: rgba(11,26,16,0.95); backdrop-filter: blur(12px);
-    border: 1px solid var(--gh-border); border-radius: 12px;
-    padding: 16px; width: 180px;
-  }
-  .gh-widget-bar { height: 10px; width: 60px; background: var(--gh-green); border-radius: 4px; margin-bottom: 10px; }
-  .gh-widget-line { height: 8px; background: var(--gh-surface2); border-radius: 4px; margin-bottom: 6px; }
-  .gh-widget-line--short { width: 66%; }
-  .gh-widget-btn {
-    width: 100%; margin-top: 10px; padding: 8px; border-radius: 8px;
-    background: var(--gh-green); color: #0b1a10; font-size: 0.8rem; font-weight: 700;
-    border: none; cursor: pointer; transition: background 0.2s;
-  }
-  .gh-widget-btn:hover { background: #2dfb6b; }
+/* ─── REAL ESTATE SECTION ────────────────────────────────────── */
+.gh-realestate-section{position:relative;overflow:hidden;padding:120px 0;min-height:900px}
+.gh-realestate-bg-wrap{position:absolute;inset:-30% 0;z-index:0;overflow:hidden}
+.gh-realestate-bg-img{width:100%;height:130%;object-fit:cover;opacity:0.12;will-change:transform;filter:saturate(0.4)}
+.gh-realestate-bg-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,15,9,0.95) 0%,rgba(7,15,9,0.85) 50%,rgba(7,15,9,0.97) 100%)}
+.gh-realestate-bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(6,249,87,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(6,249,87,0.035) 1px,transparent 1px);background-size:50px 50px}
+.gh-realestate-inner{position:relative;z-index:1;max-width:1360px;margin:0 auto;padding:0 28px;width:100%}
+.gh-realestate-header{text-align:center;margin-bottom:64px}
+.gh-realestate-title{font-size:clamp(2rem,4vw,3.2rem);font-weight:800;color:#fff;line-height:1.1;letter-spacing:-0.04em;margin-bottom:18px}
+.gh-realestate-sub{font-size:1.05rem;color:var(--muted);line-height:1.7;max-width:560px;margin:0 auto}
+.gh-realestate-content{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
+.gh-realestate-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.gh-re-card{background:rgba(12,24,14,0.8);border:1px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;transition:all 0.3s;backdrop-filter:blur(12px)}
+.gh-re-card:hover,.gh-re-card--active{border-color:var(--green-border);background:rgba(6,249,87,0.05);transform:translateY(-3px);box-shadow:0 0 30px rgba(6,249,87,0.07)}
+.gh-re-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.gh-re-card-icon{font-size:1.5rem}
+.gh-re-card-metric{font-size:0.62rem;font-weight:700;color:var(--green);font-family:var(--mono);background:var(--green-dim);border:1px solid var(--green-border);padding:3px 7px;border-radius:5px;text-align:right}
+.gh-re-card-title{font-size:0.9rem;font-weight:700;color:#fff;margin-bottom:6px}
+.gh-re-card-desc{font-size:0.78rem;color:var(--muted);line-height:1.55;margin-bottom:10px}
+.gh-re-card-arrow{color:var(--green);font-size:0.9rem;opacity:0;transition:opacity 0.2s}
+.gh-re-card:hover .gh-re-card-arrow,.gh-re-card--active .gh-re-card-arrow{opacity:1}
+.gh-realestate-roi{display:flex;flex-direction:column;gap:20px}
+.gh-roi-card{background:rgba(10,22,12,0.92);border:1px solid var(--green-border);border-radius:20px;padding:32px;box-shadow:0 0 60px rgba(6,249,87,0.06);backdrop-filter:blur(20px)}
+.gh-roi-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.gh-roi-label{font-size:0.78rem;font-weight:700;color:#fff;font-family:var(--mono)}
+.gh-roi-period{font-size:0.68rem;color:var(--muted);font-family:var(--mono)}
+.gh-roi-chart{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+.gh-roi-row{display:flex;flex-direction:column;gap:5px}
+.gh-roi-row-label{font-size:0.74rem;color:var(--muted);font-family:var(--mono)}
+.gh-roi-bars{display:flex;flex-direction:column;gap:4px}
+.gh-roi-bar-wrap{height:22px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden}
+.gh-roi-bar{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;transition:width 1.2s ease;min-width:40px}
+.gh-roi-bar--trad{background:rgba(239,68,68,0.3);border:1px solid rgba(239,68,68,0.2)}
+.gh-roi-bar--geo{background:linear-gradient(90deg,rgba(6,249,87,0.3),rgba(6,249,87,0.6));border:1px solid rgba(6,249,87,0.25)}
+.gh-roi-bar-val{font-size:0.62rem;font-weight:700;color:#fff;font-family:var(--mono);white-space:nowrap}
+.gh-roi-legend{display:flex;gap:18px;margin-bottom:22px}
+.gh-roi-leg{display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--muted);font-family:var(--mono)}
+.gh-roi-leg::before{content:'';width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.gh-roi-leg--trad::before{background:rgba(239,68,68,0.4)}
+.gh-roi-leg--geo::before{background:rgba(6,249,87,0.6)}
+.gh-roi-cta-area{border-top:1px solid var(--border);padding-top:20px}
+.gh-roi-cta-text{font-size:0.82rem;color:var(--muted);margin-bottom:14px;line-height:1.55}
+.gh-re-trust-badges{display:flex;flex-direction:column;gap:10px}
+.gh-re-trust-badge{display:flex;align-items:center;gap:10px;background:rgba(12,24,14,0.7);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-size:0.82rem;color:var(--muted);backdrop-filter:blur(8px);transition:border-color 0.3s}
+.gh-re-trust-badge:hover{border-color:var(--green-border);color:var(--text)}
 
-  .gh-feature-rows { display: flex; flex-direction: column; gap: 32px; }
-  .gh-feature-row { display: flex; gap: 20px; align-items: flex-start; }
-  .gh-feature-row-icon {
-    font-size: 1.5rem; width: 56px; height: 56px; border-radius: 16px;
-    background: var(--gh-green-dim); border: 1px solid var(--gh-border);
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    transition: background 0.3s, border-color 0.3s;
-  }
-  .gh-feature-row:hover .gh-feature-row-icon { background: var(--gh-green); border-color: var(--gh-green); }
-  .gh-feature-row-title { font-size: 1.05rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
-  .gh-feature-row-desc { font-size: 0.875rem; color: var(--gh-muted); line-height: 1.6; }
+/* STEPS */
+.gh-steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative}
+.gh-steps-connector{position:absolute;top:28px;left:18%;right:18%;height:1px;background:linear-gradient(90deg,transparent,var(--green-border),var(--green-border),transparent);z-index:0}
+.gh-step{text-align:center;position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px 24px;transition:border-color 0.3s}
+.gh-step:hover{border-color:var(--green-border)}
+.gh-step-num{width:56px;height:56px;border-radius:50%;background:var(--green-dim);border:1px solid var(--green-border);margin:0 auto 18px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;position:relative}
+.gh-step-n{position:absolute;bottom:-3px;right:-3px;width:18px;height:18px;background:var(--green);color:var(--bg);border-radius:50%;font-size:0.6rem;font-weight:800;display:flex;align-items:center;justify-content:center;font-family:var(--mono)}
+.gh-step-emoji{font-size:1.4rem}
+.gh-step-title{font-size:1rem;font-weight:700;color:#fff;margin-bottom:10px}
+.gh-step-desc{font-size:0.84rem;color:var(--muted);line-height:1.6}
 
-  /* STATS */
-  .gh-stats-section { padding: 96px 0; position: relative; overflow: hidden; text-align: center; }
-  .gh-stats-bg {
-    position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(6,249,87,0.07) 0%, rgba(11,26,16,0.98) 60%),
-                radial-gradient(ellipse 100% 100% at 0% 0%, rgba(6,249,87,0.08), transparent);
-    border-top: 1px solid var(--gh-border); border-bottom: 1px solid var(--gh-border);
-  }
-  .gh-stats-title { font-size: clamp(1.8rem, 3vw, 2.8rem); font-weight: 800; color: #fff; margin-bottom: 16px; position: relative; }
-  .gh-stats-sub { color: rgba(6,249,87,0.7); font-size: 1rem; margin-bottom: 64px; position: relative; }
-  .gh-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
-  @media (max-width: 700px) { .gh-stats-grid { grid-template-columns: repeat(2, 1fr); } }
-  .gh-stat-item { padding: 24px; border-left: 1px solid rgba(6,249,87,0.1); }
-  .gh-stat-item:first-child { border-left: none; }
-  .gh-stat-val { font-size: clamp(2.5rem, 4vw, 4rem); font-weight: 900; color: #fff; margin-bottom: 8px; letter-spacing: -0.04em; }
-  .gh-stat-label { font-size: 0.72rem; font-weight: 700; color: rgba(6,249,87,0.6); text-transform: uppercase; letter-spacing: 0.15em; }
+/* DASHBOARD */
+.gh-dashboard-section{padding:100px 0;position:relative;overflow:hidden}
+.gh-dash-bg{position:absolute;inset:0;z-index:0}
+.gh-dash-bg-img{width:100%;height:100%;object-fit:cover;opacity:0.1}
+.gh-dash-bg-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,15,9,0.98),rgba(7,15,9,0.85))}
+.gh-dashboard-grid{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.gh-browser-frame{background:rgba(10,20,12,0.95);border:1px solid var(--green-border);border-radius:14px;overflow:hidden;box-shadow:0 0 60px rgba(6,249,87,0.07)}
+.gh-browser-bar{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--border);background:rgba(5,12,6,0.9)}
+.gh-bdot{width:10px;height:10px;border-radius:50%;background:var(--border)}
+.gh-browser-url{font-size:0.72rem;color:var(--muted);font-family:var(--mono);flex:1;text-align:center}
+.gh-browser-content{position:relative}
+.gh-browser-img{width:100%;opacity:0.7}
+.gh-browser-widget{position:absolute;bottom:18px;right:18px;background:rgba(7,15,9,0.92);border:1px solid var(--green-border);border-radius:10px;padding:12px;width:130px;backdrop-filter:blur(14px)}
+.gh-bw-bar{height:8px;border-radius:4px;background:var(--green-dim);border:1px solid var(--green-border);margin-bottom:8px}
+.gh-bw-line{height:5px;border-radius:3px;background:var(--surface2);margin-bottom:5px}
+.gh-bw-line--short{width:60%}
+.gh-widget-btn{width:100%;padding:7px;background:var(--green);color:var(--bg);border:none;border-radius:6px;font-size:0.68rem;font-weight:700;font-family:var(--font);cursor:none;margin-top:6px}
+.gh-feature-rows{display:flex;flex-direction:column;gap:16px;margin-top:24px}
+.gh-feature-row{display:flex;gap:14px;align-items:flex-start;padding:18px 20px;border-radius:12px;border:1px solid var(--border);background:var(--surface);transition:border-color 0.3s}
+.gh-feature-row:hover{border-color:var(--green-border)}
+.gh-feature-row-icon{font-size:1.2rem;width:38px;height:38px;border-radius:9px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gh-feature-row-title{font-size:0.9rem;font-weight:700;color:#fff;margin-bottom:4px}
+.gh-feature-row-desc{font-size:0.81rem;color:var(--muted);line-height:1.55}
 
-  /* MAPPING */
-  .gh-mapping-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
-  @media (max-width: 900px) { .gh-mapping-grid { grid-template-columns: 1fr; } }
-  .gh-cards-stacked { display: flex; flex-direction: column; gap: 16px; }
-  .gh-info-card {
-    display: flex; gap: 16px; padding: 20px 24px; border-radius: 16px;
-    background: var(--gh-surface); border: 1px solid var(--gh-border2);
-    transition: border-color 0.3s, transform 0.3s;
-  }
-  .gh-info-card:hover { border-color: var(--gh-border); transform: translateX(6px); }
-  .gh-info-card-icon {
-    font-size: 1.4rem; width: 44px; height: 44px; border-radius: 10px;
-    background: var(--gh-green-dim); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .gh-info-card-title { font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
-  .gh-info-card-desc { font-size: 0.825rem; color: var(--gh-muted); line-height: 1.5; }
+/* STATS */
+.gh-stats-section{padding:80px 0;position:relative;overflow:hidden;text-align:center}
+.gh-stats-satbg{position:absolute;inset:0;z-index:0}
+.gh-stats-satimg{width:100%;height:100%;object-fit:cover;opacity:0.14}
+.gh-stats-satoverlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(7,15,9,0.88),rgba(7,15,9,0.75),rgba(7,15,9,0.88))}
+.gh-stats-title{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:800;color:#fff;margin-bottom:12px;letter-spacing:-0.04em;position:relative;z-index:1}
+.gh-stats-sub{font-size:0.95rem;color:var(--muted);max-width:560px;margin:0 auto 52px;line-height:1.7;position:relative;z-index:1}
+.gh-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;max-width:900px;margin:0 auto;position:relative;z-index:1}
+.gh-stat-item{background:rgba(10,22,12,0.82);border:1px solid var(--green-border);border-radius:16px;padding:30px 20px;backdrop-filter:blur(12px);transition:transform 0.3s}
+.gh-stat-item:hover{transform:translateY(-4px)}
+.gh-stat-val{font-size:2.2rem;font-weight:900;color:#fff;letter-spacing:-0.04em;font-family:var(--mono);margin-bottom:8px}
+.gh-stat-label{font-size:0.68rem;font-weight:700;color:rgba(6,249,87,0.55);text-transform:uppercase;letter-spacing:0.15em}
 
-  /* Chart */
-  .gh-growth-card {
-    background: var(--gh-surface); border: 1px solid var(--gh-border);
-    border-radius: 20px; padding: 28px;
-    box-shadow: 0 0 40px rgba(6,249,87,0.05);
-  }
-  .gh-growth-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  .gh-growth-label { font-size: 0.75rem; color: var(--gh-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
-  .gh-growth-pct { color: var(--gh-green); font-weight: 800; font-size: 1rem; }
-  .gh-chart { height: 100px; display: flex; align-items: flex-end; gap: 8px; margin-bottom: 8px; }
-  .gh-bar { flex: 1; background: rgba(6,249,87,0.2); border-radius: 4px 4px 0 0; position: relative; transition: background 0.3s; }
-  .gh-bar:hover { background: rgba(6,249,87,0.4); }
-  .gh-bar--peak { background: rgba(6,249,87,0.8) !important; }
-  .gh-bar-dot {
-    position: absolute; top: -6px; right: 50%; transform: translateX(50%);
-    width: 10px; height: 10px; background: #fff; border-radius: 50%;
-    box-shadow: 0 0 12px var(--gh-green);
-  }
-  .gh-chart-labels { display: flex; justify-content: space-between; }
-  .gh-chart-labels span { font-size: 0.65rem; color: var(--gh-muted); font-family: var(--gh-mono); }
-  .gh-growth-features { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; border-top: 1px solid var(--gh-border2); padding-top: 20px; }
-  .gh-growth-feat { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #8ab99a; }
-  .gh-growth-feat-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gh-green); flex-shrink: 0; }
+/* TESTIMONIALS */
+.gh-testimonials{display:flex;flex-direction:column;align-items:center;gap:28px;max-width:700px;margin:0 auto}
+.gh-testimonial-card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:44px 48px;position:relative;transition:border-color 0.3s;width:100%}
+.gh-testimonial-card:hover{border-color:var(--green-border)}
+.gh-testimonial-quote{font-size:5rem;line-height:1;color:var(--green);opacity:0.22;position:absolute;top:20px;left:32px;font-family:serif}
+.gh-testimonial-text{font-size:1.05rem;color:var(--text);line-height:1.8;margin-bottom:28px;position:relative;z-index:1}
+.gh-testimonial-author{display:flex;align-items:center;gap:14px}
+.gh-testimonial-avatar{width:44px;height:44px;border-radius:50%;background:var(--green-dim);border:1px solid var(--green-border);display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:800;color:var(--green);flex-shrink:0;font-family:var(--mono)}
+.gh-testimonial-name{font-size:0.9rem;font-weight:700;color:#fff}
+.gh-testimonial-role{font-size:0.77rem;color:var(--muted)}
+.gh-testimonial-nav{display:flex;align-items:center;gap:18px}
+.gh-tnav-btn{width:40px;height:40px;border-radius:50%;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:1rem;cursor:none;transition:all 0.2s;font-family:var(--font)}
+.gh-tnav-btn:hover{border-color:var(--green);color:var(--green)}
+.gh-tnav-dots{display:flex;gap:8px}
+.gh-tnav-dot{width:8px;height:8px;border-radius:50%;background:var(--surface2);cursor:none;transition:all 0.2s}
+.gh-tnav-dot--active{background:var(--green);width:22px;border-radius:4px}
 
-  /* PRICING */
-  .gh-pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1100px; margin: 48px auto 0; }
-  @media (max-width: 800px) { .gh-pricing-grid { grid-template-columns: 1fr; } }
-  .gh-price-card {
-    padding: 40px; border-radius: 24px; background: var(--gh-surface);
-    border: 1px solid var(--gh-border2); display: flex; flex-direction: column; position: relative;
-    transition: border-color 0.3s, transform 0.3s;
-  }
-  .gh-price-card:hover { border-color: var(--gh-border); transform: translateY(-4px); }
-  .gh-price-card--featured {
-    border: 2px solid var(--gh-green);
-    box-shadow: 0 0 40px rgba(6,249,87,0.1);
-    transform: translateY(-12px);
-  }
-  .gh-price-card--featured:hover { transform: translateY(-16px); }
-  .gh-price-badge {
-    position: absolute; top: 0; right: 24px;
-    background: var(--gh-green); color: #0b1a10;
-    font-size: 0.65rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 4px 12px; border-radius: 0 0 8px 8px;
-  }
-  .gh-price-name { font-size: 1.3rem; font-weight: 700; color: #fff; margin-bottom: 20px; }
-  .gh-price-amount { display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px; }
-  .gh-price-val { font-size: 3rem; font-weight: 900; color: #fff; letter-spacing: -0.04em; }
-  .gh-price-period { font-size: 0.9rem; color: var(--gh-muted); }
-  .gh-price-desc { font-size: 0.875rem; color: var(--gh-muted); line-height: 1.5; margin-bottom: 28px; }
-  .gh-price-features { list-style: none; display: flex; flex-direction: column; gap: 14px; flex: 1; margin-bottom: 32px; }
-  .gh-price-features li { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #b8d8c4; }
-  .gh-price-btn {
-    width: 100%; padding: 14px; border-radius: 12px; font-weight: 700; font-size: 0.95rem;
-    cursor: pointer; border: 1px solid rgba(255,255,255,0.12); background: transparent; color: #fff;
-    transition: background 0.2s, border-color 0.2s, transform 0.2s;
-  }
-  .gh-price-btn:hover { background: rgba(255,255,255,0.06); transform: translateY(-2px); }
-  .gh-price-btn--featured { background: var(--gh-green); color: #0b1a10; border-color: var(--gh-green); }
-  .gh-price-btn--featured:hover { background: #2dfb6b; }
+/* CHART */
+.gh-mapping-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start}
+.gh-cards-stacked{display:flex;flex-direction:column;gap:14px}
+.gh-info-card{display:flex;gap:14px;padding:18px 22px;border-radius:14px;background:var(--surface);border:1px solid var(--border);transition:border-color 0.3s,transform 0.3s}
+.gh-info-card:hover{border-color:var(--green-border);transform:translateX(6px)}
+.gh-info-card-icon{font-size:1.3rem;width:42px;height:42px;border-radius:10px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gh-info-card-title{font-size:0.92rem;font-weight:700;color:#fff;margin-bottom:3px}
+.gh-info-card-desc{font-size:0.8rem;color:var(--muted);line-height:1.55}
+.gh-growth-card{background:var(--surface);border:1px solid var(--green-border);border-radius:20px;padding:26px;box-shadow:0 0 50px rgba(6,249,87,0.04)}
+.gh-growth-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.gh-growth-label{font-size:0.7rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-family:var(--mono)}
+.gh-growth-pct{color:var(--green);font-weight:800;font-size:1rem;font-family:var(--mono)}
+.gh-chart{height:100px;display:flex;align-items:flex-end;gap:7px;margin-bottom:7px}
+.gh-bar{flex:1;background:rgba(6,249,87,0.18);border-radius:4px 4px 0 0;position:relative;transition:background 0.3s}
+.gh-bar:hover{background:rgba(6,249,87,0.35)}
+.gh-bar--peak{background:rgba(6,249,87,0.8)!important}
+.gh-bar-dot{position:absolute;top:-6px;right:50%;transform:translateX(50%);width:10px;height:10px;background:#fff;border-radius:50%;box-shadow:0 0 12px var(--green)}
+.gh-chart-labels{display:flex;justify-content:space-between}
+.gh-chart-labels span{font-size:0.61rem;color:var(--muted);font-family:var(--mono)}
+.gh-growth-features{display:flex;flex-direction:column;gap:9px;margin-top:18px;border-top:1px solid var(--border);padding-top:18px}
+.gh-growth-feat{display:flex;align-items:center;gap:8px;font-size:0.84rem;color:var(--muted)}
+.gh-growth-feat-dot{width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0}
 
-  /* CTA */
-  .gh-cta-section {
-    padding: 96px 24px; position: relative; overflow: hidden;
-  }
-  .gh-cta-glow {
-    position: absolute; width: 500px; height: 500px; border-radius: 50%;
-    filter: blur(100px); pointer-events: none;
-  }
-  .gh-cta-glow--l { left: -100px; top: -100px; background: rgba(6,249,87,0.05); }
-  .gh-cta-glow--r { right: -100px; bottom: -100px; background: rgba(6,249,87,0.05); }
-  .gh-cta-box {
-    max-width: 820px; margin: 0 auto; text-align: center;
-    background: rgba(15,35,22,0.8); backdrop-filter: blur(20px);
-    border: 1px solid var(--gh-border); border-radius: 28px;
-    padding: 64px 48px; position: relative; overflow: hidden;
-  }
-  .gh-cta-scanline {
-    position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--gh-green), transparent);
-    opacity: 0.5;
-  }
-  .gh-cta-title { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 900; color: #fff; margin-bottom: 20px; letter-spacing: -0.04em; line-height: 1.1; }
-  .gh-cta-sub { font-size: 1.05rem; color: var(--gh-muted); line-height: 1.7; margin-bottom: 40px; }
-  .gh-cta-form { display: flex; gap: 12px; max-width: 480px; margin: 0 auto 32px; flex-wrap: wrap; justify-content: center; }
-  .gh-cta-input {
-    flex: 1; min-width: 200px; height: 52px; padding: 0 18px; border-radius: 12px;
-    background: rgba(11,26,16,0.8); border: 1px solid var(--gh-border); color: #fff;
-    font-size: 0.95rem; font-family: var(--gh-font); outline: none;
-    transition: border-color 0.2s;
-  }
-  .gh-cta-input:focus { border-color: var(--gh-green); }
-  .gh-cta-input::placeholder { color: var(--gh-muted); }
-  .gh-cta-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-  .gh-btn-whatsapp {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: #16a34a; color: #fff; font-weight: 700; font-size: 0.95rem;
-    padding: 14px 24px; border-radius: 12px; border: none; cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
-  }
-  .gh-btn-whatsapp:hover { background: #15803d; transform: translateY(-2px); }
-  .gh-btn-white {
-    background: #fff; color: #0b1a10; font-weight: 700; font-size: 0.95rem;
-    padding: 14px 24px; border-radius: 12px; border: none; cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
-  }
-  .gh-btn-white:hover { background: #d4ffe3; transform: translateY(-2px); }
-  .gh-cta-note { margin-top: 24px; font-size: 0.78rem; color: rgba(120,160,130,0.6); font-family: var(--gh-mono); }
+/* BILLING */
+.gh-billing-toggle{display:flex;align-items:center;gap:14px;justify-content:center;margin-top:20px;font-size:0.9rem;color:var(--muted)}
+.gh-bt-active{color:#fff;font-weight:700}
+.gh-bt-save{background:rgba(6,249,87,0.15);color:var(--green);font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:5px;font-family:var(--mono)}
+.gh-toggle{width:44px;height:24px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);position:relative;cursor:none;transition:background 0.3s}
+.gh-toggle-thumb{width:18px;height:18px;border-radius:50%;background:var(--muted);position:absolute;top:2px;left:2px;transition:transform 0.3s,background 0.3s}
+.gh-toggle-thumb--on{transform:translateX(20px);background:var(--green)}
 
-  /* FOOTER */
-  .gh-footer { background: #080f0c; border-top: 1px solid var(--gh-border2); padding: 64px 0 0; position: relative; z-index: 1; }
-  .gh-footer-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px 48px; display: grid; grid-template-columns: 1fr 2fr; gap: 64px; }
-  @media (max-width: 700px) { .gh-footer-inner { grid-template-columns: 1fr; } }
-  .gh-footer-tagline { color: var(--gh-muted); font-size: 0.875rem; line-height: 1.6; margin-top: 16px; }
-  .gh-footer-links-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
-  .gh-footer-col { display: flex; flex-direction: column; gap: 12px; }
-  .gh-footer-col-title { font-size: 0.8rem; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 4px; }
-  .gh-footer-link { color: var(--gh-muted); font-size: 0.875rem; text-decoration: none; transition: color 0.2s; }
-  .gh-footer-link:hover { color: var(--gh-green); }
-  .gh-footer-bottom {
-    max-width: 1280px; margin: 0 auto; padding: 20px 24px;
-    border-top: 1px solid var(--gh-border2);
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.8rem; color: rgba(120,160,130,0.4); flex-wrap: wrap; gap: 8px;
-  }
+/* PRICING */
+.gh-pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:1100px;margin:48px auto 0;align-items:start}
+.gh-price-card{padding:38px;border-radius:22px;background:var(--surface);border:1px solid var(--border);display:flex;flex-direction:column;position:relative;transition:border-color 0.3s,transform 0.3s}
+.gh-price-card:hover{border-color:var(--green-border);transform:translateY(-4px)}
+.gh-price-card--featured{border:1.5px solid var(--green);box-shadow:0 0 50px rgba(6,249,87,0.08);transform:translateY(-10px)}
+.gh-price-card--featured:hover{transform:translateY(-14px)}
+.gh-price-badge{position:absolute;top:0;right:22px;background:var(--green);color:var(--bg);font-size:0.6rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;padding:4px 11px;border-radius:0 0 8px 8px;font-family:var(--mono)}
+.gh-price-name{font-size:1.25rem;font-weight:800;color:#fff;margin-bottom:18px}
+.gh-price-amount{display:flex;align-items:baseline;gap:3px;margin-bottom:11px}
+.gh-price-val{font-size:2.8rem;font-weight:900;color:#fff;letter-spacing:-0.04em;font-family:var(--mono)}
+.gh-price-period{font-size:0.85rem;color:var(--muted)}
+.gh-price-desc{font-size:0.84rem;color:var(--muted);line-height:1.5;margin-bottom:26px}
+.gh-price-features{list-style:none;display:flex;flex-direction:column;gap:12px;flex:1;margin-bottom:28px}
+.gh-price-features li{display:flex;align-items:center;gap:9px;font-size:0.88rem;color:#a8c8b8}
+.gh-price-btn{width:100%;padding:13px;border-radius:11px;font-weight:700;font-size:0.9rem;cursor:none;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#fff;font-family:var(--font);transition:all 0.2s}
+.gh-price-btn:hover{background:rgba(255,255,255,0.05);transform:translateY(-2px)}
+.gh-price-btn--featured{background:var(--green);color:var(--bg);border-color:var(--green)}
+.gh-price-btn--featured:hover{background:#2dfb6b}
+
+/* CTA */
+.gh-cta-section{padding:100px 24px;position:relative;overflow:hidden}
+.gh-cta-topobg{position:absolute;inset:0;z-index:0}
+.gh-cta-topoimg{width:100%;height:100%;object-fit:cover;opacity:0.16;filter:hue-rotate(80deg) saturate(0.5)}
+.gh-cta-topooverlay{position:absolute;inset:0;background:radial-gradient(ellipse 80% 80% at 50% 50%,rgba(7,15,9,0.72),rgba(7,15,9,0.97))}
+.gh-cta-box{max-width:840px;margin:0 auto;text-align:center;background:rgba(12,26,15,0.88);backdrop-filter:blur(24px);border:1px solid var(--green-border);border-radius:28px;padding:64px 48px;position:relative;overflow:hidden;z-index:1}
+.gh-cta-scanline{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:0.5}
+.gh-cta-title{font-size:clamp(2rem,4vw,3.2rem);font-weight:900;color:#fff;margin-bottom:18px;letter-spacing:-0.04em;line-height:1.08}
+.gh-cta-sub{font-size:1.02rem;color:var(--muted);line-height:1.7;margin-bottom:36px}
+.gh-cta-form{display:flex;gap:11px;max-width:500px;margin:0 auto 28px;flex-wrap:wrap;justify-content:center}
+.gh-cta-input{flex:1;min-width:200px;height:50px;padding:0 16px;border-radius:11px;background:rgba(7,15,9,0.8);border:1px solid var(--border);color:#fff;font-size:0.92rem;font-family:var(--font);outline:none;transition:border-color 0.2s}
+.gh-cta-input:focus{border-color:var(--green)}
+.gh-cta-input::placeholder{color:var(--muted)}
+.gh-cta-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.gh-btn-whatsapp{display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:#fff;font-weight:700;font-size:0.9rem;padding:13px 22px;border-radius:11px;border:none;cursor:none;font-family:var(--font);transition:background 0.2s,transform 0.2s}
+.gh-btn-whatsapp:hover{background:#15803d;transform:translateY(-2px)}
+.gh-btn-white{background:#fff;color:var(--bg);font-weight:700;font-size:0.9rem;padding:13px 22px;border-radius:11px;border:none;cursor:none;font-family:var(--font);transition:background 0.2s,transform 0.2s}
+.gh-btn-white:hover{background:#d4ffe3;transform:translateY(-2px)}
+.gh-cta-note{margin-top:22px;font-size:0.73rem;color:rgba(90,138,106,0.5);font-family:var(--mono)}
+
+/* FOOTER */
+.gh-footer{background:#050c07;border-top:1px solid var(--green-faint);padding:64px 0 0;position:relative;z-index:1}
+.gh-footer-inner{max-width:1360px;margin:0 auto;padding:0 28px 48px;display:grid;grid-template-columns:1fr 2fr;gap:64px}
+.gh-footer-tagline{color:var(--muted);font-size:0.84rem;line-height:1.65;margin-top:14px}
+.gh-footer-socials{display:flex;gap:10px;margin-top:18px}
+.gh-social{width:34px;height:34px;border-radius:8px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:var(--muted);text-decoration:none;transition:all 0.2s}
+.gh-social:hover{border-color:var(--green-border);color:var(--green)}
+.gh-footer-links-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px}
+.gh-footer-col{display:flex;flex-direction:column;gap:11px}
+.gh-footer-col-title{font-size:0.73rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:4px;font-family:var(--mono)}
+.gh-footer-link{color:var(--muted);font-size:0.84rem;text-decoration:none;transition:color 0.2s}
+.gh-footer-link:hover{color:var(--green)}
+.gh-footer-bottom{max-width:1360px;margin:0 auto;padding:18px 28px;border-top:1px solid var(--green-faint);display:flex;justify-content:space-between;align-items:center;font-size:0.73rem;color:rgba(90,138,106,0.35);flex-wrap:wrap;gap:8px;font-family:var(--mono)}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────── */
+@media(max-width:1100px){
+  .gh-what-intro{grid-template-columns:1fr}
+  .gh-what-terminal{display:none}
+  .gh-what-features{grid-template-columns:repeat(2,1fr)}
+  .gh-realestate-content{grid-template-columns:1fr}
+  .gh-cmp-header-row{grid-template-columns:1fr 60px 1fr}
+  .gh-cmp-row{grid-template-columns:1fr 60px 1fr}
+  .gh-cmp-icon-bubble{width:36px;height:36px;font-size:0.9rem}
+}
+@media(max-width:900px){
+  .gh-hero-inner{grid-template-columns:1fr;padding-top:40px;padding-bottom:40px}
+  .gh-hero-visual{display:none}
+  .gh-dashboard-grid{grid-template-columns:1fr}
+  .gh-mapping-grid{grid-template-columns:1fr}
+  .gh-nav{display:none}
+  .gh-header-actions{display:none}
+  .gh-menu-btn{display:block}
+  .gh-livefeed{display:none}
+  .gh-footer-inner{grid-template-columns:1fr}
+  .gh-buyer-inner{grid-template-columns:1fr}
+  .gh-buyer-benefits{grid-template-columns:1fr 1fr}
+  .gh-realestate-cards{grid-template-columns:1fr 1fr}
+  .gh-cmp-header-row{grid-template-columns:1fr 48px 1fr;gap:0}
+  .gh-cmp-row{grid-template-columns:1fr 48px 1fr}
+  .gh-cmp-cell{padding:10px 12px;font-size:0.78rem}
+  .gh-cmp-icon-bubble{width:32px;height:32px;font-size:0.8rem}
+  .gh-cmp-scores{grid-template-columns:1fr auto 1fr;gap:10px}
+  .gh-what-features{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:700px){
+  .gh-steps-grid{grid-template-columns:1fr}
+  .gh-steps-connector{display:none}
+  .gh-stats-grid{grid-template-columns:repeat(2,1fr)}
+  .gh-pricing-grid{grid-template-columns:1fr}
+  .gh-price-card--featured{transform:none}
+  .gh-what-features{grid-template-columns:1fr 1fr}
+  .gh-footer-links-grid{grid-template-columns:1fr 1fr}
+  .gh-cta-box{padding:36px 22px}
+  .gh-testimonial-card{padding:28px 22px}
+  .gh-buyer-img{height:240px}
+  .gh-buyer-benefits{grid-template-columns:1fr}
+  .gh-realestate-cards{grid-template-columns:1fr}
+  .gh-cmp-header-row{display:none}
+  .gh-cmp-row{grid-template-columns:1fr 40px 1fr;gap:0}
+  .gh-cmp-cell{padding:8px 10px;font-size:0.73rem;gap:6px}
+  .gh-cmp-cell-text{display:none}
+  .gh-cmp-icon-bubble{width:28px;height:28px;font-size:0.75rem}
+  .gh-cmp-scores{grid-template-columns:1fr;gap:8px}
+  .gh-cmp-score-vs{display:none}
+}
+@media(max-width:480px){
+  .gh-what-features{grid-template-columns:1fr}
+  .gh-cmp-row{grid-template-columns:1fr 36px 1fr}
+  .gh-cmp-cell{padding:8px 6px}
+  .gh-hero-title{font-size:2rem}
+  .gh-stats-grid{grid-template-columns:1fr 1fr}
+}
 `;
