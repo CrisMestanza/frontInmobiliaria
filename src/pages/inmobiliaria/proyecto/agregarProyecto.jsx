@@ -9,13 +9,17 @@ const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 
 export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const token = localStorage.getItem("access");
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(() =>
+    typeof window !== "undefined" &&
+    !!window.google?.maps?.Map,
+  );
   const [loadError, setLoadError] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [tipo, setTipo] = useState([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showOptionHelp, setShowOptionHelp] = useState(true);
 
   const [form, setForm] = useState({
     tipo_registro: "",
@@ -30,19 +34,19 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
     precio: "",
     area_total_m2: "",
-    dormitorios: 0,
-    banos: 0,
-    cuartos: 0,
+    dormitorios: "",
+    banos: "",
+    cuartos: "",
     titulo_propiedad: 0,
-    cochera: 0,
-    cocina: 0,
-    sala: 0,
-    patio: 0,
-    jardin: 0,
-    terraza: 0,
-    azotea: 0,
-    ancho: 0,
-    largo: 0,
+    cochera: "",
+    cocina: "",
+    sala: "",
+    patio: "",
+    jardin: "",
+    terraza: "",
+    azotea: "",
+    ancho: "",
+    largo: "",
 
   });
   const isCasa = parseInt(form.idtipoinmobiliaria, 10) === 2;
@@ -90,6 +94,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const mapRef = useRef(null);
   const fileInputRef = useRef(null);
   const autocompleteRef = useRef(null);
+  const helpWrapRef = useRef(null);
   const isLoteUnico = form.tipo_registro === "lote_unico";
 
   useEffect(() => {
@@ -100,12 +105,26 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       }));
     }
   }, [form.tipo_registro]);
+
+  useEffect(() => {
+    setShowOptionHelp(true);
+  }, []);
   // Cargar Google Maps
   useEffect(() => {
+    if (window.google?.maps?.Map) {
+      setIsLoaded(true);
+      return;
+    }
     loader
       .load()
       .then(() => setIsLoaded(true))
-      .catch(() => setLoadError(true));
+      .catch(() => {
+        if (window.google?.maps?.Map) {
+          setIsLoaded(true);
+          return;
+        }
+        setLoadError(true);
+      });
   }, []);
 
   // Cargar Tipos
@@ -118,61 +137,54 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       .catch((err) => console.error("Error tipos:", err));
   }, [token]);
 
-  // Configurar Autocomplete con supresión de warning
   useEffect(() => {
     if (!isLoaded || !window.google) return;
+    const input = document.getElementById("autocomplete-input");
+    if (!input || !window.google.maps?.places?.Autocomplete) return;
 
-    const initAutocomplete = async () => {
-      try {
-        // Importar places library (esto suprime el warning)
-        await window.google.maps.importLibrary("places");
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["geometry", "name", "formatted_address"],
+    });
 
-        const input = document.getElementById("autocomplete-input");
-        if (!input) {
-          console.error("❌ Input no encontrado");
-          return;
-        }
+    autocompleteRef.current = autocomplete;
+    const listener = autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place?.geometry?.location) return;
 
-        // Crear Autocomplete
-        const autocomplete = new window.google.maps.places.Autocomplete(input, {
-          fields: ["geometry", "name", "formatted_address"],
-        });
+      const loc = {
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+      };
 
-        autocompleteRef.current = autocomplete;
+      if (mapRef.current) {
+        mapRef.current.panTo(loc);
+        mapRef.current.setZoom(17);
+      }
 
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          console.log("📍 Lugar seleccionado:", place);
+      setForm((prev) => ({
+        ...prev,
+        latitud: loc.lat,
+        longitud: loc.lng,
+      }));
+    });
 
-          if (place.geometry && place.geometry.location) {
-            const loc = {
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-            };
-
-            console.log("✅ Navegando a:", loc);
-
-            if (mapRef.current) {
-              mapRef.current.panTo(loc);
-              mapRef.current.setZoom(17);
-            }
-
-            setForm((prev) => ({
-              ...prev,
-              latitud: loc.lat,
-              longitud: loc.lng,
-            }));
-          }
-        });
-
-        console.log("✅ Autocomplete inicializado correctamente");
-      } catch (error) {
-        console.error("❌ Error al inicializar autocomplete:", error);
+    return () => {
+      if (listener) {
+        window.google.maps.event.removeListener(listener);
       }
     };
-
-    initAutocomplete();
   }, [isLoaded]);
+
+  useEffect(() => {
+    if (!showOptionHelp) return;
+    const handleOutsideClick = (event) => {
+      if (!helpWrapRef.current?.contains(event.target)) {
+        setShowOptionHelp(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showOptionHelp]);
 
   // --- Lógica de Dibujo Manual ---
   const handleMapClick = (e) => {
@@ -205,27 +217,13 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   };
 
   const handleChange = (e) => {
-    console.log("Valor ", e.target.name)
-    console.log(e.target.name, e.target.value)
     const { name, value } = e.target;
-
-    const intFields = [
-      "dormitorios", "banos", "cuartos", "cochera", "cocina",
-      "sala", "patio", "jardin", "terraza", "azotea", "titulo_propiedad",
-    ];
-
-    const floatFields = ["precio", "ancho", "largo", "area_total_m2"]; // Añadí area_total aquí
-
-    const normalizedValue = typeof value === "string" ? value.replace(",", ".") : value;
-
-    setForm({
-      ...form,
-      [name]: intFields.includes(name)
-        ? (parseInt(normalizedValue, 10) || 0) // Si es NaN, pone 0
-        : floatFields.includes(name)
-          ? (parseFloat(normalizedValue) || 0) // Si es NaN, pone 0
-          : value,
-    });
+    const normalizedValue =
+      typeof value === "string" ? value.replace(",", ".") : value;
+    setForm((prev) => ({
+      ...prev,
+      [name]: normalizedValue,
+    }));
   };
 
   const handleImagenesChange = (e) => {
@@ -335,7 +333,18 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   if (loadError) return <div className={styles.loaderMsg}>Error de mapa</div>;
   if (!isLoaded) return <div className={styles.loaderMsg}>Cargando...</div>;
 
-
+  const mapControlOptions =
+    typeof window !== "undefined" && window.google?.maps
+      ? {
+          mapTypeControlOptions: {
+            style: window.google.maps.MapTypeControlStyle.DEFAULT,
+            position: window.google.maps.ControlPosition.LEFT_BOTTOM,
+          },
+          fullscreenControlOptions: {
+            position: window.google.maps.ControlPosition.RIGHT_TOP,
+          },
+        }
+      : {};
 
   return (
 
@@ -380,18 +389,43 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
           <div className={styles.gridContainer}>
             <div className={styles.leftColumn}>
               <section>
-                <h4 class="info-title">¿Qué opción debo seleccionar?</h4>
-                <p className={styles.smallInfo}>
-                  • <strong>Único lote:</strong><br />Selecciona “Lote único” en <strong>Agregar proyecto o lote único</strong>.<br /><br />
-
-                  • <strong>Casa única:</strong> 
-                  <br />
-                  Selecciona “Proyecto” y luego “Casa única” en <strong>Tipo de proyecto</strong>.<br /><br />
-
-                  • <strong>Conjunto lotes/casas/departamentos:</strong>
-                  <br />
-                   Selecciona “Proyecto” y luego “Conjunto de Lotes / Casas / Departamentos” en <strong>Tipo de proyecto</strong>.
-                </p>
+                <div className={styles.helpHeaderWrap} ref={helpWrapRef}>
+                  <h4 className={styles.infoTitle}>¿Qué opción debo seleccionar?</h4>
+                  <button
+                    type="button"
+                    className={styles.helpTrigger}
+                    onClick={() => setShowOptionHelp((prev) => !prev)}
+                    aria-label="Mostrar ayuda para selección de opción"
+                    aria-expanded={showOptionHelp}
+                  >
+                    ?
+                  </button>
+                  {showOptionHelp && (
+                    <div className={styles.helpBubble} role="note">
+                      <button
+                        type="button"
+                        className={styles.helpBubbleClose}
+                        onClick={() => setShowOptionHelp(false)}
+                        aria-label="Cerrar ayuda"
+                      >
+                        ×
+                      </button>
+                      <p>
+                        • <strong>Único lote:</strong> Selecciona “Lote único” en
+                        <strong> Agregar proyecto o lote único</strong>.
+                      </p>
+                      <p>
+                        • <strong>Casa única:</strong> Selecciona “Proyecto” y luego
+                        “Casa única” en <strong>Tipo de proyecto</strong>.
+                      </p>
+                      <p>
+                        • <strong>Conjunto lotes/casas/departamentos:</strong>{" "}
+                        Selecciona “Proyecto” y luego “Conjunto de Lotes / Casas /
+                        Departamentos” en <strong>Tipo de proyecto</strong>.
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 <h2 className={styles.sectionTitle}>
                   <span className="material-icons-outlined">info</span>{" "}
@@ -453,7 +487,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     name="nombreproyecto"
                     value={form.nombreproyecto}
                     onChange={handleChange}
-                    className={styles.input}
+                    className={`${styles.input} ${styles.primaryCompactInput}`}
                     required
                   />
                 </div>
@@ -464,8 +498,8 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     name="descripcion"
                     value={form.descripcion}
                     onChange={handleChange}
-                    className={styles.textarea}
-                    rows="4"
+                    className={`${styles.textarea} ${styles.primaryCompactTextarea}`}
+                    rows="2"
                     required
                   />
                 </div>
@@ -683,7 +717,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
               </h2>
 
               <div className={styles.mapWrapper}>
-                {/* Input de búsqueda simple y directo */}
                 <div className={styles.searchWrapper}>
                   <input
                     id="autocomplete-input"
@@ -702,8 +735,10 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                   options={{
                     disableDefaultUI: false,
                     streetViewControl: false,
-                    mapTypeControl: false,
+                    mapTypeControl: true,
+                    fullscreenControl: true,
                     gestureHandling: "greedy",
+                    ...mapControlOptions,
                   }}
                 >
                   {/* Dibujo del polígono en tiempo real */}

@@ -296,6 +296,28 @@
   line-height: 1;
 }
 
+/* Theme harmonization */
+.sidebar {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
+}
+
+.closeBtn {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
+}
+
+.imageSection {
+  background: var(--theme-bg-soft);
+}
+
+.infoSection {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+}
+
 .mobileMetricIcon {
   font-size: 20px;
   color: #106e2e;

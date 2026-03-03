@@ -34,7 +34,9 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
         setRefreshing(true);
       }
       const resLotes = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`),
+        withApiBase(
+          `https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`,
+        ),
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -76,7 +78,9 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
   const handleEstadoChange = async (idlote, nuevoEstado) => {
     try {
       const res = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/updateLoteVendido/${idlote}/`),
+        withApiBase(
+          `https://api.geohabita.com/api/updateLoteVendido/${idlote}/`,
+        ),
         {
           method: "PATCH",
           headers: {
@@ -144,9 +148,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <p className={style.statLabel}>Total de Lotes</p>
               <div className={style.statValue}>
                 {stats.total}{" "}
-                <span
-                  className={`${style.statBadge} ${style.badgeBlue}`}
-                >
+                <span className={`${style.statBadge} ${style.badgeBlue}`}>
                   100%
                 </span>
               </div>
@@ -155,9 +157,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <p className={style.statLabel}>Disponibles</p>
               <div className={style.statValue}>
                 {stats.disponibles}{" "}
-                <span
-                  className={`${style.statBadge} ${style.badgeGreen}`}
-                >
+                <span className={`${style.statBadge} ${style.badgeGreen}`}>
                   Activos
                 </span>
               </div>
@@ -166,9 +166,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <p className={style.statLabel}>Reservados</p>
               <div className={style.statValue}>
                 {stats.reservados}{" "}
-                <span
-                  className={`${style.statBadge} ${style.badgeAmber}`}
-                >
+                <span className={`${style.statBadge} ${style.badgeAmber}`}>
                   En proceso
                 </span>
               </div>
@@ -177,9 +175,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               <p className={style.statLabel}>Vendidos</p>
               <div className={style.statValue}>
                 {stats.vendidos}{" "}
-                <span
-                  className={`${style.statBadge} ${style.badgeSlate}`}
-                >
+                <span className={`${style.statBadge} ${style.badgeSlate}`}>
                   Cerrados
                 </span>
               </div>
@@ -208,7 +204,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                   setShowModalLotePDF(true);
                 }}
               >
-                PDF para Calcado
+                Añadir Plano PDF para Calcado
               </button>
             </div>
 
@@ -255,9 +251,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                 ) : (
                   filteredLotes.map((lote, index) => (
                     <tr key={lote.idlote} className={style.rowHover}>
-                      <td className={style.rowIndex}>
-                        {index + 1}
-                      </td>
+                      <td className={style.rowIndex}>{index + 1}</td>
                       <td>
                         <div className={style.loteName}>{lote.nombre}</div>
                         <div className={style.loteDesc}>{lote.descripcion}</div>
@@ -324,8 +318,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               Reservado
             </div>
             <div className={style.legendItem}>
-              <span className={`${style.dot} ${style.dotSlate}`}></span>{" "}
-              Vendido
+              <span className={`${style.dot} ${style.dotSlate}`}></span> Vendido
             </div>
           </footer>
 

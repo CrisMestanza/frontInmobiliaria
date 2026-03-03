@@ -112,9 +112,9 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  padding: 1.5rem 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.7rem;
+  padding: 1rem 1.2rem 0.9rem;
   background: linear-gradient(
     180deg,
     var(--theme-bg-surface) 0%,
@@ -126,21 +126,33 @@
   background: var(--theme-bg-surface);
   border-radius: 0.9rem;
   border: 1px solid var(--border-color);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+  padding: 0.68rem 0.74rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 82px;
 }
 
 .statLabel {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 600;
+  margin: 0;
 }
 
 .statValue {
-  font-size: 1.875rem;
+  font-size: 1.35rem;
   font-weight: 700;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
+  justify-content: center;
+  align-items: center;
+  gap: 0.42rem;
+  margin-top: 0.3rem;
+  line-height: 1;
+  color: var(--text-main);
 }
 
 .statBadge {
@@ -177,43 +189,49 @@
 
 /* Actions Bar */
 .actionsBar {
-  padding: 1rem 2rem 1.25rem;
+  padding: 0.85rem 1.2rem 1rem;
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.85rem;
+  gap: 0.75rem;
 }
 
 .btnGroup {
   display: flex;
   background: var(--theme-bg-surface);
   border: 1px solid var(--border-color);
-  padding: 4px;
+  padding: 5px;
   border-radius: 0.85rem;
   box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+  gap: 0.4rem;
 }
 
 .actionBtn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 13px;
   border: none;
   background: transparent;
-  border-radius: 0.5rem;
-  font-weight: 500;
+  border-radius: 0.62rem;
+  font-weight: 700;
+  font-size: 0.78rem;
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.2s;
+  min-height: 38px;
 }
 
 .btnPrimary {
-  background: var(--primary);
+  background: linear-gradient(135deg, #16a34a, #0ea5a3);
   color: white;
+  box-shadow: 0 8px 18px rgba(16, 163, 127, 0.28);
 }
 
 .btnPrimary:hover {
-  background: #1d4ed8;
+  transform: translateY(-1px);
+  filter: brightness(1.04);
 }
 
 .btnSecondary:hover {
@@ -221,13 +239,19 @@
 }
 
 .btnGhost {
-  background: var(--theme-bg-soft);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--theme-bg-soft) 84%, #2563eb),
+    color-mix(in srgb, var(--theme-bg-soft) 90%, #0ea5e9)
+  );
   color: var(--text-main);
-  border: 1px dashed #cbd5f5;
+  border: 1px solid color-mix(in srgb, var(--primary) 34%, var(--border-color));
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
 }
 
 .btnGhost:hover {
-  background: #eef2ff;
+  transform: translateY(-1px);
+  filter: brightness(1.03);
 }
 
 .btnDot {
@@ -307,7 +331,7 @@
 }
 
 .rowIndex {
-  color: #94a3b8;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
@@ -328,12 +352,12 @@
 
 .loteName {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .loteDesc {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .emptyCell {
@@ -350,12 +374,12 @@
 
 .emptyTitle {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .emptySubtitle {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* Status Badges */

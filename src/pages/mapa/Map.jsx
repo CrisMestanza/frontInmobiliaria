@@ -116,7 +116,11 @@ const LotesOverlay = ({
 function MyMap() {
   const { isDark, toggleTheme } = useTheme();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(() =>
+    typeof window !== "undefined" &&
+    !!window.google?.maps?.Map &&
+    !!window.google?.maps?.places?.Autocomplete,
+  );
   const [loadError, setLoadError] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(defaultCenter);
   const [tiposInmo, setTiposInmo] = useState([]);
@@ -1123,9 +1127,9 @@ function MyMap() {
           options={{
             gestureHandling: "greedy",
             zoomControl: false,
-            mapTypeControl: false,
+            mapTypeControl: true,
             streetViewControl: false,
-            fullscreenControl: false,
+            fullscreenControl: true,
           }}
         >
           {puntos.length === 0 && <Marker position={currentPosition} />}

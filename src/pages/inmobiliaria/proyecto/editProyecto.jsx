@@ -1,20 +1,28 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
-// src/pages/inmobiliaria/proyecto/editProyecto.jsx
-import React, { useState, useRef, useEffect } from "react";
-import { GoogleMap, DrawingManager, Polygon } from "@react-google-maps/api";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GoogleMap, Marker, Polygon } from "@react-google-maps/api";
 import loader from "../../../components/loader";
-import "./Proyecto.css";
+import styles from "./addproyect.module.css";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const token = localStorage.getItem("access");
-export default function EditProyectoModal({
-  onClose,
-  proyecto,
-  idinmobiliaria,
-}) {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const mapRef = useRef(null);
+
+const normalizePoint = (p, index) => ({
+  latitud: Number(p?.latitud),
+  longitud: Number(p?.longitud),
+  orden: Number(p?.orden ?? index + 1),
+});
+
+export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria }) {
+  const [isLoaded, setIsLoaded] = useState(() =>
+    typeof window !== "undefined" && !!window.google?.maps?.Map,
+  );
+  const [loadError, setLoadError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [existingImages, setExistingImages] = useState([]);
+  const [removedImageIds, setRemovedImageIds] = useState([]);
 
   const [form, setForm] = useState({
     idproyecto: proyecto?.idproyecto || "",
@@ -23,112 +31,224 @@ export default function EditProyectoModal({
     descripcion: proyecto?.descripcion || "",
     latitud: proyecto?.latitud || "",
     longitud: proyecto?.longitud || "",
-    puntos: proyecto?.puntos || [],
-    imagenes: [], // nuevas imágenes
+    puntos: [],
+    imagenes: [],
   });
+
+  const mapRef = useRef(null);
+  const polygonRef = useRef(null);
+  const polygonListenersRef = useRef([]);
+  const autocompleteRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const visibleExistingImages = useMemo(
+    () =>
+      existingImages.filter((img) => {
+        const id = img?.idimagenproyecto ?? img?.idimagen ?? img?.id;
+        return id ? !removedImageIds.includes(id) : true;
+      }),
+    [existingImages, removedImageIds],
+  );
+
+  const syncPuntosFromPolygon = useCallback(() => {
+    const polygon = polygonRef.current;
+    if (!polygon) return;
+    const path = polygon.getPath();
+    const updated = [];
+    for (let i = 0; i < path.getLength(); i += 1) {
+      updated.push({
+        latitud: path.getAt(i).lat(),
+        longitud: path.getAt(i).lng(),
+        orden: i + 1,
+      });
+    }
+    setForm((prev) => ({
+      ...prev,
+      puntos: updated,
+      latitud: updated[0]?.latitud || "",
+      longitud: updated[0]?.longitud || "",
+    }));
+  }, []);
+
+  const clearPolygonListeners = () => {
+    polygonListenersRef.current.forEach((listener) => {
+      window.google?.maps?.event?.removeListener(listener);
+    });
+    polygonListenersRef.current = [];
+  };
 
   useEffect(() => {
     if (!proyecto?.idproyecto) return;
+    let cancelled = false;
 
-    const fetchPuntos = async () => {
+    const loadProyectoData = async () => {
       try {
-        const res = await authFetch(
-          withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${proyecto.idproyecto}`)
-        );
-        const data = await res.json();
+        const [puntosRes, imagesRes] = await Promise.all([
+          authFetch(
+            withApiBase(
+              `https://api.geohabita.com/api/listPuntosProyecto/${proyecto.idproyecto}`,
+            ),
+          ),
+          authFetch(
+            withApiBase(
+              `https://api.geohabita.com/api/list_imagen_proyecto/${proyecto.idproyecto}`,
+            ),
+          ),
+        ]);
 
-        // data debe ser un array de puntos [{latitud, longitud, orden}, ...]
+        const puntosData = (await puntosRes.json()) || [];
+        const imagesData = (await imagesRes.json()) || [];
+        if (cancelled) return;
+
+        const puntos = Array.isArray(puntosData)
+          ? puntosData.map(normalizePoint).filter((p) => !Number.isNaN(p.latitud) && !Number.isNaN(p.longitud))
+          : [];
+
         setForm((prev) => ({
           ...prev,
-          puntos: data.map((p) => ({
-            latitud: parseFloat(p.latitud),
-            longitud: parseFloat(p.longitud),
-            orden: p.orden,
-          })),
-          latitud: data[0]?.latitud || "",
-          longitud: data[0]?.longitud || "",
+          idproyecto: proyecto.idproyecto,
+          idinmobiliaria,
+          nombreproyecto: proyecto?.nombreproyecto || "",
+          descripcion: proyecto?.descripcion || "",
+          puntos,
+          latitud: puntos[0]?.latitud || proyecto?.latitud || "",
+          longitud: puntos[0]?.longitud || proyecto?.longitud || "",
         }));
+        setExistingImages(Array.isArray(imagesData) ? imagesData : []);
+        setRemovedImageIds([]);
       } catch (err) {
-        console.error("Error cargando puntos:", err);
+        console.error("Error cargando datos del proyecto:", err);
       }
     };
 
-    fetchPuntos();
-  }, [proyecto?.idproyecto]);
+    loadProyectoData();
+    return () => {
+      cancelled = true;
+    };
+  }, [proyecto, idinmobiliaria]);
 
   useEffect(() => {
-    // Bloquear scroll al abrir
     document.body.style.overflow = "hidden";
-
-    // Cargar Google Maps con el loader centralizado
-    loader
-      .load()
-      .then(() => setIsLoaded(true))
-      .catch((err) => console.error("Error cargando Google Maps:", err));
-
+    if (window.google?.maps?.Map) {
+      setIsLoaded(true);
+    } else {
+      loader
+        .load()
+        .then(() => setIsLoaded(true))
+        .catch((err) => {
+          console.error("Error cargando Google Maps:", err);
+          setLoadError(true);
+        });
+    }
     return () => {
       document.body.style.overflow = "auto";
+      clearPolygonListeners();
     };
   }, []);
 
-  // 📌 Manejo de inputs
+  useEffect(() => {
+    if (!isLoaded || !window.google) return;
+    const input = document.getElementById("autocomplete-edit-proyecto");
+    if (!input || !window.google.maps?.places?.Autocomplete) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(input, {
+      fields: ["geometry", "name", "formatted_address"],
+    });
+    autocompleteRef.current = autocomplete;
+
+    const listener = autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place?.geometry?.location) return;
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      mapRef.current?.panTo({ lat, lng });
+      mapRef.current?.setZoom(17);
+      setForm((prev) => ({ ...prev, latitud: lat, longitud: lng }));
+    });
+
+    return () => {
+      window.google.maps.event.removeListener(listener);
+    };
+  }, [isLoaded]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 📌 Polígono
-  const handlePolygonComplete = (polygon) => {
-    const path = polygon.getPath();
-    const puntos = path.getArray().map((point, i) => ({
-      latitud: point.lat(),
-      longitud: point.lng(),
-      orden: i + 1,
-    }));
-
+  const handleMapClick = (e) => {
+    if (!isDrawing) return;
+    const newPoint = {
+      latitud: e.latLng.lat(),
+      longitud: e.latLng.lng(),
+      orden: form.puntos.length + 1,
+    };
     setForm((prev) => ({
       ...prev,
-      puntos,
-      latitud: puntos[0]?.latitud || "",
-      longitud: puntos[0]?.longitud || "",
+      puntos: [...prev.puntos, newPoint],
+      latitud: prev.puntos.length === 0 ? newPoint.latitud : prev.latitud,
+      longitud: prev.puntos.length === 0 ? newPoint.longitud : prev.longitud,
     }));
-
-    polygon.setEditable(true);
-
-    const updatePath = () => {
-      const updatedPuntos = path.getArray().map((point, i) => ({
-        latitud: point.lat(),
-        longitud: point.lng(),
-        orden: i + 1,
-      }));
-      setForm((prev) => ({ ...prev, puntos: updatedPuntos }));
-    };
-
-    window.google.maps.event.addListener(path, "insert_at", updatePath);
-    window.google.maps.event.addListener(path, "remove_at", updatePath);
-    window.google.maps.event.addListener(path, "set_at", updatePath);
   };
 
-  // 📌 Imágenes
+  const clearPolygon = () => {
+    setForm((prev) => ({ ...prev, puntos: [] }));
+    setIsDrawing(true);
+  };
+
+  const undoLastPoint = () => {
+    setForm((prev) => ({ ...prev, puntos: prev.puntos.slice(0, -1) }));
+  };
+
+  const onPolygonLoad = (polygon) => {
+    clearPolygonListeners();
+    polygonRef.current = polygon;
+    const path = polygon.getPath();
+    polygonListenersRef.current = [
+      window.google.maps.event.addListener(path, "insert_at", syncPuntosFromPolygon),
+      window.google.maps.event.addListener(path, "remove_at", syncPuntosFromPolygon),
+      window.google.maps.event.addListener(path, "set_at", syncPuntosFromPolygon),
+    ];
+  };
+
+  const onPolygonUnmount = () => {
+    clearPolygonListeners();
+    polygonRef.current = null;
+  };
+
   const handleImagenesChange = (e) => {
-    const newFiles = Array.from(e.target.files).map((file) => ({
+    const files = Array.from(e.target.files || []).map((file) => ({
       file,
       preview: URL.createObjectURL(file),
     }));
-    setForm({ ...form, imagenes: [...form.imagenes, ...newFiles] });
+    setForm((prev) => ({ ...prev, imagenes: [...prev.imagenes, ...files] }));
+    e.target.value = "";
   };
 
-  const removeImagen = (index) => {
-    const imagenes = [...form.imagenes];
-    URL.revokeObjectURL(imagenes[index].preview);
-    imagenes.splice(index, 1);
-    setForm({ ...form, imagenes });
+  const removeNewImage = (index) => {
+    const images = [...form.imagenes];
+    URL.revokeObjectURL(images[index]?.preview);
+    images.splice(index, 1);
+    setForm((prev) => ({ ...prev, imagenes: images }));
   };
 
-  // 📌 Enviar formulario
+  const removeExistingImage = (image) => {
+    const id = image?.idimagenproyecto ?? image?.idimagen ?? image?.id;
+    if (!id) {
+      setExistingImages((prev) => prev.filter((img) => img !== image));
+      return;
+    }
+    setRemovedImageIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.puntos.length < 3) {
+      alert("El polígono debe tener al menos 3 puntos.");
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
       const formData = new FormData();
       formData.append("idinmobiliaria", idinmobiliaria);
@@ -137,151 +257,273 @@ export default function EditProyectoModal({
       formData.append("latitud", form.latitud);
       formData.append("longitud", form.longitud);
       formData.append("puntos", JSON.stringify(form.puntos));
+      formData.append("imagenes_eliminar", JSON.stringify(removedImageIds));
 
       form.imagenes.forEach((img) => {
-        formData.append("imagenes", img.file);
+        if (img?.file) formData.append("imagenes", img.file);
       });
 
       const res = await authFetch(
         withApiBase(`https://api.geohabita.com/api/updateProyecto/${form.idproyecto}/`),
         {
           method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           body: formData,
-        }
+        },
       );
 
       if (res.ok) {
-        alert("✅ Proyecto actualizado con éxito");
+        alert("Proyecto actualizado con éxito");
         onClose();
       } else {
-        const data = await res.json();
-        console.error(data);
-        alert("❌ Error al actualizar proyecto");
+        const err = await res.json().catch(() => ({}));
+        console.error("Error actualizando proyecto:", err);
+        alert("Error al actualizar proyecto");
       }
     } catch (err) {
       console.error(err);
-      alert("🚫 Error de red");
+      alert("Error de red");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (!isLoaded) return <h2>Cargando mapa...</h2>;
+  if (loadError) return <div className={styles.loaderMsg}>Error de mapa</div>;
+  if (!isLoaded) return <div className={styles.loaderMsg}>Cargando...</div>;
+
+  const center =
+    form.puntos.length > 0
+      ? { lat: Number(form.puntos[0].latitud), lng: Number(form.puntos[0].longitud) }
+      : form.latitud && form.longitud
+        ? { lat: Number(form.latitud), lng: Number(form.longitud) }
+        : defaultCenter;
 
   return (
-    <div className="modalOverlay">
-      <div className="modalContent">
-        <button className="closeBtn" onClick={onClose}>
-          ✖
-        </button>
-
-        <form className="formContainer" onSubmit={handleSubmit}>
-          <h2>Editar Proyecto</h2>
-
-          <label>Nombre del Proyecto</label>
-          <input
-            name="nombreproyecto"
-            value={form.nombreproyecto}
-            onChange={handleChange}
-            className="input"
-            required
-          />
-
-          <label>Descripción</label>
-          <textarea
-            name="descripcion"
-            value={form.descripcion}
-            onChange={handleChange}
-            className="input"
-            required
-          />
-
-          <label>Ubicación y Área</label>
-          <p className="help-text">
-            Modifica o vuelve a dibujar el polígono que representa tu proyecto.
-          </p>
-          <div className="mapContainer">
-            <GoogleMap
-              mapContainerStyle={{ width: "100%", height: "100%" }}
-              center={
-                form.latitud && form.longitud
-                  ? {
-                      lat: parseFloat(form.latitud),
-                      lng: parseFloat(form.longitud),
-                    }
-                  : defaultCenter
-              }
-              zoom={14}
-              onLoad={(map) => (mapRef.current = map)}
-              options={{ gestureHandling: "greedy" }}
-            >
-              <DrawingManager
-                options={{
-                  drawingControl: true,
-                  drawingControlOptions: {
-                    position: window.google.maps.ControlPosition.TOP_CENTER,
-                    drawingModes: ["polygon"],
-                  },
-                }}
-                onPolygonComplete={handlePolygonComplete}
-              />
-              {form.puntos.length > 0 && (
-                <Polygon
-                  paths={form.puntos.map((p) => ({
-                    lat: parseFloat(p.latitud),
-                    lng: parseFloat(p.longitud),
-                  }))}
-                  options={{
-                    fillColor: "#4caf50",
-                    strokeColor: "#2e7d32",
-                    editable: true, // mejor aquí
-                    draggable: false,
-                  }}
-                  onMouseUp={(e, polygon) => {
-                    const path = e.overlay?.getPath?.() || polygon.getPath();
-                    if (!path) return;
-
-                    const updatedPuntos = [];
-                    for (let i = 0; i < path.getLength(); i++) {
-                      updatedPuntos.push({
-                        latitud: path.getAt(i).lat(),
-                        longitud: path.getAt(i).lng(),
-                        orden: i + 1,
-                      });
-                    }
-                    setForm((prev) => ({ ...prev, puntos: updatedPuntos }));
-                  }}
-                />
-              )}
-            </GoogleMap>
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalContent}>
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>Editar Proyecto Inmobiliario</h1>
+            <p className={styles.subtitle}>
+              Actualiza datos del proyecto, imágenes y área del polígono.
+            </p>
           </div>
-
-          <label>Imágenes Referenciales</label>
-          <input
-            type="file"
-            multiple
-            onChange={handleImagenesChange}
-            className="input"
-          />
-          <div className="previewContainer">
-            {form.imagenes.map((img, i) => (
-              <div key={i} className="previewItem">
-                <img src={img.preview} alt={`preview-${i}`} />
-                <button
-                  type="button"
-                  className="removeBtn"
-                  onClick={() => removeImagen(i)}
-                >
-                  ❌
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <button type="submit" className="submitBtn">
-            Guardar Cambios
+          <button type="button" className={styles.closeBtn} onClick={onClose}>
+            <span className="material-icons-outlined">close</span>
           </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className={styles.formBody}>
+          <div className={styles.gridContainer}>
+            <div className={styles.leftColumn}>
+              <section>
+                <h2 className={styles.sectionTitle}>
+                  <span className="material-icons-outlined">edit_note</span>
+                  Información
+                </h2>
+
+                <div className={styles.inputGroup}>
+                  <label>Nombre</label>
+                  <input
+                    name="nombreproyecto"
+                    value={form.nombreproyecto}
+                    onChange={handleChange}
+                    className={`${styles.input} ${styles.primaryCompactInput}`}
+                    required
+                  />
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label>Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    value={form.descripcion}
+                    onChange={handleChange}
+                    className={`${styles.textarea} ${styles.primaryCompactTextarea}`}
+                    rows="3"
+                    required
+                  />
+                </div>
+              </section>
+
+              <section>
+                <h2 className={styles.sectionTitle}>
+                  <span className="material-icons-outlined">collections</span>
+                  Imágenes
+                </h2>
+
+                <p className={styles.imageSectionLabel}>Imágenes actuales</p>
+                {visibleExistingImages.length === 0 ? (
+                  <p className={styles.noExistingImages}>No hay imágenes actuales.</p>
+                ) : (
+                  <div className={styles.existingImagesGrid}>
+                    {visibleExistingImages.map((img, i) => {
+                      const src = withApiBase(
+                        `https://api.geohabita.com${img.imagenproyecto || img.imagen || ""}`,
+                      );
+                      const key = img.idimagenproyecto || img.idimagen || img.id || i;
+                      return (
+                        <div className={styles.existingImageItem} key={key}>
+                          <img src={src} alt={`Actual ${i + 1}`} />
+                          <button
+                            type="button"
+                            className={styles.removeThumbnail}
+                            onClick={() => removeExistingImage(img)}
+                            title="Quitar imagen actual"
+                          >
+                            <span className="material-icons-outlined">close</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className={styles.uploadSection} style={{ marginTop: "0.7rem" }}>
+                  <div
+                    className={styles.uploadBox}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <span className="material-icons-outlined">add_photo_alternate</span>
+                    <p>Agregar imágenes nuevas</p>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      multiple
+                      accept="image/*"
+                      onChange={handleImagenesChange}
+                      hidden
+                    />
+                  </div>
+
+                  {form.imagenes.length > 0 && (
+                    <div className={styles.thumbnailGrid}>
+                      {form.imagenes.map((img, i) => (
+                        <div key={i} className={styles.thumbnailItem}>
+                          <img src={img.preview} alt={`Nueva ${i + 1}`} />
+                          <button
+                            type="button"
+                            className={styles.removeThumbnail}
+                            onClick={() => removeNewImage(i)}
+                          >
+                            <span className="material-icons-outlined">close</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            <div className={styles.rightColumn}>
+              <h2 className={styles.sectionTitle}>
+                <span className="material-icons-outlined">map</span>
+                Ubicación y Polígono
+              </h2>
+
+              <div className={styles.mapWrapper}>
+                <div className={styles.searchWrapper}>
+                  <input
+                    id="autocomplete-edit-proyecto"
+                    type="text"
+                    placeholder="Buscar ubicación..."
+                    className={styles.mapSearchInput}
+                  />
+                </div>
+
+                <GoogleMap
+                  mapContainerClassName={styles.googleMap}
+                  center={center}
+                  zoom={14}
+                  onLoad={(map) => {
+                    mapRef.current = map;
+                  }}
+                  onClick={handleMapClick}
+                  options={{
+                    disableDefaultUI: false,
+                    streetViewControl: false,
+                    mapTypeControl: true,
+                    fullscreenControl: true,
+                    gestureHandling: "greedy",
+                  }}
+                >
+                  {form.puntos.length > 0 && (
+                    <Polygon
+                      onLoad={onPolygonLoad}
+                      onUnmount={onPolygonUnmount}
+                      paths={form.puntos.map((p) => ({
+                        lat: Number(p.latitud),
+                        lng: Number(p.longitud),
+                      }))}
+                      options={{
+                        fillColor: "#1E40AF",
+                        fillOpacity: 0.3,
+                        strokeColor: "#1E40AF",
+                        strokeWeight: 3,
+                        editable: true,
+                        draggable: false,
+                      }}
+                    />
+                  )}
+
+                  {form.puntos.map((p, idx) => (
+                    <Marker
+                      key={idx}
+                      position={{ lat: Number(p.latitud), lng: Number(p.longitud) }}
+                      label={`${idx + 1}`}
+                    />
+                  ))}
+
+                  <div className={styles.mapControls}>
+                    <button
+                      type="button"
+                      className={`${styles.mapBtn} ${isDrawing ? styles.mapBtnActive : ""}`}
+                      onClick={() => setIsDrawing((prev) => !prev)}
+                      title={isDrawing ? "Finalizar dibujo" : "Agregar puntos"}
+                    >
+                      <span className="material-icons-outlined">
+                        {isDrawing ? "check_circle" : "edit_location_alt"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.mapBtn}
+                      onClick={undoLastPoint}
+                      disabled={form.puntos.length === 0}
+                      title="Deshacer último punto"
+                    >
+                      <span className="material-icons-outlined">undo</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.mapBtn}
+                      onClick={clearPolygon}
+                      disabled={form.puntos.length === 0}
+                      title="Eliminar polígono"
+                    >
+                      <span className="material-icons-outlined">delete</span>
+                    </button>
+                  </div>
+                </GoogleMap>
+              </div>
+
+              <p className={styles.mapHint}>
+                Arrastra vértices para ajustar el polígono. También puedes activar
+                el modo dibujo para agregar puntos nuevos.
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.footer}>
+            <button type="button" className={styles.cancelBtn} onClick={onClose}>
+              Cancelar
+            </button>
+            <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+              {isSubmitting ? "Guardando..." : "Guardar Cambios"}
+              <span className="material-icons-outlined">save</span>
+            </button>
+          </div>
         </form>
       </div>
     </div>

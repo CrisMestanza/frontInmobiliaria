@@ -781,8 +781,30 @@
     margin-right: 30px;
   }
 
-  .navArrow {
+.navArrow {
     color: black;
     margin-right: 27px;
   }
+}
+
+/* Theme harmonization */
+.sidebar {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
+}
+
+.closeBtn {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
+}
+
+.imageSection {
+  background: var(--theme-bg-soft);
+}
+
+.infoSection {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
 }

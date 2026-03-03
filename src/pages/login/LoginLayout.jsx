@@ -79,6 +79,15 @@ const LoginLayout = () => {
     }
   };
 
+  const handleFormKeyDown = (e) => {
+    if (e.key !== "Enter") return;
+    const formEl = e.currentTarget;
+    if (typeof formEl.requestSubmit === "function") {
+      e.preventDefault();
+      formEl.requestSubmit();
+    }
+  };
+
   return (
     <div className="inmo-login-scope">
       <div className="inmo-login-top-links">
@@ -126,7 +135,11 @@ const LoginLayout = () => {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="inmo-login-form-element">
+            <form
+              onSubmit={handleSubmit}
+              onKeyDown={handleFormKeyDown}
+              className="inmo-login-form-element"
+            >
               <div className="inmo-login-field">
                 <label className="inmo-login-label">Email</label>
                 <input
