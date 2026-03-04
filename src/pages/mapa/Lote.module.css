@@ -808,3 +808,84 @@
   background: var(--theme-bg-surface);
   color: var(--theme-text-main);
 }
+
+/* Dark mode hardening for lote sidebar */
+[data-theme="dark"] .sidebar {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+  border-color: var(--theme-border-color);
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.55);
+}
+
+[data-theme="dark"] .closeBtn,
+[data-theme="dark"] .mobileHeaderClose {
+  background: var(--theme-bg-soft);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
+}
+
+[data-theme="dark"] .mobileTopHeader {
+  background: var(--theme-bg-surface);
+  border-bottom: 1px solid var(--theme-border-color);
+}
+
+[data-theme="dark"] .mobileDragHandle {
+  background: color-mix(in srgb, var(--theme-text-muted) 70%, transparent);
+}
+
+[data-theme="dark"] .nombreLote,
+[data-theme="dark"] .inmoName,
+[data-theme="dark"] .priceValue,
+[data-theme="dark"] .qBadge strong,
+[data-theme="dark"] .sectionTitle,
+[data-theme="dark"] .mobileHeaderTitle {
+  color: var(--theme-text-main);
+}
+
+[data-theme="dark"] .ubicacion,
+[data-theme="dark"] .proyectoP,
+[data-theme="dark"] .inmoLabel,
+[data-theme="dark"] .inmoDescription,
+[data-theme="dark"] .fullDescription,
+[data-theme="dark"] .labelSmall,
+[data-theme="dark"] .qBadge span,
+[data-theme="dark"] .noImage {
+  color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .imageSection,
+[data-theme="dark"] .priceContainer,
+[data-theme="dark"] .qBadge,
+[data-theme="dark"] .fItem,
+[data-theme="dark"] .distanciaBox,
+[data-theme="dark"] .socialFooter a,
+[data-theme="dark"] .noImage {
+  background: var(--theme-bg-soft);
+  border-color: var(--theme-border-color);
+}
+
+[data-theme="dark"] .inmoCard {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--theme-bg-surface) 88%, #111827),
+    color-mix(in srgb, var(--theme-bg-soft) 92%, #0b1220)
+  );
+  border: 1px solid var(--theme-border-color);
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.45);
+}
+
+[data-theme="dark"] .legalLabel {
+  background: color-mix(in srgb, #10b981 18%, var(--theme-bg-soft));
+  color: #86efac;
+}
+
+[data-theme="dark"] .imageBadge {
+  background: rgba(2, 6, 23, 0.72);
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .navArrow {
+  background: color-mix(in srgb, var(--theme-bg-surface) 88%, #1e293b);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
+}

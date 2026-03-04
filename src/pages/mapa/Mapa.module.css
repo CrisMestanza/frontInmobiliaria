@@ -611,6 +611,110 @@
   transition: width 0.35s ease;
 }
 
+.customMapTypeControl {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.mapTypeTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-bg-surface) 92%, transparent);
+  border: 1px solid var(--theme-border-color);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.mapTypeBtn {
+  border: none;
+  background: transparent;
+  color: var(--theme-text-main);
+  height: 32px;
+  min-width: 88px;
+  border-radius: 20px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.mapTypeBtn:hover {
+  background: color-mix(in srgb, var(--theme-bg-soft) 90%, #9ca3af 10%);
+}
+
+.mapTypeBtnActive {
+  background: #0ea66b;
+  color: #ffffff;
+}
+
+.mapTypeBtnActive:hover,
+.mapTypeBtnActive:focus-visible {
+  background: #0ea66b;
+  color: #ffffff;
+}
+
+.mapTypeSubMenu {
+  min-width: 210px;
+  padding: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme-bg-surface) 94%, transparent);
+  border: 1px solid var(--theme-border-color);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.mapTypeSubLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--theme-text-muted);
+  margin: 0 0 6px 2px;
+}
+
+.mapTypeSubRow {
+  display: flex;
+  gap: 6px;
+}
+
+.mapTypeSubBtn {
+  border: 1px solid var(--theme-border-color);
+  background: color-mix(in srgb, var(--theme-bg-soft) 88%, transparent);
+  color: var(--theme-text-muted);
+  height: 26px;
+  flex: 1;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.mapTypeSubBtn:hover {
+  border-color: #0ea66b;
+  color: var(--theme-text-main);
+}
+
+.mapTypeSubBtnActive {
+  background: color-mix(in srgb, #0ea66b 24%, var(--theme-bg-soft));
+  border-color: #0ea66b;
+  color: #0ea66b;
+}
+
 .mapViewportWithSidebar {
   width: 55%;
 }
@@ -1630,5 +1734,39 @@
 @media screen and (max-width: 768px) {
   .cabeceraHiddenOnProject {
     display: none;
+  }
+
+  .customMapTypeControl {
+    left: 8px;
+    top: 8px;
+    gap: 2px;
+  }
+
+  .mapTypeTabs {
+    padding: 3px;
+    gap: 2px;
+  }
+
+  .mapTypeBtn {
+    min-width: 66px;
+    height: 28px;
+    /* font-size: 10px; */
+    padding: 0 8px;
+  }
+
+  .mapTypeSubMenu {
+    min-width: 184px;
+    padding: 6px;
+  }
+
+  .mapTypeSubLabel {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  .mapTypeSubBtn {
+    height: 22px;
+    font-size: 9px;
+    padding: 0 6px;
   }
 }

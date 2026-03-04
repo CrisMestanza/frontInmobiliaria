@@ -1457,6 +1457,8 @@ export default function GeoHabita() {
     "Habitat",
     "ProLotes",
   ];
+  const brandRepeatCount = Math.max(6, Math.ceil(14 / brands.length));
+  const brandChain = Array.from({ length: brandRepeatCount }, () => brands).flat();
 
   const goToLogin = () => navigate("/login");
   const goToMap = () => navigate("/");
@@ -1673,7 +1675,7 @@ export default function GeoHabita() {
             <div className="gh-cf-left" />
             <div className="gh-cf-right" />
             <div className="gh-carousel-track">
-              {[...brands, ...brands].map((b, i) => (
+              {[...brandChain, ...brandChain].map((b, i) => (
                 <div key={i} className="gh-brand-item">
                   <div className="gh-brand-dot" />
                   <span>{b}</span>

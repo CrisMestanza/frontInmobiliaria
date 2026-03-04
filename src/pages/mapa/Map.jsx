@@ -37,6 +37,7 @@ const LotesOverlay = ({
   lotes,
   selectedLote,
   hoveredLote,
+  mapZoom = 13,
   onLoteClick,
   onLoteMouseOver,
   onLoteMouseOut,
@@ -54,20 +55,49 @@ const LotesOverlay = ({
     return `rgb(${r},${g},${b})`;
   };
 
+  const getStatusMeta = (estado) => {
+    switch (estado) {
+      case 0:
+        return {
+          label: "Disponible",
+          color: "#00c95f",
+          accent: "#6ee7b7",
+        };
+      case 1:
+        return {
+          label: "Vendido",
+          color: "#ef4444",
+          accent: "#fca5a5",
+        };
+      case 2:
+        return {
+          label: "Reservado",
+          color: "#f59e0b",
+          accent: "#fde68a",
+        };
+      default:
+        return {
+          label: "No definido",
+          color: "#64748b",
+          accent: "#cbd5e1",
+        };
+    }
+  };
+
   const getColorLote = (estado, hovered) => {
     let baseColor;
     switch (estado) {
       case 0:
-        baseColor = "#00ff00";
+        baseColor = "#00c95f";
         break;
       case 1:
-        baseColor = "#ff0000";
+        baseColor = "#ef4444";
         break;
       case 2:
-        baseColor = "#ffff00";
+        baseColor = "#f59e0b";
         break;
       default:
-        baseColor = "#808080";
+        baseColor = "#64748b";
     }
     if (estado === 1 || estado === 2 || !hovered) {
       return baseColor;
@@ -81,31 +111,71 @@ const LotesOverlay = ({
         const isLibre = lote.vendido === 0;
         const hasSelected = !!selectedLote?.lote?.idlote;
         const isSelected = selectedLote?.lote?.idlote === lote.idlote;
+        const isHovered = hoveredLote === lote.idlote;
         const isDimmed = hasSelected && !isSelected;
+        const status = getStatusMeta(lote.vendido);
+        const showQuickLabel = isSelected;
+        const strokeBaseColor = getColorLote(lote.vendido, isHovered);
 
         return (
           <PolygonOverlay
             key={lote.idlote}
             puntos={lote.puntos}
-            color={getColorLote(lote.vendido, hoveredLote === lote.idlote)}
+            color={strokeBaseColor}
             onClick={isLibre ? () => onLoteClick(lote) : undefined}
             onMouseOver={
               isLibre ? () => onLoteMouseOver(lote.idlote) : undefined
             }
             onMouseOut={isLibre ? onLoteMouseOut : undefined}
             label={
-              hoveredLote === lote.idlote || isSelected ? lote.nombre : null
+              showQuickLabel
+                ? {
+                    text: lote.nombre,
+                  }
+                : null
             }
             options={{
-              zIndex: isSelected ? 12 : hoveredLote === lote.idlote ? 11 : 10,
+              zIndex: isSelected ? 14 : isHovered ? 13 : 10,
               clickable: isLibre,
               draggable: false,
               editable: false,
-              fillOpacity: isSelected ? 0.42 : isDimmed ? 0.12 : 0.3,
-              strokeOpacity: isSelected ? 1 : isDimmed ? 0.55 : 1,
-              strokeWeight: isSelected ? 3 : 2,
-              strokeColor: "black",
+              fillOpacity: isSelected
+                ? 0.4
+                : isHovered
+                  ? 0.26
+                  : isDimmed
+                    ? 0.05
+                    : 0.2,
+              strokeOpacity: isSelected
+                ? 1
+                : isHovered
+                  ? 0.92
+                  : isDimmed
+                    ? 0.22
+                    : 0.82,
+              strokeWeight: isSelected
+                ? mapZoom >= 16
+                  ? 4
+                  : 3.4
+                : isHovered
+                  ? mapZoom >= 16
+                    ? 3.5
+                    : 3
+                  : mapZoom >= 16
+                    ? 2.7
+                    : 2.2,
+              strokeColor: strokeBaseColor,
+              haloColor: status.color,
+              haloOpacity: isSelected
+                ? 0.5
+                : isHovered
+                  ? 0.4
+                  : isDimmed
+                    ? 0.12
+                    : 0.24,
+              haloWeight: isSelected ? 8 : isHovered ? 6 : isDimmed ? 3 : 5,
             }}
+            mapZoom={mapZoom}
           />
         );
       })}
@@ -116,10 +186,11 @@ const LotesOverlay = ({
 function MyMap() {
   const { isDark, toggleTheme } = useTheme();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(() =>
-    typeof window !== "undefined" &&
-    !!window.google?.maps?.Map &&
-    !!window.google?.maps?.places?.Autocomplete,
+  const [isLoaded, setIsLoaded] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      !!window.google?.maps?.Map &&
+      !!window.google?.maps?.places?.Autocomplete,
   );
   const [loadError, setLoadError] = useState(null);
   const [currentPosition, setCurrentPosition] = useState(defaultCenter);
@@ -153,8 +224,15 @@ function MyMap() {
   const [isDesktopSidebarViewport, setIsDesktopSidebarViewport] = useState(
     () => (typeof window !== "undefined" ? window.innerWidth >= 1024 : true),
   );
+  const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
+  const [labelsEnabled, setLabelsEnabled] = useState(true);
+  const [reliefEnabled, setReliefEnabled] = useState(false);
+  const [mapTypeMenuFor, setMapTypeMenuFor] = useState(null);
+  const [mapZoom, setMapZoom] = useState(13);
 
   const mapRef = useRef(null);
+  const mapTypeListenerRef = useRef(null);
+  const mapTypeControlRef = useRef(null);
   const headerRef = useRef(null);
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
@@ -341,8 +419,27 @@ function MyMap() {
       if (boundsDebounceRef.current) {
         clearTimeout(boundsDebounceRef.current);
       }
+      if (mapTypeListenerRef.current) {
+        mapTypeListenerRef.current.remove();
+        mapTypeListenerRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!mapTypeMenuFor) return undefined;
+    const handleOutside = (event) => {
+      const node = mapTypeControlRef.current;
+      if (!node || node.contains(event.target)) return;
+      setMapTypeMenuFor(null);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, [mapTypeMenuFor]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -807,6 +904,103 @@ function MyMap() {
 
   const isMobile = () => window.innerWidth <= 768;
 
+  const resolveMapTypeId = useCallback((style, labels, relief) => {
+    if (style === "satellite") {
+      return labels ? "hybrid" : "satellite";
+    }
+    return relief ? "terrain" : "roadmap";
+  }, []);
+
+  const applyMapType = useCallback(
+    (style, labels, relief) => {
+      const nextType = resolveMapTypeId(style, labels, relief);
+      const map = mapRef.current;
+      if (map && typeof map.setMapTypeId === "function") {
+        map.setMapTypeId(nextType);
+      }
+    },
+    [resolveMapTypeId],
+  );
+
+  const handleSetBaseMapStyle = useCallback(
+    (nextStyle) => {
+      setBaseMapStyle(nextStyle);
+      applyMapType(nextStyle, labelsEnabled, reliefEnabled);
+      setMapTypeMenuFor((prev) => (prev === nextStyle ? null : nextStyle));
+    },
+    [applyMapType, labelsEnabled, reliefEnabled],
+  );
+
+  const handleSetSatelliteLabels = useCallback(
+    (next) => {
+      setLabelsEnabled(next);
+      if (baseMapStyle === "satellite") {
+        applyMapType("satellite", next, reliefEnabled);
+      }
+    },
+    [applyMapType, baseMapStyle, reliefEnabled],
+  );
+
+  const handleSetMapRelief = useCallback(
+    (next) => {
+      setReliefEnabled(next);
+      if (baseMapStyle === "roadmap") {
+        applyMapType("roadmap", labelsEnabled, next);
+      }
+    },
+    [applyMapType, baseMapStyle, labelsEnabled],
+  );
+
+  const getProjectMobilePadding = useCallback(() => {
+    if (typeof window === "undefined") {
+      return { top: 16, right: 16, bottom: 16, left: 16 };
+    }
+    const header = Math.max(0, Number(mapHeaderOffsetPx) || 0);
+    const vh = window.innerHeight;
+    const available = Math.max(220, vh - header);
+    const midTop = header + available * 0.5;
+    const coveredBottom = Math.max(0, vh - midTop);
+    return {
+      top: 16,
+      right: 16,
+      bottom: Math.round(coveredBottom + 16),
+      left: 16,
+    };
+  }, [mapHeaderOffsetPx]);
+
+  const fitBoundsForProjectFocus = useCallback(
+    (map, bounds) => {
+      if (!map || !bounds) return;
+      if (isMobile()) {
+        map.fitBounds(bounds, getProjectMobilePadding());
+        return;
+      }
+      map.fitBounds(bounds);
+    },
+    [getProjectMobilePadding],
+  );
+
+  const centerPointForProjectFocus = useCallback(
+    (map, target) => {
+      if (!map || !target || !window.google?.maps) return;
+      if (!isMobile()) {
+        map.panTo(target);
+        return;
+      }
+      const bounds = new window.google.maps.LatLngBounds();
+      bounds.extend(target);
+      bounds.extend(target);
+      map.fitBounds(bounds, getProjectMobilePadding());
+      window.google.maps.event.addListenerOnce(map, "idle", () => {
+        const currentZoom = map.getZoom() ?? 0;
+        if (currentZoom > 17) {
+          map.setZoom(17);
+        }
+      });
+    },
+    [getProjectMobilePadding],
+  );
+
   const handleMarkerClick = async (proyecto) => {
     if (isMobile()) {
       setShowFilters(false);
@@ -850,7 +1044,7 @@ function MyMap() {
               lng: parseFloat(p.longitud),
             }),
           );
-          mapRef.current.fitBounds(bounds);
+          fitBoundsForProjectFocus(mapRef.current, bounds);
         }
       }
 
@@ -888,7 +1082,7 @@ function MyMap() {
             lng: parseFloat(p.longitud),
           }),
         );
-        mapRef.current.fitBounds(bounds);
+        fitBoundsForProjectFocus(mapRef.current, bounds);
       }
 
       setLotesProyecto(lotesConPuntos);
@@ -915,14 +1109,14 @@ function MyMap() {
               lng: parseFloat(p.longitud),
             }),
           );
-          map.fitBounds(bounds);
+          fitBoundsForProjectFocus(map, bounds);
           return;
         }
 
         const lat = parseFloat(proyecto.latitud);
         const lng = parseFloat(proyecto.longitud);
         if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-          map.panTo({ lat, lng });
+          centerPointForProjectFocus(map, { lat, lng });
         }
       }, 260);
     } catch (err) {
@@ -1121,13 +1315,51 @@ function MyMap() {
           zoom={13}
           onLoad={(map) => {
             mapRef.current = map;
+            setMapZoom(map.getZoom() ?? 13);
+            map.setMapTypeId(
+              resolveMapTypeId(baseMapStyle, labelsEnabled, reliefEnabled),
+            );
+            if (mapTypeListenerRef.current) {
+              mapTypeListenerRef.current.remove();
+            }
+            mapTypeListenerRef.current = map.addListener(
+              "maptypeid_changed",
+              () => {
+                const currentType = map.getMapTypeId();
+                if (currentType === "hybrid") {
+                  setBaseMapStyle("satellite");
+                  setLabelsEnabled(true);
+                  return;
+                }
+                if (currentType === "satellite") {
+                  setBaseMapStyle("satellite");
+                  setLabelsEnabled(false);
+                  return;
+                }
+                if (currentType === "terrain") {
+                  setBaseMapStyle("roadmap");
+                  setReliefEnabled(true);
+                  return;
+                }
+                if (currentType === "roadmap") {
+                  setBaseMapStyle("roadmap");
+                  setReliefEnabled(false);
+                }
+              },
+            );
             updateBoundsFromMap();
+          }}
+          onZoomChanged={() => {
+            const nextZoom = mapRef.current?.getZoom();
+            if (Number.isFinite(nextZoom)) {
+              setMapZoom(nextZoom);
+            }
           }}
           onIdle={scheduleBoundsUpdate}
           options={{
             gestureHandling: "greedy",
             zoomControl: false,
-            mapTypeControl: true,
+            mapTypeControl: false,
             streetViewControl: false,
             fullscreenControl: true,
           }}
@@ -1185,6 +1417,7 @@ function MyMap() {
               lotes={lotesProyecto}
               selectedLote={selectedLote}
               hoveredLote={hoveredLote}
+              mapZoom={mapZoom}
               onLoteClick={handleLoteClick}
               onLoteMouseOver={setHoveredLote}
               onLoteMouseOut={() => setHoveredLote(null)}
@@ -1193,6 +1426,80 @@ function MyMap() {
 
           {directions && <DirectionsRenderer directions={directions} />}
         </GoogleMap>
+
+        <div
+          ref={mapTypeControlRef}
+          className={styles.customMapTypeControl}
+          role="group"
+          aria-label="Tipo de mapa"
+        >
+          <div className={styles.mapTypeTabs}>
+            <button
+              type="button"
+              className={`${styles.mapTypeBtn} ${baseMapStyle === "roadmap" ? styles.mapTypeBtnActive : ""}`}
+              onClick={() => handleSetBaseMapStyle("roadmap")}
+              aria-pressed={baseMapStyle === "roadmap"}
+            >
+              Mapa
+            </button>
+            <button
+              type="button"
+              className={`${styles.mapTypeBtn} ${baseMapStyle === "satellite" ? styles.mapTypeBtnActive : ""}`}
+              onClick={() => handleSetBaseMapStyle("satellite")}
+              aria-pressed={baseMapStyle === "satellite"}
+            >
+              Satelite
+            </button>
+          </div>
+
+          {mapTypeMenuFor === "roadmap" && (
+            <div className={styles.mapTypeSubMenu}>
+              <span className={styles.mapTypeSubLabel}>Relieve</span>
+              <div className={styles.mapTypeSubRow}>
+                <button
+                  type="button"
+                  className={`${styles.mapTypeSubBtn} ${reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                  onClick={() => handleSetMapRelief(true)}
+                  aria-pressed={reliefEnabled}
+                >
+                  Activado
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.mapTypeSubBtn} ${!reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                  onClick={() => handleSetMapRelief(false)}
+                  aria-pressed={!reliefEnabled}
+                >
+                  Desactivado
+                </button>
+              </div>
+            </div>
+          )}
+
+          {mapTypeMenuFor === "satellite" && (
+            <div className={styles.mapTypeSubMenu}>
+              <span className={styles.mapTypeSubLabel}>Etiquetas</span>
+              <div className={styles.mapTypeSubRow}>
+                <button
+                  type="button"
+                  className={`${styles.mapTypeSubBtn} ${labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                  onClick={() => handleSetSatelliteLabels(true)}
+                  aria-pressed={labelsEnabled}
+                >
+                  Activado
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.mapTypeSubBtn} ${!labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                  onClick={() => handleSetSatelliteLabels(false)}
+                  aria-pressed={!labelsEnabled}
+                >
+                  Desactivado
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {!selectedProyecto && !selectedLote && (
@@ -1232,7 +1539,7 @@ function MyMap() {
         </Link>
       )}
 
-      {showHintClickLote && (
+      {/* {showHintClickLote && (
         <div className={styles.clickHint} aria-live="polite">
           <div className={styles.clickHintChip}>Lotes disponibles</div>
           <div className={styles.clickHintMain}>
@@ -1242,7 +1549,7 @@ function MyMap() {
             </span>
           </div>
         </div>
-      )}
+      )} */}
 
       {selectedProyecto && (
         <ProyectoSidebar

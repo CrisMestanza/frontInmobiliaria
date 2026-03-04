@@ -1,27 +1,40 @@
 import React from "react";
 import { OverlayView } from "@react-google-maps/api";
 
-const LabelOverlay = ({ position, text }) => (
-  <OverlayView
-    position={position}
-    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-  >
-    <div
-      style={{
-        // background: "rgba(255, 255, 255, 0.8)", // ✅ Fondo blanco semi-transparente
-        // border: "1px solid #333",
-        // padding: "2px 6px",
-        width: "60px",  /* ancho */
-        height: "20px",  /* alto */
-        fontSize: "15px",
-        // borderRadius: "4px",
-        color: "black",
-        fontWeight: "bold",
-      }}
+const LabelOverlay = ({
+  position,
+  text,
+  fontSize = 12,
+  maxWidth = 120,
+  color = "#ffffff",
+}) => {
+  return (
+    <OverlayView
+      position={position}
+      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
     >
-      {text}
-    </div>
-  </OverlayView>
-);
+      <div
+        style={{
+          pointerEvents: "none",
+          transform: "translate(-50%, -50%)",
+          width: `${Math.max(40, maxWidth)}px`,
+          maxWidth: `${Math.max(40, maxWidth)}px`,
+          textAlign: "center",
+          color,
+          fontSize: `${fontSize}px`,
+          fontWeight: 800,
+          lineHeight: 1.1,
+          textShadow:
+            "0 1px 2px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.65), 0 0 14px rgba(0,0,0,0.45)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {text}
+      </div>
+    </OverlayView>
+  );
+};
 
 export default LabelOverlay;

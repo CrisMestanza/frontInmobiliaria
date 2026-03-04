@@ -130,26 +130,29 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
                 onClick={() => onViewLotes(proyecto.idproyecto)}
                 className="btn-gestionar-unidades"
                 title="Ver Lotes"
+                aria-label="Gestionar inmuebles"
               >
-                <Layers size={16} style={{ marginRight: "6px" }} />
-                Gestionar inmuebles
+                <Layers size={16} />
+                <span className="btn-action-text">Gestionar inmuebles</span>
               </button>
 
               <button
                 onClick={() => onEdit(proyecto.idproyecto)}
                 className="btn-gestionar-unidades"
                 title="Editar"
+                aria-label="Editar proyecto"
               >
                 <Edit size={16} />
-                Editar
+                <span className="btn-action-text">Editar</span>
               </button>
               <button
                 onClick={() => onIcon(proyecto.idproyecto)}
                 className="btn-gestionar-unidades"
                 title="Íconos"
+                aria-label="Agregar iconos"
               >
                 <MapPlus size={16} />
-                Agregar iconos
+                <span className="btn-action-text">Agregar iconos</span>
               </button>
             </div>
             <button

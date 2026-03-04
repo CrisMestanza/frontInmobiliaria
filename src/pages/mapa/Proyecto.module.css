@@ -150,6 +150,44 @@
   gap: 10px;
 }
 
+.mobileSingleWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.mobileSingleImage {
+  width: min(84%, 320px);
+  height: 176px;
+  object-fit: cover;
+  border-radius: 16px;
+  cursor: zoom-in;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+}
+
+.mobileDualTrack {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.mobileDualItem {
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mobileDualImage {
+  width: 100%;
+  height: 156px;
+  object-fit: cover;
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.14);
+}
+
 .mobileMainImage {
   width: 100%;
   height: 170px;
@@ -964,4 +1002,84 @@
   }
 
 
+}
+
+/* Dark mode hardening for project sidebar */
+[data-theme="dark"] .sidebar {
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+  border-color: var(--theme-border-color);
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.55);
+}
+
+[data-theme="dark"] .closeBtn,
+[data-theme="dark"] .mobileHeaderClose {
+  background: var(--theme-bg-soft);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
+}
+
+[data-theme="dark"] .mobileTopHeader {
+  background: var(--theme-bg-surface);
+  border-bottom: 1px solid var(--theme-border-color);
+}
+
+[data-theme="dark"] .mobileHeaderTitle,
+[data-theme="dark"] .nombreProyecto,
+[data-theme="dark"] .inmoName,
+[data-theme="dark"] .priceValue,
+[data-theme="dark"] .qBadge strong,
+[data-theme="dark"] .sectionTitle,
+[data-theme="dark"] .scrollHint {
+  color: var(--theme-text-main);
+}
+
+[data-theme="dark"] .proyectoP,
+[data-theme="dark"] .inmoLabel,
+[data-theme="dark"] .inmoDescription,
+[data-theme="dark"] .fullDescription,
+[data-theme="dark"] .labelSmall,
+[data-theme="dark"] .qBadge span,
+[data-theme="dark"] .mobileMetricUnit,
+[data-theme="dark"] .loteDesc,
+[data-theme="dark"] .noImage {
+  color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .imageSection,
+[data-theme="dark"] .priceContainer,
+[data-theme="dark"] .qBadge,
+[data-theme="dark"] .fItem,
+[data-theme="dark"] .distanciaBox,
+[data-theme="dark"] .socialFooter a,
+[data-theme="dark"] .mobileSocialRow a,
+[data-theme="dark"] .noImage {
+  background: var(--theme-bg-soft);
+  border-color: var(--theme-border-color);
+}
+
+[data-theme="dark"] .inmoCard {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--theme-bg-surface) 88%, #111827),
+    color-mix(in srgb, var(--theme-bg-soft) 92%, #0b1220)
+  );
+  border: 1px solid var(--theme-border-color);
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.45);
+}
+
+[data-theme="dark"] .legalLabel {
+  background: color-mix(in srgb, #10b981 18%, var(--theme-bg-soft));
+  color: #86efac;
+}
+
+[data-theme="dark"] .imageBadge {
+  background: rgba(2, 6, 23, 0.72);
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .navArrow {
+  background: color-mix(in srgb, var(--theme-bg-surface) 88%, #1e293b);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border-color);
 }

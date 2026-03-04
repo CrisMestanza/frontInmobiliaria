@@ -509,8 +509,47 @@ const ProyectoSidebar = ({
           <div className={styles.imageSection}>
             {isMobileView ? (
               <div className={styles.mobileCarouselWrap}>
-                <div className={styles.mobileCarouselTrack}>
-                  {validImages.length > 1 && (
+                {validImages.length === 1 && (
+                  <div className={styles.mobileSingleWrap}>
+                    <img
+                      key={currentImg}
+                      src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
+                      alt="Propiedad"
+                      className={styles.mobileSingleImage}
+                      onClick={() => setFullscreenImgIndex(currentImg)}
+                    />
+                  </div>
+                )}
+
+                {validImages.length === 2 && (
+                  <div className={styles.mobileDualTrack}>
+                    <button
+                      className={styles.mobileDualItem}
+                      onClick={() => setFullscreenImgIndex(0)}
+                      aria-label="Ver imagen 1"
+                    >
+                      <img
+                        src={withApiBase(`https://api.geohabita.com${validImages[0].imagenproyecto}`)}
+                        alt="Imagen 1"
+                        className={styles.mobileDualImage}
+                      />
+                    </button>
+                    <button
+                      className={styles.mobileDualItem}
+                      onClick={() => setFullscreenImgIndex(1)}
+                      aria-label="Ver imagen 2"
+                    >
+                      <img
+                        src={withApiBase(`https://api.geohabita.com${validImages[1].imagenproyecto}`)}
+                        alt="Imagen 2"
+                        className={styles.mobileDualImage}
+                      />
+                    </button>
+                  </div>
+                )}
+
+                {validImages.length >= 3 && (
+                  <div className={styles.mobileCarouselTrack}>
                     <button
                       className={`${styles.mobileSideSlide} ${styles.mobileSideLeft}`}
                       onClick={prevSlide}
@@ -522,15 +561,13 @@ const ProyectoSidebar = ({
                         className={styles.mobileSideImage}
                       />
                     </button>
-                  )}
-                  <img
-                    key={currentImg}
-                    src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
-                    alt="Propiedad"
-                    className={styles.mobileMainImage}
-                    onClick={() => setFullscreenImgIndex(currentImg)}
-                  />
-                  {validImages.length > 1 && (
+                    <img
+                      key={currentImg}
+                      src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
+                      alt="Propiedad"
+                      className={styles.mobileMainImage}
+                      onClick={() => setFullscreenImgIndex(currentImg)}
+                    />
                     <button
                       className={`${styles.mobileSideSlide} ${styles.mobileSideRight}`}
                       onClick={nextSlide}
@@ -542,18 +579,21 @@ const ProyectoSidebar = ({
                         className={styles.mobileSideImage}
                       />
                     </button>
-                  )}
-                </div>
-                <div className={styles.mobileDots}>
-                  {validImages.map((_, idx) => (
-                    <button
-                      key={`dot-${idx}`}
-                      className={`${styles.mobileDot} ${idx === currentImg ? styles.mobileDotActive : ""}`}
-                      onClick={() => setCurrentImg(idx)}
-                      aria-label={`Ir a imagen ${idx + 1}`}
-                    />
-                  ))}
-                </div>
+                  </div>
+                )}
+
+                {validImages.length >= 3 && (
+                  <div className={styles.mobileDots}>
+                    {validImages.map((_, idx) => (
+                      <button
+                        key={`dot-${idx}`}
+                        className={`${styles.mobileDot} ${idx === currentImg ? styles.mobileDotActive : ""}`}
+                        onClick={() => setCurrentImg(idx)}
+                        aria-label={`Ir a imagen ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <>
