@@ -34,11 +34,14 @@ const LoginLayout = () => {
 
     setLoading(true);
     try {
-      const res = await fetch(withApiBase("https://api.geohabita.com/api/login/"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo, password }),
-      });
+      const res = await fetch(
+        withApiBase("https://api.geohabita.com/api/login/"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ correo, password }),
+        },
+      );
 
       const data = await res.json();
       if (res.ok) {
@@ -154,8 +157,8 @@ const LoginLayout = () => {
               <div className="inmo-login-field">
                 <div className="inmo-login-label-row">
                   <label className="inmo-login-label">Contraseña</label>
-                  <a href="#" className="inmo-login-link-sm">
-                    Olvidó su Contraseña? Contactar a 916 762 676
+                  <a href="/recovery" className="inmo-login-link-sm">
+                    Olvidaste tu Contraseña?
                   </a>
                 </div>
                 <div className="inmo-login-input-wrapper">

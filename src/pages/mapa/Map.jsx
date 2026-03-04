@@ -522,6 +522,14 @@ function MyMap() {
       : "https://cdn-icons-png.freepik.com/512/11130/11130373.png";
   };
 
+  const isSelectedProjectCasa = useMemo(() => {
+    if (!selectedProyecto) return false;
+    if (filtroBotActivo) return selectedProyecto.iconoTipo === "casa";
+    const tipoInmo = Number(selectedProyecto.idtipoinmobiliaria);
+    const estado = Number(selectedProyecto.estado);
+    return !(estado === 1 && tipoInmo === 1);
+  }, [selectedProyecto, filtroBotActivo]);
+
   const visibleProyectos = useMemo(() => {
     const filtered = proyecto.filter((p) => {
       if (
@@ -1124,6 +1132,45 @@ function MyMap() {
     }
   };
 
+  useEffect(() => {
+    if (!isLoaded || !selectedProyecto || !isMobile()) return;
+    const map = mapRef.current;
+    if (!map || !window.google?.maps) return;
+
+    const t = setTimeout(() => {
+      window.google.maps.event.trigger(map, "resize");
+
+      if (puntos.length > 0) {
+        const bounds = new window.google.maps.LatLngBounds();
+        puntos.forEach((p) =>
+          bounds.extend({
+            lat: parseFloat(p.latitud),
+            lng: parseFloat(p.longitud),
+          }),
+        );
+        fitBoundsForProjectFocus(map, bounds);
+        return;
+      }
+
+      const lat = parseFloat(selectedProyecto.latitud);
+      const lng = parseFloat(selectedProyecto.longitud);
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        centerPointForProjectFocus(map, { lat, lng });
+      }
+    }, 140);
+
+    return () => clearTimeout(t);
+  }, [
+    isLoaded,
+    selectedProyecto,
+    puntos,
+    baseMapStyle,
+    labelsEnabled,
+    reliefEnabled,
+    fitBoundsForProjectFocus,
+    centerPointForProjectFocus,
+  ]);
+
   // ✅ FIX: Initialize Autocomplete only when Google Maps is fully loaded
   useEffect(() => {
     if (!isLoaded || !inputRef.current || autocompleteRef.current) return;
@@ -1402,12 +1449,16 @@ function MyMap() {
           {puntos.length > 0 && (
             <PolygonOverlay
               puntos={puntos}
-              color="#106e2eff"
+              color={isSelectedProjectCasa ? "#00e5ff" : "#106e2eff"}
               showLados={false}
               options={{
                 clickable: false,
                 fillColor: "transparent",
-                strokeWeight: 2,
+                strokeWeight: isSelectedProjectCasa ? 3.6 : 2,
+                strokeOpacity: isSelectedProjectCasa ? 0.95 : 0.9,
+                haloColor: isSelectedProjectCasa ? "#7cf8ff" : undefined,
+                haloOpacity: isSelectedProjectCasa ? 0.5 : undefined,
+                haloWeight: isSelectedProjectCasa ? 8 : undefined,
               }}
             />
           )}
@@ -1504,7 +1555,7 @@ function MyMap() {
 
       {!selectedProyecto && !selectedLote && (
         <Link
-          to="/login"
+          to="/inicio"
           className={styles.mobileAnunciaPropiedad}
           style={{ width: `${anuncioButtonWidthPx}px` }}
         >

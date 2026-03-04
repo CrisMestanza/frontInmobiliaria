@@ -5,6 +5,7 @@ import Register from "./pages/registro/Registro.jsx";
 import PanelInmo from "./pages/panel/PanelInmo.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
 import GeoHabita from "./pages/landing/Landing.jsx";
+import GeoHabitaRecovery from "./pages/recovery/Recovery.jsx";
 function App() {
   return (
     <BrowserRouter>
@@ -16,6 +17,7 @@ function App() {
         <Route path="/login" element={<LoginLayout />} />
         <Route path="/register" element={<Register />} />
         <Route path="/inicio" element={<GeoHabita />} />
+        <Route path="/recovery" element={<GeoHabitaRecovery />} />
         <Route
           path="/dashboard"
           element={
