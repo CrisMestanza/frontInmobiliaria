@@ -341,6 +341,38 @@
   box-shadow: 0 0 0 3px rgba(6, 249, 87, 0.12);
 }
 
+.url-prefix-group {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-radius: 11px;
+  border: 1px solid var(--reg-border-soft);
+  background: var(--reg-surface-2);
+  overflow: hidden;
+}
+
+.url-prefix-group .url-prefix {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  color: #caffdb;
+  background: rgba(6, 249, 87, 0.12);
+  border-right: 1px solid var(--reg-border-soft);
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.url-prefix-group input {
+  border: none;
+  background: transparent;
+  color: var(--reg-text);
+  padding: 10px 12px;
+}
+
+.url-prefix-group:focus-within {
+  border-color: var(--reg-green);
+  box-shadow: 0 0 0 3px rgba(6, 249, 87, 0.12);
+}
+
 .password-input-wrapper {
   position: relative;
   width: 100%;

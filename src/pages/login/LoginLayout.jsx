@@ -1,12 +1,14 @@
 import { withApiBase } from "../../config/api.js";
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./Login.css";
 import { Link } from "react-router-dom";
 const LoginLayout = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const registrationNotice = location?.state?.registrationNotice || "";
 
   const parseErrorMessage = (data) => {
     if (!data) return "Credenciales incorrectas";
@@ -132,6 +134,9 @@ const LoginLayout = () => {
             </div>
 
             <div className="inmo-login-header-text">
+              {registrationNotice ? (
+                <div className="inmo-login-notice">{registrationNotice}</div>
+              ) : null}
               <h1 className="inmo-login-title">Bienvenido</h1>
               <p className="inmo-login-subtitle">
                 Ingresa tus credenciales para acceder a tu Panel Administrativo

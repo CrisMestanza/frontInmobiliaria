@@ -7,9 +7,11 @@ import PrivateRoute from "./components/PrivateRoute.jsx";
 import GeoHabita from "./pages/landing/Landing.jsx";
 import GeoHabitaRecovery from "./pages/recovery/Recovery.jsx";
 import ActivateAccount from "./pages/activation/ActivateAccount.jsx";
+import GlobalAlertOverlay from "./components/ui/GlobalAlertOverlay.jsx";
 function App() {
   return (
     <BrowserRouter>
+      <GlobalAlertOverlay />
       <Routes>
         {/* <Route path="/agregar" element={<InmobiliariaForm />} /> */}
         {/* <Route path="/lotes/:idproyecto" element={<LotesList />} />

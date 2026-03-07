@@ -162,6 +162,17 @@
   color: #ffffff;
 }
 
+.inmo-login-notice {
+  margin-bottom: 1rem;
+  border: 1px solid rgba(6, 249, 87, 0.35);
+  background: rgba(6, 249, 87, 0.12);
+  color: #d6ffe4;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .inmo-login-subtitle {
   color: var(--inmo-text-muted);
   font-size: 1.1rem;

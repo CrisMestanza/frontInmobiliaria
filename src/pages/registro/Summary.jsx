@@ -3,9 +3,16 @@ import { withApiBase } from "../../config/api.js";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Summary.css";
+
+const composePhone = (countryCode, number) => {
+  const cc = (countryCode || "").replace(/\D/g, "");
+  const digits = (number || "").replace(/\D/g, "");
+  if (!cc || !digits) return digits;
+  return `+${cc}${digits}`;
+};
+
 const Summary = ({ onBack, formData }) => {
   const [loading, setLoading] = useState(false);
-  const [serverMessage, setServerMessage] = useState("");
   const navigate = useNavigate();
 
   const parseError = (data) => {
@@ -29,7 +36,6 @@ const Summary = ({ onBack, formData }) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    setServerMessage("");
 
     const payload = {
       usuario: {
@@ -39,7 +45,7 @@ const Summary = ({ onBack, formData }) => {
         estado: 0,
       },
       nombreinmobiliaria: formData.companyName,
-      telefono: formData.phoneNumber,
+      telefono: composePhone(formData.whatsappCountryCode, formData.phoneNumber),
       RUC: formData.companyRuc,
       correo: formData.email,
       descripcion: formData.descripcion,
@@ -62,10 +68,15 @@ const Summary = ({ onBack, formData }) => {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        setServerMessage(
-          data?.message ||
-            "Tu cuenta fue creada. Revisa tu correo para activarla.",
-        );
+        const correoUsuario = formData.correo || "tu correo";
+        navigate("/login", {
+          replace: true,
+          state: {
+            registrationNotice:
+              data?.message ||
+              `Tu cuenta fue registrada. Para activarla, te enviamos un enlace al correo ${correoUsuario}.`,
+          },
+        });
       } else {
         alert(parseError(data));
       }
@@ -141,17 +152,7 @@ const Summary = ({ onBack, formData }) => {
         >
           {loading ? "Registrando..." : "Registrarme"}
         </button>
-        {serverMessage ? (
-          <button
-            type="button"
-            className="next-btn"
-            onClick={() => navigate("/login")}
-          >
-            Ir a iniciar sesión
-          </button>
-        ) : null}
       </div>
-      {serverMessage ? <p>{serverMessage}</p> : null}
     </div>
   );
 };
