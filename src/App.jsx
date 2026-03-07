@@ -6,6 +6,7 @@ import PanelInmo from "./pages/panel/PanelInmo.jsx";
 import PrivateRoute from "./components/PrivateRoute.jsx";
 import GeoHabita from "./pages/landing/Landing.jsx";
 import GeoHabitaRecovery from "./pages/recovery/Recovery.jsx";
+import ActivateAccount from "./pages/activation/ActivateAccount.jsx";
 function App() {
   return (
     <BrowserRouter>
@@ -18,6 +19,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/inicio" element={<GeoHabita />} />
         <Route path="/recovery" element={<GeoHabitaRecovery />} />
+        <Route path="/activar-cuenta" element={<ActivateAccount />} />
         <Route
           path="/dashboard"
           element={

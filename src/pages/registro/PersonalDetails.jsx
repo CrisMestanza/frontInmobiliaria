@@ -3,6 +3,7 @@ import React, { useState } from "react";
 
 const PersonalDetails = ({ onNext, formData }) => {
   const [data, setData] = useState(formData);
+  const phoneDigits = (data.phoneNumber || "").replace(/\D/g, "");
   const isFormValid = data.companyName && data.phoneNumber && data.email;
 
   const handleChange = (e) => {
@@ -63,8 +64,15 @@ const PersonalDetails = ({ onNext, formData }) => {
             onChange={handleChange}
             placeholder="987654321"
             className="phone-number"
+            required
+            minLength={7}
+            maxLength={15}
+            pattern="^[0-9]{7,15}$"
           />
         </div>
+        {phoneDigits.length > 0 && (phoneDigits.length < 7 || phoneDigits.length > 15) ? (
+          <span className="error-message">Ingresa un número válido (7 a 15 dígitos).</span>
+        ) : null}
       </div>
       <div className="form-row">
         <label htmlFor="email">Correo Electrónico</label>

@@ -38,6 +38,14 @@ const UserDetails = ({ onNext, onBack, formData }) => {
     return "";
   };
 
+  const checkRealName = (name) => {
+    const clean = (name || "").trim();
+    if (clean.length < 5) return "Ingresa tu nombre completo real";
+    const parts = clean.match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,}/g) || [];
+    if (parts.length < 2) return "Debes ingresar al menos nombre y apellido";
+    return "";
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     const newData = { ...data, [name]: value };
@@ -46,7 +54,7 @@ const UserDetails = ({ onNext, onBack, formData }) => {
     const newErrors = { ...errors };
 
     if (name === "nombre") {
-      newErrors.nombre = value ? "" : "El nombre es requerido";
+      newErrors.nombre = checkRealName(value);
     }
 
     if (name === "correo") {

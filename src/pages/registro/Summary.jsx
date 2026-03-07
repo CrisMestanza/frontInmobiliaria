@@ -4,17 +4,39 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Summary.css";
 const Summary = ({ onBack, formData }) => {
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverMessage, setServerMessage] = useState("");
   const navigate = useNavigate();
+
+  const parseError = (data) => {
+    if (!data) return "No se pudo completar el registro.";
+    if (typeof data.message === "string") return data.message;
+    const firstKey = Object.keys(data)[0];
+    if (!firstKey) return "No se pudo completar el registro.";
+    const value = data[firstKey];
+    if (typeof value === "string") return value;
+    if (Array.isArray(value) && value.length) return value[0];
+    if (value && typeof value === "object") {
+      const nestedKey = Object.keys(value)[0];
+      const nestedValue = value[nestedKey];
+      if (Array.isArray(nestedValue) && nestedValue.length) return nestedValue[0];
+      if (typeof nestedValue === "string") return nestedValue;
+    }
+    return "No se pudo completar el registro.";
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    setServerMessage("");
 
     const payload = {
       usuario: {
         correo: formData.correo,
         password: formData.password,
         nombre: formData.nombre,
-        estado: 1,
+        estado: 0,
       },
       nombreinmobiliaria: formData.companyName,
       telefono: formData.phoneNumber,
@@ -35,18 +57,23 @@ const Summary = ({ onBack, formData }) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        }
+        },
       );
+      const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        alert("Registro exitoso!");
-        navigate("/login");
+        setServerMessage(
+          data?.message ||
+            "Tu cuenta fue creada. Revisa tu correo para activarla.",
+        );
       } else {
-        alert("Error al registrar. Revisa la consola.");
+        alert(parseError(data));
       }
     } catch (error) {
       console.error("❌ Error de red:", error);
       alert("Error de conexión con el servidor");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -114,7 +141,17 @@ const Summary = ({ onBack, formData }) => {
         >
           {loading ? "Registrando..." : "Registrarme"}
         </button>
+        {serverMessage ? (
+          <button
+            type="button"
+            className="next-btn"
+            onClick={() => navigate("/login")}
+          >
+            Ir a iniciar sesión
+          </button>
+        ) : null}
       </div>
+      {serverMessage ? <p>{serverMessage}</p> : null}
     </div>
   );
 };
