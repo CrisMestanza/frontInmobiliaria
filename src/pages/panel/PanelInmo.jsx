@@ -1,6 +1,6 @@
 import { withApiBase } from "../../config/api.js";
 import { authFetch } from "../../config/authFetch.js";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./PanelInmo.css";
 import {
   PlusCircle,
@@ -187,6 +187,7 @@ const PanelInmo = () => {
   const [showLotes, setShowLotes] = useState(false);
   const [showModalEditProyecto, setShowModalEditProyecto] = useState(false);
   const [showIconoModal, setShowIconoModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
   const tutorialScrollRef = useRef(null);
   const [tutorialScroll, setTutorialScroll] = useState({
     left: false,
@@ -353,8 +354,6 @@ const PanelInmo = () => {
   };
 
   const handleDeleteProyecto = async (idproyecto) => {
-    if (!window.confirm("¿Seguro que deseas eliminar este proyecto?")) return;
-
     try {
       const res = await authFetch(
         withApiBase(
@@ -367,17 +366,19 @@ const PanelInmo = () => {
       );
 
       if (!res.ok) {
-        alert("No se pudo eliminar el proyecto ❌");
+        window.alertError?.("No se pudo eliminar el proyecto ❌");
         return;
       }
 
       setProyectos((prev) => prev.filter((p) => p.idproyecto !== idproyecto));
       setLotes((prev) => prev.filter((l) => l.idproyecto !== idproyecto));
-      alert("Proyecto eliminado ✅");
+      window.alertSuccess?.("Proyecto eliminado ✅");
       fetchData();
     } catch (err) {
       console.error("Error eliminando proyecto:", err);
-      alert("Error de red al eliminar proyecto 🚫");
+      window.alertError?.("Error de red al eliminar proyecto 🚫");
+    } finally {
+      setProjectToDelete(null);
     }
   };
 
@@ -388,6 +389,13 @@ const PanelInmo = () => {
     { nombre: "Facebook", icono: <FaFacebook color="#1877f2" /> },
     { nombre: "Web", icono: <FaGlobe color="#0077b6" /> },
   ];
+  const totalLotes = lotes.length;
+  const totalContactos = clicks?.total_clicks_contactos || 0;
+  const totalInteres = clicks?.total_clicks_proyectos || 0;
+  const engagementRate = useMemo(() => {
+    if (!proyectos.length) return 0;
+    return Math.round((totalContactos / proyectos.length) * 10) / 10;
+  }, [totalContactos, proyectos.length]);
 
   return (
     <div className="panel-inmo-container">
@@ -418,6 +426,30 @@ const PanelInmo = () => {
       </header>
 
       <main className="dashboard-content">
+        <section className="dashboard-hero-card">
+          <div className="dashboard-hero-copy">
+            <p className="dashboard-hero-eyebrow">Panel Comercial</p>
+            <h2>Impulsa tus conversiones con una vista clara del negocio</h2>
+            <p>
+              Monitorea inventario, interés y contactos en tiempo real para
+              tomar decisiones más rápidas.
+            </p>
+          </div>
+          <div className="dashboard-hero-metrics">
+            <div className="hero-metric">
+              <span className="hero-metric-label">Inventario total</span>
+              <strong>{totalLotes}</strong>
+            </div>
+            <div className="hero-metric">
+              <span className="hero-metric-label">Interacciones</span>
+              <strong>{totalInteres}</strong>
+            </div>
+            <div className="hero-metric">
+              <span className="hero-metric-label">Contactos / proyecto</span>
+              <strong>{engagementRate}</strong>
+            </div>
+          </div>
+        </section>
         {/* {Videos} */}
         <div className="tutorial-section">
           <h3 className="tutorial-title">
@@ -477,7 +509,7 @@ const PanelInmo = () => {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(mapUrl);
-                  alert("Copiado");
+                  window.alertSuccess?.("Copiado");
                 }}
                 className="btn-copy share-action-btn"
               >
@@ -493,13 +525,13 @@ const PanelInmo = () => {
                         text: "Accede a mis proyectos en GeoHabita",
                         url: mapUrl,
                       })
-                      .then(() => alert("Enlace compartido"))
+                      .then(() => window.alertSuccess?.("Enlace compartido"))
                       .catch((error) =>
                         console.log("Error al compartir:", error),
                       );
                   } else {
                     navigator.clipboard.writeText(mapUrl);
-                    alert(
+                    window.alertInfo?.(
                       "El navegador no soporta compartir. Enlace copiado al portapapeles.",
                     );
                   }
@@ -606,7 +638,7 @@ const PanelInmo = () => {
                 onViewLotes={setShowLotes}
                 onEdit={setShowModalEditProyecto}
                 onIcon={setShowIconoModal}
-                onDelete={handleDeleteProyecto}
+                onDelete={setProjectToDelete}
               />
             ))}
           </div>
@@ -709,6 +741,38 @@ const PanelInmo = () => {
           onClose={() => setShowIconoModal(false)}
           idproyecto={showIconoModal}
         />
+      )}
+      {projectToDelete && (
+        <div
+          className="confirm-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setProjectToDelete(null);
+          }}
+        >
+          <div className="confirm-card" role="dialog" aria-modal="true">
+            <h3>Eliminar proyecto</h3>
+            <p>
+              Esta acción eliminará el proyecto y sus datos relacionados. No se
+              puede deshacer.
+            </p>
+            <div className="confirm-actions">
+              <button
+                type="button"
+                className="confirm-btn confirm-btn-cancel"
+                onClick={() => setProjectToDelete(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="confirm-btn confirm-btn-danger"
+                onClick={() => handleDeleteProyecto(projectToDelete)}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

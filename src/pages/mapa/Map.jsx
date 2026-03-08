@@ -200,14 +200,13 @@ function MyMap() {
   const [proyecto, setProyecto] = useState([]);
   const [selectedProyecto, setselectedProyecto] = useState(null);
   const [lotesProyecto, setLotesProyecto] = useState([]);
-  const [lotes, setLotes] = useState([]);
+  const [lotesProyectoBase, setLotesProyectoBase] = useState([]);
   const [selectedLote, setSelectedLote] = useState(null);
   const [routeMode, setRouteMode] = useState(null);
   const [directions, setDirections] = useState(null);
   const [imagenesProyecto, setImagenesProyecto] = useState([]);
   const [imagenesLote, setImagenesLote] = useState([]);
   const [puntos, setPuntos] = useState([]);
-  const [showHintClickLote, setShowHintClickLote] = useState(false);
 
   const [showFilters, setShowFilters] = useState(false);
   const [hoveredLote, setHoveredLote] = useState(null);
@@ -242,10 +241,12 @@ function MyMap() {
     typeof window !== "undefined" ? (window.innerWidth <= 550 ? 66 : 80) : 80,
   );
   const cacheRef = useRef({
-    lotes: new Map(),
-    puntos: new Map(),
-    inmo: new Map(),
-    iconos: new Map(),
+    mapProjects: new Map(),
+    projectDetail: new Map(),
+  });
+  const inflightRef = useRef({
+    mapProjects: new Map(),
+    projectDetail: new Map(),
   });
   // const inmoId = null;
   const { inmoId } = useParams();
@@ -342,49 +343,61 @@ function MyMap() {
     writeSessionCache(getCacheKey(prefix, id), data);
   };
 
-  const loadLotesConPuntos = async (id) => {
-    const cached = getCached("lotes", id, "lotes");
-    if (cached) return cached;
-    const res = await fetch(
-      withApiBase(`https://api.geohabita.com/api/getLotesConPuntos/${id}`),
-    );
-    const data = await res.json();
-    setCached("lotes", id, "lotes", data);
-    return data;
+  const loadMapProjects = async ({ tipo = "", rango = "", inmo = "", signal } = {}) => {
+      const query = new URLSearchParams();
+      if (tipo) query.set("tipo", String(tipo));
+      if (rango) query.set("rango", String(rango));
+      if (inmo) query.set("inmo", String(inmo));
+      const cacheKey = query.toString() || "all";
+      const cached = getCached("mapProjects", cacheKey, "map_projects");
+      if (cached) return cached;
+
+      const inflight = inflightRef.current.mapProjects.get(cacheKey);
+      if (inflight) return inflight;
+
+      const url = withApiBase(
+        `https://api.geohabita.com/api/mapa/proyectos/${query.toString() ? `?${query.toString()}` : ""}`,
+      );
+      const request = fetch(url, { signal })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          const normalized = Array.isArray(data) ? data : [];
+          setCached("mapProjects", cacheKey, "map_projects", normalized);
+          return normalized;
+        })
+        .finally(() => {
+          inflightRef.current.mapProjects.delete(cacheKey);
+        });
+
+      inflightRef.current.mapProjects.set(cacheKey, request);
+      return request;
   };
 
-  const loadPuntosProyecto = async (id) => {
-    const cached = getCached("puntos", id, "puntos");
-    if (cached) return cached;
-    const res = await fetch(
-      withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${id}`),
-    );
-    const data = await res.json();
-    setCached("puntos", id, "puntos", data);
-    return data;
-  };
+  const loadProyectoDetalle = async (idproyecto) => {
+      const cached = getCached("projectDetail", idproyecto, "project_detail");
+      if (cached) return cached;
 
-  const loadInmobiliaria = async (idInmo, idProyecto) => {
-    const cacheKey = `${idProyecto}_${idInmo}`;
-    const cached = getCached("inmo", cacheKey, "inmo");
-    if (cached) return cached;
-    const res = await fetch(
-      withApiBase(`https://api.geohabita.com/api/getInmobiliaria/${idInmo}`),
-    );
-    const data = await res.json();
-    setCached("inmo", cacheKey, "inmo", data);
-    return data;
-  };
+      const inflight = inflightRef.current.projectDetail.get(idproyecto);
+      if (inflight) return inflight;
 
-  const loadIconosProyecto = async (id) => {
-    const cached = getCached("iconos", id, "iconos");
-    if (cached) return cached;
-    const res = await fetch(
-      withApiBase(`https://api.geohabita.com/api/list_iconos_proyecto/${id}`),
-    );
-    const data = await res.json();
-    setCached("iconos", id, "iconos", data);
-    return data;
+      const url = withApiBase(
+        `https://api.geohabita.com/api/mapa/proyecto_detalle/${idproyecto}/`,
+      );
+      const request = fetch(url)
+        .then((res) => {
+          if (!res.ok) throw new Error("No se pudo cargar detalle de proyecto");
+          return res.json();
+        })
+        .then((data) => {
+          setCached("projectDetail", idproyecto, "project_detail", data);
+          return data;
+        })
+        .finally(() => {
+          inflightRef.current.projectDetail.delete(idproyecto);
+        });
+
+      inflightRef.current.projectDetail.set(idproyecto, request);
+      return request;
   };
 
   const updateBoundsFromMap = useCallback(() => {
@@ -632,40 +645,53 @@ function MyMap() {
     );
   }, [hasSearchedLocation, inmoId]);
 
-  useEffect(() => {
-    if (selectedProyecto && lotesProyecto.length > 0) {
-      setShowHintClickLote(true);
-    }
-  }, [selectedProyecto, lotesProyecto]);
+  const filterLotesByRango = useCallback((lotesSource, rango) => {
+    if (!rango) return lotesSource;
+    const [min, max] = String(rango).split("-").map(Number);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return lotesSource;
+    return lotesSource.filter((l) => {
+      const price = Number(l?.precio);
+      return Number.isFinite(price) && price >= min && price <= max;
+    });
+  }, []);
 
   useEffect(() => {
-    if (inmoId) {
-      setSelectedTipo("");
-      setSelectedRango("");
-      setFiltroBotActivo(false);
+    const controller = new AbortController();
 
-      const apiUrl = withApiBase(
-        `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`,
-      );
-
-      fetch(apiUrl)
-        .then((res) => res.json())
-        .then((data) => {
+    const run = async () => {
+      try {
+        const data = await loadMapProjects({
+          tipo: selectedTipo || "",
+          rango: selectedRango || "",
+          inmo: inmoId || "",
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
           setProyecto(data);
           if (data.length > 0 && mapRef.current && window.google?.maps) {
             const bounds = new window.google.maps.LatLngBounds();
-            data.forEach((p) =>
-              bounds.extend({
-                lat: parseFloat(p.latitud),
-                lng: parseFloat(p.longitud),
-              }),
-            );
-            mapRef.current.fitBounds(bounds);
+            data.forEach((p) => {
+              const lat = parseFloat(p.latitud);
+              const lng = parseFloat(p.longitud);
+              if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+                bounds.extend({ lat, lng });
+              }
+            });
+            if (!bounds.isEmpty()) {
+              mapRef.current.fitBounds(bounds);
+            }
           }
-        })
-        .catch(console.error);
-    }
-  }, [inmoId, isLoaded]);
+        }
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          console.error("Error cargando marcadores de mapa:", error);
+        }
+      }
+    };
+
+    run();
+    return () => controller.abort();
+  }, [selectedTipo, selectedRango, inmoId]);
 
   useEffect(() => {
     if (selectedLote) {
@@ -699,48 +725,8 @@ function MyMap() {
 
   useEffect(() => {
     if (!selectedProyecto) return;
-
-    const cargarLotes = async () => {
-      // UNA sola llamada (con cache)
-      const data = await loadLotesConPuntos(selectedProyecto.idproyecto);
-
-      // 👉 Si hay filtros, filtras en memoria (rápido)
-      let lotesFiltrados = data;
-
-      // 🔥 AQUÍ ESTÁ LA CLAVE
-      if (selectedRango) {
-        const [min, max] = selectedRango.split("-").map(Number);
-
-        lotesFiltrados = data.filter((l) => l.precio >= min && l.precio <= max);
-      }
-
-      setLotesProyecto(lotesFiltrados);
-    };
-
-    cargarLotes().catch(console.error);
-  }, [selectedProyecto, selectedRango, filtroBotActivo]);
-
-  useEffect(() => {
-    if (!proyecto?.length || selectedProyecto) return;
-
-    const ids = proyecto
-      .slice(0, 3)
-      .map((p) => p.idproyecto)
-      .filter(Boolean);
-
-    if (!ids.length) return;
-
-    const prefetch = async () => {
-      await Promise.allSettled(
-        ids.map((id) =>
-          Promise.all([loadLotesConPuntos(id), loadPuntosProyecto(id)]),
-        ),
-      );
-    };
-
-    const t = setTimeout(prefetch, 300);
-    return () => clearTimeout(t);
-  }, [proyecto, selectedProyecto]);
+    setLotesProyecto(filterLotesByRango(lotesProyectoBase, selectedRango));
+  }, [selectedProyecto, selectedRango, lotesProyectoBase, filterLotesByRango]);
 
   useEffect(() => {
     fetch(withApiBase("https://api.geohabita.com/api/listTipoInmobiliaria/"))
@@ -777,75 +763,12 @@ function MyMap() {
   };
 
   useEffect(() => {
-    if (inmoId) return;
-    if (selectedTipo) {
-      const tipo = tiposInmo.find((t) => t.idtipoinmobiliaria === selectedTipo);
-
-      if (tipo) {
-        if (tipo.idtipoinmobiliaria === 2) {
-          fetch(
-            withApiBase(
-              `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
-            ),
-          )
-            .then((res) => res.json())
-            .then((data) => {
-              setProyecto(data);
-            })
-            .catch(console.error);
-        } else if (tipo.idtipoinmobiliaria === 1) {
-          fetch(
-            withApiBase(
-              `https://api.geohabita.com/api/filtroCasaProyecto/${selectedTipo}`,
-            ),
-          )
-            .then((res) => res.json())
-            .then((data) => {
-              setProyecto(data);
-            })
-            .catch(console.error);
-        }
-      }
-    } else if (selectedRango) {
-      fetch(
-        withApiBase(
-          `https://api.geohabita.com/api/rangoPrecio/${selectedRango}`,
-        ),
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          setLotes(data.lotes || []);
-
-          const proyectosUnicos = [];
-          const ids = new Set();
-          data.lotes.forEach((lote) => {
-            const p = lote.proyectos;
-            if (p && !ids.has(p.idproyecto)) {
-              ids.add(p.idproyecto);
-              proyectosUnicos.push(p);
-            }
-          });
-
-          if (Array.isArray(data.proyectos)) {
-            data.proyectos.forEach((p) => {
-              if (!ids.has(p.idproyecto)) {
-                ids.add(p.idproyecto);
-                proyectosUnicos.push(p);
-              }
-            });
-          }
-
-          setProyecto(proyectosUnicos);
-          console.log(proyectosUnicos);
-        })
-        .catch(console.error);
-    } else {
-      fetch(withApiBase("https://api.geohabita.com/api/listProyectos/"))
-        .then((res) => res.json())
-        .then(setProyecto)
-        .catch(console.error);
+    // El filtro de resultados del bot invalida selección manual.
+    if (!filtroBotActivo) return;
+    if (selectedTipo || selectedRango) {
+      setFiltroBotActivo(false);
     }
-  }, [selectedTipo, selectedRango, tiposInmo, inmoId]);
+  }, [filtroBotActivo, selectedTipo, selectedRango]);
 
   const calculateInfo = (mode, proyecto) => {
     if (!window.google?.maps?.DirectionsService) {
@@ -878,7 +801,6 @@ function MyMap() {
   };
 
   const handleLoteClick = (lote) => {
-    setShowHintClickLote(false);
     if (isMobile()) {
       setShowFilters(false);
     }
@@ -1019,67 +941,44 @@ function MyMap() {
       setWalkingInfo(null);
       setDrivingInfo(null);
       setLotesProyecto([]);
+      setLotesProyectoBase([]);
       setPuntos([]);
       setIconosProyecto([]);
 
       const fecha = new Date().toISOString().split("T")[0];
       const hora = new Date().toLocaleTimeString("en-GB", { hour12: false });
 
-      await fetch(
-        withApiBase("https://api.geohabita.com/api/registerClickProyecto/"),
-        {
+      const clickPayload = JSON.stringify({
+        idproyecto: proyecto.idproyecto,
+        fecha,
+        hora,
+      });
+      const clickUrl = withApiBase(
+        "https://api.geohabita.com/api/registerClickProyecto/",
+      );
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          clickUrl,
+          new Blob([clickPayload], { type: "application/json" }),
+        );
+      } else {
+        fetch(clickUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            idproyecto: proyecto.idproyecto,
-            fecha: fecha,
-            hora: hora,
-          }),
-        },
-      );
+          body: clickPayload,
+          keepalive: true,
+        }).catch(() => null);
+      }
 
       calculateInfo("WALKING", proyecto);
       calculateInfo("DRIVING", proyecto);
 
-      const cachedPuntos = getCached("puntos", proyecto.idproyecto, "puntos");
-      if (cachedPuntos) {
-        setPuntos(cachedPuntos);
-        if (cachedPuntos.length > 0 && mapRef.current) {
-          const bounds = new window.google.maps.LatLngBounds();
-          cachedPuntos.forEach((p) =>
-            bounds.extend({
-              lat: parseFloat(p.latitud),
-              lng: parseFloat(p.longitud),
-            }),
-          );
-          fitBoundsForProjectFocus(mapRef.current, bounds);
-        }
-      }
-
-      const cachedLotes = getCached("lotes", proyecto.idproyecto, "lotes");
-      if (cachedLotes) setLotesProyecto(cachedLotes);
-
-      const cachedIconos = getCached("iconos", proyecto.idproyecto, "iconos");
-      if (cachedIconos) setIconosProyecto(cachedIconos);
-
-      const projectInmoId =
-        proyecto.idinmobiliaria ??
-        proyecto.idinmo ??
-        proyecto.inmo?.idinmobiliaria;
-      const inmoCacheKey = `${proyecto.idproyecto}_${projectInmoId ?? "none"}`;
-      const cachedInmo = getCached("inmo", inmoCacheKey, "inmo");
-
-      const [dataPuntos, lotesConPuntos, inmoData, dataIconos] =
-        await Promise.all([
-          loadPuntosProyecto(proyecto.idproyecto),
-          loadLotesConPuntos(proyecto.idproyecto),
-          projectInmoId
-            ? cachedInmo
-              ? Promise.resolve(cachedInmo)
-              : loadInmobiliaria(projectInmoId, proyecto.idproyecto)
-            : Promise.resolve([]),
-          loadIconosProyecto(proyecto.idproyecto),
-        ]);
+      const detail = await loadProyectoDetalle(proyecto.idproyecto);
+      const dataPuntos = Array.isArray(detail?.puntos) ? detail.puntos : [];
+      const lotesConPuntos = Array.isArray(detail?.lotes) ? detail.lotes : [];
+      const dataIconos = Array.isArray(detail?.iconos) ? detail.iconos : [];
+      const inmoData = detail?.inmobiliaria ?? null;
+      const proyectoDetalle = detail?.proyecto ?? proyecto;
 
       setPuntos(dataPuntos);
       if (dataPuntos.length > 0 && mapRef.current) {
@@ -1093,12 +992,14 @@ function MyMap() {
         fitBoundsForProjectFocus(mapRef.current, bounds);
       }
 
-      setLotesProyecto(lotesConPuntos);
+      const lotesFiltered = filterLotesByRango(lotesConPuntos, selectedRango);
+      setLotesProyectoBase(lotesConPuntos);
+      setLotesProyecto(lotesFiltered);
       setIconosProyecto(dataIconos);
 
       setselectedProyecto({
-        ...proyecto,
-        inmo: inmoData[0] ?? null,
+        ...proyectoDetalle,
+        inmo: inmoData,
       });
 
       // Ajuste final: primero se abre sidebar (viewport reducido) y luego
@@ -1121,8 +1022,8 @@ function MyMap() {
           return;
         }
 
-        const lat = parseFloat(proyecto.latitud);
-        const lng = parseFloat(proyecto.longitud);
+        const lat = parseFloat(proyectoDetalle.latitud);
+        const lng = parseFloat(proyectoDetalle.longitud);
         if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
           centerPointForProjectFocus(map, { lat, lng });
         }
@@ -1590,18 +1491,6 @@ function MyMap() {
         </Link>
       )}
 
-      {/* {showHintClickLote && (
-        <div className={styles.clickHint} aria-live="polite">
-          <div className={styles.clickHintChip}>Lotes disponibles</div>
-          <div className={styles.clickHintMain}>
-            <span className={styles.clickHintPulse} aria-hidden="true" />
-            <span className={styles.clickHintText}>
-              Toca un lote para ver detalles
-            </span>
-          </div>
-        </div>
-      )} */}
-
       {selectedProyecto && (
         <ProyectoSidebar
           inmo={selectedProyecto?.inmo}
@@ -1630,52 +1519,9 @@ function MyMap() {
             setImagenesProyecto([]);
             setPuntos([]);
             setLotesProyecto([]);
+            setLotesProyectoBase([]);
             setIconosProyecto([]);
             setSelectedLote(null); // 🔥 CLAVE
-            setShowHintClickLote(false);
-            try {
-              if (selectedRango) {
-                const res = await fetch(
-                  withApiBase(
-                    `https://api.geohabita.com/api/rangoPrecio/${selectedRango}`,
-                  ),
-                );
-                const data = await res.json();
-                setLotes(data.lotes || []);
-                const proyectosUnicos = [];
-                const ids = new Set();
-                (data.lotes || []).forEach((lote) => {
-                  const p = lote.proyectos;
-                  if (p && !ids.has(p.idproyecto)) {
-                    ids.add(p.idproyecto);
-                    proyectosUnicos.push(p);
-                  }
-                });
-                (data.proyectos || []).forEach((p) => {
-                  if (!ids.has(p.idproyecto)) {
-                    ids.add(p.idproyecto);
-                    proyectosUnicos.push(p);
-                  }
-                });
-                setProyecto(proyectosUnicos);
-              } else if (inmoId) {
-                const res = await fetch(
-                  withApiBase(
-                    `https://api.geohabita.com/api/listProyectosInmobiliaria/${inmoId}`,
-                  ),
-                );
-                const data = await res.json();
-                setProyecto(data);
-              } else {
-                const res = await fetch(
-                  withApiBase("https://api.geohabita.com/api/listProyectos/"),
-                );
-                const data = await res.json();
-                setProyecto(data);
-              }
-            } catch (err) {
-              console.error("Error recargando proyectos al cerrar:", err);
-            }
           }}
         />
       )}

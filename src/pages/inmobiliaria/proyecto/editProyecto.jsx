@@ -44,8 +44,8 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
   const visibleExistingImages = useMemo(
     () =>
       existingImages.filter((img) => {
-        const id = img?.idimagenproyecto ?? img?.idimagen ?? img?.id;
-        return id ? !removedImageIds.includes(id) : true;
+        const id = Number(img?.idimagenesp ?? img?.idimagenproyecto ?? img?.idimagen ?? img?.id);
+        return Number.isFinite(id) ? !removedImageIds.includes(id) : true;
       }),
     [existingImages, removedImageIds],
   );
@@ -233,8 +233,8 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
   };
 
   const removeExistingImage = (image) => {
-    const id = image?.idimagenproyecto ?? image?.idimagen ?? image?.id;
-    if (!id) {
+    const id = Number(image?.idimagenesp ?? image?.idimagenproyecto ?? image?.idimagen ?? image?.id);
+    if (!Number.isFinite(id)) {
       setExistingImages((prev) => prev.filter((img) => img !== image));
       return;
     }
@@ -257,7 +257,7 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
       formData.append("latitud", form.latitud);
       formData.append("longitud", form.longitud);
       formData.append("puntos", JSON.stringify(form.puntos));
-      formData.append("imagenes_eliminar", JSON.stringify(removedImageIds));
+      formData.append("imagenes_eliminadas", JSON.stringify(removedImageIds));
 
       form.imagenes.forEach((img) => {
         if (img?.file) formData.append("imagenes", img.file);
@@ -361,7 +361,7 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
                       const src = withApiBase(
                         `https://api.geohabita.com${img.imagenproyecto || img.imagen || ""}`,
                       );
-                      const key = img.idimagenproyecto || img.idimagen || img.id || i;
+                      const key = img.idimagenesp || img.idimagenproyecto || img.idimagen || img.id || i;
                       return (
                         <div className={styles.existingImageItem} key={key}>
                           <img src={src} alt={`Actual ${i + 1}`} />

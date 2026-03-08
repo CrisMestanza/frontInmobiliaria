@@ -1,7 +1,7 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
 // components/editLote.jsx
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import style from "../agregarInmo.module.css";
 import loader from "../../../components/loader";
@@ -21,11 +21,23 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
 
   const [tipos, setTipos] = useState([]);
   const [mapReady, setMapReady] = useState(false);
+  const [existingImages, setExistingImages] = useState([]);
+  const [removedImageIds, setRemovedImageIds] = useState([]);
   const token = localStorage.getItem("access");
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const polyInstance = useRef(null);
   const pathListenersRef = useRef([]);
+  const fileInputRef = useRef(null);
+
+  const visibleExistingImages = useMemo(
+    () =>
+      existingImages.filter((img) => {
+        const id = Number(img?.idimagenes ?? img?.idimagen ?? img?.id);
+        return Number.isFinite(id) ? !removedImageIds.includes(id) : true;
+      }),
+    [existingImages, removedImageIds],
+  );
 
   // 1) Cargar puntos del lote y rellenar form
   useEffect(() => {
@@ -33,10 +45,16 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
 
     const fetchData = async () => {
       try {
-        const resPuntos = await authFetch(
-          withApiBase(`https://api.geohabita.com/api/listPuntos/${lote.idlote}`)
-        );
+        const [resPuntos, resImagenes] = await Promise.all([
+          authFetch(
+            withApiBase(`https://api.geohabita.com/api/listPuntos/${lote.idlote}`),
+          ),
+          authFetch(
+            withApiBase(`https://api.geohabita.com/api/list_imagen/${lote.idlote}`),
+          ),
+        ]);
         const puntos = await resPuntos.json();
+        const imagenes = await resImagenes.json();
 
         const nuevosPuntos = (puntos || []).map((p, i) => ({
           latitud: p.latitud,
@@ -55,6 +73,8 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
           imagenes: [],
           vendido: lote.vendido ?? 0,
         });
+        setExistingImages(Array.isArray(imagenes) ? imagenes : []);
+        setRemovedImageIds([]);
       } catch (err) {
         console.error("Error cargando puntos del lote:", err);
       }
@@ -179,6 +199,40 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
+  const handleImagenesChange = (e) => {
+    const files = Array.from(e.target.files || []).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setForm((prev) => ({ ...prev, imagenes: [...prev.imagenes, ...files] }));
+    e.target.value = "";
+  };
+
+  const removeNewImage = (index) => {
+    const images = [...form.imagenes];
+    URL.revokeObjectURL(images[index]?.preview);
+    images.splice(index, 1);
+    setForm((prev) => ({ ...prev, imagenes: images }));
+  };
+
+  const removeExistingImage = (image) => {
+    const id = Number(image?.idimagenes ?? image?.idimagen ?? image?.id);
+    if (!Number.isFinite(id)) {
+      setExistingImages((prev) => prev.filter((img) => img !== image));
+      return;
+    }
+    setRemovedImageIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  };
+
+  useEffect(
+    () => () => {
+      form.imagenes.forEach((img) => {
+        if (img?.preview) URL.revokeObjectURL(img.preview);
+      });
+    },
+    [form.imagenes],
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -191,6 +245,11 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
       formData.append("descripcion", form.descripcion);
       formData.append("puntos", JSON.stringify(form.puntos));
       formData.append("vendido", form.vendido);
+      formData.append("imagenes_eliminadas", JSON.stringify(removedImageIds));
+
+      form.imagenes.forEach((img) => {
+        if (img?.file) formData.append("imagenes", img.file);
+      });
 
       const res = await authFetch(
         withApiBase(`https://api.geohabita.com/api/updateLote/${lote.idlote}/`),
@@ -264,6 +323,60 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
             onChange={handleChange}
             className={style.input}
           />
+          <label>Imágenes actuales:</label>
+          {visibleExistingImages.length === 0 ? (
+            <p style={{ marginTop: "6px", marginBottom: "6px" }}>
+              No hay imágenes actuales.
+            </p>
+          ) : (
+            <div className={style.previewContainer}>
+              {visibleExistingImages.map((img, i) => {
+                const src = withApiBase(
+                  `https://api.geohabita.com${img.imagen || ""}`,
+                );
+                const key = img.idimagenes || img.idimagen || img.id || i;
+                return (
+                  <div className={style.previewItem} key={key}>
+                    <img src={src} alt={`Actual ${i + 1}`} />
+                    <button
+                      type="button"
+                      className={style.removeBtn}
+                      onClick={() => removeExistingImage(img)}
+                      title="Quitar imagen actual"
+                    >
+                      ✖
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <label>Agregar imágenes nuevas:</label>
+          <input
+            type="file"
+            ref={fileInputRef}
+            multiple
+            accept="image/*"
+            onChange={handleImagenesChange}
+            className={style.input}
+          />
+          {form.imagenes.length > 0 && (
+            <div className={style.previewContainer}>
+              {form.imagenes.map((img, i) => (
+                <div className={style.previewItem} key={`new-${i}`}>
+                  <img src={img.preview} alt={`Nueva ${i + 1}`} />
+                  <button
+                    type="button"
+                    className={style.removeBtn}
+                    onClick={() => removeNewImage(i)}
+                  >
+                    ✖
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <button type="submit" className={style.submitBtn}>
             Guardar Cambios
           </button>
