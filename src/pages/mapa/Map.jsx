@@ -656,6 +656,7 @@ function MyMap() {
   }, []);
 
   useEffect(() => {
+    if (!isLoaded) return undefined;
     const controller = new AbortController();
 
     const run = async () => {
@@ -691,7 +692,26 @@ function MyMap() {
 
     run();
     return () => controller.abort();
-  }, [selectedTipo, selectedRango, inmoId]);
+  }, [selectedTipo, selectedRango, inmoId, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded || !inmoId) return;
+    if (!mapRef.current || !window.google?.maps || !proyecto.length) return;
+
+    const bounds = new window.google.maps.LatLngBounds();
+    proyecto.forEach((p) => {
+      const lat = parseFloat(p.latitud);
+      const lng = parseFloat(p.longitud);
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        bounds.extend({ lat, lng });
+      }
+    });
+
+    if (!bounds.isEmpty()) {
+      mapRef.current.fitBounds(bounds);
+      updateBoundsFromMap();
+    }
+  }, [isLoaded, inmoId, proyecto, updateBoundsFromMap]);
 
   useEffect(() => {
     if (selectedLote) {

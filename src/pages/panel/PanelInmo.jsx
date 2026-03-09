@@ -125,7 +125,6 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
           </div>
           <div className="card-footer">
             <div className="card-actions-left">
-
               <button
                 onClick={() => onViewLotes(proyecto.idproyecto)}
                 className="btn-gestionar-unidades"
@@ -382,13 +381,6 @@ const PanelInmo = () => {
     }
   };
 
-  if (loading) return <Loader />;
-
-  const redes = [
-    { nombre: "Whatsapp", icono: <FaWhatsapp color="green" /> },
-    { nombre: "Facebook", icono: <FaFacebook color="#1877f2" /> },
-    { nombre: "Web", icono: <FaGlobe color="#0077b6" /> },
-  ];
   const totalLotes = lotes.length;
   const totalContactos = clicks?.total_clicks_contactos || 0;
   const totalInteres = clicks?.total_clicks_proyectos || 0;
@@ -396,6 +388,13 @@ const PanelInmo = () => {
     if (!proyectos.length) return 0;
     return Math.round((totalContactos / proyectos.length) * 10) / 10;
   }, [totalContactos, proyectos.length]);
+  if (loading) return <Loader />;
+
+  const redes = [
+    { nombre: "Whatsapp", icono: <FaWhatsapp color="green" /> },
+    { nombre: "Facebook", icono: <FaFacebook color="#1877f2" /> },
+    { nombre: "Web", icono: <FaGlobe color="#0077b6" /> },
+  ];
 
   return (
     <div className="panel-inmo-container">
@@ -426,7 +425,7 @@ const PanelInmo = () => {
       </header>
 
       <main className="dashboard-content">
-        <section className="dashboard-hero-card">
+        {/* <section className="dashboard-hero-card">
           <div className="dashboard-hero-copy">
             <p className="dashboard-hero-eyebrow">Panel Comercial</p>
             <h2>Impulsa tus conversiones con una vista clara del negocio</h2>
@@ -449,7 +448,7 @@ const PanelInmo = () => {
               <strong>{engagementRate}</strong>
             </div>
           </div>
-        </section>
+        </section> */}
         {/* {Videos} */}
         <div className="tutorial-section">
           <h3 className="tutorial-title">
