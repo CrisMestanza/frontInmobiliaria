@@ -20,7 +20,7 @@ import { Link } from "react-router-dom";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
-const defaultCenter = { lat: -6.4882, lng: -76.365629 };
+const defaultCenter = { lat: -6.49935, lng: -76.371809 };
 const LIBRARIES = ["places"];
 const GEOLOCATION_ONBOARDING_DONE_KEY = "geoHabitaGeolocationOnboardingDone";
 
@@ -237,6 +237,7 @@ function MyMap() {
   const autocompleteRef = useRef(null);
   const boundsDebounceRef = useRef(null);
   const anuncioTimeoutRef = useRef(null);
+  const initialViewportHandledRef = useRef(false);
   const [mapHeaderOffsetPx, setMapHeaderOffsetPx] = useState(() =>
     typeof window !== "undefined" ? (window.innerWidth <= 550 ? 66 : 80) : 80,
   );
@@ -343,61 +344,66 @@ function MyMap() {
     writeSessionCache(getCacheKey(prefix, id), data);
   };
 
-  const loadMapProjects = async ({ tipo = "", rango = "", inmo = "", signal } = {}) => {
-      const query = new URLSearchParams();
-      if (tipo) query.set("tipo", String(tipo));
-      if (rango) query.set("rango", String(rango));
-      if (inmo) query.set("inmo", String(inmo));
-      const cacheKey = query.toString() || "all";
-      const cached = getCached("mapProjects", cacheKey, "map_projects");
-      if (cached) return cached;
+  const loadMapProjects = async ({
+    tipo = "",
+    rango = "",
+    inmo = "",
+    signal,
+  } = {}) => {
+    const query = new URLSearchParams();
+    if (tipo) query.set("tipo", String(tipo));
+    if (rango) query.set("rango", String(rango));
+    if (inmo) query.set("inmo", String(inmo));
+    const cacheKey = query.toString() || "all";
+    const cached = getCached("mapProjects", cacheKey, "map_projects");
+    if (cached) return cached;
 
-      const inflight = inflightRef.current.mapProjects.get(cacheKey);
-      if (inflight) return inflight;
+    const inflight = inflightRef.current.mapProjects.get(cacheKey);
+    if (inflight) return inflight;
 
-      const url = withApiBase(
-        `https://api.geohabita.com/api/mapa/proyectos/${query.toString() ? `?${query.toString()}` : ""}`,
-      );
-      const request = fetch(url, { signal })
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => {
-          const normalized = Array.isArray(data) ? data : [];
-          setCached("mapProjects", cacheKey, "map_projects", normalized);
-          return normalized;
-        })
-        .finally(() => {
-          inflightRef.current.mapProjects.delete(cacheKey);
-        });
+    const url = withApiBase(
+      `https://api.geohabita.com/api/mapa/proyectos/${query.toString() ? `?${query.toString()}` : ""}`,
+    );
+    const request = fetch(url, { signal })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        const normalized = Array.isArray(data) ? data : [];
+        setCached("mapProjects", cacheKey, "map_projects", normalized);
+        return normalized;
+      })
+      .finally(() => {
+        inflightRef.current.mapProjects.delete(cacheKey);
+      });
 
-      inflightRef.current.mapProjects.set(cacheKey, request);
-      return request;
+    inflightRef.current.mapProjects.set(cacheKey, request);
+    return request;
   };
 
   const loadProyectoDetalle = async (idproyecto) => {
-      const cached = getCached("projectDetail", idproyecto, "project_detail");
-      if (cached) return cached;
+    const cached = getCached("projectDetail", idproyecto, "project_detail");
+    if (cached) return cached;
 
-      const inflight = inflightRef.current.projectDetail.get(idproyecto);
-      if (inflight) return inflight;
+    const inflight = inflightRef.current.projectDetail.get(idproyecto);
+    if (inflight) return inflight;
 
-      const url = withApiBase(
-        `https://api.geohabita.com/api/mapa/proyecto_detalle/${idproyecto}/`,
-      );
-      const request = fetch(url)
-        .then((res) => {
-          if (!res.ok) throw new Error("No se pudo cargar detalle de proyecto");
-          return res.json();
-        })
-        .then((data) => {
-          setCached("projectDetail", idproyecto, "project_detail", data);
-          return data;
-        })
-        .finally(() => {
-          inflightRef.current.projectDetail.delete(idproyecto);
-        });
+    const url = withApiBase(
+      `https://api.geohabita.com/api/mapa/proyecto_detalle/${idproyecto}/`,
+    );
+    const request = fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("No se pudo cargar detalle de proyecto");
+        return res.json();
+      })
+      .then((data) => {
+        setCached("projectDetail", idproyecto, "project_detail", data);
+        return data;
+      })
+      .finally(() => {
+        inflightRef.current.projectDetail.delete(idproyecto);
+      });
 
-      inflightRef.current.projectDetail.set(idproyecto, request);
-      return request;
+    inflightRef.current.projectDetail.set(idproyecto, request);
+    return request;
   };
 
   const updateBoundsFromMap = useCallback(() => {
@@ -670,6 +676,17 @@ function MyMap() {
         if (!controller.signal.aborted) {
           setProyecto(data);
           if (data.length > 0 && mapRef.current && window.google?.maps) {
+            const shouldSkipInitialFit =
+              !initialViewportHandledRef.current &&
+              !selectedTipo &&
+              !selectedRango &&
+              !inmoId &&
+              !hasSearchedLocation;
+            if (shouldSkipInitialFit) {
+              initialViewportHandledRef.current = true;
+              return;
+            }
+
             const bounds = new window.google.maps.LatLngBounds();
             data.forEach((p) => {
               const lat = parseFloat(p.latitud);
@@ -682,6 +699,7 @@ function MyMap() {
               mapRef.current.fitBounds(bounds);
             }
           }
+          initialViewportHandledRef.current = true;
         }
       } catch (error) {
         if (error?.name !== "AbortError") {
