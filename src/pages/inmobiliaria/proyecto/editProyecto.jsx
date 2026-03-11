@@ -43,6 +43,7 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
   const polygonListenersRef = useRef([]);
   const autocompleteRef = useRef(null);
   const fileInputRef = useRef(null);
+  const puntosDirtyRef = useRef(false);
 
   const visibleExistingImages = useMemo(
     () =>
@@ -71,7 +72,23 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
       latitud: updated[0]?.latitud || "",
       longitud: updated[0]?.longitud || "",
     }));
+    puntosDirtyRef.current = true;
   }, []);
+
+  const getPolygonPoints = useCallback(() => {
+    const polygon = polygonRef.current;
+    if (!polygon) return form.puntos;
+    const path = polygon.getPath();
+    const updated = [];
+    for (let i = 0; i < path.getLength(); i += 1) {
+      updated.push({
+        latitud: path.getAt(i).lat(),
+        longitud: path.getAt(i).lng(),
+        orden: i + 1,
+      });
+    }
+    return updated;
+  }, [form.puntos]);
 
   const clearPolygonListeners = () => {
     polygonListenersRef.current.forEach((listener) => {
@@ -80,21 +97,24 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
     polygonListenersRef.current = [];
   };
 
+  const proyectoId = proyecto?.idproyecto;
+
   useEffect(() => {
-    if (!proyecto?.idproyecto) return;
+    if (!proyectoId) return;
     let cancelled = false;
+    puntosDirtyRef.current = false;
 
     const loadProyectoData = async () => {
       try {
         const [puntosRes, imagesRes] = await Promise.all([
           authFetch(
             withApiBase(
-              `https://api.geohabita.com/api/listPuntosProyecto/${proyecto.idproyecto}`,
+              `https://api.geohabita.com/api/listPuntosProyecto/${proyectoId}`,
             ),
           ),
           authFetch(
             withApiBase(
-              `https://api.geohabita.com/api/list_imagen_proyecto/${proyecto.idproyecto}`,
+              `https://api.geohabita.com/api/list_imagen_proyecto/${proyectoId}`,
             ),
           ),
         ]);
@@ -104,18 +124,25 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
         if (cancelled) return;
 
         const puntos = Array.isArray(puntosData)
-          ? puntosData.map(normalizePoint).filter((p) => !Number.isNaN(p.latitud) && !Number.isNaN(p.longitud))
+          ? puntosData
+              .map(normalizePoint)
+              .filter((p) => !Number.isNaN(p.latitud) && !Number.isNaN(p.longitud))
+              .sort((a, b) => a.orden - b.orden)
           : [];
 
         setForm((prev) => ({
           ...prev,
-          idproyecto: proyecto.idproyecto,
+          idproyecto: proyectoId,
           idinmobiliaria,
           nombreproyecto: proyecto?.nombreproyecto || "",
           descripcion: proyecto?.descripcion || "",
-          puntos,
-          latitud: puntos[0]?.latitud || proyecto?.latitud || "",
-          longitud: puntos[0]?.longitud || proyecto?.longitud || "",
+          puntos: puntosDirtyRef.current ? prev.puntos : puntos,
+          latitud: puntosDirtyRef.current
+            ? prev.latitud
+            : puntos[0]?.latitud || proyecto?.latitud || "",
+          longitud: puntosDirtyRef.current
+            ? prev.longitud
+            : puntos[0]?.longitud || proyecto?.longitud || "",
         }));
         setExistingImages(Array.isArray(imagesData) ? imagesData : []);
         setRemovedImageIds([]);
@@ -128,7 +155,7 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
     return () => {
       cancelled = true;
     };
-  }, [proyecto, idinmobiliaria]);
+  }, [proyectoId, idinmobiliaria]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -192,7 +219,14 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const latestPuntos = getPolygonPoints();
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      puntos: latestPuntos,
+      latitud: latestPuntos[0]?.latitud || prev.latitud,
+      longitud: latestPuntos[0]?.longitud || prev.longitud,
+    }));
   };
 
   const handleMapClick = (e) => {
@@ -208,15 +242,18 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
       latitud: prev.puntos.length === 0 ? newPoint.latitud : prev.latitud,
       longitud: prev.puntos.length === 0 ? newPoint.longitud : prev.longitud,
     }));
+    puntosDirtyRef.current = true;
   };
 
   const clearPolygon = () => {
     setForm((prev) => ({ ...prev, puntos: [] }));
     setIsDrawing(true);
+    puntosDirtyRef.current = true;
   };
 
   const undoLastPoint = () => {
     setForm((prev) => ({ ...prev, puntos: prev.puntos.slice(0, -1) }));
+    puntosDirtyRef.current = true;
   };
 
   const onPolygonLoad = (polygon) => {
@@ -262,20 +299,27 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.puntos.length < 3) {
+    const latestPuntos = getPolygonPoints();
+    if (latestPuntos.length < 3) {
       alert("El polígono debe tener al menos 3 puntos.");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      setForm((prev) => ({
+        ...prev,
+        puntos: latestPuntos,
+        latitud: latestPuntos[0]?.latitud || prev.latitud,
+        longitud: latestPuntos[0]?.longitud || prev.longitud,
+      }));
       const formData = new FormData();
       formData.append("idinmobiliaria", idinmobiliaria);
       formData.append("nombreproyecto", form.nombreproyecto);
       formData.append("descripcion", form.descripcion);
-      formData.append("latitud", form.latitud);
-      formData.append("longitud", form.longitud);
-      formData.append("puntos", JSON.stringify(form.puntos));
+      formData.append("latitud", latestPuntos[0]?.latitud ?? form.latitud);
+      formData.append("longitud", latestPuntos[0]?.longitud ?? form.longitud);
+      formData.append("puntos", JSON.stringify(latestPuntos));
       formData.append("imagenes_eliminadas", JSON.stringify(removedImageIds));
 
       form.imagenes.forEach((img) => {
