@@ -6,6 +6,13 @@
   backdrop-filter: blur(4px);
   transition: opacity 0.4s ease;
 }
+.flagIcon {
+  width: 24px;           /* Ajusta ancho de la bandera */
+  height: auto;          /* Mantiene proporción */
+  border-radius: 3px;    /* Opcional: esquinas redondeadas */
+  object-fit: cover;     /* Evita que se deforme */
+  margin-right: 10px;
+}
 
 .sidebar {
   position: fixed;
@@ -156,7 +163,7 @@
   justify-content: space-between;
   align-items: center;
   background: #f8fafc;
-  padding: 15px 20px;
+  padding: 15px 10px;
   border-radius: 20px;
   margin: 20px 0;
 }

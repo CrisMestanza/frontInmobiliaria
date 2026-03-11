@@ -23,6 +23,11 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const [reliefEnabled, setReliefEnabled] = useState(false);
   const [labelsEnabled, setLabelsEnabled] = useState(true);
 
+  const [countries, setCountries] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [currencySymbol, setCurrencySymbol] = useState("");
+
+
   const [form, setForm] = useState({
     tipo_registro: "",
     idinmobiliaria,
@@ -49,13 +54,19 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     azotea: "",
     ancho: "",
     largo: "",
+    pais: "",
+    bandera: "",
+    moneda: "",
   });
+
   const isCasa = parseInt(form.idtipoinmobiliaria, 10) === 2;
   const casaDimensionFields = [
     { name: "area_total_m2", label: "Area total", step: "0.01" },
     { name: "ancho", label: "Ancho", step: "0.01", required: true },
     { name: "largo", label: "Largo", step: "0.01", required: true },
   ];
+
+
   const casaAmbienteFields = [
     { name: "dormitorios", label: "Dormitorios" },
     { name: "banos", label: "Baños" },
@@ -96,6 +107,27 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const autocompleteRef = useRef(null);
   const helpWrapRef = useRef(null);
   const isLoteUnico = form.tipo_registro === "lote_unico";
+
+  useEffect(() => {
+    fetch("https://restcountries.com/v3.1/all?fields=name,flags,currencies")
+      .then((res) => res.json())
+      .then((data) => {
+        const formatted = data.map((c) => {
+          const currencyKey = c.currencies ? Object.keys(c.currencies)[0] : null;
+
+          return {
+            pais: c.name.common,
+            bandera: c.flags?.png,
+            moneda: currencyKey ? c.currencies[currencyKey].symbol : "",
+            codigo: currencyKey,
+          };
+        });
+
+        setCountries(formatted.sort((a, b) => a.pais.localeCompare(b.pais)));
+      })
+      .catch((err) => console.error(err));
+  }, []);
+
 
   useEffect(() => {
     if (form.tipo_registro === "lote_unico") {
@@ -350,14 +382,14 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const mapControlOptions =
     typeof window !== "undefined" && window.google?.maps
       ? {
-          mapTypeControlOptions: {
-            style: window.google.maps.MapTypeControlStyle.DEFAULT,
-            position: window.google.maps.ControlPosition.LEFT_BOTTOM,
-          },
-          fullscreenControlOptions: {
-            position: window.google.maps.ControlPosition.RIGHT_TOP,
-          },
-        }
+        mapTypeControlOptions: {
+          style: window.google.maps.MapTypeControlStyle.DEFAULT,
+          position: window.google.maps.ControlPosition.LEFT_BOTTOM,
+        },
+        fullscreenControlOptions: {
+          position: window.google.maps.ControlPosition.RIGHT_TOP,
+        },
+      }
       : {};
 
   return (
@@ -537,15 +569,61 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     </div>
 
                     <div className={styles.inputGroup}>
-                      <label>Precio en dólares</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        name="precio"
-                        value={form.precio}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
+                      <label>País y moneda a agregar</label>
+                      <select
+                        value={form.pais}
+                        onChange={(e) => {
+                          const country = countries.find(c => c.pais === e.target.value);
+
+                          setForm(prev => ({
+                            ...prev,
+                            pais: country.pais,
+                            bandera: country.bandera,
+                            moneda: country.moneda
+                          }));
+
+                          setSelectedCountry(country);
+                          setCurrencySymbol(country.moneda);
+                        }}
+                        className={styles.select}
+                      >
+                        <option value="">Seleccione país</option>
+                        {countries.map((c, i) => (
+                          <option key={i} value={c.pais}>
+                            {c.pais}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div style={{display:"flex"}}>
+
+                      {selectedCountry && (
+                        <div style={{ marginTop: "5px" }}>
+                          <img src={selectedCountry.bandera} width="30" alt="bandera" />
+                        </div>
+                      )}
+
+                      <div className={styles.inputGroup}>
+
+                        {/* <label>Precio</label> */}
+
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          <span style={{ marginRight: "6px", fontWeight: "bold" }}>
+                            {currencySymbol}
+                          </span>
+
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="precio"
+                            value={form.precio}
+                            onChange={handleChange}
+                            className={styles.input}
+                          />
+                        </div>
+                      </div>
+
                     </div>
 
                     <div className={styles.compactGrid}>
@@ -604,17 +682,62 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                       </select>
                     </div>
 
-                    <div className={styles.inputGroup}>
-                      <label>Precio en dolares:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        name="precio"
-                        value={form.precio}
-                        onChange={handleChange}
-                        className={styles.input}
-                      />
+                     <div className={styles.inputGroup}>
+                      <label>País y moneda a agregar</label>
+                      <select
+                        value={form.pais}
+                        onChange={(e) => {
+                          const country = countries.find(c => c.pais === e.target.value);
+
+                          setForm(prev => ({
+                            ...prev,
+                            pais: country.pais,
+                            bandera: country.bandera,
+                            moneda: country.moneda
+                          }));
+
+                          setSelectedCountry(country);
+                          setCurrencySymbol(country.moneda);
+                        }}
+                        className={styles.select}
+                      >
+                        <option value="">Seleccione país</option>
+                        {countries.map((c, i) => (
+                          <option key={i} value={c.pais}>
+                            {c.pais}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div style={{display:"flex"}}>
+
+                      {selectedCountry && (
+                        <div style={{ marginTop: "5px" }}>
+                          <img src={selectedCountry.bandera} width="30" alt="bandera" />
+                        </div>
+                      )}
+
+                      <div className={styles.inputGroup}>
+
+                        {/* <label>Precio</label> */}
+
+                        <div style={{ display: "flex", alignItems: "center" }}>
+                          <span style={{ marginRight: "6px", fontWeight: "bold" }}>
+                            {currencySymbol}
+                          </span>
+
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="precio"
+                            value={form.precio}
+                            onChange={handleChange}
+                            className={styles.input}
+                          />
+                        </div>
+                      </div>
+
                     </div>
 
                     <div className={styles.compactGrid}>

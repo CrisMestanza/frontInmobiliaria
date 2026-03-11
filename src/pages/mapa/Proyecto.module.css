@@ -7,6 +7,16 @@
   transition: opacity 0.4s ease;
 }
 
+
+
+.flagIcon {
+  width: 24px;           /* Ajusta ancho de la bandera */
+  height: auto;          /* Mantiene proporción */
+  border-radius: 3px;    /* Opcional: esquinas redondeadas */
+  object-fit: cover;     /* Evita que se deforme */
+  margin-right: 10px;
+}
+
 .fullscreenOverlay {
   touch-action: pan-y;
   user-select: none;
@@ -252,11 +262,13 @@
 }
 
 .mobileContactRow {
-  width: 100%;
+  width: 50%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin: 0;
+  display: block;
+  margin-left: 70px;
 }
 
 .mobileContactBtn {
@@ -271,6 +283,7 @@
   justify-content: center;
   gap: 8px;
   padding: 8px 10px;
+  margin-bottom: 6px;
 }
 
 .mobileWhatsappBtn {
@@ -492,6 +505,7 @@
   align-items: center;
   gap: 8px;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  margin-bottom: 6px;
 }
 
 .quickGrid {
@@ -776,6 +790,9 @@
 /* ... (tus estilos anteriores se mantienen igual) ... */
 
 @media (max-width: 768px) {
+  .priceRow{
+    margin-right: 10px;
+  }
   .sidebar {
     height: 360px;
     width: 100%;

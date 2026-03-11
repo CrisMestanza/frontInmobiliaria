@@ -39,6 +39,8 @@ export default function LoteModal({ onClose, idproyecto }) {
   const esCasa = formValues[selectedLote]?.tipo_inmueble === 2;
   const polygonRefs = useRef({});
 
+  const [countries, setCountries] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
 
   const createRotatableOverlay = useCallback(
     (bounds, image, rotation, opacity) => {
@@ -286,7 +288,54 @@ export default function LoteModal({ onClose, idproyecto }) {
     });
   }, []);
 
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch(
+          "https://restcountries.com/v3.1/all?fields=name,flags,currencies"
+        );
+        const data = await res.json();
 
+        const parsed = data
+          .map((c) => {
+            const currencyKey = c.currencies ? Object.keys(c.currencies)[0] : null;
+            const currency = currencyKey ? c.currencies[currencyKey] : null;
+
+            return {
+              name: c.name?.common,
+              flag: c.flags?.png,
+              currencySymbol: currency?.symbol || "",
+              currencyName: currency?.name || "",
+            };
+          })
+          .filter((c) => c.name)
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        setCountries(parsed);
+      } catch (err) {
+        console.error("Error cargando países", err);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+
+  const handleCountryChange = (e) => {
+    const country = countries.find(c => c.name === e.target.value);
+
+    setSelectedCountry(country);
+
+    setFormValues(prev => ({
+      ...prev,
+      [selectedLote]: {
+        ...prev[selectedLote],
+        pais: country?.name || "",
+        moneda: country?.currencySymbol || "",
+        bandera: country?.flag || ""
+      }
+    }));
+  };
 
   const [mapZoom, setMapZoom] = useState(17); // valor por defecto
 
@@ -302,9 +351,9 @@ export default function LoteModal({ onClose, idproyecto }) {
         coords: (lote.puntos || [])
           .sort((a, b) => a.orden - b.orden)
           .map((p) => ({
-          lat: parseFloat(p.latitud),
-          lng: parseFloat(p.longitud),
-        })),
+            lat: parseFloat(p.latitud),
+            lng: parseFloat(p.longitud),
+          })),
         vendido: lote.vendido,
       }));
       setLotesCoords(lotesData);
@@ -844,6 +893,9 @@ export default function LoteModal({ onClose, idproyecto }) {
       terraza: source?.terraza ?? 0,
       azotea: source?.azotea ?? 0,
       titulo_propiedad: source?.titulo_propiedad ?? 0,
+      pais: source?.pais ?? "",
+      moneda: source?.moneda ?? "",
+      bandera: source?.bandera ?? "",
     };
 
     return base;
@@ -878,8 +930,8 @@ export default function LoteModal({ onClose, idproyecto }) {
   };
 
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
-const [isRegistering, setIsRegistering] = useState(false);
+  const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const handleRegisterAll = async () => {
     for (const l of generatedLotes) {
@@ -889,9 +941,9 @@ const [isRegistering, setIsRegistering] = useState(false);
       }
     }
 
-setShowRegisterModal(true);      // Abrir modal
-  setRegisterMessage("Registrando inmuebles...");
-  setIsRegistering(true);
+    setShowRegisterModal(true);      // Abrir modal
+    setRegisterMessage("Registrando inmuebles...");
+    setIsRegistering(true);
 
     const formData = new FormData();
 
@@ -940,7 +992,9 @@ setShowRegisterModal(true);      // Abrir modal
         jardin: data.jardin,
         terraza: data.terraza,
         azotea: data.azotea,
-
+        pais: data.pais,
+        moneda: data.moneda,
+        bandera: data.bandera,
         titulo_propiedad: data.titulo_propiedad,
 
         puntos: lote.coords.map(p => ({
@@ -985,15 +1039,15 @@ setShowRegisterModal(true);      // Abrir modal
 
       if (!res.ok) throw new Error("Error en registro masivo");
 
-setRegisterMessage("✅ Registro con éxito!");
+      setRegisterMessage("✅ Registro con éxito!");
       onClose();
     } catch (error) {
       console.error(error);
-          setRegisterMessage("❌ Error al registrar los inmuebles");
+      setRegisterMessage("❌ Error al registrar los inmuebles");
 
-    }finally {
-    setIsRegistering(false);
-  }
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
 
@@ -1031,10 +1085,10 @@ setRegisterMessage("✅ Registro con éxito!");
 
 
   return (
-    
+
     <div className={style.modalOverlay}>
       <div className={style.modalContent}>
-        
+
 
         <button className={style.closeBtn} onClick={onClose}>
           ✖
@@ -1155,238 +1209,238 @@ setRegisterMessage("✅ Registro con éxito!");
             </div>
           )}
         </div>
-{showRegisterModal && (
-  <div className={style.modalOverlay}>
-    <div
-      className={style.modalContent}
-      style={{ maxWidth: "400px", textAlign: "center" }}
-    >
-      <h3>{registerMessage}</h3>
-      {!isRegistering && (
-        <button
-          className={style.submitBtn}
-          onClick={() => setShowRegisterModal(false)}
-          style={{ marginTop: "1rem" }}
-        >
-          Cerrar
-        </button>
-      )}
-    </div>
-  </div>
-)}
-        <div className={style.mapContainerWrap}>
-        <GoogleMap
-          onLoad={(map) => {
-            onMapLoad(map);
-            applyMapType(map);
-          }}
-          mapContainerStyle={{
-            width: "100%",
-            height: "360px",
-            marginBottom: "1rem",
-          }}
-          zoom={mapZoom}
-          center={mapCenter}
-          options={{ gestureHandling: "greedy", mapTypeControl: false }}
-        >
-          {proyectoCoords.length > 0 && (
-            <Polygon
-              paths={proyectoCoords}
-              options={{
-                strokeColor: "#0000FF",
-                strokeWeight: 2,
-                fillColor: "#0000FF",
-                fillOpacity: 0.1,
-                clickable: false,
-                zIndex: 0,
-              }}
-            />
-          )}
-
-          {basePolygonCoords && (
-            <Polygon
-              paths={basePolygonCoords}
-              options={{
-                strokeColor: "#FF00FF",
-                strokeWeight: 3,
-                fillOpacity: 0.15,
-                fillColor: "#FF00FF",
-                clickable: false,
-                zIndex: 1,
-              }}
-            />
-          )}
-
-          {lotesCoords.map((lote, i) => (
-            <Polygon
-              key={i}
-              paths={lote.coords}
-              options={{
-                strokeColor: "#333333",
-                strokeWeight: 1,
-                fillColor: getColorLote(lote.vendido),
-                fillOpacity: 0.45,
-              }}
-            />
-          ))}
-
-          {generatedLotes.map((lote) => (
-            <Polygon
-              key={lote.id}
-              paths={lote.coords}
-              editable
-              draggable
-              onLoad={(poly) => {
-                polygonRefs.current[lote.id] = poly;
-              }}
-              onMouseUp={() => {
-                const poly = polygonRefs.current[lote.id];
-                if (!poly) return;
-
-                const coords = poly
-                  .getPath()
-                  .getArray()
-                  .map(p => ({
-                    lat: p.lat(),
-                    lng: p.lng(),
-                  }));
-
-                setGeneratedLotes(prev =>
-                  prev.map(l =>
-                    l.id === lote.id ? { ...l, coords } : l
-                  )
-                );
-              }}
-              onClick={() => handleSelectLote(lote)}
-              options={{
-                strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
-                strokeWeight: 2,
-                fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
-                fillOpacity: 0.5,
-                zIndex: 10,
-              }}
-            />
-          ))}
-
-
-          <DrawingManager
-            onLoad={(dm) => {
-              drawingManagerRef.current = dm;
-            }}
-            onUnmount={() => {
-              drawingManagerRef.current = null;
-            }}
-            onPolygonComplete={onPolygonComplete}
-            options={{
-              drawingControl: true,
-              drawingControlOptions: {
-                position:
-                  googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
-                drawingModes: ["polygon", "rectangle"],
-              },
-              polygonOptions: {
-                editable: true,
-                draggable: true,
-                fillColor: "#FF00FF",
-                fillOpacity: 0.3,
-                strokeColor: "#FF00FF",
-                strokeWeight: 2,
-              },
-              rectangleOptions: {
-                editable: true,
-                draggable: true,
-                fillColor: "#FF00FF",
-                fillOpacity: 0.3,
-                strokeColor: "#FF00FF",
-                strokeWeight: 2,
-              },
-            }}
-          />
-        </GoogleMap>
-        <div className={style.mapTypeControlWrap}>
-          <div className={style.mapTypeTabs} aria-label="Tipo de mapa">
-            <button
-              type="button"
-              className={`${style.mapTypeBtn} ${baseMapStyle === "roadmap" ? style.mapTypeBtnActive : ""}`}
-              onClick={() => {
-                setBaseMapStyle("roadmap");
-                applyMapType(mapRef.current);
-              }}
-              aria-pressed={baseMapStyle === "roadmap"}
+        {showRegisterModal && (
+          <div className={style.modalOverlay}>
+            <div
+              className={style.modalContent}
+              style={{ maxWidth: "400px", textAlign: "center" }}
             >
-              Mapa
-            </button>
-            <button
-              type="button"
-              className={`${style.mapTypeBtn} ${baseMapStyle === "satellite" ? style.mapTypeBtnActive : ""}`}
-              onClick={() => {
-                setBaseMapStyle("satellite");
-                applyMapType(mapRef.current);
-              }}
-              aria-pressed={baseMapStyle === "satellite"}
-            >
-              Satelite
-            </button>
-          </div>
-          <div className={style.mapTypeSubMenu}>
-            <span className={style.mapTypeSubLabel}>
-              {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
-            </span>
-            <div className={style.mapTypeSubRow}>
-              {baseMapStyle === "satellite" ? (
-                <>
-                  <button
-                    type="button"
-                    className={`${style.mapTypeSubBtn} ${labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
-                    onClick={() => {
-                      setLabelsEnabled(true);
-                      applyMapType(mapRef.current);
-                    }}
-                    aria-pressed={labelsEnabled}
-                  >
-                    On
-                  </button>
-                  <button
-                    type="button"
-                    className={`${style.mapTypeSubBtn} ${!labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
-                    onClick={() => {
-                      setLabelsEnabled(false);
-                      applyMapType(mapRef.current);
-                    }}
-                    aria-pressed={!labelsEnabled}
-                  >
-                    Off
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className={`${style.mapTypeSubBtn} ${reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
-                    onClick={() => {
-                      setReliefEnabled(true);
-                      applyMapType(mapRef.current);
-                    }}
-                    aria-pressed={reliefEnabled}
-                  >
-                    On
-                  </button>
-                  <button
-                    type="button"
-                    className={`${style.mapTypeSubBtn} ${!reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
-                    onClick={() => {
-                      setReliefEnabled(false);
-                      applyMapType(mapRef.current);
-                    }}
-                    aria-pressed={!reliefEnabled}
-                  >
-                    Off
-                  </button>
-                </>
+              <h3>{registerMessage}</h3>
+              {!isRegistering && (
+                <button
+                  className={style.submitBtn}
+                  onClick={() => setShowRegisterModal(false)}
+                  style={{ marginTop: "1rem" }}
+                >
+                  Cerrar
+                </button>
               )}
             </div>
           </div>
-        </div>
+        )}
+        <div className={style.mapContainerWrap}>
+          <GoogleMap
+            onLoad={(map) => {
+              onMapLoad(map);
+              applyMapType(map);
+            }}
+            mapContainerStyle={{
+              width: "100%",
+              height: "360px",
+              marginBottom: "1rem",
+            }}
+            zoom={mapZoom}
+            center={mapCenter}
+            options={{ gestureHandling: "greedy", mapTypeControl: false }}
+          >
+            {proyectoCoords.length > 0 && (
+              <Polygon
+                paths={proyectoCoords}
+                options={{
+                  strokeColor: "#0000FF",
+                  strokeWeight: 2,
+                  fillColor: "#0000FF",
+                  fillOpacity: 0.1,
+                  clickable: false,
+                  zIndex: 0,
+                }}
+              />
+            )}
+
+            {basePolygonCoords && (
+              <Polygon
+                paths={basePolygonCoords}
+                options={{
+                  strokeColor: "#FF00FF",
+                  strokeWeight: 3,
+                  fillOpacity: 0.15,
+                  fillColor: "#FF00FF",
+                  clickable: false,
+                  zIndex: 1,
+                }}
+              />
+            )}
+
+            {lotesCoords.map((lote, i) => (
+              <Polygon
+                key={i}
+                paths={lote.coords}
+                options={{
+                  strokeColor: "#333333",
+                  strokeWeight: 1,
+                  fillColor: getColorLote(lote.vendido),
+                  fillOpacity: 0.45,
+                }}
+              />
+            ))}
+
+            {generatedLotes.map((lote) => (
+              <Polygon
+                key={lote.id}
+                paths={lote.coords}
+                editable
+                draggable
+                onLoad={(poly) => {
+                  polygonRefs.current[lote.id] = poly;
+                }}
+                onMouseUp={() => {
+                  const poly = polygonRefs.current[lote.id];
+                  if (!poly) return;
+
+                  const coords = poly
+                    .getPath()
+                    .getArray()
+                    .map(p => ({
+                      lat: p.lat(),
+                      lng: p.lng(),
+                    }));
+
+                  setGeneratedLotes(prev =>
+                    prev.map(l =>
+                      l.id === lote.id ? { ...l, coords } : l
+                    )
+                  );
+                }}
+                onClick={() => handleSelectLote(lote)}
+                options={{
+                  strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
+                  strokeWeight: 2,
+                  fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
+                  fillOpacity: 0.5,
+                  zIndex: 10,
+                }}
+              />
+            ))}
+
+
+            <DrawingManager
+              onLoad={(dm) => {
+                drawingManagerRef.current = dm;
+              }}
+              onUnmount={() => {
+                drawingManagerRef.current = null;
+              }}
+              onPolygonComplete={onPolygonComplete}
+              options={{
+                drawingControl: true,
+                drawingControlOptions: {
+                  position:
+                    googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
+                  drawingModes: ["polygon", "rectangle"],
+                },
+                polygonOptions: {
+                  editable: true,
+                  draggable: true,
+                  fillColor: "#FF00FF",
+                  fillOpacity: 0.3,
+                  strokeColor: "#FF00FF",
+                  strokeWeight: 2,
+                },
+                rectangleOptions: {
+                  editable: true,
+                  draggable: true,
+                  fillColor: "#FF00FF",
+                  fillOpacity: 0.3,
+                  strokeColor: "#FF00FF",
+                  strokeWeight: 2,
+                },
+              }}
+            />
+          </GoogleMap>
+          <div className={style.mapTypeControlWrap}>
+            <div className={style.mapTypeTabs} aria-label="Tipo de mapa">
+              <button
+                type="button"
+                className={`${style.mapTypeBtn} ${baseMapStyle === "roadmap" ? style.mapTypeBtnActive : ""}`}
+                onClick={() => {
+                  setBaseMapStyle("roadmap");
+                  applyMapType(mapRef.current);
+                }}
+                aria-pressed={baseMapStyle === "roadmap"}
+              >
+                Mapa
+              </button>
+              <button
+                type="button"
+                className={`${style.mapTypeBtn} ${baseMapStyle === "satellite" ? style.mapTypeBtnActive : ""}`}
+                onClick={() => {
+                  setBaseMapStyle("satellite");
+                  applyMapType(mapRef.current);
+                }}
+                aria-pressed={baseMapStyle === "satellite"}
+              >
+                Satelite
+              </button>
+            </div>
+            <div className={style.mapTypeSubMenu}>
+              <span className={style.mapTypeSubLabel}>
+                {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
+              </span>
+              <div className={style.mapTypeSubRow}>
+                {baseMapStyle === "satellite" ? (
+                  <>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setLabelsEnabled(true);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={labelsEnabled}
+                    >
+                      On
+                    </button>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${!labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setLabelsEnabled(false);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={!labelsEnabled}
+                    >
+                      Off
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setReliefEnabled(true);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={reliefEnabled}
+                    >
+                      On
+                    </button>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${!reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setReliefEnabled(false);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={!reliefEnabled}
+                    >
+                      Off
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {selectedLote && (
@@ -1425,20 +1479,50 @@ setRegisterMessage("✅ Registro con éxito!");
               onChange={handleFormChange}
               className={style.input}
             />
-            <label>Precio en dolares:</label>
-            <input
-              name="precio"
-              type="number"
-              min="0"
-              step="0.01"
-              value={
-                formValues[selectedLote]?.precio ||
-                generatedLotes.find((l) => l.id === selectedLote)?.precio ||
-                ""
-              }
-              onChange={handleFormChange}
+
+            <label>País y moneda:</label>
+            <select
+              onChange={handleCountryChange}
               className={style.input}
-            />
+            >
+              <option value="">Seleccionar país</option>
+              {countries.map((c, i) => (
+                <option key={i} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
+            <div style={{ display: "flex", marginTop: "10px" }}>
+              {selectedCountry && (
+                <div style={{ marginTop: "5px" }}>
+                  <img
+                    src={selectedCountry.flag}
+                    alt="flag"
+                    style={{ width: "40px", borderRadius: "3px", marginRight: "10px" }}
+                  />
+                </div>
+              )}
+
+              <label>
+                Precio {selectedCountry?.currencySymbol || "$"}:
+              </label>
+
+              <input
+                name="precio"
+                type="number"
+                min="0"
+                step="0.01"
+                value={
+                  formValues[selectedLote]?.precio ||
+                  generatedLotes.find((l) => l.id === selectedLote)?.precio ||
+                  ""
+                }
+                onChange={handleFormChange}
+                className={style.input}
+              />
+            </div>
+
             <label>Descripción:</label>
             <textarea
               name="descripcion"
@@ -1681,7 +1765,7 @@ setRegisterMessage("✅ Registro con éxito!");
           </div>
         )}
 
-        <div style={{ display: "flex", gap: "0.5rem"}}>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
           <button
             onClick={handleRegisterAll}
             className={style.submitBtn}

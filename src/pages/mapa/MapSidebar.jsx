@@ -39,8 +39,8 @@ const LoteSidebarOverlay = ({
   }, [inmo]);
   const whatsappHref = inmo?.whatsapp
     ? `https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
-        `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto?.nombreproyecto || ""}"* y en el lote/inmueble *"${lote?.nombre || ""}"*`,
-      )}`
+      `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto?.nombreproyecto || ""}"* y en el lote/inmueble *"${lote?.nombre || ""}"*`,
+    )}`
     : undefined;
   const facebookHref = inmo?.facebook || undefined;
   const webHref = inmo?.pagina || undefined;
@@ -311,6 +311,8 @@ const LoteSidebarOverlay = ({
 
   if (!lote) return null;
 
+  console.log("Moneda", lote.moneda)
+
   return (
     <>
       <div
@@ -335,12 +337,12 @@ const LoteSidebarOverlay = ({
         style={
           isMobileView && mobileSheetTop !== null
             ? {
-                top: `${mobileSheetTop}px`,
-                height: `calc(100dvh - ${mobileSheetTop}px)`,
-                transition: isSheetDragging
-                  ? "none"
-                  : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
-              }
+              top: `${mobileSheetTop}px`,
+              height: `calc(100dvh - ${mobileSheetTop}px)`,
+              transition: isSheetDragging
+                ? "none"
+                : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
+            }
             : undefined
         }
       >
@@ -485,10 +487,15 @@ const LoteSidebarOverlay = ({
               <p className={styles.ubicacion}><FaMapMarkerAlt /> Ubicación referencial</p>
 
               <div className={styles.priceContainer}>
-                <div>
-                  <span className={styles.labelSmall}>Precio del Lote en dolares</span>
-                  <span className={styles.priceValue}>$. {lote.precio}</span>
+                <div style={{ display: "block", marginRight: "3px" }}>
+
+                  <img src={lote.bandera} alt="" className={styles.flagIcon} />
+                  <span className={styles.labelSmall}> Precio del Lote:</span>
+                  <span className={styles.priceValue}>{lote.moneda} {lote.precio}</span>
                 </div>
+
+                
+                
 
                 <div className={styles.pantallaCelul}>
 

@@ -28,6 +28,7 @@ import {
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
 import { FaChevronDown } from "react-icons/fa";
+import { s } from "framer-motion/client";
 
 const ProyectoSidebar = ({
   inmo,
@@ -469,6 +470,10 @@ const ProyectoSidebar = ({
   if (!proyecto) return null;
 
   const overlayActive = isMobileView ? false : expanded;
+  // console.log("Proyecto:", proyecto);
+  // console.log("Precio:", proyecto.precio);
+  // console.log("Moneda:", proyecto.moneda);
+  // console.log("isMobileView:", isMobileView);
 
   return (
     <>
@@ -757,17 +762,24 @@ const ProyectoSidebar = ({
               )}
 
               <div className={styles.priceContainer}>
-                {!isMobileView && proyecto.precio > 0 && (
-                  <div>
+                {proyecto.precio > 0 && (
+                  <div className={styles.priceRow}>
+
+                    <img src={proyecto.bandera} className={styles.flagIcon} alt="Bandera"/>
+
                     <span className={styles.labelSmall}>
-                      Precio de venta del inmueble
+                      Precio de venta del inmueble:
                     </span>
+
                     <br></br>
+
                     <span className={styles.priceValue}>
-                      ${proyecto.precio}
+                     {proyecto.moneda} {proyecto.precio}
                     </span>
+
                   </div>
                 )}
+                
                 {isMobileView ? (
                   <div className={styles.mobileContactRow}>
                     <a
@@ -780,6 +792,7 @@ const ProyectoSidebar = ({
                       <FaWhatsapp />
                       WhatsApp
                     </a>
+                   
                     <a
                       href={phoneNumber ? `tel:${phoneNumber}` : undefined}
                       className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}

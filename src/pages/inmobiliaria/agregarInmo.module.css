@@ -7,6 +7,21 @@
   background: var(--theme-bg-main);
 }
 
+.inputGroup {
+  margin-bottom: 0.938rem; /* 1.25rem * 0.75 */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.inputGroup label {
+  display: block;
+  font-size: 0.656rem; /* 0.875rem * 0.75 */
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem; /* 0.4rem * 0.75 */
+}
+
 .previewGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
