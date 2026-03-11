@@ -52,6 +52,8 @@ const ProyectoSidebar = ({
   const contentRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
+  const carouselTouchStartX = useRef(0);
+  const carouselTouchEndX = useRef(0);
   const sheetTouchStartY = useRef(0);
   const sheetTouchDeltaY = useRef(0);
   const sheetTouchStartTop = useRef(0);
@@ -133,6 +135,7 @@ const ProyectoSidebar = ({
       : 0;
 
   const minSwipeDistance = 50;
+  const carouselSwipeDistance = 40;
   const onTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX;
     touchEndX.current = e.targetTouches[0].clientX;
@@ -157,6 +160,36 @@ const ProyectoSidebar = ({
     } else {
       // 👈 Swipe derecha (anterior)
       setFullscreenImgIndex((prev) =>
+        prev === 0 ? validImages.length - 1 : prev - 1,
+      );
+    }
+  };
+
+  const onCarouselTouchStart = (e) => {
+    if (!isMobileView) return;
+    carouselTouchStartX.current = e.targetTouches[0].clientX;
+    carouselTouchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onCarouselTouchMove = (e) => {
+    if (!isMobileView) return;
+    carouselTouchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onCarouselTouchEnd = () => {
+    if (!isMobileView || validImages.length < 2) return;
+    const distance = carouselTouchStartX.current - carouselTouchEndX.current;
+    carouselTouchStartX.current = 0;
+    carouselTouchEndX.current = 0;
+
+    if (Math.abs(distance) < carouselSwipeDistance) return;
+
+    if (distance > 0) {
+      setCurrentImg((prev) =>
+        prev === validImages.length - 1 ? 0 : prev + 1,
+      );
+    } else {
+      setCurrentImg((prev) =>
         prev === 0 ? validImages.length - 1 : prev - 1,
       );
     }
@@ -508,7 +541,12 @@ const ProyectoSidebar = ({
           ) : (
           <div className={styles.imageSection}>
             {isMobileView ? (
-              <div className={styles.mobileCarouselWrap}>
+              <div
+                className={styles.mobileCarouselWrap}
+                onTouchStart={onCarouselTouchStart}
+                onTouchMove={onCarouselTouchMove}
+                onTouchEnd={onCarouselTouchEnd}
+              >
                 {validImages.length === 1 && (
                   <div className={styles.mobileSingleWrap}>
                     <img

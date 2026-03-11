@@ -310,6 +310,109 @@ textarea.input {
   overflow: hidden;
 }
 
+.mapContainerWrap {
+  position: relative;
+}
+
+.mapTypeControlWrap {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+}
+
+.mapTypeTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--theme-bg-surface) 88%, #0f172a 12%);
+  border: 1px solid var(--theme-border-color);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.18);
+}
+
+.mapTypeBtn {
+  border: none;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--theme-text-main);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.mapTypeBtn:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--theme-bg-soft) 70%, #2563eb 30%);
+}
+
+.mapTypeBtnActive {
+  background: linear-gradient(135deg, #16a34a, #0ea5a3);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(16, 163, 127, 0.28);
+}
+
+.mapTypeBtnActive:hover {
+  background: linear-gradient(135deg, #15803d, #0f766e);
+}
+
+.mapTypeSubMenu {
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme-bg-surface) 92%, #0f172a 8%);
+  border: 1px solid var(--theme-border-color);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+}
+
+.mapTypeSubLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--theme-text-muted);
+  margin-bottom: 6px;
+}
+
+.mapTypeSubRow {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.mapTypeSubBtn {
+  border: 1px solid var(--theme-border-color);
+  background: var(--theme-bg-surface);
+  color: var(--theme-text-main);
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.mapTypeSubBtn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, #2563eb 40%, var(--theme-border-color));
+}
+
+.mapTypeSubBtnActive {
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.25);
+}
+
 @media (max-width: 768px) {
   .modalOverlay {
     padding: 8px;

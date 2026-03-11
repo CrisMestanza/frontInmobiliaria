@@ -20,6 +20,9 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showOptionHelp, setShowOptionHelp] = useState(true);
+  const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
+  const [reliefEnabled, setReliefEnabled] = useState(false);
+  const [labelsEnabled, setLabelsEnabled] = useState(true);
 
   const [form, setForm] = useState({
     tipo_registro: "",
@@ -185,6 +188,22 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [showOptionHelp]);
+
+  const applyMapType = useCallback(
+    (map, baseStyle, labels, relief) => {
+      if (!map) return;
+      if (baseStyle === "satellite") {
+        map.setMapTypeId(labels ? "hybrid" : "satellite");
+        return;
+      }
+      map.setMapTypeId(relief ? "terrain" : "roadmap");
+    },
+    [],
+  );
+
+  useEffect(() => {
+    applyMapType(mapRef.current, baseMapStyle, labelsEnabled, reliefEnabled);
+  }, [applyMapType, baseMapStyle, labelsEnabled, reliefEnabled]);
 
   // --- Lógica de Dibujo Manual ---
   const handleMapClick = (e) => {
@@ -730,12 +749,15 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                   mapContainerClassName={styles.googleMap}
                   center={defaultCenter}
                   zoom={14}
-                  onLoad={(map) => (mapRef.current = map)}
+                  onLoad={(map) => {
+                    mapRef.current = map;
+                    applyMapType(map, baseMapStyle, labelsEnabled, reliefEnabled);
+                  }}
                   onClick={handleMapClick}
                   options={{
                     disableDefaultUI: false,
                     streetViewControl: false,
-                    mapTypeControl: true,
+                    mapTypeControl: false,
                     fullscreenControl: true,
                     gestureHandling: "greedy",
                     ...mapControlOptions,
@@ -819,6 +841,72 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     </button>
                   </div>
                 </GoogleMap>
+                <div className={styles.mapTypeControlWrap}>
+                  <div className={styles.mapTypeTabs} aria-label="Tipo de mapa">
+                    <button
+                      type="button"
+                      className={`${styles.mapTypeBtn} ${baseMapStyle === "roadmap" ? styles.mapTypeBtnActive : ""}`}
+                      onClick={() => setBaseMapStyle("roadmap")}
+                      aria-pressed={baseMapStyle === "roadmap"}
+                    >
+                      Mapa
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.mapTypeBtn} ${baseMapStyle === "satellite" ? styles.mapTypeBtnActive : ""}`}
+                      onClick={() => setBaseMapStyle("satellite")}
+                      aria-pressed={baseMapStyle === "satellite"}
+                    >
+                      Satelite
+                    </button>
+                  </div>
+                  <div className={styles.mapTypeSubMenu}>
+                    <span className={styles.mapTypeSubLabel}>
+                      {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
+                    </span>
+                    <div className={styles.mapTypeSubRow}>
+                      {baseMapStyle === "satellite" ? (
+                        <>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setLabelsEnabled(true)}
+                            aria-pressed={labelsEnabled}
+                          >
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${!labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setLabelsEnabled(false)}
+                            aria-pressed={!labelsEnabled}
+                          >
+                            Off
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setReliefEnabled(true)}
+                            aria-pressed={reliefEnabled}
+                          >
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${!reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setReliefEnabled(false)}
+                            aria-pressed={!reliefEnabled}
+                          >
+                            Off
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
               <p className={styles.mapHint}>
                 {isDrawing ? (

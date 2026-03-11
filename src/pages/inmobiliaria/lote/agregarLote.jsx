@@ -40,6 +40,9 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [mapCenter, setMapCenter] = useState(null);
   const [proyectoCoords, setProyectoCoords] = useState([]);
   const [lotesCoords, setLotesCoords] = useState([]);
+  const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
+  const [reliefEnabled, setReliefEnabled] = useState(false);
+  const [labelsEnabled, setLabelsEnabled] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
   const mapRef = useRef(null);
   const googleRef = useRef(null);
@@ -366,7 +369,9 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       // 🔹 Lotes con sus coordenadas ya incluidas
       const lotesData = data.map((lote) => ({
-        coords: lote.puntos.map((p) => ({
+        coords: (lote.puntos || [])
+          .sort((a, b) => a.orden - b.orden)
+          .map((p) => ({
           lat: parseFloat(p.latitud),
           lng: parseFloat(p.longitud),
         })),
@@ -384,6 +389,18 @@ export default function LoteModal({ onClose, idproyecto }) {
       fetchProyecto();
     }
   }, [fetchProyecto, isLoaded]);
+
+  const applyMapType = useCallback(
+    (map) => {
+      if (!map) return;
+      if (baseMapStyle === "satellite") {
+        map.setMapTypeId(labelsEnabled ? "hybrid" : "satellite");
+        return;
+      }
+      map.setMapTypeId(reliefEnabled ? "terrain" : "roadmap");
+    },
+    [baseMapStyle, labelsEnabled, reliefEnabled],
+  );
 
   // 👉 cargar tipos de inmobiliaria
   useEffect(() => {
@@ -590,6 +607,7 @@ export default function LoteModal({ onClose, idproyecto }) {
           <h2 style={{ color: "var(--theme-text-main)" }}>Registrar Lote</h2>
 
           {/* 📍 Google Map */}
+          <div className={style.mapContainerWrap}>
           <GoogleMap
             mapContainerStyle={{
               width: "100%",
@@ -598,9 +616,10 @@ export default function LoteModal({ onClose, idproyecto }) {
             }}
             zoom={16}
             center={mapCenter}
-            options={{ gestureHandling: "greedy" }}
+            options={{ gestureHandling: "greedy", mapTypeControl: false }}
             onLoad={(map) => {
               mapRef.current = map;
+              applyMapType(map);
             }}
           >
             {/* polígono proyecto */}
@@ -645,6 +664,91 @@ export default function LoteModal({ onClose, idproyecto }) {
               }}
             />
           </GoogleMap>
+          <div className={style.mapTypeControlWrap}>
+            <div className={style.mapTypeTabs} aria-label="Tipo de mapa">
+              <button
+                type="button"
+                className={`${style.mapTypeBtn} ${baseMapStyle === "roadmap" ? style.mapTypeBtnActive : ""}`}
+                onClick={() => {
+                  setBaseMapStyle("roadmap");
+                  applyMapType(mapRef.current);
+                }}
+                aria-pressed={baseMapStyle === "roadmap"}
+              >
+                Mapa
+              </button>
+              <button
+                type="button"
+                className={`${style.mapTypeBtn} ${baseMapStyle === "satellite" ? style.mapTypeBtnActive : ""}`}
+                onClick={() => {
+                  setBaseMapStyle("satellite");
+                  applyMapType(mapRef.current);
+                }}
+                aria-pressed={baseMapStyle === "satellite"}
+              >
+                Satelite
+              </button>
+            </div>
+            <div className={style.mapTypeSubMenu}>
+              <span className={style.mapTypeSubLabel}>
+                {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
+              </span>
+              <div className={style.mapTypeSubRow}>
+                {baseMapStyle === "satellite" ? (
+                  <>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setLabelsEnabled(true);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={labelsEnabled}
+                    >
+                      On
+                    </button>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${!labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setLabelsEnabled(false);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={!labelsEnabled}
+                    >
+                      Off
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setReliefEnabled(true);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={reliefEnabled}
+                    >
+                      On
+                    </button>
+                    <button
+                      type="button"
+                      className={`${style.mapTypeSubBtn} ${!reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                      onClick={() => {
+                        setReliefEnabled(false);
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={!reliefEnabled}
+                    >
+                      Off
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          </div>
 
           {/* formulario */}
           <label><strong>¿Añadirá casa o lote?:</strong></label>

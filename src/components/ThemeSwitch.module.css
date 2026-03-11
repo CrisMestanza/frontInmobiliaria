@@ -59,7 +59,7 @@
     display: none;
   }
 
-  /* Switch vertical */
+  /* Default: switch vertical in mobile */
   .track {
     width: 30px;
     height: 56px;
@@ -67,11 +67,30 @@
   }
 
   .thumb {
+    width: 22px;
+    height: 22px;
     transform: translateY(0);
   }
 
   .switchOn .thumb {
     transform: translateY(26px);
+  }
+
+  /* Horizontal override for PanelInmo header */
+  :global(.theme-switch-horizontal).switch .track {
+    width: 44px;
+    height: 24px;
+    padding: 2px;
+  }
+
+  :global(.theme-switch-horizontal).switch .thumb {
+    width: 18px;
+    height: 18px;
+    transform: translateX(0);
+  }
+
+  :global(.theme-switch-horizontal).switch.switchOn .thumb {
+    transform: translateX(20px);
   }
 
 }

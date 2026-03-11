@@ -144,40 +144,28 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
 
           {/* STATS CARDS */}
           <div className={style.statsGrid}>
-            <div className={style.statCard}>
+            <div className={`${style.statCard} ${style.statBlue}`}>
               <p className={style.statLabel}>Total de Lotes</p>
               <div className={style.statValue}>
-                {stats.total}{" "}
-                <span className={`${style.statBadge} ${style.badgeBlue}`}>
-                  100%
-                </span>
+                {stats.total}
               </div>
             </div>
-            <div className={style.statCard}>
+            <div className={`${style.statCard} ${style.statGreen}`}>
               <p className={style.statLabel}>Disponibles</p>
               <div className={style.statValue}>
-                {stats.disponibles}{" "}
-                <span className={`${style.statBadge} ${style.badgeGreen}`}>
-                  Activos
-                </span>
+                {stats.disponibles}
               </div>
             </div>
-            <div className={style.statCard}>
+            <div className={`${style.statCard} ${style.statAmber}`}>
               <p className={style.statLabel}>Reservados</p>
               <div className={style.statValue}>
-                {stats.reservados}{" "}
-                <span className={`${style.statBadge} ${style.badgeAmber}`}>
-                  En proceso
-                </span>
+                {stats.reservados}
               </div>
             </div>
-            <div className={style.statCard}>
+            <div className={`${style.statCard} ${style.statSlate}`}>
               <p className={style.statLabel}>Vendidos</p>
               <div className={style.statValue}>
-                {stats.vendidos}{" "}
-                <span className={`${style.statBadge} ${style.badgeSlate}`}>
-                  Cerrados
-                </span>
+                {stats.vendidos}
               </div>
             </div>
           </div>

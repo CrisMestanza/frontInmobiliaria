@@ -21,6 +21,9 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [basePolygonCoords, setBasePolygonCoords] = useState(null);
   const [detectedAngle, setDetectedAngle] = useState(0);
   const [lotesCoords, setLotesCoords] = useState([]);
+  const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
+  const [reliefEnabled, setReliefEnabled] = useState(false);
+  const [labelsEnabled, setLabelsEnabled] = useState(true);
   const mapRef = useRef(null);
   const googleRef = useRef(null);
   const drawnPolygonRef = useRef(null);
@@ -296,7 +299,9 @@ export default function LoteModal({ onClose, idproyecto }) {
       const data = await resProyecto.json();
 
       const lotesData = data.map((lote) => ({
-        coords: lote.puntos.map((p) => ({
+        coords: (lote.puntos || [])
+          .sort((a, b) => a.orden - b.orden)
+          .map((p) => ({
           lat: parseFloat(p.latitud),
           lng: parseFloat(p.longitud),
         })),
@@ -341,6 +346,18 @@ export default function LoteModal({ onClose, idproyecto }) {
   useEffect(() => {
     if (isLoaded) fetchProyecto();
   }, [fetchProyecto, isLoaded]);
+
+  const applyMapType = useCallback(
+    (map) => {
+      if (!map) return;
+      if (baseMapStyle === "satellite") {
+        map.setMapTypeId(labelsEnabled ? "hybrid" : "satellite");
+        return;
+      }
+      map.setMapTypeId(reliefEnabled ? "terrain" : "roadmap");
+    },
+    [baseMapStyle, labelsEnabled, reliefEnabled],
+  );
 
   /**
    * 🔥 DETECTA LA ORIENTACIÓN del polígono basándose en su lado más largo
@@ -738,7 +755,7 @@ export default function LoteModal({ onClose, idproyecto }) {
     setSelectedLote(lote.id);
 
     const initialForm = formValues[lote.id] || {
-      idtipoinmobiliaria: lote.tipo_inmueble,
+      tipo_inmueble: lote.tipo_inmueble ?? 1,
       nombre: lote.nombre,
       precio: lote.precio,
       descripcion: lote.descripcion,
@@ -808,6 +825,58 @@ export default function LoteModal({ onClose, idproyecto }) {
     }));
   };
 
+  const buildClonePayload = (source, loteFallback) => {
+    const base = {
+      tipo_inmueble: source?.tipo_inmueble ?? 1,
+      precio: source?.precio ?? loteFallback?.precio ?? 0,
+      descripcion: source?.descripcion ?? loteFallback?.descripcion ?? "",
+      area_total_m2: source?.area_total_m2 ?? loteFallback?.area_total_m2 ?? "",
+      ancho: source?.ancho ?? 0,
+      largo: source?.largo ?? 0,
+      dormitorios: source?.dormitorios ?? 0,
+      banos: source?.banos ?? 0,
+      cuartos: source?.cuartos ?? 0,
+      cochera: source?.cochera ?? 0,
+      cocina: source?.cocina ?? 0,
+      sala: source?.sala ?? 0,
+      patio: source?.patio ?? 0,
+      jardin: source?.jardin ?? 0,
+      terraza: source?.terraza ?? 0,
+      azotea: source?.azotea ?? 0,
+      titulo_propiedad: source?.titulo_propiedad ?? 0,
+    };
+
+    return base;
+  };
+
+  const handleCloneToAll = () => {
+    if (!selectedLote) return;
+
+    const source = formValues[selectedLote];
+    if (!source) return;
+
+    setFormValues((prev) => {
+      const next = { ...prev };
+
+      generatedLotes.forEach((lote) => {
+        const existing = next[lote.id] || {};
+        const clonePayload = buildClonePayload(source, lote);
+
+        next[lote.id] = {
+          ...existing,
+          ...clonePayload,
+          nombre:
+            existing.nombre ??
+            lote.nombre ??
+            source.nombre ??
+            `Lote ${lote.id}`,
+        };
+      });
+
+      return next;
+    });
+  };
+
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
 const [isRegistering, setIsRegistering] = useState(false);
@@ -827,11 +896,31 @@ setShowRegisterModal(true);      // Abrir modal
     const formData = new FormData();
 
     generatedLotes.forEach((lote, index) => {
-      const data = formValues[lote.id];
+      const data = {
+        tipo_inmueble: 1,
+        nombre: lote.nombre,
+        precio: lote.precio ?? 0,
+        descripcion: lote.descripcion ?? "",
+        area_total_m2: lote.area_total_m2 ?? "",
+        ancho: 0,
+        largo: 0,
+        dormitorios: 0,
+        banos: 0,
+        cuartos: 0,
+        cochera: 0,
+        cocina: 0,
+        sala: 0,
+        patio: 0,
+        jardin: 0,
+        terraza: 0,
+        azotea: 0,
+        titulo_propiedad: 0,
+        ...(formValues[lote.id] || {}),
+      };
 
       const lotePayload = {
         idproyecto,
-        idtipoinmobiliaria: data.tipo_inmueble,
+        idtipoinmobiliaria: data.tipo_inmueble ?? 1,
         nombre: data.nombre,
         precio: data.precio,
         descripcion: data.descripcion,
@@ -1085,8 +1174,12 @@ setRegisterMessage("✅ Registro con éxito!");
     </div>
   </div>
 )}
+        <div className={style.mapContainerWrap}>
         <GoogleMap
-          onLoad={onMapLoad}
+          onLoad={(map) => {
+            onMapLoad(map);
+            applyMapType(map);
+          }}
           mapContainerStyle={{
             width: "100%",
             height: "360px",
@@ -1094,7 +1187,7 @@ setRegisterMessage("✅ Registro con éxito!");
           }}
           zoom={mapZoom}
           center={mapCenter}
-          options={{ gestureHandling: "greedy" }}
+          options={{ gestureHandling: "greedy", mapTypeControl: false }}
         >
           {proyectoCoords.length > 0 && (
             <Polygon
@@ -1210,12 +1303,106 @@ setRegisterMessage("✅ Registro con éxito!");
             }}
           />
         </GoogleMap>
+        <div className={style.mapTypeControlWrap}>
+          <div className={style.mapTypeTabs} aria-label="Tipo de mapa">
+            <button
+              type="button"
+              className={`${style.mapTypeBtn} ${baseMapStyle === "roadmap" ? style.mapTypeBtnActive : ""}`}
+              onClick={() => {
+                setBaseMapStyle("roadmap");
+                applyMapType(mapRef.current);
+              }}
+              aria-pressed={baseMapStyle === "roadmap"}
+            >
+              Mapa
+            </button>
+            <button
+              type="button"
+              className={`${style.mapTypeBtn} ${baseMapStyle === "satellite" ? style.mapTypeBtnActive : ""}`}
+              onClick={() => {
+                setBaseMapStyle("satellite");
+                applyMapType(mapRef.current);
+              }}
+              aria-pressed={baseMapStyle === "satellite"}
+            >
+              Satelite
+            </button>
+          </div>
+          <div className={style.mapTypeSubMenu}>
+            <span className={style.mapTypeSubLabel}>
+              {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
+            </span>
+            <div className={style.mapTypeSubRow}>
+              {baseMapStyle === "satellite" ? (
+                <>
+                  <button
+                    type="button"
+                    className={`${style.mapTypeSubBtn} ${labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                    onClick={() => {
+                      setLabelsEnabled(true);
+                      applyMapType(mapRef.current);
+                    }}
+                    aria-pressed={labelsEnabled}
+                  >
+                    On
+                  </button>
+                  <button
+                    type="button"
+                    className={`${style.mapTypeSubBtn} ${!labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                    onClick={() => {
+                      setLabelsEnabled(false);
+                      applyMapType(mapRef.current);
+                    }}
+                    aria-pressed={!labelsEnabled}
+                  >
+                    Off
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={`${style.mapTypeSubBtn} ${reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                    onClick={() => {
+                      setReliefEnabled(true);
+                      applyMapType(mapRef.current);
+                    }}
+                    aria-pressed={reliefEnabled}
+                  >
+                    On
+                  </button>
+                  <button
+                    type="button"
+                    className={`${style.mapTypeSubBtn} ${!reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                    onClick={() => {
+                      setReliefEnabled(false);
+                      applyMapType(mapRef.current);
+                    }}
+                    aria-pressed={!reliefEnabled}
+                  >
+                    Off
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        </div>
 
         {selectedLote && (
           <div className={style.formContainer}>
 
 
             <h3>📝 Editar Lote {selectedLote}</h3>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className={style.submitBtn}
+                onClick={handleCloneToAll}
+              >
+                Clonar a todos
+              </button>
+            </div>
             <label>Tipo de inmueble:</label>
             <select
               name="tipo_inmueble"

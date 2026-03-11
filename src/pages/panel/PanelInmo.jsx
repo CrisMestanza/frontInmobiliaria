@@ -63,21 +63,51 @@ import IconoModal from "../inmobiliaria/proyecto/icono/IconoModal";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
+const proyectoImagesCache = new Map();
+const proyectoImagesInflight = new Map();
+
 const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
   const [imagenes, setImagenes] = useState([]);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    fetch(
-      withApiBase(
-        `https://api.geohabita.com/api/list_imagen_proyecto/${proyecto.idproyecto}`,
-      ),
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        setImagenes(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => console.error("Error cargando imágenes:", err));
+    let active = true;
+    const key = proyecto.idproyecto;
+    const cached = proyectoImagesCache.get(key);
+    if (cached) {
+      setImagenes(cached);
+      return undefined;
+    }
+
+    const inflight = proyectoImagesInflight.get(key);
+    const load =
+      inflight ||
+      fetch(
+        withApiBase(
+          `https://api.geohabita.com/api/list_imagen_proyecto/${key}`,
+        ),
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          const normalized = Array.isArray(data) ? data : [];
+          proyectoImagesCache.set(key, normalized);
+          proyectoImagesInflight.delete(key);
+          return normalized;
+        })
+        .catch((err) => {
+          proyectoImagesInflight.delete(key);
+          console.error("Error cargando imágenes:", err);
+          return [];
+        });
+
+    proyectoImagesInflight.set(key, load);
+    load.then((imgs) => {
+      if (active) setImagenes(imgs);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [proyecto.idproyecto]);
   useEffect(() => {
     if (imagenes.length <= 1) return;
@@ -132,7 +162,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
                 aria-label="Gestionar inmuebles"
               >
                 <Layers size={16} />
-                <span className="btn-action-text">Gestionar inmuebles</span>
+                <span className="btn-action-text">Gestionar</span>
               </button>
 
               <button
@@ -151,7 +181,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
                 aria-label="Agregar iconos"
               >
                 <MapPlus size={16} />
-                <span className="btn-action-text">Agregar iconos</span>
+                <span className="btn-action-text">Íconos</span>
               </button>
             </div>
             <button
@@ -410,7 +440,11 @@ const PanelInmo = () => {
           </div>
         </div>
         <div className="header-user">
-          <ThemeSwitch checked={isDark} onChange={toggleTheme} />
+          <ThemeSwitch
+            checked={isDark}
+            onChange={toggleTheme}
+            className="theme-switch-horizontal"
+          />
           <div className="user-info">
             <div className="user-avatar">
               <User size={20} />
@@ -452,7 +486,7 @@ const PanelInmo = () => {
         {/* {Videos} */}
         <div className="tutorial-section">
           <h3 className="tutorial-title">
-            Videotutoriales para Aprender a Gestionar tus Proyectos en GeoHabita
+            Videotutoriales para aprender de GeoHabita
           </h3>
 
           <div className="tutorial-carousel-wrapper">
@@ -500,8 +534,7 @@ const PanelInmo = () => {
           </div>
           <div className="input-group">
             <label className="link-label">
-              Copia o comparte este enlace con tus clientes para acceder
-              exclusivamente a tus proyectos
+              Enlace Exclusivo de tus Proyectos
             </label>
             <div className="link-input-wrapper">
               <input className="input-styled" readOnly value={mapUrl} />

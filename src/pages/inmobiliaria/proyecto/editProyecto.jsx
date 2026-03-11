@@ -23,6 +23,9 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
   const [isDrawing, setIsDrawing] = useState(false);
   const [existingImages, setExistingImages] = useState([]);
   const [removedImageIds, setRemovedImageIds] = useState([]);
+  const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
+  const [reliefEnabled, setReliefEnabled] = useState(false);
+  const [labelsEnabled, setLabelsEnabled] = useState(true);
 
   const [form, setForm] = useState({
     idproyecto: proyecto?.idproyecto || "",
@@ -170,6 +173,22 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
       window.google.maps.event.removeListener(listener);
     };
   }, [isLoaded]);
+
+  const applyMapType = useCallback(
+    (map, baseStyle, labels, relief) => {
+      if (!map) return;
+      if (baseStyle === "satellite") {
+        map.setMapTypeId(labels ? "hybrid" : "satellite");
+        return;
+      }
+      map.setMapTypeId(relief ? "terrain" : "roadmap");
+    },
+    [],
+  );
+
+  useEffect(() => {
+    applyMapType(mapRef.current, baseMapStyle, labelsEnabled, reliefEnabled);
+  }, [applyMapType, baseMapStyle, labelsEnabled, reliefEnabled]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -438,12 +457,13 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
                   zoom={14}
                   onLoad={(map) => {
                     mapRef.current = map;
+                    applyMapType(map, baseMapStyle, labelsEnabled, reliefEnabled);
                   }}
                   onClick={handleMapClick}
                   options={{
                     disableDefaultUI: false,
                     streetViewControl: false,
-                    mapTypeControl: true,
+                    mapTypeControl: false,
                     fullscreenControl: true,
                     gestureHandling: "greedy",
                   }}
@@ -506,6 +526,72 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
                     </button>
                   </div>
                 </GoogleMap>
+                <div className={styles.mapTypeControlWrap}>
+                  <div className={styles.mapTypeTabs} aria-label="Tipo de mapa">
+                    <button
+                      type="button"
+                      className={`${styles.mapTypeBtn} ${baseMapStyle === "roadmap" ? styles.mapTypeBtnActive : ""}`}
+                      onClick={() => setBaseMapStyle("roadmap")}
+                      aria-pressed={baseMapStyle === "roadmap"}
+                    >
+                      Mapa
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.mapTypeBtn} ${baseMapStyle === "satellite" ? styles.mapTypeBtnActive : ""}`}
+                      onClick={() => setBaseMapStyle("satellite")}
+                      aria-pressed={baseMapStyle === "satellite"}
+                    >
+                      Satelite
+                    </button>
+                  </div>
+                  <div className={styles.mapTypeSubMenu}>
+                    <span className={styles.mapTypeSubLabel}>
+                      {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
+                    </span>
+                    <div className={styles.mapTypeSubRow}>
+                      {baseMapStyle === "satellite" ? (
+                        <>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setLabelsEnabled(true)}
+                            aria-pressed={labelsEnabled}
+                          >
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${!labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setLabelsEnabled(false)}
+                            aria-pressed={!labelsEnabled}
+                          >
+                            Off
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setReliefEnabled(true)}
+                            aria-pressed={reliefEnabled}
+                          >
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${!reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => setReliefEnabled(false)}
+                            aria-pressed={!reliefEnabled}
+                          >
+                            Off
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <p className={styles.mapHint}>

@@ -26,6 +26,9 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [basePolygonCoords, setBasePolygonCoords] = useState(null);
   const [detectedAngle, setDetectedAngle] = useState(0);
   const [lotesCoords, setLotesCoords] = useState([]);
+  const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
+  const [reliefEnabled, setReliefEnabled] = useState(false);
+  const [labelsEnabled, setLabelsEnabled] = useState(true);
   const [movePrecision, setMovePrecision] = useState("normal");
   const moveIntervalRef = useRef(null);
   const [zoomPrecision, setZoomPrecision] = useState("normal");
@@ -177,7 +180,9 @@ export default function LoteModal({ onClose, idproyecto }) {
       };
       setMapCenter(center);
 
-      const coords = puntosProyecto.map((p) => ({
+      const coords = puntosProyecto
+        .sort((a, b) => a.orden - b.orden)
+        .map((p) => ({
         lat: parseFloat(p.latitud),
         lng: parseFloat(p.longitud),
       }));
@@ -768,6 +773,18 @@ export default function LoteModal({ onClose, idproyecto }) {
     isLoaded,
     handleRegenerateGrid,
   ]);
+
+  const applyMapType = useCallback(
+    (map) => {
+      if (!map) return;
+      if (baseMapStyle === "satellite") {
+        map.setMapTypeId(labelsEnabled ? "hybrid" : "satellite");
+        return;
+      }
+      map.setMapTypeId(reliefEnabled ? "terrain" : "roadmap");
+    },
+    [baseMapStyle, labelsEnabled, reliefEnabled],
+  );
 
   // const onPolygonComplete = (poly) => {
   //   if (!poly) return;
