@@ -1,6 +1,6 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { GoogleMap, Polygon, Marker } from "@react-google-maps/api";
 import loader from "../../../components/loader";
 import styles from "./addproyect.module.css";
@@ -9,9 +9,8 @@ const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 
 export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const token = localStorage.getItem("access");
-  const [isLoaded, setIsLoaded] = useState(() =>
-    typeof window !== "undefined" &&
-    !!window.google?.maps?.Map,
+  const [isLoaded, setIsLoaded] = useState(
+    () => typeof window !== "undefined" && !!window.google?.maps?.Map,
   );
   const [loadError, setLoadError] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -50,7 +49,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     azotea: "",
     ancho: "",
     largo: "",
-
   });
   const isCasa = parseInt(form.idtipoinmobiliaria, 10) === 2;
   const casaDimensionFields = [
@@ -70,7 +68,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     { name: "terraza", label: "Terraza" },
     { name: "azotea", label: "Azotea" },
   ];
-
 
   // useEffect(() => {
   //   if (!isCasa) {
@@ -102,9 +99,9 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   useEffect(() => {
     if (form.tipo_registro === "lote_unico") {
-      setForm(prev => ({
+      setForm((prev) => ({
         ...prev,
-        idtipoinmobiliaria: 1 // 👈 Forzamos ID 1 cuando es lote único
+        idtipoinmobiliaria: 1, // 👈 Forzamos ID 1 cuando es lote único
       }));
     }
   }, [form.tipo_registro]);
@@ -132,9 +129,12 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   // Cargar Tipos
   useEffect(() => {
-    authFetch(withApiBase("https://api.geohabita.com/api/listTipoInmobiliaria/"), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    authFetch(
+      withApiBase("https://api.geohabita.com/api/listTipoInmobiliaria/"),
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
       .then((res) => res.json())
       .then((data) => setTipo(data))
       .catch((err) => console.error("Error tipos:", err));
@@ -189,17 +189,14 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [showOptionHelp]);
 
-  const applyMapType = useCallback(
-    (map, baseStyle, labels, relief) => {
-      if (!map) return;
-      if (baseStyle === "satellite") {
-        map.setMapTypeId(labels ? "hybrid" : "satellite");
-        return;
-      }
-      map.setMapTypeId(relief ? "terrain" : "roadmap");
-    },
-    [],
-  );
+  const applyMapType = useCallback((map, baseStyle, labels, relief) => {
+    if (!map) return;
+    if (baseStyle === "satellite") {
+      map.setMapTypeId(labels ? "hybrid" : "satellite");
+      return;
+    }
+    map.setMapTypeId(relief ? "terrain" : "roadmap");
+  }, []);
 
   useEffect(() => {
     applyMapType(mapRef.current, baseMapStyle, labelsEnabled, reliefEnabled);
@@ -266,7 +263,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     // Validación del polígono
     if (form.puntos.length < 3) {
       alert(
-        "Por favor, delimite el área del proyecto con al menos 3 puntos en el mapa."
+        "Por favor, delimite el área del proyecto con al menos 3 puntos en el mapa.",
       );
       return;
     }
@@ -326,7 +323,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
             Authorization: `Bearer ${token}`,
             // ❌ NO pongas Content-Type con FormData
           },
-        }
+        },
       );
 
       if (res.ok) {
@@ -340,13 +337,11 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
         setIsSubmitting(false);
         alert("⚠️ Error en registro");
       }
-
     } catch (error) {
       console.error(error);
       setIsSubmitting(false);
       alert("🚫 Error de red");
     }
-
   };
 
   if (loadError) return <div className={styles.loaderMsg}>Error de mapa</div>;
@@ -366,7 +361,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       : {};
 
   return (
-
     <div className={styles.modalOverlay}>
       {isSubmitting && (
         <div className={styles.loadingOverlay}>
@@ -409,7 +403,9 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
             <div className={styles.leftColumn}>
               <section>
                 <div className={styles.helpHeaderWrap} ref={helpWrapRef}>
-                  <h4 className={styles.infoTitle}>¿Qué opción debo seleccionar?</h4>
+                  <h4 className={styles.infoTitle}>
+                    ¿Qué opción debo seleccionar?
+                  </h4>
                   <button
                     type="button"
                     className={styles.helpTrigger}
@@ -430,17 +426,18 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                         ×
                       </button>
                       <p>
-                        • <strong>Único lote:</strong> Selecciona “Lote único” en
+                        • <strong>Único lote:</strong> Selecciona “Lote único”
+                        en
                         <strong> Agregar proyecto o lote único</strong>.
                       </p>
                       <p>
-                        • <strong>Casa única:</strong> Selecciona “Proyecto” y luego
-                        “Casa única” en <strong>Tipo de proyecto</strong>.
+                        • <strong>Casa única:</strong> Selecciona “Proyecto” y
+                        luego “Casa única” en <strong>Tipo de proyecto</strong>.
                       </p>
                       <p>
                         • <strong>Conjunto lotes/casas/departamentos:</strong>{" "}
-                        Selecciona “Proyecto” y luego “Conjunto de Lotes / Casas /
-                        Departamentos” en <strong>Tipo de proyecto</strong>.
+                        Selecciona “Proyecto” y luego “Conjunto de Lotes / Casas
+                        / Departamentos” en <strong>Tipo de proyecto</strong>.
                       </p>
                     </div>
                   )}
@@ -481,7 +478,8 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                         let nombrePersonalizado = t.nombre;
 
                         if (t.nombre === "LOTE") {
-                          nombrePersonalizado = "Conjunto Lotes/Casas/Departamentos";
+                          nombrePersonalizado =
+                            "Conjunto Lotes/Casas/Departamentos";
                         }
 
                         if (t.nombre === "CASA") {
@@ -656,8 +654,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     </div>
                   </>
                 )}
-
-
               </section>
 
               <section>
@@ -751,7 +747,12 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                   zoom={14}
                   onLoad={(map) => {
                     mapRef.current = map;
-                    applyMapType(map, baseMapStyle, labelsEnabled, reliefEnabled);
+                    applyMapType(
+                      map,
+                      baseMapStyle,
+                      labelsEnabled,
+                      reliefEnabled,
+                    );
                   }}
                   onClick={handleMapClick}
                   options={{
