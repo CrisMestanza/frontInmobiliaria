@@ -1,6 +1,15 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
 import React, { useEffect, useState } from "react";
+import {
+  FileText,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import style from "./lotesModal.module.css";
 import InmobiliariaModal from "./agregarLoteBlock";
 import LoteBlockModal from "./agregarLote";
@@ -135,10 +144,17 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
               Administra disponibilidad, precios y estados.
             </p>
             {refreshing && (
-              <div className={style.refreshingText}>Actualizando lotes...</div>
+              <div className={style.refreshingText}>
+                <RefreshCw size={14} className={style.refreshingIcon} />
+                Actualizando lotes...
+              </div>
             )}
-            <button className={style.closeBtn} onClick={onClose}>
-              ✕
+            <button
+              className={style.closeBtn}
+              onClick={onClose}
+              aria-label="Cerrar"
+            >
+              <X size={18} />
             </button>
           </header>
 
@@ -177,7 +193,9 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                 className={`${style.actionBtn} ${style.btnPrimary}`}
                 onClick={() => setShowModalBlock(true)}
               >
-                <span className={style.btnDot}></span> Agregar Lotes
+                <Plus size={14} className={style.actionIcon} />
+                <span className={style.btnDot}></span>
+                Agregar Lotes
               </button>
               {/* <button
                 className={`${style.actionBtn} ${style.btnSecondary}`}
@@ -192,12 +210,15 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                   setShowModalLotePDF(true);
                 }}
               >
+                <FileText size={14} className={style.actionIcon} />
                 Añadir Plano PDF para Calcado
               </button>
             </div>
 
             <div className={style.searchContainer}>
-              <span className={style.searchIcon}>⌕</span>
+              <span className={style.searchIcon} aria-hidden="true">
+                <Search size={14} />
+              </span>
               <input
                 className={style.searchInput}
                 placeholder="Buscar lote o descripción..."
@@ -278,14 +299,16 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                             setShowModalEdit(true);
                           }}
                           disabled={lote.vendido === 1}
+                          aria-label="Editar lote"
                         >
-                          ✏️
+                          <Pencil size={16} />
                         </button>
                         <button
                           className={`${style.iconBtn} ${style.iconBtnDelete}`}
                           onClick={() => handleDelete(lote.idlote)}
+                          aria-label="Eliminar lote"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </td>
                     </tr>

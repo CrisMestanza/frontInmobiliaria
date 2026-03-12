@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 /* ─── LIVE NOTIFICATIONS ──────────────────────────────────────── */
 const NOTIFICATIONS = [
@@ -1486,14 +1486,14 @@ export default function GeoHabita() {
       {/* HEADER */}
       <header className={`gh-header${scrolled ? " gh-header--scrolled" : ""}`}>
         <div className="gh-header-inner">
-          <div className="gh-logo">
+          <Link to="/" className="gh-logo" aria-label="Ir a inicio">
             <img
               src="/geohabita.png"
               alt="Logo GeoHabita"
               className="gh-logo-image"
             />
             <span className="gh-logo-name">GeoHabita</span>
-          </div>
+          </Link>
           <LiveFeed />
           <nav className="gh-nav">
             {navItems.map((item) => (

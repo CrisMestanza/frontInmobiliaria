@@ -24,6 +24,7 @@ import {
   FaArrowsAltH,
   FaArrowsAltV,
   FaPhoneAlt,
+  FaShareAlt,
   FaWalking,
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
@@ -121,6 +122,39 @@ const ProyectoSidebar = ({
     : undefined;
   const facebookHref = inmo?.facebook || undefined;
   const webHref = inmo?.pagina || undefined;
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const inmoId =
+      inmo?.idinmobiliaria ||
+      proyecto?.idinmobiliaria ||
+      proyecto?.idinmobiliaria_id;
+    const proyectoId = proyecto?.idproyecto;
+    if (!inmoId || !proyectoId) return "";
+    return `${window.location.origin}/mapa/${inmoId}?proyecto=${proyectoId}`;
+  }, [inmo, proyecto]);
+
+  const handleShare = async () => {
+    if (!shareUrl) return;
+    const title = `GeoHabita · ${proyecto?.nombreproyecto || "Proyecto"}`;
+    const text = `Mira este proyecto en GeoHabita`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url: shareUrl });
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        window.alert("Link copiado");
+        return;
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.warn("No se pudo compartir el enlace", error);
+      }
+    }
+    window.prompt("Copia el link para compartir:", shareUrl);
+  };
+
 
   const prevImgIndex =
     validImages.length > 0
@@ -800,6 +834,15 @@ const ProyectoSidebar = ({
                     >
                       <FaPhoneAlt /> Llamar
                     </a>
+
+                    <button
+                      type="button"
+                      className={styles.mobileContactBtn}
+                      onClick={handleShare}
+                      disabled={!shareUrl}
+                    >
+                      <FaShareAlt /> Compartir
+                    </button>
                   </div>
                 ) : (
                   <div className={styles.pantallaContactos}>
@@ -821,6 +864,15 @@ const ProyectoSidebar = ({
                     >
                       <FaPhoneAlt /> Llamar
                     </a>
+
+                    <button
+                      type="button"
+                      className={styles.contactMiniBtn}
+                      onClick={handleShare}
+                      disabled={!shareUrl}
+                    >
+                      <FaShareAlt /> Compartir
+                    </button>
                   </div>
                 )}
               </div>

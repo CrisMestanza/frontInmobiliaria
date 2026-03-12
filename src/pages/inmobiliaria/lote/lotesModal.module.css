@@ -181,6 +181,19 @@
 .refreshingText {
   font-size: 12px;
   color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refreshingIcon {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Actions Bar */
@@ -220,6 +233,10 @@
   transition: all 0.2s;
   min-height: 32px;
   width: 100%;
+}
+
+.actionIcon {
+  flex-shrink: 0;
 }
 
 .btnPrimary {
@@ -283,6 +300,8 @@
   left: 12px;
   font-size: 0.9rem;
   color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
 }
 
 .searchCount {
@@ -408,6 +427,38 @@
   font-size: 0.7rem;
   color: #64748b;
   pointer-events: none;
+}
+
+.iconBtn {
+  border: 1px solid var(--border-color);
+  background: var(--theme-bg-surface);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.iconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.iconBtnEdit {
+  color: #2563eb;
+  margin-right: 8px;
+}
+
+.iconBtnDelete {
+  color: #ef4444;
+}
+
+.iconBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
 }
 
 .legend {

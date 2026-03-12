@@ -3,11 +3,64 @@ import { authFetch } from "../../../config/authFetch.js";
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
-import style from "../agregarInmo.module.css";
+import styles from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { loadPdfFromIndexedDB } from "../../../components/utils/indexedDB";
+import {
+  CheckCircle2,
+  Image as ImageIcon,
+  Info,
+  Ruler,
+  RotateCw,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+
+const isSamePoint = (a, b, eps = 1e-10) =>
+  Math.abs(a.lat - b.lat) < eps && Math.abs(a.lng - b.lng) < eps;
+
+const orderCoordsByAngle = (points) => {
+  const center = points.reduce(
+    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    { lat: 0, lng: 0 },
+  );
+  center.lat /= points.length;
+  center.lng /= points.length;
+
+  return [...points].sort((a, b) => {
+    const angleA = Math.atan2(a.lat - center.lat, a.lng - center.lng);
+    const angleB = Math.atan2(b.lat - center.lat, b.lng - center.lng);
+    return angleA - angleB;
+  });
+};
+
+const normalizePolygonCoords = (coords) => {
+  const normalized = (coords || [])
+    .map((p) => ({
+      lat: parseFloat(p.lat ?? p.latitud),
+      lng: parseFloat(p.lng ?? p.longitud),
+      orden: p.orden,
+    }))
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
+  if (normalized.length < 2) return normalized;
+
+  const hasOrder = normalized.every(
+    (p) => p.orden !== null && p.orden !== undefined,
+  );
+  const ordered = hasOrder
+    ? [...normalized].sort((a, b) => Number(a.orden) - Number(b.orden))
+    : orderCoordsByAngle(normalized);
+
+  if (ordered.length > 2 && isSamePoint(ordered[0], ordered[ordered.length - 1])) {
+    ordered.pop();
+  }
+
+  return ordered.map((p) => ({ lat: p.lat, lng: p.lng }));
+};
 
 export default function LoteModal({ onClose, idproyecto }) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -341,47 +394,46 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   const fetchProyecto = useCallback(async () => {
     try {
-      const resProyecto = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const data = await resProyecto.json();
+      const [resLotes, resPuntosProyecto] = await Promise.all([
+        authFetch(
+          withApiBase(
+            `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+          ),
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+        authFetch(
+          withApiBase(
+            `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`,
+          ),
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      ]);
 
-      const lotesData = data.map((lote) => ({
-        coords: (lote.puntos || [])
-          .sort((a, b) => a.orden - b.orden)
-          .map((p) => ({
-            lat: parseFloat(p.latitud),
-            lng: parseFloat(p.longitud),
-          })),
-        vendido: lote.vendido,
-      }));
+      const data = (await resLotes.json()) || [];
+      const puntosProyecto = (await resPuntosProyecto.json()) || [];
+
+      const lotesData = data
+        .map((lote) => ({
+          coords: normalizePolygonCoords(lote.puntos || []),
+          vendido: lote.vendido,
+        }))
+        .filter((lote) => lote.coords.length >= 3);
       setLotesCoords(lotesData);
 
-      // 🔹 Cargar polígono del proyecto
-      const resPuntosProyecto = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`),
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const puntosProyecto = await resPuntosProyecto.json();
-      const orderedProyecto = puntosProyecto
-        .sort((a, b) => a.orden - b.orden)
-        .map((p) => ({ lat: parseFloat(p.latitud), lng: parseFloat(p.longitud) }));
-      if (orderedProyecto.length > 2) orderedProyecto.push(orderedProyecto[0]);
-
+      const orderedProyecto = normalizePolygonCoords(puntosProyecto);
       setProyectoCoords(orderedProyecto);
 
       // 🔹 CENTRAR MAPA y definir zoom
-      if (lotesData.length > 0) {
-        // Centro en el primer lote
+      if (lotesData.length > 0 && lotesData[0].coords.length > 0) {
         setMapCenter(lotesData[0].coords[0]);
         setMapZoom(17); // Zoom para lotes
       } else if (orderedProyecto.length > 0) {
-        // Centro en el polígono del proyecto
         const centerLat =
-          orderedProyecto.reduce((sum, p) => sum + p.lat, 0) / orderedProyecto.length;
+          orderedProyecto.reduce((sum, p) => sum + p.lat, 0) /
+          orderedProyecto.length;
         const centerLng =
-          orderedProyecto.reduce((sum, p) => sum + p.lng, 0) / orderedProyecto.length;
+          orderedProyecto.reduce((sum, p) => sum + p.lng, 0) /
+          orderedProyecto.length;
         setMapCenter({ lat: centerLat, lng: centerLng });
         setMapZoom(14); // Zoom para polígono
       }
@@ -408,19 +460,21 @@ export default function LoteModal({ onClose, idproyecto }) {
     [baseMapStyle, labelsEnabled, reliefEnabled],
   );
 
+
   /**
    * 🔥 DETECTA LA ORIENTACIÓN del polígono basándose en su lado más largo
    */
   const detectPolygonOrientation = (coords) => {
-    if (coords.length < 2) return 0;
+    const cleanCoords = normalizePolygonCoords(coords);
+    if (cleanCoords.length < 2) return 0;
 
     let maxLength = 0;
     let bestAngle = 0;
 
     // Buscar el lado más largo del polígono
-    for (let i = 0; i < coords.length; i++) {
-      const p1 = coords[i];
-      const p2 = coords[(i + 1) % coords.length];
+    for (let i = 0; i < cleanCoords.length; i++) {
+      const p1 = cleanCoords[i];
+      const p2 = cleanCoords[(i + 1) % cleanCoords.length];
 
       // Calcular longitud del lado
       const dx = p2.lng - p1.lng;
@@ -442,13 +496,14 @@ export default function LoteModal({ onClose, idproyecto }) {
    * Retorna las dimensiones reales a lo largo de los ejes rotados
    */
   const calculateOrientedBoundingBox = (coords, angleRad) => {
-    if (!coords || coords.length === 0) return null;
+    const cleanCoords = normalizePolygonCoords(coords);
+    if (!cleanCoords || cleanCoords.length === 0) return null;
 
     const cosA = Math.cos(-angleRad); // Negativo para rotar al sistema de coordenadas alineado
     const sinA = Math.sin(-angleRad);
 
     // Rotar todos los puntos al sistema de coordenadas alineado
-    const rotatedPoints = coords.map((p) => {
+    const rotatedPoints = cleanCoords.map((p) => {
       const x = p.lng;
       const y = p.lat;
       return {
@@ -664,14 +719,15 @@ export default function LoteModal({ onClose, idproyecto }) {
       if (!polygonCoords || !googleRef.current) return [];
 
       // 1. Detectar la orientación natural del polígono
-      const baseAngleRad = detectPolygonOrientation(polygonCoords);
+      const normalizedPolygon = normalizePolygonCoords(polygonCoords);
+      const baseAngleRad = detectPolygonOrientation(normalizedPolygon);
 
       // 2. Aplicar rotación adicional del usuario
       const totalAngleRad =
         baseAngleRad + (additionalRotationDeg * Math.PI) / 180;
 
       // 3. Calcular el OBB (Oriented Bounding Box)
-      const obb = calculateOrientedBoundingBox(polygonCoords, totalAngleRad);
+      const obb = calculateOrientedBoundingBox(normalizedPolygon, totalAngleRad);
       if (!obb) return [];
 
       const { centerLat, centerLng, width, height } = obb;
@@ -716,7 +772,7 @@ export default function LoteModal({ onClose, idproyecto }) {
           // Recortar al polígono
           const clippedCoords = clipRectangleToPolygon(
             globalCorners,
-            polygonCoords,
+            normalizedPolygon,
           );
 
           if (clippedCoords && clippedCoords.length >= 3) {
@@ -776,7 +832,9 @@ export default function LoteModal({ onClose, idproyecto }) {
     if (!poly) return;
 
     const path = poly.getPath().getArray();
-    const coords = path.map((p) => ({ lat: p.lat(), lng: p.lng() }));
+    const coords = normalizePolygonCoords(
+      path.map((p) => ({ lat: p.lat(), lng: p.lng() })),
+    );
 
     if (drawnPolygonRef.current) {
       drawnPolygonRef.current.setMap(null);
@@ -936,12 +994,12 @@ export default function LoteModal({ onClose, idproyecto }) {
   const handleRegisterAll = async () => {
     for (const l of generatedLotes) {
       if (!l.coords || l.coords.length < 3) {
-        alert(`❌ El ${l.nombre} no tiene coordenadas válidas`);
-        return; // ⬅️ salir limpio
+        alert(`El ${l.nombre} no tiene coordenadas válidas`);
+        return;
       }
     }
 
-    setShowRegisterModal(true);      // Abrir modal
+    setShowRegisterModal(true); // Abrir modal
     setRegisterMessage("Registrando inmuebles...");
     setIsRegistering(true);
 
@@ -1039,11 +1097,11 @@ export default function LoteModal({ onClose, idproyecto }) {
 
       if (!res.ok) throw new Error("Error en registro masivo");
 
-      setRegisterMessage("✅ Registro con éxito!");
+      setRegisterMessage("Registro con éxito.");
       onClose();
     } catch (error) {
       console.error(error);
-      setRegisterMessage("❌ Error al registrar los inmuebles");
+      setRegisterMessage("Error al registrar los inmuebles");
 
     } finally {
       setIsRegistering(false);
@@ -1085,140 +1143,676 @@ export default function LoteModal({ onClose, idproyecto }) {
 
 
   return (
-
-    <div className={style.modalOverlay}>
-      <div className={style.modalContent}>
-
-
-        <button className={style.closeBtn} onClick={onClose}>
-          ✖
-        </button>
-
-        <h2 style={{ color: "var(--theme-text-main)" }}>
-          Generar Lotes - Alineado a Lados del Polígono
-        </h2>
-
-        <div
-          style={{
-            display: "flex",
-            gap: "1rem",
-            flexWrap: "wrap",
-            marginBottom: "0.5rem",
-            alignItems: "center",
-          }}
-        >
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalContent}>
+        <div className={styles.header}>
           <div>
-            <label>Filas:</label>
-            <input
-              type="number"
-              value={gridParams.rows}
-              min="1"
-              max="50"
-              onChange={(e) =>
-                handleGridParamChange("rows", parseInt(e.target.value || 1))
-              }
-              className={style.input}
-              style={{ width: "4rem", marginLeft: "0.5rem" }}
-            />
+            <h1 className={styles.title}>Generar Lotes</h1>
+            <p className={styles.subtitle}>
+              Alinea lotes al polígono del proyecto y registra en un solo paso.
+            </p>
+          </div>
+          <button type="button" className={styles.closeBtn} onClick={onClose}>
+            <span className="material-icons-outlined">close</span>
+          </button>
+        </div>
+
+        <div className={styles.formBody}>
+          <div className={styles.gridContainer}>
+            <div className={styles.leftColumn}>
+              <section className={styles.sectionCard}>
+                <h2 className={styles.sectionTitle}>
+                  <span className="material-icons-outlined">grid_on</span>
+                  Configuración
+                </h2>
+
+                <div className={styles.controlGrid}>
+                  <div className={styles.controlField}>
+                    <label>Filas</label>
+                    <input
+                      type="number"
+                      value={gridParams.rows}
+                      min="1"
+                      max="50"
+                      onChange={(e) =>
+                        handleGridParamChange("rows", parseInt(e.target.value || 1))
+                      }
+                      className={styles.input}
+                    />
+                  </div>
+                  <div className={styles.controlField}>
+                    <label>Columnas</label>
+                    <input
+                      type="number"
+                      value={gridParams.cols}
+                      min="1"
+                      max="50"
+                      onChange={(e) =>
+                        handleGridParamChange("cols", parseInt(e.target.value || 1))
+                      }
+                      className={styles.input}
+                    />
+                  </div>
+                  <div className={styles.controlFieldWide}>
+                    <label>Ajuste</label>
+                    <div className={styles.rangeRow}>
+                      <input
+                        type="range"
+                        min="-90"
+                        max="90"
+                        step="1"
+                        value={rotationDeg}
+                        onChange={(e) => setRotationDeg(parseFloat(e.target.value))}
+                        className={styles.rangeInput}
+                      />
+                      <span className={styles.rangeValue}>
+                        {rotationDeg.toFixed(0)}°
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.controlActions}>
+                  <button
+                    className={`${styles.submitBtn} ${styles.btnWithIcon}`}
+                    onClick={handleRegenerateGrid}
+                    disabled={!basePolygonCoords}
+                  >
+                    <RotateCw size={16} className={styles.inlineIcon} />
+                    Regenerar
+                  </button>
+
+                  <button
+                    className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.dangerBtn}`}
+                    onClick={handleClearPolygon}
+                  >
+                    <Trash2 size={16} className={styles.inlineIcon} />
+                    Limpiar
+                  </button>
+                </div>
+
+                <div className={styles.hintBox}>
+                  {!basePolygonCoords && (
+                    <span className={styles.inlineRow}>
+                      <Info size={16} className={styles.inlineIcon} />
+                      <strong>Dibuja un polígono</strong> en el mapa para comenzar
+                    </span>
+                  )}
+                  {basePolygonCoords && (
+                    <div>
+                      <span className={styles.inlineRow}>
+                        <CheckCircle2 size={16} className={styles.inlineIcon} />
+                        <strong>Lotes generados: {generatedLotes.length}</strong>
+                        {selectedLote && ` | Seleccionado: Lote ${selectedLote}`}
+                      </span>
+                      <span className={`${styles.inlineRow} ${styles.hintMeta}`}>
+                        <Ruler size={14} className={styles.inlineIcon} />
+                        Ángulo detectado: {detectedAngle.toFixed(1)}° | Ajuste aplicado:{" "}
+                        {rotationDeg}°
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {selectedLote && (
+                <section className={styles.sectionCard}>
+                  <h2 className={styles.sectionTitle}>
+                    <span className="material-icons-outlined">edit</span>
+                    Lote {selectedLote}
+                  </h2>
+
+                  <div className={styles.actionRow}>
+                    <button
+                      type="button"
+                      className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.secondaryBtn}`}
+                      onClick={handleCloneToAll}
+                    >
+                      Clonar a todos
+                    </button>
+                  </div>
+
+                  <div className={styles.compactGrid}>
+                    <div className={styles.compactField}>
+                      <label>Tipo de inmueble</label>
+                      <select
+                        name="tipo_inmueble"
+                        value={formValues[selectedLote]?.tipo_inmueble ?? 1}
+                        onChange={handleTipoChange}
+                        className={styles.select}
+                      >
+                        <option value={1}>Lote</option>
+                        <option value={2}>Casa</option>
+                      </select>
+                    </div>
+                    <div className={styles.compactField}>
+                      <label>Nombre</label>
+                      <input
+                        name="nombre"
+                        value={
+                          formValues[selectedLote]?.nombre ||
+                          generatedLotes.find((l) => l.id === selectedLote)?.nombre ||
+                          ""
+                        }
+                        onChange={handleFormChange}
+                        className={styles.input}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.compactGrid}>
+                    <div className={styles.compactField}>
+                      <label>País y moneda</label>
+                      <select onChange={handleCountryChange} className={styles.select}>
+                        <option value="">Seleccionar país</option>
+                        {countries.map((c, i) => (
+                          <option key={i} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.compactField}>
+                      <label>Precio</label>
+                      <div className={styles.priceRow}>
+                        {selectedCountry && (
+                          <img
+                            src={selectedCountry.flag}
+                            alt="flag"
+                            className={styles.flagIcon}
+                          />
+                        )}
+                        <span className={styles.currencyLabel}>
+                          {selectedCountry?.currencySymbol || "$"}
+                        </span>
+                        <input
+                          name="precio"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={
+                            formValues[selectedLote]?.precio ||
+                            generatedLotes.find((l) => l.id === selectedLote)?.precio ||
+                            ""
+                          }
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label>Descripción</label>
+                    <textarea
+                      name="descripcion"
+                      rows="3"
+                      value={
+                        formValues[selectedLote]?.descripcion ||
+                        generatedLotes.find((l) => l.id === selectedLote)?.descripcion ||
+                        ""
+                      }
+                      onChange={handleFormChange}
+                      className={styles.textarea}
+                    ></textarea>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label>Título de propiedad</label>
+                    <select
+                      name="titulo_propiedad"
+                      value={formValues[selectedLote]?.titulo_propiedad ?? 0}
+                      onChange={handleFormChange}
+                      className={styles.select}
+                    >
+                      <option value="">Selecciona un valor</option>
+                      <option value={0}>No</option>
+                      <option value={1}>Sí</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.compactGrid}>
+                    <div className={styles.compactField}>
+                      <label>Área total (m²)</label>
+                      <input
+                        name="area_total_m2"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={
+                          formValues[selectedLote]?.area_total_m2 ??
+                          generatedLotes.find((l) => l.id === selectedLote)?.area_total_m2 ??
+                          ""
+                        }
+                        onChange={handleFormChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.compactField}>
+                      <label>Ancho (m)</label>
+                      <input
+                        name="ancho"
+                        type="number"
+                        step="0.01"
+                        value={formValues[selectedLote]?.ancho || ""}
+                        onChange={handleFormChange}
+                        className={styles.input}
+                      />
+                    </div>
+                    <div className={styles.compactField}>
+                      <label>Largo (m)</label>
+                      <input
+                        name="largo"
+                        type="number"
+                        step="0.01"
+                        value={formValues[selectedLote]?.largo || ""}
+                        onChange={handleFormChange}
+                        className={styles.input}
+                      />
+                    </div>
+                  </div>
+
+                  {esCasa && (
+                    <div className={styles.compactGrid}>
+                      <div className={styles.compactField}>
+                        <label>Dormitorios</label>
+                        <input
+                          name="dormitorios"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.dormitorios ?? 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Baños</label>
+                        <input
+                          name="banos"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.banos ?? 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Cuartos</label>
+                        <input
+                          name="cuartos"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.cuartos ?? 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Cochera</label>
+                        <input
+                          name="cochera"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.cochera || 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Cocina</label>
+                        <input
+                          name="cocina"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.cocina || 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Sala</label>
+                        <input
+                          name="sala"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.sala || 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Patio</label>
+                        <input
+                          name="patio"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.patio || 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Jardín</label>
+                        <input
+                          name="jardin"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.jardin || 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Terraza</label>
+                        <input
+                          name="terraza"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.terraza || 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                      <div className={styles.compactField}>
+                        <label>Azotea</label>
+                        <input
+                          name="azotea"
+                          type="number"
+                          min="0"
+                          value={formValues[selectedLote]?.azotea || 0}
+                          onChange={handleFormChange}
+                          className={styles.input}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.inlineRow}>
+                      <ImageIcon size={16} className={styles.inlineIcon} />
+                      Imágenes del inmueble
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImagenesChange}
+                      className={styles.input}
+                    />
+                    {formValues[selectedLote]?.imagenes?.length > 0 && (
+                      <div className={styles.imagePreviewGrid}>
+                        {formValues[selectedLote].imagenes.map((img, index) => (
+                          <div key={index} className={styles.imagePreviewItem}>
+                            <img src={img.preview} alt={`lote-${index}`} />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(selectedLote, index)}
+                              className={styles.imageRemoveBtn}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+            </div>
+
+            <div className={styles.rightColumn}>
+              <h2 className={styles.sectionTitle}>
+                <span className="material-icons-outlined">map</span> Mapa
+              </h2>
+              <div className={styles.mapWrapper}>
+                <GoogleMap
+                  onLoad={(map) => {
+                    onMapLoad(map);
+                    applyMapType(map);
+                  }}
+                  mapContainerClassName={styles.googleMap}
+                  zoom={mapZoom}
+                  center={mapCenter}
+                  options={{ gestureHandling: "greedy", mapTypeControl: false }}
+                >
+                  {proyectoCoords.length > 0 && (
+                    <Polygon
+                      paths={proyectoCoords}
+                      options={{
+                        strokeColor: "#0000FF",
+                        strokeWeight: 2,
+                        fillColor: "#0000FF",
+                        fillOpacity: 0.1,
+                        clickable: false,
+                        zIndex: 0,
+                      }}
+                    />
+                  )}
+
+                  {basePolygonCoords && (
+                    <Polygon
+                      paths={basePolygonCoords}
+                      options={{
+                        strokeColor: "#FF00FF",
+                        strokeWeight: 3,
+                        fillOpacity: 0.15,
+                        fillColor: "#FF00FF",
+                        clickable: false,
+                        zIndex: 1,
+                      }}
+                    />
+                  )}
+
+                  {lotesCoords.map((lote, i) => (
+                    <Polygon
+                      key={i}
+                      paths={lote.coords}
+                      options={{
+                        strokeColor: "#333333",
+                        strokeWeight: 1,
+                        fillColor: getColorLote(lote.vendido),
+                        fillOpacity: 0.45,
+                      }}
+                    />
+                  ))}
+
+                  {generatedLotes.map((lote) => (
+                    <Polygon
+                      key={lote.id}
+                      paths={lote.coords}
+                      editable
+                      draggable
+                      onLoad={(poly) => {
+                        polygonRefs.current[lote.id] = poly;
+                      }}
+                      onMouseUp={() => {
+                        const poly = polygonRefs.current[lote.id];
+                        if (!poly) return;
+
+                        const coords = poly
+                          .getPath()
+                          .getArray()
+                          .map((p) => ({
+                            lat: p.lat(),
+                            lng: p.lng(),
+                          }));
+
+                        setGeneratedLotes((prev) =>
+                          prev.map((l) => (l.id === lote.id ? { ...l, coords } : l)),
+                        );
+                      }}
+                      onClick={() => handleSelectLote(lote)}
+                      options={{
+                        strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
+                        strokeWeight: 2,
+                        fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
+                        fillOpacity: 0.5,
+                        zIndex: 10,
+                      }}
+                    />
+                  ))}
+
+                  <DrawingManager
+                    onLoad={(dm) => {
+                      drawingManagerRef.current = dm;
+                    }}
+                    onUnmount={() => {
+                      drawingManagerRef.current = null;
+                    }}
+                    onPolygonComplete={onPolygonComplete}
+                    options={{
+                      drawingControl: true,
+                      drawingControlOptions: {
+                        position:
+                          googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
+                        drawingModes: ["polygon", "rectangle"],
+                      },
+                      polygonOptions: {
+                        editable: true,
+                        draggable: true,
+                        fillColor: "#FF00FF",
+                        fillOpacity: 0.3,
+                        strokeColor: "#FF00FF",
+                        strokeWeight: 2,
+                      },
+                      rectangleOptions: {
+                        editable: true,
+                        draggable: true,
+                        fillColor: "#FF00FF",
+                        fillOpacity: 0.3,
+                        strokeColor: "#FF00FF",
+                        strokeWeight: 2,
+                      },
+                    }}
+                  />
+                </GoogleMap>
+                <div className={styles.mapTypeControlWrap}>
+                  <div className={styles.mapTypeTabs} aria-label="Tipo de mapa">
+                    <button
+                      type="button"
+                      className={`${styles.mapTypeBtn} ${baseMapStyle === "roadmap" ? styles.mapTypeBtnActive : ""}`}
+                      onClick={() => {
+                        setBaseMapStyle("roadmap");
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={baseMapStyle === "roadmap"}
+                    >
+                      Mapa
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.mapTypeBtn} ${baseMapStyle === "satellite" ? styles.mapTypeBtnActive : ""}`}
+                      onClick={() => {
+                        setBaseMapStyle("satellite");
+                        applyMapType(mapRef.current);
+                      }}
+                      aria-pressed={baseMapStyle === "satellite"}
+                    >
+                      Satelite
+                    </button>
+                  </div>
+                  <div className={styles.mapTypeSubMenu}>
+                    <span className={styles.mapTypeSubLabel}>
+                      {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
+                    </span>
+                    <div className={styles.mapTypeSubRow}>
+                      {baseMapStyle === "satellite" ? (
+                        <>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => {
+                              setLabelsEnabled(true);
+                              applyMapType(mapRef.current);
+                            }}
+                            aria-pressed={labelsEnabled}
+                          >
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${!labelsEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => {
+                              setLabelsEnabled(false);
+                              applyMapType(mapRef.current);
+                            }}
+                            aria-pressed={!labelsEnabled}
+                          >
+                            Off
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => {
+                              setReliefEnabled(true);
+                              applyMapType(mapRef.current);
+                            }}
+                            aria-pressed={reliefEnabled}
+                          >
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.mapTypeSubBtn} ${!reliefEnabled ? styles.mapTypeSubBtnActive : ""}`}
+                            onClick={() => {
+                              setReliefEnabled(false);
+                              applyMapType(mapRef.current);
+                            }}
+                            aria-pressed={!reliefEnabled}
+                          >
+                            Off
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label>Columnas:</label>
-            <input
-              type="number"
-              value={gridParams.cols}
-              min="1"
-              max="50"
-              onChange={(e) =>
-                handleGridParamChange("cols", parseInt(e.target.value || 1))
-              }
-              className={style.input}
-              style={{ width: "4rem", marginLeft: "0.5rem" }}
-            />
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              minWidth: "280px",
-            }}
-          >
-            <label>Ajuste:</label>
-            <input
-              type="range"
-              min="-90"
-              max="90"
-              step="1"
-              value={rotationDeg}
-              onChange={(e) => setRotationDeg(parseFloat(e.target.value))}
-              style={{ flex: 1 }}
-            />
-            <div
+          <div className={styles.footerBar}>
+            <button
+              onClick={handleRegisterAll}
+              className={`${styles.submitBtn} ${styles.btnWithIcon}`}
+              disabled={generatedLotes.length === 0}
               style={{
-                width: "3.5rem",
-                textAlign: "right",
-                fontWeight: "bold",
+                opacity: generatedLotes.length === 0 ? 0.5 : 1,
+                cursor: generatedLotes.length === 0 ? "not-allowed" : "pointer",
               }}
             >
-              {rotationDeg.toFixed(0)}°
-            </div>
+              <Save size={16} className={styles.inlineIcon} />
+              Registrar Todos ({generatedLotes.length})
+            </button>
           </div>
-
-          <button
-            className={style.submitBtn}
-            onClick={handleRegenerateGrid}
-            disabled={!basePolygonCoords}
-          >
-            🔄 Regenerar
-          </button>
-
-          <button
-            className={style.submitBtn}
-            onClick={handleClearPolygon}
-            style={{ backgroundColor: "#ff6b6b" }}
-          >
-            🗑️ Limpiar
-          </button>
         </div>
-
-        <div
-          style={{
-            marginBottom: "0.5rem",
-            color: "var(--theme-text-main)",
-            fontSize: "14px",
-          }}
-        >
-          {!basePolygonCoords && (
-            <span>
-              👉 <strong>Dibuja un polígono</strong> en el mapa para comenzar
-            </span>
-          )}
-          {basePolygonCoords && (
-            <div>
-              <span>
-                ✅ <strong>Lotes generados: {generatedLotes.length}</strong>
-                {selectedLote && ` | Seleccionado: Lote ${selectedLote}`}
-              </span>
-              <br />
-              <span style={{ fontSize: "12px", color: "var(--theme-text-muted)" }}>
-                📐 Ángulo detectado: {detectedAngle.toFixed(1)}° | Ajuste
-                aplicado: {rotationDeg}°
-              </span>
+      </div>
+      {showRegisterModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: "400px" }}>
+            <div className={styles.header}>
+              <div>
+                <h1 className={styles.title}>Registro</h1>
+                <p className={styles.subtitle}>Estado del registro masivo.</p>
+              </div>
+              {!isRegistering && (
+                <button
+                  type="button"
+                  className={styles.closeBtn}
+                  onClick={() => setShowRegisterModal(false)}
+                >
+                  <span className="material-icons-outlined">close</span>
+                </button>
+              )}
             </div>
-          )}
-        </div>
-        {showRegisterModal && (
-          <div className={style.modalOverlay}>
-            <div
-              className={style.modalContent}
-              style={{ maxWidth: "400px", textAlign: "center" }}
-            >
+            <div className={styles.formBody} style={{ textAlign: "center" }}>
               <h3>{registerMessage}</h3>
               {!isRegistering && (
                 <button
-                  className={style.submitBtn}
+                  className={styles.submitBtn}
                   onClick={() => setShowRegisterModal(false)}
                   style={{ marginTop: "1rem" }}
                 >
@@ -1227,558 +1821,8 @@ export default function LoteModal({ onClose, idproyecto }) {
               )}
             </div>
           </div>
-        )}
-        <div className={style.mapContainerWrap}>
-          <GoogleMap
-            onLoad={(map) => {
-              onMapLoad(map);
-              applyMapType(map);
-            }}
-            mapContainerStyle={{
-              width: "100%",
-              height: "360px",
-              marginBottom: "1rem",
-            }}
-            zoom={mapZoom}
-            center={mapCenter}
-            options={{ gestureHandling: "greedy", mapTypeControl: false }}
-          >
-            {proyectoCoords.length > 0 && (
-              <Polygon
-                paths={proyectoCoords}
-                options={{
-                  strokeColor: "#0000FF",
-                  strokeWeight: 2,
-                  fillColor: "#0000FF",
-                  fillOpacity: 0.1,
-                  clickable: false,
-                  zIndex: 0,
-                }}
-              />
-            )}
-
-            {basePolygonCoords && (
-              <Polygon
-                paths={basePolygonCoords}
-                options={{
-                  strokeColor: "#FF00FF",
-                  strokeWeight: 3,
-                  fillOpacity: 0.15,
-                  fillColor: "#FF00FF",
-                  clickable: false,
-                  zIndex: 1,
-                }}
-              />
-            )}
-
-            {lotesCoords.map((lote, i) => (
-              <Polygon
-                key={i}
-                paths={lote.coords}
-                options={{
-                  strokeColor: "#333333",
-                  strokeWeight: 1,
-                  fillColor: getColorLote(lote.vendido),
-                  fillOpacity: 0.45,
-                }}
-              />
-            ))}
-
-            {generatedLotes.map((lote) => (
-              <Polygon
-                key={lote.id}
-                paths={lote.coords}
-                editable
-                draggable
-                onLoad={(poly) => {
-                  polygonRefs.current[lote.id] = poly;
-                }}
-                onMouseUp={() => {
-                  const poly = polygonRefs.current[lote.id];
-                  if (!poly) return;
-
-                  const coords = poly
-                    .getPath()
-                    .getArray()
-                    .map(p => ({
-                      lat: p.lat(),
-                      lng: p.lng(),
-                    }));
-
-                  setGeneratedLotes(prev =>
-                    prev.map(l =>
-                      l.id === lote.id ? { ...l, coords } : l
-                    )
-                  );
-                }}
-                onClick={() => handleSelectLote(lote)}
-                options={{
-                  strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
-                  strokeWeight: 2,
-                  fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
-                  fillOpacity: 0.5,
-                  zIndex: 10,
-                }}
-              />
-            ))}
-
-
-            <DrawingManager
-              onLoad={(dm) => {
-                drawingManagerRef.current = dm;
-              }}
-              onUnmount={() => {
-                drawingManagerRef.current = null;
-              }}
-              onPolygonComplete={onPolygonComplete}
-              options={{
-                drawingControl: true,
-                drawingControlOptions: {
-                  position:
-                    googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
-                  drawingModes: ["polygon", "rectangle"],
-                },
-                polygonOptions: {
-                  editable: true,
-                  draggable: true,
-                  fillColor: "#FF00FF",
-                  fillOpacity: 0.3,
-                  strokeColor: "#FF00FF",
-                  strokeWeight: 2,
-                },
-                rectangleOptions: {
-                  editable: true,
-                  draggable: true,
-                  fillColor: "#FF00FF",
-                  fillOpacity: 0.3,
-                  strokeColor: "#FF00FF",
-                  strokeWeight: 2,
-                },
-              }}
-            />
-          </GoogleMap>
-          <div className={style.mapTypeControlWrap}>
-            <div className={style.mapTypeTabs} aria-label="Tipo de mapa">
-              <button
-                type="button"
-                className={`${style.mapTypeBtn} ${baseMapStyle === "roadmap" ? style.mapTypeBtnActive : ""}`}
-                onClick={() => {
-                  setBaseMapStyle("roadmap");
-                  applyMapType(mapRef.current);
-                }}
-                aria-pressed={baseMapStyle === "roadmap"}
-              >
-                Mapa
-              </button>
-              <button
-                type="button"
-                className={`${style.mapTypeBtn} ${baseMapStyle === "satellite" ? style.mapTypeBtnActive : ""}`}
-                onClick={() => {
-                  setBaseMapStyle("satellite");
-                  applyMapType(mapRef.current);
-                }}
-                aria-pressed={baseMapStyle === "satellite"}
-              >
-                Satelite
-              </button>
-            </div>
-            <div className={style.mapTypeSubMenu}>
-              <span className={style.mapTypeSubLabel}>
-                {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
-              </span>
-              <div className={style.mapTypeSubRow}>
-                {baseMapStyle === "satellite" ? (
-                  <>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setLabelsEnabled(true);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={labelsEnabled}
-                    >
-                      On
-                    </button>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${!labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setLabelsEnabled(false);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={!labelsEnabled}
-                    >
-                      Off
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setReliefEnabled(true);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={reliefEnabled}
-                    >
-                      On
-                    </button>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${!reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setReliefEnabled(false);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={!reliefEnabled}
-                    >
-                      Off
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
-
-        {selectedLote && (
-          <div className={style.formContainer}>
-
-
-            <h3>📝 Editar Lote {selectedLote}</h3>
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                className={style.submitBtn}
-                onClick={handleCloneToAll}
-              >
-                Clonar a todos
-              </button>
-            </div>
-            <label>Tipo de inmueble:</label>
-            <select
-              name="tipo_inmueble"
-              value={formValues[selectedLote]?.tipo_inmueble ?? 1}
-              onChange={handleTipoChange}
-              className={style.input}
-            >
-              <option value={1}>Lote</option>
-              <option value={2}>Casa</option>
-            </select>
-
-            <label>Nombre:</label>
-            <input
-              name="nombre"
-              value={
-                formValues[selectedLote]?.nombre ||
-                generatedLotes.find((l) => l.id === selectedLote)?.nombre ||
-                ""
-              }
-              onChange={handleFormChange}
-              className={style.input}
-            />
-
-            <label>País y moneda:</label>
-            <select
-              onChange={handleCountryChange}
-              className={style.input}
-            >
-              <option value="">Seleccionar país</option>
-              {countries.map((c, i) => (
-                <option key={i} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-
-            <div style={{ display: "flex", marginTop: "10px" }}>
-              {selectedCountry && (
-                <div style={{ marginTop: "5px" }}>
-                  <img
-                    src={selectedCountry.flag}
-                    alt="flag"
-                    style={{ width: "40px", borderRadius: "3px", marginRight: "10px" }}
-                  />
-                </div>
-              )}
-
-              <label>
-                Precio {selectedCountry?.currencySymbol || "$"}:
-              </label>
-
-              <input
-                name="precio"
-                type="number"
-                min="0"
-                step="0.01"
-                value={
-                  formValues[selectedLote]?.precio ||
-                  generatedLotes.find((l) => l.id === selectedLote)?.precio ||
-                  ""
-                }
-                onChange={handleFormChange}
-                className={style.input}
-              />
-            </div>
-
-            <label>Descripción:</label>
-            <textarea
-              name="descripcion"
-              rows="3"
-              value={
-                formValues[selectedLote]?.descripcion ||
-                generatedLotes.find((l) => l.id === selectedLote)
-                  ?.descripcion ||
-                ""
-              }
-              onChange={handleFormChange}
-              className={style.input}
-            ></textarea>
-
-            <label>Título de propiedad:</label>
-            <select
-              name="titulo_propiedad"
-              value={formValues[selectedLote]?.titulo_propiedad ?? 0}
-              onChange={handleFormChange}
-              className={style.input}
-            >
-              <option value="">Selecciona un valor</option>
-              <option value={0}>No</option>
-              <option value={1}>Sí</option>
-            </select>
-
-
-            <label>Área total (m²):</label>
-            <input
-              name="area_total_m2"
-              type="number"
-              min="0"
-              step="0.01"
-              value={
-                formValues[selectedLote]?.area_total_m2 ??
-                generatedLotes.find((l) => l.id === selectedLote)
-                  ?.area_total_m2 ??
-                ""
-              }
-              onChange={handleFormChange}
-              className={style.input}
-            />
-
-            <label>Ancho (m):</label>
-            <input
-              name="ancho"
-              type="number"
-              step="0.01"
-              value={formValues[selectedLote]?.ancho || ""}
-              onChange={handleFormChange}
-              className={style.input}
-            />
-
-            <label>Largo (m):</label>
-            <input
-              name="largo"
-              type="number"
-              step="0.01"
-              value={formValues[selectedLote]?.largo || ""}
-              onChange={handleFormChange}
-              className={style.input}
-            />
-            {esCasa && (
-              <>
-                <label>Dormitorios:</label>
-                <input
-                  name="dormitorios"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.dormitorios ?? 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Baños:</label>
-                <input
-                  name="banos"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.banos ?? 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Cuartos:</label>
-                <input
-                  name="cuartos"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.cuartos ?? 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Cochera:</label>
-                <input
-                  name="cochera"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.cochera || 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Cocina:</label>
-                <input
-                  name="cocina"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.cocina || 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Sala:</label>
-                <input
-                  name="sala"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.sala || 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Patio:</label>
-                <input
-                  name="patio"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.patio || 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Jardín:</label>
-                <input
-                  name="jardin"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.jardin || 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Terraza:</label>
-                <input
-                  name="terraza"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.terraza || 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-
-                <label>Azotea:</label>
-                <input
-                  name="azotea"
-                  type="number"
-                  min="0"
-                  value={formValues[selectedLote]?.azotea || 0}
-                  onChange={handleFormChange}
-                  className={style.input}
-                />
-              </>
-            )}
-
-
-            {/* IMÁGENES DEL LOTE */}
-
-
-
-            <label style={{ color: "var(--theme-text-main)" }}>📷 Imágenes del inmueble</label>
-
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImagenesChange}
-              className={style.input}
-            />
-
-            {formValues[selectedLote]?.imagenes?.length > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "0.5rem",
-                  marginTop: "0.5rem",
-                }}
-              >
-                {formValues[selectedLote].imagenes.map((img, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      position: "relative",
-                      width: "90px",
-                      height: "90px",
-                      borderRadius: "6px",
-                      overflow: "hidden",
-                      border: "1px solid #ccc",
-                    }}
-                  >
-                    <img
-                      src={img.preview}
-                      alt={`lote-${index}`}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(selectedLote, index)}
-                      style={{
-                        position: "absolute",
-                        top: "2px",
-                        right: "2px",
-                        background: "rgba(0,0,0,0.6)",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "50%",
-                        width: "20px",
-                        height: "20px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-
-
-
-
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button
-            onClick={handleRegisterAll}
-            className={style.submitBtn}
-            disabled={generatedLotes.length === 0}
-            style={{
-              opacity: generatedLotes.length === 0 ? 0.5 : 1,
-              cursor: generatedLotes.length === 0 ? "not-allowed" : "pointer",
-            }}
-          >
-            💾 Registrar Todos ({generatedLotes.length})
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

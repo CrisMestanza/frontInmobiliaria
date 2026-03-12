@@ -2,8 +2,46 @@ import { withApiBase } from "../../../../config/api.js";
 import { authFetch } from "../../../../config/authFetch.js";
 // components/IconoModal.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
+import { X } from "lucide-react";
 import style from "../../agregarInmo.module.css";
 import loader from "../../../../components/loader";
+
+const normalizePolygonCoords = (coords = []) => {
+  const normalized = coords
+    .map((p) => ({
+      lat: parseFloat(p.lat ?? p.latitud),
+      lng: parseFloat(p.lng ?? p.longitud),
+      orden: p.orden,
+    }))
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
+  if (normalized.length < 2) return normalized;
+
+  const hasOrder = normalized.every(
+    (p) => p.orden !== null && p.orden !== undefined,
+  );
+
+  if (hasOrder) {
+    return normalized
+      .sort((a, b) => Number(a.orden) - Number(b.orden))
+      .map((p) => ({ lat: p.lat, lng: p.lng }));
+  }
+
+  const center = normalized.reduce(
+    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    { lat: 0, lng: 0 },
+  );
+  center.lat /= normalized.length;
+  center.lng /= normalized.length;
+
+  return normalized
+    .sort((a, b) => {
+      const angleA = Math.atan2(a.lat - center.lat, a.lng - center.lng);
+      const angleB = Math.atan2(b.lat - center.lat, b.lng - center.lng);
+      return angleA - angleB;
+    })
+    .map((p) => ({ lat: p.lat, lng: p.lng }));
+};
 
 export default function IconoModal({ onClose, idproyecto }) {
   const mapRef = useRef(null);
@@ -98,14 +136,17 @@ export default function IconoModal({ onClose, idproyecto }) {
         const lotesConPuntos = await resLotes.json();
         const iconosRegistrados = await resIconosProyecto.json();
 
-        const proyectoCoords = puntosProyecto.map((p) => ({
-          lat: parseFloat(p.latitud),
-          lng: parseFloat(p.longitud),
-        }));
+        const proyectoCoords = normalizePolygonCoords(puntosProyecto);
         if (!proyectoCoords.length) return;
 
         // Centrar mapa con puntos del proyecto para que abra rápido aun sin lotes
-        map.mapInstance.setCenter(proyectoCoords[0]);
+        const bounds = new window.google.maps.LatLngBounds();
+        proyectoCoords.forEach((p) => bounds.extend(p));
+        if (!bounds.isEmpty()) {
+          map.mapInstance.fitBounds(bounds);
+        } else {
+          map.mapInstance.setCenter(proyectoCoords[0]);
+        }
 
         if (proyectoPolygonRef.current) {
           proyectoPolygonRef.current.setMap(null);
@@ -125,15 +166,9 @@ export default function IconoModal({ onClose, idproyecto }) {
 
         const lotesPolygons = lotesConPuntos
           .map((lote) => {
-            const loteCoords = (lote.puntos || [])
-              .sort((a, b) => a.orden - b.orden)
-              .map((p) => ({
-                lat: parseFloat(p.latitud),
-                lng: parseFloat(p.longitud),
-              }));
+            const loteCoords = normalizePolygonCoords(lote.puntos || []);
 
             if (!loteCoords.length) return null;
-            if (loteCoords.length > 2) loteCoords.push(loteCoords[0]);
 
             return new window.google.maps.Polygon({
               paths: loteCoords,
@@ -205,7 +240,7 @@ export default function IconoModal({ onClose, idproyecto }) {
         proyectoPolygonRef.current
       )
     ) {
-      alert("⚠️ Solo puedes colocar íconos dentro del proyecto.");
+      alert("Solo puedes colocar íconos dentro del proyecto.");
       return;
     }
 
@@ -220,7 +255,7 @@ export default function IconoModal({ onClose, idproyecto }) {
       draggable: true,
     });
 
-    // Objeto listo para enviar al backend ✅
+    // Objeto listo para enviar al backend
     const payloadIcono = {
       idicono:
         draggedIcono.idicono ??
@@ -257,7 +292,7 @@ export default function IconoModal({ onClose, idproyecto }) {
           proyectoPolygonRef.current
         )
       ) {
-        alert("⚠️ No puedes mover el ícono fuera del proyecto.");
+        alert("No puedes mover el ícono fuera del proyecto.");
         marker.setPosition(latLng);
       } else {
         setIconosMapa((prev) =>
@@ -316,14 +351,14 @@ export default function IconoModal({ onClose, idproyecto }) {
       body: JSON.stringify(payload),
     });
 
-    alert("Íconos guardados ✅");
+    alert("Íconos guardados.");
     onClose();
   };
   return (
     <div className={style.modalOverlay}>
       <div className={style.modalContent}>
         <button className={style.closeBtn} onClick={onClose}>
-          ✖
+          <X size={16} />
         </button>
         <h2 className={style.iconModalTitle}>Arrastra los Íconos a tu Proyecto</h2>
         <div className={style.iconPalette}>

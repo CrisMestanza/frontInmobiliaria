@@ -1,12 +1,36 @@
 import { withApiBase } from "../../config/api.js";
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import {
-  FaRulerCombined, FaRulerHorizontal, FaRulerVertical,
-  FaChevronLeft, FaChevronRight, FaFacebook, FaWhatsapp, FaGlobe,
-  FaMapMarkerAlt, FaCheckCircle, FaTimesCircle,
+  FaRulerCombined,
+  FaRulerHorizontal,
+  FaRulerVertical,
+  FaChevronLeft,
+  FaChevronRight,
+  FaFacebook,
+  FaWhatsapp,
+  FaGlobe,
+  FaMapMarkerAlt,
+  FaCheckCircle,
+  FaTimesCircle,
   // ESTOS SON LOS QUE FALTABAN:
-  FaBed, FaBath, FaHome, FaChair, FaUtensils, FaCar,
-  FaCampground, FaTree, FaSun, FaBuilding, FaPhoneAlt,
+  FaBed,
+  FaBath,
+  FaHome,
+  FaChair,
+  FaUtensils,
+  FaCar,
+  FaCampground,
+  FaTree,
+  FaSun,
+  FaBuilding,
+  FaPhoneAlt,
+  FaShareAlt,
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
 
@@ -39,8 +63,8 @@ const LoteSidebarOverlay = ({
   }, [inmo]);
   const whatsappHref = inmo?.whatsapp
     ? `https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
-      `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto?.nombreproyecto || ""}"* y en el lote/inmueble *"${lote?.nombre || ""}"*`,
-    )}`
+        `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto?.nombreproyecto || ""}"* y en el lote/inmueble *"${lote?.nombre || ""}"*`,
+      )}`
     : undefined;
   const facebookHref = inmo?.facebook || undefined;
   const webHref = inmo?.pagina || undefined;
@@ -174,7 +198,6 @@ const LoteSidebarOverlay = ({
     e.stopPropagation();
   };
 
-
   const onSheetTouchEnd = () => {
     if (!isMobileView) return;
     if (mobileSheetTop !== null) {
@@ -257,20 +280,58 @@ const LoteSidebarOverlay = ({
 
   const registrarClickContacto = async (redSocial) => {
     try {
-      await fetch(withApiBase("https://api.geohabita.com/api/registerClickContactos/"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idproyecto: proyecto?.idproyecto ?? null,
-          dia: new Date().toISOString().split("T")[0],
-          hora: new Date().toLocaleTimeString(),
-          redSocial,
-        }),
-      });
+      await fetch(
+        withApiBase("https://api.geohabita.com/api/registerClickContactos/"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            idproyecto: proyecto?.idproyecto ?? null,
+            dia: new Date().toISOString().split("T")[0],
+            hora: new Date().toLocaleTimeString(),
+            redSocial,
+          }),
+        },
+      );
     } catch (error) {
       console.error("Error registrando click de contacto:", error);
     }
   };
+
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    const inmoId =
+      inmo?.idinmobiliaria ||
+      proyecto?.idinmobiliaria ||
+      proyecto?.idinmobiliaria_id;
+    const proyectoId = proyecto?.idproyecto;
+    const loteId = lote?.idlote;
+    if (!inmoId || !proyectoId || !loteId) return "";
+    return `${window.location.origin}/mapa/${inmoId}?proyecto=${proyectoId}&lote=${loteId}`;
+  }, [inmo, proyecto, lote]);
+
+  const handleShare = async () => {
+    if (!shareUrl) return;
+    const title = `GeoHabita · ${lote?.nombre || "Lote"}`;
+    const text = `Mira este lote en ${proyecto?.nombreproyecto || "GeoHabita"}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url: shareUrl });
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        window.alert("Link copiado");
+        return;
+      }
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.warn("No se pudo compartir el enlace", error);
+      }
+    }
+    window.prompt("Copia el link para compartir:", shareUrl);
+  };
+
 
   useEffect(() => {
     const esc = (e) => e.key === "Escape" && cerrarSidebar();
@@ -290,7 +351,10 @@ const LoteSidebarOverlay = ({
     if (currentImg >= validImages.length) {
       setCurrentImg(0);
     }
-    if (fullscreenImgIndex !== null && fullscreenImgIndex >= validImages.length) {
+    if (
+      fullscreenImgIndex !== null &&
+      fullscreenImgIndex >= validImages.length
+    ) {
       setFullscreenImgIndex(validImages.length > 0 ? 0 : null);
     }
   }, [validImages, currentImg, fullscreenImgIndex]);
@@ -310,8 +374,6 @@ const LoteSidebarOverlay = ({
   };
 
   if (!lote) return null;
-
-  console.log("Moneda", lote.moneda)
 
   return (
     <>
@@ -337,16 +399,15 @@ const LoteSidebarOverlay = ({
         style={
           isMobileView && mobileSheetTop !== null
             ? {
-              top: `${mobileSheetTop}px`,
-              height: `calc(100dvh - ${mobileSheetTop}px)`,
-              transition: isSheetDragging
-                ? "none"
-                : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
-            }
+                top: `${mobileSheetTop}px`,
+                height: `calc(100dvh - ${mobileSheetTop}px)`,
+                transition: isSheetDragging
+                  ? "none"
+                  : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
+              }
             : undefined
         }
       >
-
         {isMobileView && (
           <div
             className={styles.mobileTopHeader}
@@ -354,9 +415,7 @@ const LoteSidebarOverlay = ({
             onTouchMove={onSheetTouchMove}
             onTouchEnd={onSheetTouchEnd}
           >
-            <h3 className={styles.mobileHeaderTitle}>
-              {lote.nombre}
-            </h3>
+            <h3 className={styles.mobileHeaderTitle}>{lote.nombre}</h3>
             <button
               className={styles.mobileHeaderClose}
               onClick={cerrarSidebar}
@@ -368,13 +427,17 @@ const LoteSidebarOverlay = ({
           </div>
         )}
 
-
-        <button className={styles.closeBtn} onClick={cerrarSidebar} aria-label="Cerrar">✕</button>
+        <button
+          className={styles.closeBtn}
+          onClick={cerrarSidebar}
+          aria-label="Cerrar"
+        >
+          ✕
+        </button>
 
         <div
           className={`${styles.splitLayout} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
-
           <div className={styles.imageSection}>
             {validImages.length > 0 ? (
               isMobileView ? (
@@ -384,15 +447,15 @@ const LoteSidebarOverlay = ({
                   onScroll={handleGalleryScroll}
                 >
                   {validImages.map((img, index) => (
-                    <div
-                      key={index}
-                      className={styles.galleryItem}
-                    >
+                    <div key={index} className={styles.galleryItem}>
                       <img
-                        src={withApiBase(`https://api.geohabita.com${img.imagen}`)}
+                        src={withApiBase(
+                          `https://api.geohabita.com${img.imagen}`,
+                        )}
                         alt="Lote"
-                        className={`${styles.mobileGalleryImage} ${activeIndex === index ? styles.activeImage : ""
-                          }`}
+                        className={`${styles.mobileGalleryImage} ${
+                          activeIndex === index ? styles.activeImage : ""
+                        }`}
                         onClick={() => setFullscreenImgIndex(index)}
                       />
                     </div>
@@ -400,24 +463,26 @@ const LoteSidebarOverlay = ({
                 </div>
               ) : (
                 <>
-
                   <img
                     key={currentImg}
-                    src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagen}`)}
+                    src={withApiBase(
+                      `https://api.geohabita.com${validImages[currentImg].imagen}`,
+                    )}
                     alt="Lote"
                     className={styles.mainImage}
                     fetchpriority="high" // Le dice al navegador que esta es la prioridad #1
                     onClick={() => setFullscreenImgIndex(currentImg)}
                   />
 
-
                   {validImages.map((img, index) => (
                     <img
                       key={index}
-                      src={withApiBase(`https://api.geohabita.com${img.imagen}`)}
+                      src={withApiBase(
+                        `https://api.geohabita.com${img.imagen}`,
+                      )}
                       loading="lazy" // Solo carga cuando el usuario hace scroll hacia ella
                       className={styles.mobileGalleryImage}
-                    // ... rest
+                      // ... rest
                     />
                   ))}
                   {validImages.length > 1 && (
@@ -453,12 +518,12 @@ const LoteSidebarOverlay = ({
             <div className={styles.primeInfo}>
               <div className={styles.inmoCard}>
                 <div className={styles.inmoHeader}>
-                  <div className={styles.inmoIcon}>
-                    🏢
-                  </div>
+                  <div className={styles.inmoIcon}>🏢</div>
 
                   <div>
-                    <span className={styles.inmoLabel}>Inmobiliaria / Persona</span>
+                    <span className={styles.inmoLabel}>
+                      Inmobiliaria / Persona
+                    </span>
                     <h2 className={styles.inmoName}>
                       {inmo?.nombreinmobiliaria}
                     </h2>
@@ -466,11 +531,8 @@ const LoteSidebarOverlay = ({
                 </div>
 
                 {inmo?.descripcion && (
-                  <p className={styles.inmoDescription}>
-                    {inmo.descripcion}
-                  </p>
+                  <p className={styles.inmoDescription}>{inmo.descripcion}</p>
                 )}
-
               </div>
 
               <p className={styles.proyectoP}>Datos del lote</p>
@@ -478,27 +540,30 @@ const LoteSidebarOverlay = ({
 
               <span className={styles.legalLabel}>
                 {lote.titulo_propiedad === 1 ? (
-                  <><FaCheckCircle /> Con título de propiedad</>
+                  <>
+                    <FaCheckCircle /> Con título de propiedad
+                  </>
                 ) : (
-                  <><FaTimesCircle /> Sin título de propiedad</>
+                  <>
+                    <FaTimesCircle /> Sin título de propiedad
+                  </>
                 )}
               </span>
               <h1 className={styles.nombreLote}>{lote.nombre}</h1>
-              <p className={styles.ubicacion}><FaMapMarkerAlt /> Ubicación referencial</p>
+              <p className={styles.ubicacion}>
+                <FaMapMarkerAlt /> Ubicación referencial
+              </p>
 
               <div className={styles.priceContainer}>
                 <div style={{ display: "block", marginRight: "3px" }}>
-
                   <img src={lote.bandera} alt="" className={styles.flagIcon} />
                   <span className={styles.labelSmall}> Precio del Lote:</span>
-                  <span className={styles.priceValue}>{lote.moneda} {lote.precio}</span>
+                  <span className={styles.priceValue}>
+                    {lote.moneda} {lote.precio}
+                  </span>
                 </div>
 
-                
-                
-
                 <div className={styles.pantallaCelul}>
-
                   <a
                     href={whatsappHref}
                     target="_blank"
@@ -520,9 +585,17 @@ const LoteSidebarOverlay = ({
                   >
                     <FaPhoneAlt /> Llamar
                   </a>
+
+                  <button
+                    type="button"
+                    className={styles.contactMiniBtn}
+                    onClick={handleShare}
+                    disabled={!shareUrl}
+                  >
+                    <FaShareAlt /> Compartir
+                  </button>
                 </div>
               </div>
-
 
               <div className={styles.quickGrid}>
                 {hasValue(lote.area_total_m2) && (
@@ -564,29 +637,79 @@ const LoteSidebarOverlay = ({
                 <>
                   <h3 className={styles.sectionTitle}>Características</h3>
                   <div className={styles.featuresGrid}>
-                    <div className={styles.fItem}><FaBed /> {lote.dormitorios} Dorm.</div>
-                    <div className={styles.fItem}><FaBath /> {lote.banos} Baños</div>
-                    <div className={styles.fItem}><FaHome /> {lote.cuartos} Cuartos</div>
-                    <div className={styles.fItem}><FaChair /> {lote.sala} Sala</div>
-                    <div className={styles.fItem}><FaUtensils /> {lote.cocina} Cocina</div>
-                    <div className={styles.fItem}><FaCar /> {lote.cochera} Cochera</div>
-                    {lote.patio > 0 && <div className={styles.fItem}><FaCampground /> {lote.patio} Patio</div>}
-                    {lote.jardin > 0 && <div className={styles.fItem}><FaTree /> {lote.jardin} Jardín</div>}
-                    {lote.terraza > 0 && <div className={styles.fItem}><FaSun /> {lote.terraza} Terraza</div>}
-                    {lote.azotea > 0 && <div className={styles.fItem}><FaBuilding /> {lote.azotea} Azotea</div>}
+                    <div className={styles.fItem}>
+                      <FaBed /> {lote.dormitorios} Dorm.
+                    </div>
+                    <div className={styles.fItem}>
+                      <FaBath /> {lote.banos} Baños
+                    </div>
+                    <div className={styles.fItem}>
+                      <FaHome /> {lote.cuartos} Cuartos
+                    </div>
+                    <div className={styles.fItem}>
+                      <FaChair /> {lote.sala} Sala
+                    </div>
+                    <div className={styles.fItem}>
+                      <FaUtensils /> {lote.cocina} Cocina
+                    </div>
+                    <div className={styles.fItem}>
+                      <FaCar /> {lote.cochera} Cochera
+                    </div>
+                    {lote.patio > 0 && (
+                      <div className={styles.fItem}>
+                        <FaCampground /> {lote.patio} Patio
+                      </div>
+                    )}
+                    {lote.jardin > 0 && (
+                      <div className={styles.fItem}>
+                        <FaTree /> {lote.jardin} Jardín
+                      </div>
+                    )}
+                    {lote.terraza > 0 && (
+                      <div className={styles.fItem}>
+                        <FaSun /> {lote.terraza} Terraza
+                      </div>
+                    )}
+                    {lote.azotea > 0 && (
+                      <div className={styles.fItem}>
+                        <FaBuilding /> {lote.azotea} Azotea
+                      </div>
+                    )}
                   </div>
                 </>
               )}
 
               <h3 className={styles.sectionTitle}>Cercanía</h3>
               <div className={styles.distanciaBox}>
-                <span>🚶 {walkingInfo?.duration || "---"} ({walkingInfo?.distance || ""})</span>
-                <span>🚗 {drivingInfo?.duration || "---"} ({drivingInfo?.distance || ""})</span>
+                <span>
+                  🚶 {walkingInfo?.duration || "---"} (
+                  {walkingInfo?.distance || ""})
+                </span>
+                <span>
+                  🚗 {drivingInfo?.duration || "---"} (
+                  {drivingInfo?.distance || ""})
+                </span>
               </div>
 
               <div className={styles.socialFooter}>
-                <a href={facebookHref} target="_blank" rel="noreferrer" className={styles.fb} onClick={() => registrarClickContacto("Facebook")}><FaFacebook /></a>
-                <a href={webHref} target="_blank" rel="noreferrer" className={styles.web} onClick={() => registrarClickContacto("Web")}><FaGlobe /></a>
+                <a
+                  href={facebookHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.fb}
+                  onClick={() => registrarClickContacto("Facebook")}
+                >
+                  <FaFacebook />
+                </a>
+                <a
+                  href={webHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.web}
+                  onClick={() => registrarClickContacto("Web")}
+                >
+                  <FaGlobe />
+                </a>
               </div>
             </div>
           </div>
@@ -599,17 +722,24 @@ const LoteSidebarOverlay = ({
           className={styles.fullscreenOverlay}
           onClick={() => setFullscreenImgIndex(null)}
           // Eventos para Swipe en celular
-          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchStart={(e) => {
+            touchStartX.current = e.touches[0].clientX;
+          }}
           onTouchEnd={(e) => {
             const touchEndX = e.changedTouches[0].clientX;
             const diff = touchStartX.current - touchEndX;
-            if (Math.abs(diff) > 50) { // Sensibilidad
+            if (Math.abs(diff) > 50) {
+              // Sensibilidad
               if (diff > 0) {
                 // Swipe Izquierda -> Siguiente
-                setFullscreenImgIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
+                setFullscreenImgIndex((prev) =>
+                  prev === validImages.length - 1 ? 0 : prev + 1,
+                );
               } else {
                 // Swipe Derecha -> Anterior
-                setFullscreenImgIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
+                setFullscreenImgIndex((prev) =>
+                  prev === 0 ? validImages.length - 1 : prev - 1,
+                );
               }
             }
           }}
@@ -619,14 +749,18 @@ const LoteSidebarOverlay = ({
             className={`${styles.navArrowFullscreen} ${styles.arrowLeft}`}
             onClick={(e) => {
               e.stopPropagation();
-              setFullscreenImgIndex((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
+              setFullscreenImgIndex((prev) =>
+                prev === 0 ? validImages.length - 1 : prev - 1,
+              );
             }}
           >
             <FaChevronLeft />
           </button>
 
           <img
-            src={withApiBase(`https://api.geohabita.com${validImages[fullscreenImgIndex].imagen}`)}
+            src={withApiBase(
+              `https://api.geohabita.com${validImages[fullscreenImgIndex].imagen}`,
+            )}
             className={styles.fullscreenImg}
             alt="Zoom"
             onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen
@@ -637,13 +771,17 @@ const LoteSidebarOverlay = ({
             className={`${styles.navArrowFullscreen} ${styles.arrowRight}`}
             onClick={(e) => {
               e.stopPropagation();
-              setFullscreenImgIndex((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
+              setFullscreenImgIndex((prev) =>
+                prev === validImages.length - 1 ? 0 : prev + 1,
+              );
             }}
           >
             <FaChevronRight />
           </button>
 
-          <div className={styles.fsBadge}>{fullscreenImgIndex + 1} / {validImages.length}</div>
+          <div className={styles.fsBadge}>
+            {fullscreenImgIndex + 1} / {validImages.length}
+          </div>
 
           <button
             className={styles.closeFsBtn}

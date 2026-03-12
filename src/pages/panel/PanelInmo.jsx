@@ -1,6 +1,6 @@
 import { withApiBase } from "../../config/api.js";
 import { authFetch } from "../../config/authFetch.js";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import "./PanelInmo.css";
 import {
   PlusCircle,
@@ -56,10 +56,18 @@ import {
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
 import Loader from "../../components/Loading";
-import ProyectoModal from "../inmobiliaria/proyecto/agregarProyecto";
-import LotesModal from "../inmobiliaria/lote/LotesModal";
-import EditProyectoModal from "../inmobiliaria/proyecto/editProyecto";
-import IconoModal from "../inmobiliaria/proyecto/icono/IconoModal";
+const ProyectoModal = React.lazy(
+  () => import("../inmobiliaria/proyecto/agregarProyecto"),
+);
+const LotesModal = React.lazy(
+  () => import("../inmobiliaria/lote/LotesModal"),
+);
+const EditProyectoModal = React.lazy(
+  () => import("../inmobiliaria/proyecto/editProyecto"),
+);
+const IconoModal = React.lazy(
+  () => import("../inmobiliaria/proyecto/icono/IconoModal"),
+);
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -289,34 +297,44 @@ const PanelInmo = () => {
     }
     try {
       setLoading(true);
-      const resProy = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/getProyectoInmo/${idInmo}`),
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const proyectosData = await resProy.json();
-      const cleanProyectos = Array.isArray(proyectosData) ? proyectosData : [];
-      setProyectos(cleanProyectos);
-
-      let lotesAcumulados = [];
-      for (let proy of cleanProyectos) {
-        const resLotes = await authFetch(
+      const [resProy, resClicks] = await Promise.all([
+        authFetch(
+          withApiBase(`https://api.geohabita.com/api/getProyectoInmo/${idInmo}`),
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        ),
+        authFetch(
           withApiBase(
-            `https://api.geohabita.com/api/getLoteProyecto/${proy.idproyecto}`,
+            `https://api.geohabita.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
           ),
           {
             headers: { Authorization: `Bearer ${token}` },
           },
-        );
-        if (resLotes.ok) {
-          const dataLotes = await resLotes.json();
-          lotesAcumulados = [
-            ...lotesAcumulados,
-            ...(Array.isArray(dataLotes) ? dataLotes : []),
-          ];
-        }
-      }
+        ),
+      ]);
+
+      const proyectosData = resProy.ok ? await resProy.json() : [];
+      const cleanProyectos = Array.isArray(proyectosData) ? proyectosData : [];
+      setProyectos(cleanProyectos);
+
+      const lotesResponses = await Promise.all(
+        cleanProyectos.map((proy) =>
+          authFetch(
+            withApiBase(
+              `https://api.geohabita.com/api/getLoteProyecto/${proy.idproyecto}`,
+            ),
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          )
+            .then((res) => (res.ok ? res.json() : []))
+            .catch(() => []),
+        ),
+      );
+      const lotesAcumulados = lotesResponses.flatMap((data) =>
+        Array.isArray(data) ? data : [],
+      );
       setLotes(lotesAcumulados);
 
       setResumen({
@@ -331,14 +349,6 @@ const PanelInmo = () => {
           .length,
       });
 
-      const resClicks = await authFetch(
-        withApiBase(
-          `https://api.geohabita.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
-        ),
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
       if (resClicks.ok) setClicks(await resClicks.json());
     } catch (err) {
       console.error(err);
@@ -736,43 +746,51 @@ const PanelInmo = () => {
 
       {/* MODALES ORIGINALES */}
       {showModal && (
-        <ProyectoModal
-          onClose={() => {
-            setShowModal(false);
-            fetchData();
-          }}
-          idinmobiliaria={idInmo}
-        />
+        <Suspense fallback={<Loader />}>
+          <ProyectoModal
+            onClose={() => {
+              setShowModal(false);
+              fetchData();
+            }}
+            idinmobiliaria={idInmo}
+          />
+        </Suspense>
       )}
       {showLotes && (
-        <LotesModal
-          idproyecto={showLotes}
-          proyectoNombre={
-            proyectos.find((p) => p.idproyecto === showLotes)?.nombreproyecto
-          }
-          onClose={() => {
-            setShowLotes(false);
-            // fetchData();
-          }}
-        />
+        <Suspense fallback={<Loader />}>
+          <LotesModal
+            idproyecto={showLotes}
+            proyectoNombre={
+              proyectos.find((p) => p.idproyecto === showLotes)?.nombreproyecto
+            }
+            onClose={() => {
+              setShowLotes(false);
+              // fetchData();
+            }}
+          />
+        </Suspense>
       )}
       {showModalEditProyecto && (
-        <EditProyectoModal
-          onClose={() => {
-            setShowModalEditProyecto(null);
-            // fetchData();
-          }}
-          idinmobiliaria={idInmo}
-          proyecto={proyectos.find(
-            (p) => p.idproyecto === showModalEditProyecto,
-          )}
-        />
+        <Suspense fallback={<Loader />}>
+          <EditProyectoModal
+            onClose={() => {
+              setShowModalEditProyecto(null);
+              // fetchData();
+            }}
+            idinmobiliaria={idInmo}
+            proyecto={proyectos.find(
+              (p) => p.idproyecto === showModalEditProyecto,
+            )}
+          />
+        </Suspense>
       )}
       {showIconoModal && (
-        <IconoModal
-          onClose={() => setShowIconoModal(false)}
-          idproyecto={showIconoModal}
-        />
+        <Suspense fallback={<Loader />}>
+          <IconoModal
+            onClose={() => setShowIconoModal(false)}
+            idproyecto={showIconoModal}
+          />
+        </Suspense>
       )}
       {projectToDelete && (
         <div

@@ -15,8 +15,7 @@ import CustomSelect from "./CustomSelect";
 import styles from "./Mapa.module.css";
 import ChatBotPanel from "../mybot/ChatBotPanel";
 import loader from "../../components/loader";
-import { useParams } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
@@ -38,6 +37,7 @@ const LotesOverlay = ({
   selectedLote,
   hoveredLote,
   mapZoom = 13,
+  isMobile = false,
   onLoteClick,
   onLoteMouseOver,
   onLoteMouseOut,
@@ -116,6 +116,10 @@ const LotesOverlay = ({
         const status = getStatusMeta(lote.vendido);
         const showQuickLabel = isSelected;
         const strokeBaseColor = getColorLote(lote.vendido, isHovered);
+        const haloScale = isMobile ? 0.45 : 1;
+        const baseHaloOpacity = isMobile ? 0.18 : 0.24;
+        const selectedHaloOpacity = isMobile ? 0.32 : 0.5;
+        const hoveredHaloOpacity = isMobile ? 0.26 : 0.4;
 
         return (
           <PolygonOverlay
@@ -167,13 +171,14 @@ const LotesOverlay = ({
               strokeColor: strokeBaseColor,
               haloColor: status.color,
               haloOpacity: isSelected
-                ? 0.5
+                ? selectedHaloOpacity
                 : isHovered
-                  ? 0.4
+                  ? hoveredHaloOpacity
                   : isDimmed
-                    ? 0.12
-                    : 0.24,
-              haloWeight: isSelected ? 8 : isHovered ? 6 : isDimmed ? 3 : 5,
+                    ? baseHaloOpacity * 0.5
+                    : baseHaloOpacity,
+              haloWeight:
+                (isSelected ? 8 : isHovered ? 6 : isDimmed ? 3 : 5) * haloScale,
             }}
             mapZoom={mapZoom}
           />
@@ -244,18 +249,33 @@ function MyMap() {
   const cacheRef = useRef({
     mapProjects: new Map(),
     projectDetail: new Map(),
+    projectImages: new Map(),
+    loteImages: new Map(),
   });
   const inflightRef = useRef({
     mapProjects: new Map(),
     projectDetail: new Map(),
+    projectImages: new Map(),
+    loteImages: new Map(),
   });
+  const projectDetailAbortRef = useRef(null);
+  const projectImagesAbortRef = useRef(null);
+  const loteImagesAbortRef = useRef(null);
+  const prefetchAbortRef = useRef(null);
+  const prefetchIdleRef = useRef(null);
+  const pendingShareFocusRef = useRef(null);
+  const pendingProjectsRef = useRef(null);
   // const inmoId = null;
   const { inmoId } = useParams();
+  const [searchParams] = useSearchParams();
+  const sharedLoadRef = useRef(null);
   const [filtroBotActivo, setFiltroBotActivo] = useState(false);
 
   // Usuario
   const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
   const MAX_VISIBLE_MARKERS = 250;
+  const PREFETCH_DETAIL_LIMIT = 8;
+  const PREFETCH_IDLE_TIMEOUT = 700;
   const anuncioSlides = useMemo(
     () => [
       {
@@ -304,6 +324,104 @@ function MyMap() {
     [anuncioTextWidthPx],
   );
   const getCacheKey = (prefix, id) => `${prefix}_${id}`;
+  const parsePositiveInt = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? Math.trunc(n) : null;
+  };
+  const sharedProyectoId =
+    parsePositiveInt(searchParams.get("proyecto")) ??
+    parsePositiveInt(searchParams.get("proyectoId")) ??
+    parsePositiveInt(searchParams.get("p"));
+  const sharedLoteId =
+    parsePositiveInt(searchParams.get("lote")) ??
+    parsePositiveInt(searchParams.get("loteId")) ??
+    parsePositiveInt(searchParams.get("l"));
+  const hasShareParams = Boolean(sharedProyectoId || sharedLoteId);
+  const [shareFocusActive, setShareFocusActive] = useState(hasShareParams);
+  const [shareResolveStatus, setShareResolveStatus] = useState(
+    hasShareParams ? "pending" : "idle",
+  );
+
+  const normalizeNumber = (value) => {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const normalizePuntosWithOrder = (puntos = []) => {
+    const normalized = puntos
+      .map((p) => {
+        const lat = normalizeNumber(p.latitud ?? p.lat);
+        const lng = normalizeNumber(p.longitud ?? p.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return {
+          ...p,
+          latitud: lat,
+          longitud: lng,
+          orden:
+            p.orden !== null && p.orden !== undefined ? Number(p.orden) : null,
+        };
+      })
+      .filter(Boolean);
+
+    if (normalized.length < 2) return normalized;
+
+    const hasOrder = normalized.every((p) => p.orden !== null);
+    if (hasOrder) {
+      return [...normalized].sort((a, b) => a.orden - b.orden);
+    }
+
+    const center = normalized.reduce(
+      (acc, p) => ({ lat: acc.lat + p.latitud, lng: acc.lng + p.longitud }),
+      { lat: 0, lng: 0 },
+    );
+    center.lat /= normalized.length;
+    center.lng /= normalized.length;
+
+    return [...normalized].sort((a, b) => {
+      const angleA = Math.atan2(
+        a.latitud - center.lat,
+        a.longitud - center.lng,
+      );
+      const angleB = Math.atan2(
+        b.latitud - center.lat,
+        b.longitud - center.lng,
+      );
+      return angleA - angleB;
+    });
+  };
+
+  const resolveIconUrl = (rawUrl) => {
+    if (!rawUrl) return null;
+    if (rawUrl.startsWith("http")) return rawUrl;
+    return withApiBase(`https://api.geohabita.com${rawUrl}`);
+  };
+
+  const normalizeIconos = (items = []) =>
+    items
+      .map((ico) => {
+        const lat = normalizeNumber(
+          ico.latitud ?? ico.lat ?? ico.latitude ?? ico.y,
+        );
+        const lng = normalizeNumber(
+          ico.longitud ?? ico.lng ?? ico.longitude ?? ico.x,
+        );
+        const detalle = ico.icono_detalle || ico.icono || ico.detalle || {};
+        const rawUrl = detalle.imagen || ico.imagen || ico.url;
+        const iconUrl = resolveIconUrl(rawUrl);
+        return {
+          ...ico,
+          latitud: lat,
+          longitud: lng,
+          iconUrl,
+          iconName: detalle.nombre || ico.nombre || "Ícono",
+        };
+      })
+      .filter(
+        (ico) =>
+          Number.isFinite(ico.latitud) &&
+          Number.isFinite(ico.longitud) &&
+          !!ico.iconUrl,
+      );
 
   const readSessionCache = (key) => {
     try {
@@ -379,7 +497,7 @@ function MyMap() {
     return request;
   };
 
-  const loadProyectoDetalle = async (idproyecto) => {
+  const loadProyectoDetalle = async (idproyecto, signal) => {
     const cached = getCached("projectDetail", idproyecto, "project_detail");
     if (cached) return cached;
 
@@ -389,7 +507,7 @@ function MyMap() {
     const url = withApiBase(
       `https://api.geohabita.com/api/mapa/proyecto_detalle/${idproyecto}/`,
     );
-    const request = fetch(url)
+    const request = fetch(url, { signal })
       .then((res) => {
         if (!res.ok) throw new Error("No se pudo cargar detalle de proyecto");
         return res.json();
@@ -403,6 +521,56 @@ function MyMap() {
       });
 
     inflightRef.current.projectDetail.set(idproyecto, request);
+    return request;
+  };
+
+  const loadProyectoImagenes = async (idproyecto, signal) => {
+    const cached = getCached("projectImages", idproyecto, "project_images");
+    if (cached) return cached;
+
+    const inflight = inflightRef.current.projectImages.get(idproyecto);
+    if (inflight) return inflight;
+
+    const url = withApiBase(
+      `https://api.geohabita.com/api/list_imagen_proyecto/${idproyecto}`,
+    );
+    const request = fetch(url, { signal })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        const normalized = Array.isArray(data) ? data : [];
+        setCached("projectImages", idproyecto, "project_images", normalized);
+        return normalized;
+      })
+      .finally(() => {
+        inflightRef.current.projectImages.delete(idproyecto);
+      });
+
+    inflightRef.current.projectImages.set(idproyecto, request);
+    return request;
+  };
+
+  const loadLoteImagenes = async (idlote, signal) => {
+    const cached = getCached("loteImages", idlote, "lote_images");
+    if (cached) return cached;
+
+    const inflight = inflightRef.current.loteImages.get(idlote);
+    if (inflight) return inflight;
+
+    const url = withApiBase(
+      `https://api.geohabita.com/api/list_imagen/${idlote}`,
+    );
+    const request = fetch(url, { signal })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        const normalized = Array.isArray(data) ? data : [];
+        setCached("loteImages", idlote, "lote_images", normalized);
+        return normalized;
+      })
+      .finally(() => {
+        inflightRef.current.loteImages.delete(idlote);
+      });
+
+    inflightRef.current.loteImages.set(idlote, request);
     return request;
   };
 
@@ -550,6 +718,10 @@ function MyMap() {
   }, [selectedProyecto, filtroBotActivo]);
 
   const visibleProyectos = useMemo(() => {
+    if (shareFocusActive && (selectedProyecto || selectedLote)) {
+      return [];
+    }
+
     const filtered = proyecto.filter((p) => {
       if (
         selectedProyecto &&
@@ -559,8 +731,8 @@ function MyMap() {
         return false;
       }
 
-      const lat = parseFloat(p.latitud);
-      const lng = parseFloat(p.longitud);
+      const lat = normalizeNumber(p.latitud);
+      const lng = normalizeNumber(p.longitud);
       if (Number.isNaN(lat) || Number.isNaN(lng)) return false;
 
       if (!mapBounds) return true;
@@ -575,7 +747,66 @@ function MyMap() {
 
     if (filtered.length <= MAX_VISIBLE_MARKERS) return filtered;
     return filtered.slice(0, MAX_VISIBLE_MARKERS);
-  }, [proyecto, selectedProyecto, puntos.length, mapBounds]);
+  }, [proyecto, selectedProyecto, puntos.length, mapBounds, shareFocusActive]);
+
+  useEffect(() => {
+    if (!isLoaded || visibleProyectos.length === 0) return undefined;
+
+    if (prefetchIdleRef.current) {
+      if (typeof window !== "undefined" && window.cancelIdleCallback) {
+        window.cancelIdleCallback(prefetchIdleRef.current);
+      } else {
+        clearTimeout(prefetchIdleRef.current);
+      }
+      prefetchIdleRef.current = null;
+    }
+
+    const schedule = (cb) => {
+      if (typeof window !== "undefined" && window.requestIdleCallback) {
+        return window.requestIdleCallback(cb, {
+          timeout: PREFETCH_IDLE_TIMEOUT,
+        });
+      }
+      return setTimeout(cb, 220);
+    };
+
+    prefetchIdleRef.current = schedule(() => {
+      if (prefetchAbortRef.current) {
+        prefetchAbortRef.current.abort();
+      }
+      const controller = new AbortController();
+      prefetchAbortRef.current = controller;
+
+      const candidates = visibleProyectos.slice(0, PREFETCH_DETAIL_LIMIT);
+      candidates.forEach((p) => {
+        const id = p?.idproyecto;
+        if (!id) return;
+        const cached = getCached("projectDetail", id, "project_detail");
+        if (cached) return;
+        loadProyectoDetalle(id, controller.signal).catch(() => null);
+      });
+    });
+
+    return () => {
+      if (prefetchIdleRef.current) {
+        if (typeof window !== "undefined" && window.cancelIdleCallback) {
+          window.cancelIdleCallback(prefetchIdleRef.current);
+        } else {
+          clearTimeout(prefetchIdleRef.current);
+        }
+        prefetchIdleRef.current = null;
+      }
+      if (prefetchAbortRef.current) {
+        prefetchAbortRef.current.abort();
+        prefetchAbortRef.current = null;
+      }
+    };
+  }, [
+    isLoaded,
+    visibleProyectos,
+    PREFETCH_DETAIL_LIMIT,
+    PREFETCH_IDLE_TIMEOUT,
+  ]);
 
   // ✅ FIX: Load Google Maps API properly with all required libraries
   useEffect(() => {
@@ -674,7 +905,11 @@ function MyMap() {
           signal: controller.signal,
         });
         if (!controller.signal.aborted) {
-          setProyecto(data);
+          if (hasShareParams && shareResolveStatus === "pending") {
+            pendingProjectsRef.current = data;
+          } else {
+            setProyecto(data);
+          }
           if (data.length > 0 && mapRef.current && window.google?.maps) {
             const shouldSkipInitialFit =
               !initialViewportHandledRef.current &&
@@ -686,11 +921,18 @@ function MyMap() {
               initialViewportHandledRef.current = true;
               return;
             }
+            if (
+              hasShareParams &&
+              (shareFocusActive || shareResolveStatus === "pending")
+            ) {
+              initialViewportHandledRef.current = true;
+              return;
+            }
 
             const bounds = new window.google.maps.LatLngBounds();
             data.forEach((p) => {
-              const lat = parseFloat(p.latitud);
-              const lng = parseFloat(p.longitud);
+              const lat = normalizeNumber(p.latitud);
+              const lng = normalizeNumber(p.longitud);
               if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
                 bounds.extend({ lat, lng });
               }
@@ -710,16 +952,77 @@ function MyMap() {
 
     run();
     return () => controller.abort();
-  }, [selectedTipo, selectedRango, inmoId, isLoaded]);
+  }, [
+    selectedTipo,
+    selectedRango,
+    inmoId,
+    isLoaded,
+    hasShareParams,
+    shareResolveStatus,
+    shareFocusActive,
+    hasSearchedLocation,
+  ]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (!sharedProyectoId && !sharedLoteId) return;
+
+    const key = `${inmoId || "all"}:${sharedProyectoId || "none"}:${sharedLoteId || "none"}`;
+    if (sharedLoadRef.current === key) return;
+    sharedLoadRef.current = key;
+
+    if (!shareFocusActive) {
+      setShareFocusActive(true);
+    }
+    setShareResolveStatus("pending");
+
+    openSharedSelection(sharedProyectoId, sharedLoteId);
+  }, [isLoaded, inmoId, sharedProyectoId, sharedLoteId]);
+
+  useEffect(() => {
+    if (!hasShareParams) {
+      if (shareFocusActive) setShareFocusActive(false);
+      if (shareResolveStatus !== "idle") setShareResolveStatus("idle");
+      return;
+    }
+    if (
+      shareResolveStatus === "resolved" &&
+      shareFocusActive &&
+      !selectedProyecto &&
+      !selectedLote
+    ) {
+      setShareFocusActive(false);
+    }
+    if (
+      shareResolveStatus === "resolved" &&
+      pendingProjectsRef.current &&
+      (!selectedProyecto || !shareFocusActive)
+    ) {
+      setProyecto(pendingProjectsRef.current);
+      pendingProjectsRef.current = null;
+    }
+  }, [
+    hasShareParams,
+    shareFocusActive,
+    selectedProyecto,
+    selectedLote,
+    shareResolveStatus,
+  ]);
 
   useEffect(() => {
     if (!isLoaded || !inmoId) return;
+    if (
+      hasShareParams &&
+      (shareFocusActive || shareResolveStatus === "pending")
+    ) {
+      return;
+    }
     if (!mapRef.current || !window.google?.maps || !proyecto.length) return;
 
     const bounds = new window.google.maps.LatLngBounds();
     proyecto.forEach((p) => {
-      const lat = parseFloat(p.latitud);
-      const lng = parseFloat(p.longitud);
+      const lat = normalizeNumber(p.latitud);
+      const lng = normalizeNumber(p.longitud);
       if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
         bounds.extend({ lat, lng });
       }
@@ -729,36 +1032,66 @@ function MyMap() {
       mapRef.current.fitBounds(bounds);
       updateBoundsFromMap();
     }
-  }, [isLoaded, inmoId, proyecto, updateBoundsFromMap]);
+  }, [
+    isLoaded,
+    inmoId,
+    proyecto,
+    updateBoundsFromMap,
+    hasShareParams,
+    shareFocusActive,
+    shareResolveStatus,
+  ]);
 
   useEffect(() => {
-    if (selectedLote) {
-      fetch(
-        withApiBase(
-          `https://api.geohabita.com/api/list_imagen/${selectedLote.lote.idlote}`,
-        ),
-      )
-        .then((res) => res.json())
-        .then((data) => setImagenesLote(data))
-        .catch((err) => console.error("Error cargando imágenes:", err));
-    } else {
+    const idlote = selectedLote?.lote?.idlote;
+    if (!idlote) {
       setImagenesLote([]);
+      return undefined;
     }
+
+    if (loteImagesAbortRef.current) {
+      loteImagesAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    loteImagesAbortRef.current = controller;
+
+    loadLoteImagenes(idlote, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setImagenesLote(data);
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.error("Error cargando imágenes:", err);
+        }
+      });
+
+    return () => controller.abort();
   }, [selectedLote]);
 
   useEffect(() => {
-    if (selectedProyecto?.idproyecto) {
-      fetch(
-        withApiBase(
-          `https://api.geohabita.com/api/list_imagen_proyecto/${selectedProyecto.idproyecto}`,
-        ),
-      )
-        .then((res) => res.json())
-        .then((data) => setImagenesProyecto(data))
-        .catch((err) => console.error("Error cargando imágenes:", err));
-    } else {
+    const idproyecto = selectedProyecto?.idproyecto;
+    if (!idproyecto) {
       setImagenesProyecto([]);
+      return undefined;
     }
+
+    if (projectImagesAbortRef.current) {
+      projectImagesAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    projectImagesAbortRef.current = controller;
+
+    loadProyectoImagenes(idproyecto, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setImagenesProyecto(data);
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.error("Error cargando imágenes:", err);
+        }
+      });
+
+    return () => controller.abort();
   }, [selectedProyecto]);
 
   useEffect(() => {
@@ -814,13 +1147,17 @@ function MyMap() {
       return;
     }
 
+    const lat = normalizeNumber(proyecto.latitud);
+    const lng = normalizeNumber(proyecto.longitud);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
     const service = new window.google.maps.DirectionsService();
     service.route(
       {
         origin: currentPosition,
         destination: {
-          lat: parseFloat(proyecto.latitud),
-          lng: parseFloat(proyecto.longitud),
+          lat,
+          lng,
         },
         travelMode: mode,
       },
@@ -844,8 +1181,8 @@ function MyMap() {
     }
 
     if (mapRef.current && window.google?.maps) {
-      const lat = parseFloat(lote.latitud);
-      const lng = parseFloat(lote.longitud);
+      const lat = normalizeNumber(lote.latitud);
+      const lng = normalizeNumber(lote.longitud);
 
       if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
         const map = mapRef.current;
@@ -858,8 +1195,8 @@ function MyMap() {
         }
 
         const currentZoom = map.getZoom() ?? 0;
-        if (currentZoom < 17) {
-          map.setZoom(18);
+        if (currentZoom < 13) {
+          map.setZoom(14);
         }
       }
     }
@@ -877,6 +1214,12 @@ function MyMap() {
       return labels ? "hybrid" : "satellite";
     }
     return relief ? "terrain" : "roadmap";
+  }, []);
+
+  const getProjectIconSize = useCallback((zoom, isMobile = false) => {
+    const safeZoom = Number.isFinite(zoom) ? zoom : 13;
+    const base = Math.max(22, Math.min(34, Math.round(safeZoom * 2)));
+    return Math.max(18, Math.round(base * (isMobile ? 0.85 : 1)));
   }, []);
 
   const applyMapType = useCallback(
@@ -969,6 +1312,227 @@ function MyMap() {
     [getProjectMobilePadding],
   );
 
+  const focusMapForShare = useCallback(
+    ({ map, proyectoDetalle, dataPuntos, loteTarget }) => {
+      if (!map || !window.google?.maps) return;
+
+      if (loteTarget) {
+        const lotePoints = normalizePuntosWithOrder(loteTarget.puntos || []);
+        if (lotePoints.length > 0) {
+          const bounds = new window.google.maps.LatLngBounds();
+          lotePoints.forEach((p) =>
+            bounds.extend({
+              lat: Number(p.latitud),
+              lng: Number(p.longitud),
+            }),
+          );
+          fitBoundsForProjectFocus(map, bounds);
+          window.google.maps.event.addListenerOnce(map, "idle", () => {
+            const currentZoom = map.getZoom() ?? 0;
+            if (currentZoom > 0) {
+              map.setZoom(Math.max(currentZoom - 2, 12));
+            }
+          });
+          return;
+        }
+
+        const lat = normalizeNumber(loteTarget.latitud);
+        const lng = normalizeNumber(loteTarget.longitud);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          map.panTo({ lat, lng });
+          map.setZoom(14);
+          return;
+        }
+      }
+
+      if (dataPuntos.length > 0) {
+        const bounds = new window.google.maps.LatLngBounds();
+        dataPuntos.forEach((p) =>
+          bounds.extend({
+            lat: Number(p.latitud),
+            lng: Number(p.longitud),
+          }),
+        );
+        fitBoundsForProjectFocus(map, bounds);
+        return;
+      }
+
+      const lat = normalizeNumber(proyectoDetalle?.latitud);
+      const lng = normalizeNumber(proyectoDetalle?.longitud);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        centerPointForProjectFocus(map, { lat, lng });
+      }
+    },
+    [centerPointForProjectFocus, fitBoundsForProjectFocus],
+  );
+
+  const resolveShareTarget = async (proyectoId, loteId, signal) => {
+    if (proyectoId || !loteId) {
+      return { proyectoId, loteId, inmoIdFromLote: null };
+    }
+    try {
+      const res = await fetch(
+        withApiBase(`https://api.geohabita.com/api/list_lote_id/${loteId}`),
+        { signal },
+      );
+      if (!res.ok) return { proyectoId: null, loteId, inmoIdFromLote: null };
+      const data = await res.json();
+      const loteInfo = Array.isArray(data) ? data[0] : data;
+      const resolvedProyectoId =
+        parsePositiveInt(loteInfo?.idproyecto) ??
+        parsePositiveInt(loteInfo?.idproyecto_id) ??
+        parsePositiveInt(loteInfo?.proyectos?.idproyecto);
+      const resolvedInmoId =
+        parsePositiveInt(loteInfo?.inmobiliaria?.idinmobiliaria) ??
+        parsePositiveInt(loteInfo?.proyectos?.idinmobiliaria) ??
+        parsePositiveInt(loteInfo?.proyectos?.idinmobiliaria_id);
+      return {
+        proyectoId: resolvedProyectoId,
+        loteId,
+        inmoIdFromLote: resolvedInmoId,
+      };
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.warn("No se pudo resolver lote compartido", error);
+      }
+      return { proyectoId: null, loteId, inmoIdFromLote: null };
+    }
+  };
+
+  const openSharedSelection = async (proyectoIdRaw, loteIdRaw) => {
+    if (!proyectoIdRaw && !loteIdRaw) return;
+
+    if (projectDetailAbortRef.current) {
+      projectDetailAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    projectDetailAbortRef.current = controller;
+
+    const resolved = await resolveShareTarget(
+      proyectoIdRaw,
+      loteIdRaw,
+      controller.signal,
+    );
+    if (controller.signal.aborted) return;
+
+    const proyectoId = resolved.proyectoId;
+    const loteId = resolved.loteId;
+
+    if (!proyectoId) {
+      setShareResolveStatus("failed");
+      return;
+    }
+
+    if (
+      inmoId &&
+      resolved.inmoIdFromLote &&
+      String(inmoId) !== String(resolved.inmoIdFromLote)
+    ) {
+      console.warn("Link compartido no coincide con la inmobiliaria actual.");
+      setShareResolveStatus("failed");
+      return;
+    }
+
+    try {
+      setRouteMode(null);
+      setDirections(null);
+      setWalkingInfo(null);
+      setDrivingInfo(null);
+      setSelectedLote(null);
+      setLotesProyecto([]);
+      setLotesProyectoBase([]);
+      setPuntos([]);
+      setIconosProyecto([]);
+      setFiltroBotActivo(false);
+      setSelectedTipo("");
+      setSelectedRango("");
+
+      const detail = await loadProyectoDetalle(proyectoId, controller.signal);
+      if (controller.signal.aborted) return;
+
+      const dataPuntos = normalizePuntosWithOrder(detail?.puntos || []);
+      const lotesConPuntos = (detail?.lotes || []).map((lote) => ({
+        ...lote,
+        puntos: normalizePuntosWithOrder(lote.puntos || []),
+      }));
+      const dataIconos = normalizeIconos(detail?.iconos || []);
+      const inmoData = detail?.inmobiliaria ?? null;
+      const proyectoDetalle = detail?.proyecto ?? { idproyecto: proyectoId };
+
+      if (
+        inmoId &&
+        inmoData?.idinmobiliaria &&
+        String(inmoId) !== String(inmoData.idinmobiliaria)
+      ) {
+        console.warn("Proyecto compartido no pertenece a esta inmobiliaria.");
+        setShareResolveStatus("failed");
+        return;
+      }
+
+      setPuntos(dataPuntos);
+
+      setLotesProyectoBase(lotesConPuntos);
+      setLotesProyecto(lotesConPuntos);
+      setIconosProyecto(dataIconos);
+
+      setselectedProyecto({
+        ...proyectoDetalle,
+        inmo: inmoData,
+      });
+
+      if (loteId) {
+        const target = lotesConPuntos.find(
+          (l) => Number(l.idlote) === Number(loteId),
+        );
+        if (target) {
+          setSelectedLote({
+            lote: target,
+            inmo: inmoData,
+          });
+          if (mapRef.current) {
+            focusMapForShare({
+              map: mapRef.current,
+              proyectoDetalle,
+              dataPuntos,
+              loteTarget: target,
+            });
+            pendingShareFocusRef.current = null;
+          } else {
+            pendingShareFocusRef.current = {
+              proyectoDetalle,
+              dataPuntos,
+              loteTarget: target,
+            };
+          }
+          setShareResolveStatus("resolved");
+          return;
+        }
+      }
+
+      if (mapRef.current) {
+        focusMapForShare({
+          map: mapRef.current,
+          proyectoDetalle,
+          dataPuntos,
+          loteTarget: null,
+        });
+        pendingShareFocusRef.current = null;
+      } else {
+        pendingShareFocusRef.current = {
+          proyectoDetalle,
+          dataPuntos,
+          loteTarget: null,
+        };
+      }
+      setShareResolveStatus("resolved");
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("Error cargando proyecto compartido:", err);
+      }
+      setShareResolveStatus("failed");
+    }
+  };
+
   const handleMarkerClick = async (proyecto) => {
     if (isMobile()) {
       setShowFilters(false);
@@ -982,6 +1546,24 @@ function MyMap() {
       setLotesProyectoBase([]);
       setPuntos([]);
       setIconosProyecto([]);
+
+      const quickLat = normalizeNumber(proyecto.latitud);
+      const quickLng = normalizeNumber(proyecto.longitud);
+      if (
+        mapRef.current &&
+        Number.isFinite(quickLat) &&
+        Number.isFinite(quickLng)
+      ) {
+        centerPointForProjectFocus(mapRef.current, {
+          lat: quickLat,
+          lng: quickLng,
+        });
+      }
+
+      setselectedProyecto({
+        ...proyecto,
+        inmo: null,
+      });
 
       const fecha = new Date().toISOString().split("T")[0];
       const hora = new Date().toLocaleTimeString("en-GB", { hour12: false });
@@ -1011,10 +1593,39 @@ function MyMap() {
       calculateInfo("WALKING", proyecto);
       calculateInfo("DRIVING", proyecto);
 
-      const detail = await loadProyectoDetalle(proyecto.idproyecto);
-      const dataPuntos = Array.isArray(detail?.puntos) ? detail.puntos : [];
-      const lotesConPuntos = Array.isArray(detail?.lotes) ? detail.lotes : [];
-      const dataIconos = Array.isArray(detail?.iconos) ? detail.iconos : [];
+      if (projectDetailAbortRef.current) {
+        projectDetailAbortRef.current.abort();
+      }
+      const controller = new AbortController();
+      projectDetailAbortRef.current = controller;
+
+      const detailPromise = loadProyectoDetalle(
+        proyecto.idproyecto,
+        controller.signal,
+      );
+      const detail = await detailPromise;
+      if (controller.signal.aborted) return;
+
+      const dataPuntos = normalizePuntosWithOrder(detail?.puntos || []);
+      const lotesConPuntos = (detail?.lotes || []).map((lote) => ({
+        ...lote,
+        puntos: normalizePuntosWithOrder(lote.puntos || []),
+      }));
+      let dataIconos = normalizeIconos(detail?.iconos || []);
+      if (!dataIconos.length) {
+        try {
+          const resIconos = await fetch(
+            withApiBase(
+              `https://api.geohabita.com/api/list_iconos_proyecto/${proyecto.idproyecto}`,
+            ),
+          );
+          if (resIconos.ok) {
+            dataIconos = normalizeIconos(await resIconos.json());
+          }
+        } catch (error) {
+          console.warn("No se pudieron cargar íconos del proyecto", error);
+        }
+      }
       const inmoData = detail?.inmobiliaria ?? null;
       const proyectoDetalle = detail?.proyecto ?? proyecto;
 
@@ -1023,8 +1634,8 @@ function MyMap() {
         const bounds = new window.google.maps.LatLngBounds();
         dataPuntos.forEach((p) =>
           bounds.extend({
-            lat: parseFloat(p.latitud),
-            lng: parseFloat(p.longitud),
+            lat: Number(p.latitud),
+            lng: Number(p.longitud),
           }),
         );
         fitBoundsForProjectFocus(mapRef.current, bounds);
@@ -1052,22 +1663,24 @@ function MyMap() {
           const bounds = new window.google.maps.LatLngBounds();
           dataPuntos.forEach((p) =>
             bounds.extend({
-              lat: parseFloat(p.latitud),
-              lng: parseFloat(p.longitud),
+              lat: Number(p.latitud),
+              lng: Number(p.longitud),
             }),
           );
           fitBoundsForProjectFocus(map, bounds);
           return;
         }
 
-        const lat = parseFloat(proyectoDetalle.latitud);
-        const lng = parseFloat(proyectoDetalle.longitud);
+        const lat = normalizeNumber(proyectoDetalle.latitud);
+        const lng = normalizeNumber(proyectoDetalle.longitud);
         if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
           centerPointForProjectFocus(map, { lat, lng });
         }
       }, 260);
     } catch (err) {
-      console.error("Error cargando inmobiliaria:", err);
+      if (err?.name !== "AbortError") {
+        console.error("Error cargando inmobiliaria:", err);
+      }
     }
   };
 
@@ -1083,16 +1696,16 @@ function MyMap() {
         const bounds = new window.google.maps.LatLngBounds();
         puntos.forEach((p) =>
           bounds.extend({
-            lat: parseFloat(p.latitud),
-            lng: parseFloat(p.longitud),
+            lat: Number(p.latitud),
+            lng: Number(p.longitud),
           }),
         );
         fitBoundsForProjectFocus(map, bounds);
         return;
       }
 
-      const lat = parseFloat(selectedProyecto.latitud);
-      const lng = parseFloat(selectedProyecto.longitud);
+      const lat = normalizeNumber(selectedProyecto.latitud);
+      const lng = normalizeNumber(selectedProyecto.longitud);
       if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
         centerPointForProjectFocus(map, { lat, lng });
       }
@@ -1175,7 +1788,7 @@ function MyMap() {
     <div className={styles.container}>
       <header ref={headerRef} className={`${styles.cabecera} `}>
         {/* Logo a la izquierda fuera de la barra central */}
-        <div className={styles.logoContainer}>
+        <Link to="/" className={styles.logoContainer} aria-label="Ir a inicio">
           <img
             src="/habitasinfondo.png"
             alt="GeoHabita Logo"
@@ -1185,7 +1798,7 @@ function MyMap() {
             <span className={styles.geo}>Geo</span>
             <span className={styles.habita}>Habita</span>
           </span>
-        </div>
+        </Link>
 
         {/* BARRA CENTRAL (PASTILLA) */}
         <div
@@ -1295,6 +1908,15 @@ function MyMap() {
         className={`${styles.mapViewport} ${shouldShrinkMapForSidebar ? styles.mapViewportWithSidebar : ""}`}
         style={{ "--map-header-offset": `${mapHeaderOffsetPx}px` }}
       >
+        {inmoId && !selectedProyecto && !selectedLote && (
+          <Link
+            to="/"
+            className={styles.backToAll}
+            aria-label="Ver todos los proyectos"
+          >
+            Ir al Mapa Completo
+          </Link>
+        )}
         <GoogleMap
           mapContainerClassName={styles.map}
           center={currentPosition}
@@ -1334,6 +1956,15 @@ function MyMap() {
               },
             );
             updateBoundsFromMap();
+            if (pendingShareFocusRef.current) {
+              focusMapForShare({
+                map,
+                proyectoDetalle: pendingShareFocusRef.current.proyectoDetalle,
+                dataPuntos: pendingShareFocusRef.current.dataPuntos || [],
+                loteTarget: pendingShareFocusRef.current.loteTarget || null,
+              });
+              pendingShareFocusRef.current = null;
+            }
           }}
           onZoomChanged={() => {
             const nextZoom = mapRef.current?.getZoom();
@@ -1356,8 +1987,8 @@ function MyMap() {
             <Marker
               key={p.idproyecto}
               position={{
-                lat: parseFloat(p.latitud),
-                lng: parseFloat(p.longitud),
+                lat: Number(p.latitud),
+                lng: Number(p.longitud),
               }}
               icon={{
                 url: getProjectIconUrl(p),
@@ -1370,18 +2001,29 @@ function MyMap() {
 
           {iconosProyecto.map((ico) => (
             <Marker
-              key={ico.idiconoproyecto}
+              key={
+                ico.idiconoproyecto ??
+                ico.idicono ??
+                `${ico.iconUrl}-${ico.latitud}-${ico.longitud}`
+              }
               position={{
-                lat: parseFloat(ico.latitud),
-                lng: parseFloat(ico.longitud),
+                lat: Number(ico.latitud),
+                lng: Number(ico.longitud),
               }}
               icon={{
-                url: withApiBase(
-                  `https://api.geohabita.com${ico.icono_detalle.imagen}`,
+                url: ico.iconUrl,
+                scaledSize: new window.google.maps.Size(
+                  getProjectIconSize(mapZoom, isMobileViewport),
+                  getProjectIconSize(mapZoom, isMobileViewport),
                 ),
-                scaledSize: new window.google.maps.Size(40, 40),
+                anchor: new window.google.maps.Point(
+                  Math.round(getProjectIconSize(mapZoom, isMobileViewport) / 2),
+                  Math.round(getProjectIconSize(mapZoom, isMobileViewport)),
+                ),
               }}
-              title={ico.icono_detalle.nombre}
+              title={ico.iconName}
+              zIndex={9}
+              clickable={false}
             />
           ))}
 
@@ -1408,6 +2050,7 @@ function MyMap() {
               selectedLote={selectedLote}
               hoveredLote={hoveredLote}
               mapZoom={mapZoom}
+              isMobile={isMobileViewport}
               onLoteClick={handleLoteClick}
               onLoteMouseOver={setHoveredLote}
               onLoteMouseOut={() => setHoveredLote(null)}

@@ -85,6 +85,16 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
+.btnWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btnWithIcon .inlineIcon {
+  color: inherit;
+}
+
 .addBtn:hover,
 .submitBtn:hover {
   transform: translateY(-2px);
@@ -202,6 +212,16 @@ tbody tr:hover {
 .formContainer {
   display: flex;
   flex-direction: column;
+}
+
+.inlineRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inlineIcon {
+  color: var(--theme-text-muted);
 }
 
 .formContainer label {

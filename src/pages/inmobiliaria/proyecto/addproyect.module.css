@@ -390,6 +390,185 @@
   }
 }
 
+.sectionCard {
+  background: var(--theme-bg-soft);
+  border: 1px solid var(--border-color);
+  border-radius: 0.7rem;
+  padding: 0.85rem 0.9rem;
+  margin-bottom: 0.9rem;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
+.controlGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.controlField,
+.controlFieldWide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.controlFieldWide {
+  grid-column: 1 / -1;
+}
+
+.rangeRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.rangeInput {
+  flex: 1;
+}
+
+.rangeValue {
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.controlActions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.65rem;
+}
+
+.hintBox {
+  background: var(--theme-bg-surface);
+  border: 1px dashed color-mix(in srgb, var(--primari) 40%, var(--border-color));
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hintMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+.actionRow {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 0.6rem;
+}
+
+.btnWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.btnWithIcon .inlineIcon {
+  color: inherit;
+}
+
+.inlineRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.inlineIcon {
+  color: var(--primari);
+}
+
+.secondaryBtn {
+  background: color-mix(in srgb, var(--primari) 12%, var(--theme-bg-surface));
+  color: var(--text-main);
+}
+
+.dangerBtn {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+}
+
+.priceRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.priceRow .input {
+  flex: 1;
+}
+
+.flagIcon {
+  width: 26px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+
+.currencyLabel {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.imagePreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.imagePreviewItem {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: var(--theme-bg-surface);
+}
+
+.imagePreviewItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.imageRemoveBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.footerBar {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.4rem;
+}
+
+@media (min-width: 768px) {
+  .controlGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* Contenedor principal de imágenes */
 .imageUploadContainer {
   display: flex;
