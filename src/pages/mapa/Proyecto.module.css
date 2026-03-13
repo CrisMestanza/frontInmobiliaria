@@ -262,13 +262,38 @@
 }
 
 .mobileContactRow {
-  width: 50%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 10px;
   margin: 0;
-  display: block;
-  margin-left: 70px;
+}
+
+.pantallaContactos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobileContactRow .mobileContactBtn,
+.mobileContactRow .contactMiniBtn {
+  width: 100%;
+  max-width: 260px;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 8px 12px;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.pantallaContactos .contactMiniBtn {
+  min-height: 40px;
 }
 
 .mobileContactBtn {
@@ -504,9 +529,34 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
   margin-bottom: 6px;
+  min-height: 40px;
+  height: 40px;
+  justify-content: center;
+  white-space: nowrap;
 }
+
+.pantallaContactos .contactMiniBtn {
+  flex: 1 1 140px;
+  max-width: 100%;
+}
+
+.contactCallBtn {
+  background: #1d7df2;
+  box-shadow: 0 4px 12px rgba(29, 125, 242, 0.28);
+}
+
+.contactWhatsappBtn {
+  background: #25d366;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.28);
+}
+
+.contactShareBtn {
+  background: #0ea5e9;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.28);
+}
+
 
 .quickGrid {
   display: grid;

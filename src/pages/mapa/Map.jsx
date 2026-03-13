@@ -1837,19 +1837,22 @@ function MyMap() {
       const clickUrl = withApiBase(
         "https://api.geohabita.com/api/registerClickProyecto/",
       );
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(
-          clickUrl,
-          new Blob([clickPayload], { type: "application/json" }),
-        );
-      } else {
-        fetch(clickUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: clickPayload,
-          keepalive: true,
-        }).catch(() => null);
-      }
+        const clickOrigin = new URL(clickUrl, window.location.origin).origin;
+        if (clickOrigin === window.location.origin && navigator.sendBeacon) {
+          navigator.sendBeacon(
+            clickUrl,
+            new Blob([clickPayload], { type: "application/json" }),
+          );
+        } else {
+          fetch(clickUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: clickPayload,
+            keepalive: true,
+            credentials: "omit",
+            mode: "cors",
+          }).catch(() => null);
+        }
 
       calculateInfo("WALKING", proyecto);
       calculateInfo("DRIVING", proyecto);

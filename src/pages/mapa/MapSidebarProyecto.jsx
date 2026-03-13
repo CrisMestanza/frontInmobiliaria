@@ -851,7 +851,7 @@ const ProyectoSidebar = ({
 
                     <button
                       type="button"
-                      className={styles.mobileContactBtn}
+                      className={`${styles.mobileContactBtn} ${styles.mobileWhatsappBtn}`}
                       onClick={handleShare}
                       disabled={!shareUrl}
                     >
@@ -865,7 +865,7 @@ const ProyectoSidebar = ({
                       href={whatsappHref}
                       target="_blank"
                       rel="noreferrer"
-                      className={styles.contactMiniBtn}
+                      className={`${styles.contactMiniBtn} ${styles.contactWhatsappBtn}`}
                       onClick={() => registrarClickContacto("Whatsapp")}
                     >
                       <FaWhatsapp /> Contactar
@@ -873,7 +873,7 @@ const ProyectoSidebar = ({
 
                     <a
                       href={phoneNumber ? `tel:${phoneNumber}` : undefined}
-                      className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
+                      className={`${styles.contactMiniBtn} ${styles.contactCallBtn}`}
                       onClick={() => registrarClickContacto("Llamada")}
                     >
                       <FaPhoneAlt /> Llamar
@@ -881,7 +881,7 @@ const ProyectoSidebar = ({
 
                     <button
                       type="button"
-                      className={styles.contactMiniBtn}
+                      className={`${styles.contactMiniBtn} ${styles.contactShareBtn}`}
                       onClick={handleShare}
                       disabled={!shareUrl}
                     >
