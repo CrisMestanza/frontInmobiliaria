@@ -51,6 +51,7 @@ export default function IconoModal({ onClose, idproyecto }) {
   const [iconosDisponibles, setIconosDisponibles] = useState([]);
   const [iconosMapa, setIconosMapa] = useState([]);
   const [draggedIcono, setDraggedIcono] = useState(null);
+  const [iconosLoading, setIconosLoading] = useState(true);
   const token = localStorage.getItem("access");
 
   const getColorLote = (vendido) => {
@@ -108,38 +109,21 @@ export default function IconoModal({ onClose, idproyecto }) {
     if (!map) return;
     const loadProjectGeometries = async () => {
       try {
-        const [resProyecto, resLotes, resIconosProyecto] = await Promise.all([
-          authFetch(withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`), {
+        setIconosLoading(true);
+        const resProyecto = await authFetch(
+          withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`),
+          {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }),
-          authFetch(
-            withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          ),
-          authFetch(
-            withApiBase(`https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}`),
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          ),
-        ]);
+          },
+        );
 
         const puntosProyecto = await resProyecto.json();
-        const lotesConPuntos = await resLotes.json();
-        const iconosRegistrados = await resIconosProyecto.json();
-
         const proyectoCoords = normalizePolygonCoords(puntosProyecto);
         if (!proyectoCoords.length) return;
 
-        // Centrar mapa con puntos del proyecto para que abra rápido aun sin lotes
+        // Centrar mapa rápido con puntos del proyecto
         const bounds = new window.google.maps.LatLngBounds();
         proyectoCoords.forEach((p) => bounds.extend(p));
         if (!bounds.isEmpty()) {
@@ -164,55 +148,92 @@ export default function IconoModal({ onClose, idproyecto }) {
         });
         proyectoPolygonRef.current = proyectoPolygon;
 
-        const lotesPolygons = lotesConPuntos
-          .map((lote) => {
-            const loteCoords = normalizePolygonCoords(lote.puntos || []);
-
-            if (!loteCoords.length) return null;
-
-            return new window.google.maps.Polygon({
-              paths: loteCoords,
-              map: map.mapInstance,
-              strokeColor: "#333",
-              strokeWeight: 1,
-              fillColor: getColorLote(lote.vendido),
-              fillOpacity: 0.45,
-            });
-          })
-          .filter(Boolean);
-
-        lotesPolygonsRef.current = lotesPolygons;
-
-        setIconosMapa((prev) => {
-          prev.forEach((ic) => ic.marker?.setMap(null));
-
-          return iconosRegistrados.map((ico) => {
-            const marker = new window.google.maps.Marker({
-              position: {
-                lat: parseFloat(ico.latitud),
-                lng: parseFloat(ico.longitud),
+        const runHeavy = async () => {
+          const [resLotes, resIconosProyecto] = await Promise.all([
+            authFetch(
+              withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
               },
-              map: map.mapInstance,
-              icon: {
-                url: withApiBase(`https://api.geohabita.com${ico.icono_detalle.imagen}`),
-                scaledSize: new window.google.maps.Size(40, 40),
+            ),
+            authFetch(
+              withApiBase(`https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}`),
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
               },
-              draggable: true,
-              title: ico.icono_detalle.nombre,
-            });
+            ),
+          ]);
 
-            return {
-              idicono: ico.idicono,
-              latitud: ico.latitud,
-              longitud: ico.longitud,
-              marker,
-              icono_detalle: ico.icono_detalle,
-              saved: true,
-            };
+          const lotesConPuntos = await resLotes.json();
+          const iconosRegistrados = await resIconosProyecto.json();
+
+          const lotesPolygons = lotesConPuntos
+            .map((lote) => {
+              const loteCoords = normalizePolygonCoords(lote.puntos || []);
+
+              if (!loteCoords.length) return null;
+
+              return new window.google.maps.Polygon({
+                paths: loteCoords,
+                map: map.mapInstance,
+                strokeColor: "#333",
+                strokeWeight: 1,
+                fillColor: getColorLote(lote.vendido),
+                fillOpacity: 0.45,
+              });
+            })
+            .filter(Boolean);
+
+          lotesPolygonsRef.current = lotesPolygons;
+
+          setIconosMapa((prev) => {
+            prev.forEach((ic) => ic.marker?.setMap(null));
+
+            return iconosRegistrados.map((ico) => {
+              const marker = new window.google.maps.Marker({
+                position: {
+                  lat: parseFloat(ico.latitud),
+                  lng: parseFloat(ico.longitud),
+                },
+                map: map.mapInstance,
+                icon: {
+                  url: withApiBase(`https://api.geohabita.com${ico.icono_detalle.imagen}`),
+                  scaledSize: new window.google.maps.Size(40, 40),
+                },
+                draggable: true,
+                title: ico.icono_detalle.nombre,
+              });
+
+              marker.addListener("rightclick", () => {
+                handleDeleteIcono(ico.idiconoproyecto, marker);
+              });
+
+              return {
+                idicono: ico.idicono,
+                idiconoproyecto: ico.idiconoproyecto,
+                latitud: ico.latitud,
+                longitud: ico.longitud,
+                marker,
+                icono_detalle: ico.icono_detalle,
+                saved: true,
+              };
+            });
           });
-        });
+        };
+
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(runHeavy, { timeout: 1500 });
+        } else {
+          setTimeout(runHeavy, 0);
+        }
       } catch (error) {
         console.error("Error loading project geometry:", error);
+      } finally {
+        setIconosLoading(false);
       }
     };
     loadProjectGeometries();
@@ -310,6 +331,13 @@ export default function IconoModal({ onClose, idproyecto }) {
         payloadIcono.longitud = newLatLng.lng();
       }
     });
+
+    marker.addListener("rightclick", () => {
+      setIconosMapa((prev) => {
+        marker.setMap(null);
+        return prev.filter((ic) => ic !== payloadIcono);
+      });
+    });
   };
 
   useEffect(() => {
@@ -354,6 +382,31 @@ export default function IconoModal({ onClose, idproyecto }) {
     alert("Íconos guardados.");
     onClose();
   };
+
+  const handleDeleteIcono = async (idiconoproyecto, marker) => {
+    if (!idiconoproyecto) return;
+    const ok = window.confirm("¿Eliminar este ícono?");
+    if (!ok) return;
+    try {
+      await authFetch(
+        withApiBase(
+          `https://api.geohabita.com/api/delete_icono_proyecto/${idiconoproyecto}/`,
+        ),
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (marker) marker.setMap(null);
+      setIconosMapa((prev) =>
+        prev.filter((ic) => ic.idiconoproyecto !== idiconoproyecto),
+      );
+    } catch (error) {
+      console.error("Error eliminando ícono:", error);
+    }
+  };
   return (
     <div className={style.modalOverlay}>
       <div className={style.modalContent}>
@@ -361,6 +414,9 @@ export default function IconoModal({ onClose, idproyecto }) {
           <X size={16} />
         </button>
         <h2 className={style.iconModalTitle}>Arrastra los Íconos a tu Proyecto</h2>
+        {iconosLoading && (
+          <p className={style.iconLoading}>Cargando proyecto en el mapa...</p>
+        )}
         <div className={style.iconPalette}>
           {iconosDisponibles.map((ico) => (
             <img
@@ -392,21 +448,34 @@ export default function IconoModal({ onClose, idproyecto }) {
               //     ?.nombre;
 
               return (
-                //   <img
-                //     key={idx}
-                //     src={withApiBase(`https://api.geohabita.com${imagen}`)}
-                //     alt={nombre}
-                //     title={nombre}
-                //     style={{ width: 30, height: 30 }}
-                //   />
-                // );
-                <img
-                  key={idx}
-                  src={withApiBase(`https://api.geohabita.com${ico.icono_detalle.imagen}`)}
-                  alt={ico.icono_detalle.nombre}
-                  title={ico.icono_detalle.nombre}
-                  className={style.iconRegisteredItem}
-                />
+                <div key={idx} className={style.iconRegisteredItemWrap}>
+                  <img
+                    src={withApiBase(
+                      `https://api.geohabita.com${ico.icono_detalle.imagen}`,
+                    )}
+                    alt={ico.icono_detalle.nombre}
+                    title={ico.icono_detalle.nombre}
+                    className={style.iconRegisteredItem}
+                  />
+                  {!ico.saved && (
+                    <span className={style.iconDraftBadge}>Nuevo</span>
+                  )}
+                  <button
+                    type="button"
+                    className={style.iconRemoveBtn}
+                    onClick={() => {
+                      if (ico.saved) {
+                        handleDeleteIcono(ico.idiconoproyecto, ico.marker);
+                      } else {
+                        ico.marker?.setMap(null);
+                        setIconosMapa((prev) => prev.filter((i) => i !== ico));
+                      }
+                    }}
+                    title="Eliminar ícono"
+                  >
+                    ✕
+                  </button>
+                </div>
               );
             })}
             {!iconosMapa.length && (

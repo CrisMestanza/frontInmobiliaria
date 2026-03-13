@@ -314,6 +314,54 @@
   margin-top: 30px;
 }
 
+.skeletonImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  background: #1f2937;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonLine {
+  height: 12px;
+  border-radius: 999px;
+  background: #1f2937;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonCard {
+  height: 84px;
+  border-radius: 16px;
+  background: #1f2937;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeletonImage::after,
+.skeletonLine::after,
+.skeletonCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: skeleton-shimmer 1.2s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .fullscreenImg {
   max-width: 90%;
   max-height: 85%;

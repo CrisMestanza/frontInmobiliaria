@@ -211,6 +211,8 @@ function MyMap() {
   const [directions, setDirections] = useState(null);
   const [imagenesProyecto, setImagenesProyecto] = useState([]);
   const [imagenesLote, setImagenesLote] = useState([]);
+  const [isProyectoLoading, setIsProyectoLoading] = useState(false);
+  const [isLoteLoading, setIsLoteLoading] = useState(false);
   const [puntos, setPuntos] = useState([]);
 
   const [showFilters, setShowFilters] = useState(false);
@@ -1067,7 +1069,9 @@ function MyMap() {
 
     loadLoteImagenes(idlote, controller.signal)
       .then((data) => {
-        if (!controller.signal.aborted) setImagenesLote(data);
+        if (!controller.signal.aborted) {
+          setImagenesLote(data);
+        }
       })
       .catch((err) => {
         if (err?.name !== "AbortError") {
@@ -1093,7 +1097,9 @@ function MyMap() {
 
     loadProyectoImagenes(idproyecto, controller.signal)
       .then((data) => {
-        if (!controller.signal.aborted) setImagenesProyecto(data);
+        if (!controller.signal.aborted) {
+          setImagenesProyecto(data);
+        }
       })
       .catch((err) => {
         if (err?.name !== "AbortError") {
@@ -1482,6 +1488,18 @@ function MyMap() {
     }
   };
 
+  const loadProyectoShareWithRetry = async (idproyecto, signal) => {
+    if (!idproyecto) return null;
+    const url = withApiBase(
+      `https://api.geohabita.com/api/mapa/proyecto_share/${idproyecto}/`,
+    );
+    try {
+      return await fetchJsonWithRetry(url, { signal });
+    } catch {
+      return null;
+    }
+  };
+
   const openSharedSelection = async (proyectoIdRaw, loteIdRaw) => {
     if (!proyectoIdRaw && !loteIdRaw) return;
 
@@ -1490,6 +1508,9 @@ function MyMap() {
     }
     const controller = new AbortController();
     projectDetailAbortRef.current = controller;
+
+    setIsProyectoLoading(!!proyectoIdRaw || !!loteIdRaw);
+    setIsLoteLoading(!!loteIdRaw);
 
     const resolved = await resolveShareTarget(
       proyectoIdRaw,
@@ -1529,6 +1550,8 @@ function MyMap() {
       ) {
         console.warn("Link compartido no coincide con la inmobiliaria actual.");
         setShareResolveStatus("failed");
+        setIsProyectoLoading(false);
+        setIsLoteLoading(false);
         return;
       }
 
@@ -1545,6 +1568,7 @@ function MyMap() {
         });
         setLotesProyectoBase([quickLote]);
         setLotesProyecto([quickLote]);
+        setIsLoteLoading(false);
         if (mapRef.current) {
           focusMapForShare({
             map: mapRef.current,
@@ -1567,10 +1591,64 @@ function MyMap() {
           if (!controller.signal.aborted) setImagenesLote(data);
         })
         .catch(() => null);
+    } else if (proyectoId) {
+      const proyectoShare = await loadProyectoShareWithRetry(
+        proyectoId,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+
+      const quickProyecto = proyectoShare?.proyecto ?? null;
+      const quickInmo = proyectoShare?.inmobiliaria ?? null;
+      const quickPuntos = normalizePuntosWithOrder(
+        proyectoShare?.puntos || [],
+      );
+
+      if (
+        inmoId &&
+        quickInmo?.idinmobiliaria &&
+        String(inmoId) !== String(quickInmo.idinmobiliaria)
+      ) {
+        console.warn("Proyecto compartido no pertenece a esta inmobiliaria.");
+        setShareResolveStatus("failed");
+        return;
+      }
+
+      if (quickProyecto) {
+        setselectedProyecto({
+          ...quickProyecto,
+          inmo: quickInmo,
+        });
+      }
+      setPuntos(quickPuntos);
+      setIsProyectoLoading(false);
+      if (mapRef.current) {
+        focusMapForShare({
+          map: mapRef.current,
+          proyectoDetalle: quickProyecto,
+          dataPuntos: quickPuntos,
+          loteTarget: null,
+        });
+        pendingShareFocusRef.current = null;
+      } else {
+        pendingShareFocusRef.current = {
+          proyectoDetalle: quickProyecto,
+          dataPuntos: quickPuntos,
+          loteTarget: null,
+        };
+      }
+
+      loadProyectoImagenes(proyectoId, controller.signal)
+        .then((data) => {
+          if (!controller.signal.aborted) setImagenesProyecto(data);
+        })
+        .catch(() => null);
     }
 
     if (!proyectoId) {
       setShareResolveStatus("failed");
+      setIsProyectoLoading(false);
+      setIsLoteLoading(false);
       return;
     }
 
@@ -1581,6 +1659,8 @@ function MyMap() {
     ) {
       console.warn("Link compartido no coincide con la inmobiliaria actual.");
       setShareResolveStatus("failed");
+      setIsProyectoLoading(false);
+      setIsLoteLoading(false);
       return;
     }
 
@@ -1620,6 +1700,8 @@ function MyMap() {
       ) {
         console.warn("Proyecto compartido no pertenece a esta inmobiliaria.");
         setShareResolveStatus("failed");
+        setIsProyectoLoading(false);
+        setIsLoteLoading(false);
         return;
       }
 
@@ -1650,6 +1732,7 @@ function MyMap() {
         ...proyectoDetalle,
         inmo: inmoData,
       });
+      setIsProyectoLoading(false);
 
       if (loteId) {
         const target = lotesConPuntos.find(
@@ -1660,6 +1743,7 @@ function MyMap() {
             lote: target,
             inmo: inmoData,
           });
+          setIsLoteLoading(false);
           if (mapRef.current) {
             focusMapForShare({
               map: mapRef.current,
@@ -1676,6 +1760,8 @@ function MyMap() {
             };
           }
           setShareResolveStatus("resolved");
+          setIsProyectoLoading(false);
+          setIsLoteLoading(false);
           return;
         }
       }
@@ -1696,11 +1782,15 @@ function MyMap() {
         };
       }
       setShareResolveStatus("resolved");
+      setIsProyectoLoading(false);
+      setIsLoteLoading(false);
     } catch (err) {
       if (err?.name !== "AbortError") {
         console.error("Error cargando proyecto compartido:", err);
       }
       setShareResolveStatus("failed");
+      setIsProyectoLoading(false);
+      setIsLoteLoading(false);
     }
   };
 
@@ -2096,13 +2186,16 @@ function MyMap() {
         style={{ "--map-header-offset": `${mapHeaderOffsetPx}px` }}
       >
         {inmoId && !selectedProyecto && !selectedLote && (
-          <Link
-            to="/"
+          <button
+            type="button"
             className={styles.backToAll}
             aria-label="Ver todos los proyectos"
+            onClick={() => {
+              window.location.href = "/";
+            }}
           >
             Ir al Mapa Completo
-          </Link>
+          </button>
         )}
         <GoogleMap
           mapContainerClassName={styles.map}
@@ -2368,6 +2461,7 @@ function MyMap() {
           drivingInfo={drivingInfo}
           mapHeaderOffsetPx={mapHeaderOffsetPx}
           forceCompactForLote={!!selectedLote}
+          isLoading={isProyectoLoading}
           mapRef={mapRef}
           onClose={async () => {
             if (mapRef.current && window.google?.maps) {
@@ -2403,6 +2497,7 @@ function MyMap() {
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
           mapHeaderOffsetPx={mapHeaderOffsetPx}
+          isLoading={isLoteLoading}
           mapRef={mapRef}
           onClose={() => {
             setSelectedLote(null);

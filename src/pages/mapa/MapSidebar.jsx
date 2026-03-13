@@ -43,6 +43,7 @@ const LoteSidebarOverlay = ({
   walkingInfo,
   drivingInfo,
   mapHeaderOffsetPx = 0,
+  isLoading = false,
 }) => {
   const validImages = useMemo(
     () =>
@@ -439,7 +440,9 @@ const LoteSidebarOverlay = ({
           className={`${styles.splitLayout} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
           <div className={styles.imageSection}>
-            {validImages.length > 0 ? (
+            {isLoading ? (
+              <div className={styles.skeletonImage} />
+            ) : validImages.length > 0 ? (
               isMobileView ? (
                 <div
                   className={styles.mobileHorizontalGallery}
@@ -515,7 +518,19 @@ const LoteSidebarOverlay = ({
             onTouchMove={onNestedTouchMove}
             onTouchEnd={onNestedTouchEnd}
           >
-            <div className={styles.primeInfo}>
+            {isLoading ? (
+              <div className={styles.skeletonStack}>
+                <div className={styles.skeletonLine} style={{ width: "65%" }} />
+                <div className={styles.skeletonLine} style={{ width: "45%" }} />
+                <div className={styles.skeletonLine} style={{ width: "80%" }} />
+                <div className={styles.skeletonCard} />
+                <div className={styles.skeletonLine} style={{ width: "60%" }} />
+                <div className={styles.skeletonLine} style={{ width: "70%" }} />
+                <div className={styles.skeletonLine} style={{ width: "50%" }} />
+              </div>
+            ) : (
+              <>
+              <div className={styles.primeInfo}>
               <div className={styles.inmoCard}>
                 <div className={styles.inmoHeader}>
                   <div className={styles.inmoIcon}>🏢</div>
@@ -712,6 +727,8 @@ const LoteSidebarOverlay = ({
                 </a>
               </div>
             </div>
+              </>
+            )}
           </div>
         </div>
       </div>

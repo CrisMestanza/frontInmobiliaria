@@ -29,7 +29,6 @@ import {
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
 import { FaChevronDown } from "react-icons/fa";
-import { s } from "framer-motion/client";
 
 const ProyectoSidebar = ({
   inmo,
@@ -40,6 +39,7 @@ const ProyectoSidebar = ({
   drivingInfo,
   mapHeaderOffsetPx = 0,
   forceCompactForLote = false,
+  isLoading = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
@@ -573,12 +573,14 @@ const ProyectoSidebar = ({
           className={`${styles.splitLayout} ${validImages.length === 0 ? styles.noImageLayout : ""} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
           {/* SECCIÓN IMAGEN / SLIDER */}
-          {validImages.length  == 0 ? (
+          {isLoading ? (
+            <div className={styles.skeletonImage} />
+          ) : validImages.length  == 0 ? (
             <div className={styles.noImage}>
               <p>No hay imágenes disponibles</p>
             </div>
           ) : (
-          <div className={styles.imageSection}>
+            <div className={styles.imageSection}>
             {isMobileView ? (
               <div
                 className={styles.mobileCarouselWrap}
@@ -696,8 +698,8 @@ const ProyectoSidebar = ({
                 </div>
               </>
             )}
-          </div>
-)}
+            </div>
+          )}
 
           {/* SECCIÓN INFORMACIÓN */}
           <div
@@ -708,20 +710,32 @@ const ProyectoSidebar = ({
             onTouchMove={onNestedTouchMove}
             onTouchEnd={onNestedTouchEnd}
           >
-            {/* FLECHA SCROLL */}
-            {!isMobileView && !expanded && (
-              <div
-                className={styles.scrollHint}
-                onClick={() =>
-                  contentRef.current?.scrollTo({ top: 500, behavior: "smooth" })
-                }
-              >
-                <FaChevronDown />
-                <span>Desliza</span>
+            {isLoading ? (
+              <div className={styles.skeletonStack}>
+                <div className={styles.skeletonLine} style={{ width: "65%" }} />
+                <div className={styles.skeletonLine} style={{ width: "45%" }} />
+                <div className={styles.skeletonLine} style={{ width: "80%" }} />
+                <div className={styles.skeletonCard} />
+                <div className={styles.skeletonLine} style={{ width: "60%" }} />
+                <div className={styles.skeletonLine} style={{ width: "70%" }} />
+                <div className={styles.skeletonLine} style={{ width: "50%" }} />
               </div>
-            )}
+            ) : (
+              <>
+                {/* FLECHA SCROLL */}
+                {!isMobileView && !expanded && (
+                  <div
+                    className={styles.scrollHint}
+                    onClick={() =>
+                      contentRef.current?.scrollTo({ top: 500, behavior: "smooth" })
+                    }
+                  >
+                    <FaChevronDown />
+                    <span>Desliza</span>
+                  </div>
+                )}
 
-            <div className={styles.primeInfo}>
+                <div className={styles.primeInfo}>
               <div
                 className={`${styles.inmoCard} ${isMobileView && validImages.length > 0 ? styles.mobileInmoCard : ""}`}
               >
@@ -1012,6 +1026,8 @@ const ProyectoSidebar = ({
                 </>
               )}
             </div>
+              </>
+            )}
           </div>
         </div>
       </div>

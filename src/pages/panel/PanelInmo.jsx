@@ -212,6 +212,7 @@ const PanelInmo = () => {
   const [clicks, setClicks] = useState(null);
   const [proyectos, setProyectos] = useState([]);
   const [lotes, setLotes] = useState([]);
+  const [lotesLoading, setLotesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showRedes, setShowRedes] = useState(false);
@@ -318,38 +319,55 @@ const PanelInmo = () => {
       const cleanProyectos = Array.isArray(proyectosData) ? proyectosData : [];
       setProyectos(cleanProyectos);
 
-      const lotesResponses = await Promise.all(
-        cleanProyectos.map((proy) =>
-          authFetch(
-            withApiBase(
-              `https://api.geohabita.com/api/getLoteProyecto/${proy.idproyecto}`,
-            ),
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
-          )
-            .then((res) => (res.ok ? res.json() : []))
-            .catch(() => []),
-        ),
-      );
-      const lotesAcumulados = lotesResponses.flatMap((data) =>
-        Array.isArray(data) ? data : [],
-      );
-      setLotes(lotesAcumulados);
+      if (resClicks.ok) setClicks(await resClicks.json());
 
       setResumen({
         proyectosActivos: cleanProyectos.length,
-        lotesDisponibles: lotesAcumulados.filter(
-          (l) => String(l.estado) === "1",
-        ).length,
-        lotesReservados: lotesAcumulados.filter(
-          (l) => String(l.vendido) === "2",
-        ).length,
-        lotesVendidos: lotesAcumulados.filter((l) => String(l.vendido) === "1")
-          .length,
+        lotesDisponibles: 0,
+        lotesReservados: 0,
+        lotesVendidos: 0,
       });
 
-      if (resClicks.ok) setClicks(await resClicks.json());
+      const loadLotes = async () => {
+        setLotesLoading(true);
+        const lotesResponses = await Promise.all(
+          cleanProyectos.map((proy) =>
+            authFetch(
+              withApiBase(
+                `https://api.geohabita.com/api/getLoteProyecto/${proy.idproyecto}`,
+              ),
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+            )
+              .then((res) => (res.ok ? res.json() : []))
+              .catch(() => []),
+          ),
+        );
+        const lotesAcumulados = lotesResponses.flatMap((data) =>
+          Array.isArray(data) ? data : [],
+        );
+        setLotes(lotesAcumulados);
+
+        setResumen({
+          proyectosActivos: cleanProyectos.length,
+          lotesDisponibles: lotesAcumulados.filter(
+            (l) => String(l.estado) === "1",
+          ).length,
+          lotesReservados: lotesAcumulados.filter(
+            (l) => String(l.vendido) === "2",
+          ).length,
+          lotesVendidos: lotesAcumulados.filter((l) => String(l.vendido) === "1")
+            .length,
+        });
+        setLotesLoading(false);
+      };
+
+      if (window.requestIdleCallback) {
+        window.requestIdleCallback(loadLotes, { timeout: 1500 });
+      } else {
+        setTimeout(loadLotes, 0);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -698,6 +716,9 @@ const PanelInmo = () => {
               />
               <Search size={18} className="table-search-icon" />
             </div>
+            {lotesLoading && (
+              <span className="table-loading">Cargando lotes...</span>
+            )}
           </div>
           <div className="table-wrapper">
             <table className="table-main">
