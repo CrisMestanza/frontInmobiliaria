@@ -2034,7 +2034,7 @@ function MyMap() {
               mapRef.current.fitBounds(place.geometry.viewport);
             } else {
               mapRef.current.panTo(location);
-              mapRef.current.setZoom(14);
+              mapRef.current.setZoom(17);
             }
           }
         }
