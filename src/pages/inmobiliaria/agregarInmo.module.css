@@ -241,6 +241,12 @@ tbody tr:hover {
     box-shadow 0.2s;
 }
 
+.wideInput {
+  width: 100%;
+  max-width: 100%;
+  min-width: 260px;
+}
+
 .input:focus {
   border: 1px solid #0077ff;
   outline: none;

@@ -1448,17 +1448,17 @@ export default function GeoHabita() {
   }, []);
 
   const brands = [
-    "TerraNova",
-    "GrupoRoble",
-    "Urbana",
-    "EcoLotes",
-    "SurEstate",
-    "Vanguardia",
-    "Habitat",
-    "ProLotes",
+    "Soluciones BR",
+    "CasaHome",
+    "Urb. Santa Clara",
+    "Fercie",
+    "Ramos Grupo Inmobiliario",
   ];
   const brandRepeatCount = Math.max(6, Math.ceil(14 / brands.length));
-  const brandChain = Array.from({ length: brandRepeatCount }, () => brands).flat();
+  const brandChain = Array.from(
+    { length: brandRepeatCount },
+    () => brands,
+  ).flat();
 
   const goToLogin = () => navigate("/login");
   const goToMap = () => navigate("/");
@@ -1674,7 +1674,12 @@ export default function GeoHabita() {
           <div className="gh-carousel-track-wrap">
             <div className="gh-cf-left" />
             <div className="gh-cf-right" />
-            <div className="gh-carousel-track">
+            <div
+              className="gh-carousel-track"
+              style={{
+                "--carousel-duration": `${Math.max(28, brandChain.length * 1.8)}s`,
+              }}
+            >
               {[...brandChain, ...brandChain].map((b, i) => (
                 <div key={i} className="gh-brand-item">
                   <div className="gh-brand-dot" />
@@ -2306,7 +2311,7 @@ button{cursor:none}
 .gh-cf-left,.gh-cf-right{position:absolute;top:0;bottom:0;width:80px;z-index:2;pointer-events:none}
 .gh-cf-left{left:0;background:linear-gradient(90deg,rgba(8,28,13,0.95),transparent)}
 .gh-cf-right{right:0;background:linear-gradient(-90deg,rgba(8,28,13,0.95),transparent)}
-.gh-carousel-track{display:flex;width:max-content;animation:scroll 18s linear infinite}
+.gh-carousel-track{display:flex;width:max-content;animation:scroll var(--carousel-duration, 28s) linear infinite;will-change:transform}
 @keyframes scroll{to{transform:translateX(-50%)}}
 .gh-brand-item{display:flex;align-items:center;gap:12px;margin:0 10px;padding:11px 18px;font-size:1.02rem;font-weight:800;color:#d8ffe6;white-space:nowrap;font-family:var(--mono);text-shadow:0 0 14px rgba(6,249,87,0.45);background:rgba(8,25,12,0.88);border:1px solid rgba(6,249,87,0.26);border-radius:999px;box-shadow:0 0 24px rgba(6,249,87,0.12)}
 .gh-brand-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 14px rgba(6,249,87,0.85)}

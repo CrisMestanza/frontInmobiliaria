@@ -850,8 +850,27 @@ export default function LoteModal({ onClose, idproyecto }) {
     setBasePolygonCoords(coords);
   };
 
+  const pruneDuplicateDrawingControls = useCallback(() => {
+    const mapDiv = mapRef.current?.getDiv?.();
+    if (!mapDiv) return;
+
+    const buttons = Array.from(mapDiv.querySelectorAll("button"));
+    const rectButtons = buttons.filter((btn) => {
+      const label = `${btn.getAttribute("title") || ""} ${btn.getAttribute("aria-label") || ""}`
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+      return label.includes("rect") || label.includes("rectáng");
+    });
+
+    rectButtons.forEach((btn) => {
+      const control = btn.closest(".gmnoprint");
+      if (control) control.remove();
+    });
+  }, []);
+
   const onMapLoad = (map) => {
     mapRef.current = map;
+    pruneDuplicateDrawingControls();
   };
 
   const handleGridParamChange = (name, value) => {
@@ -935,6 +954,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const buildClonePayload = (source, loteFallback) => {
     const base = {
       tipo_inmueble: source?.tipo_inmueble ?? 1,
+      nombre: source?.nombre ?? loteFallback?.nombre ?? "",
       precio: source?.precio ?? loteFallback?.precio ?? 0,
       descripcion: source?.descripcion ?? loteFallback?.descripcion ?? "",
       area_total_m2: source?.area_total_m2 ?? loteFallback?.area_total_m2 ?? "",
@@ -976,9 +996,9 @@ export default function LoteModal({ onClose, idproyecto }) {
           ...existing,
           ...clonePayload,
           nombre:
+            source?.nombre ??
             existing.nombre ??
             lote.nombre ??
-            source.nombre ??
             `Lote ${lote.id}`,
         };
       });
@@ -1272,7 +1292,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                     </button>
                   </div>
 
-                  <div className={styles.compactGrid}>
+                  <div className={`${styles.compactGrid} ${styles.compactGridTwo}`}>
                     <div className={styles.compactField}>
                       <label>Tipo de inmueble</label>
                       <select
@@ -1295,12 +1315,12 @@ export default function LoteModal({ onClose, idproyecto }) {
                           ""
                         }
                         onChange={handleFormChange}
-                        className={styles.input}
+                        className={`${styles.input} ${styles.compactInputLg}`}
                       />
                     </div>
                   </div>
 
-                  <div className={styles.compactGrid}>
+                  <div className={`${styles.compactGrid} ${styles.compactGridTwo}`}>
                     <div className={styles.compactField}>
                       <label>País y moneda</label>
                       <select onChange={handleCountryChange} className={styles.select}>
@@ -1336,7 +1356,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                             ""
                           }
                           onChange={handleFormChange}
-                          className={styles.input}
+                          className={`${styles.input} ${styles.compactInputLg}`}
                         />
                       </div>
                     </div>
@@ -1654,9 +1674,17 @@ export default function LoteModal({ onClose, idproyecto }) {
 
                   <DrawingManager
                     onLoad={(dm) => {
+                      if (
+                        drawingManagerRef.current &&
+                        drawingManagerRef.current !== dm
+                      ) {
+                        drawingManagerRef.current.setMap(null);
+                      }
                       drawingManagerRef.current = dm;
+                      setTimeout(pruneDuplicateDrawingControls, 0);
                     }}
-                    onUnmount={() => {
+                    onUnmount={(dm) => {
+                      dm?.setMap(null);
                       drawingManagerRef.current = null;
                     }}
                     onPolygonComplete={onPolygonComplete}
@@ -1665,7 +1693,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                       drawingControlOptions: {
                         position:
                           googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
-                        drawingModes: ["polygon", "rectangle"],
+                      drawingModes: ["polygon"],
                       },
                       polygonOptions: {
                         editable: true,
