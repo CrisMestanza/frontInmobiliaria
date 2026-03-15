@@ -2084,11 +2084,7 @@ function MyMap() {
   }
 
   if (!isLoaded) {
-    return (
-      <div style={{ padding: "20px", textAlign: "center" }}>
-        <h2>Cargando mapa...</h2>
-      </div>
-    );
+    return <GeoHabitaLoader autoHide={false} />;
   }
 
   return (

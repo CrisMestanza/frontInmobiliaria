@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import logoGH from "/habitasinfondo.png"; // ← cambia esta ruta a tu logo
+const logoGH = "/habitasinfondo.png";
 
 const LOTES = [
   [6, 3, 84, 54],
