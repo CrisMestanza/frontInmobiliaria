@@ -3,7 +3,7 @@ import { authFetch } from "../../../config/authFetch.js";
 // components/editLote.jsx
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
-import style from "../agregarInmo.module.css";
+import style from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 
 export default function EditLote({ onClose, idproyecto, lote, visible }) {
@@ -17,18 +17,38 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
     puntos: [],
     imagenes: [],
     vendido: 0,
+    area_total_m2: "",
+    ancho: "",
+    largo: "",
+    dormitorios: 0,
+    banos: 0,
+    cuartos: 0,
+    titulo_propiedad: 0,
+    cochera: 0,
+    cocina: 0,
+    sala: 0,
+    patio: 0,
+    jardin: 0,
+    terraza: 0,
+    azotea: 0,
+    pais: "",
+    moneda: "",
+    bandera: "",
   });
 
   const [tipos, setTipos] = useState([]);
   const [mapReady, setMapReady] = useState(false);
+  const [otherLotesCoords, setOtherLotesCoords] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [removedImageIds, setRemovedImageIds] = useState([]);
   const token = localStorage.getItem("access");
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const polyInstance = useRef(null);
+  const otherPolysRef = useRef([]);
   const pathListenersRef = useRef([]);
   const fileInputRef = useRef(null);
+  const isCasa = Number(form.idtipoinmobiliaria) === 2;
 
   const visibleExistingImages = useMemo(
     () =>
@@ -38,6 +58,17 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
       }),
     [existingImages, removedImageIds],
   );
+
+  const normalizePolygonCoords = (coords = []) =>
+    coords
+      .map((p) => ({
+        lat: parseFloat(p.latitud ?? p.lat),
+        lng: parseFloat(p.longitud ?? p.lng),
+        orden: p.orden,
+      }))
+      .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+      .map((p) => ({ lat: p.lat, lng: p.lng }));
 
   // 1) Cargar puntos del lote y rellenar form
   useEffect(() => {
@@ -72,6 +103,23 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
           puntos: nuevosPuntos,
           imagenes: [],
           vendido: lote.vendido ?? 0,
+          area_total_m2: lote.area_total_m2 ?? "",
+          ancho: lote.ancho ?? "",
+          largo: lote.largo ?? "",
+          dormitorios: lote.dormitorios ?? 0,
+          banos: lote.banos ?? 0,
+          cuartos: lote.cuartos ?? 0,
+          titulo_propiedad: lote.titulo_propiedad ?? 0,
+          cochera: lote.cochera ?? 0,
+          cocina: lote.cocina ?? 0,
+          sala: lote.sala ?? 0,
+          patio: lote.patio ?? 0,
+          jardin: lote.jardin ?? 0,
+          terraza: lote.terraza ?? 0,
+          azotea: lote.azotea ?? 0,
+          pais: lote.pais ?? "",
+          moneda: lote.moneda ?? "",
+          bandera: lote.bandera ?? "",
         });
         setExistingImages(Array.isArray(imagenes) ? imagenes : []);
         setRemovedImageIds([]);
@@ -87,11 +135,22 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
   const initMap = useCallback(async () => {
     try {
       await loader.load();
+      if (!mapRef.current) return;
 
       // traer puntos del proyecto para centrar/dibujar
-      const resProyecto = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`)
-      );
+      const [resProyecto, resLotes] = await Promise.all([
+        authFetch(
+          withApiBase(
+            `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`,
+          ),
+        ),
+        authFetch(
+          withApiBase(
+            `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+          ),
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      ]);
       const puntosProyecto = await resProyecto.json();
       if (!puntosProyecto || puntosProyecto.length === 0) {
         console.warn("No hay puntos del proyecto para centrar el mapa");
@@ -122,12 +181,24 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
         fillColor: "#0000FF",
         fillOpacity: 0.15,
       });
+
+      // Dibujar otros lotes (baja opacidad)
+      const lotesData = (await resLotes.json()) || [];
+      const other = lotesData
+        .filter((l) => l.idlote !== lote?.idlote)
+        .map((l) => ({
+          idlote: l.idlote,
+          coords: normalizePolygonCoords(l.puntos || []),
+        }))
+        .filter((l) => l.coords.length >= 3);
+      setOtherLotesCoords(other);
     } catch (err) {
       console.error("initMap error:", err);
     }
-  }, [idproyecto]);
+  }, [idproyecto, token, lote?.idlote]);
 
   useEffect(() => {
+    if (!visible) return;
     initMap();
     return () => {
       // cleanup básico al desmontar
@@ -135,13 +206,15 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
         polyInstance.current.setMap(null);
         polyInstance.current = null;
       }
+      otherPolysRef.current.forEach((p) => p.setMap(null));
+      otherPolysRef.current = [];
       pathListenersRef.current.forEach((l) =>
         window.google?.maps?.event?.removeListener?.(l)
       );
       pathListenersRef.current = [];
       mapInstance.current = null;
     };
-  }, [initMap]);
+  }, [initMap, visible]);
 
   // 3) Dibujar/actualizar polígono del lote cuando tengamos puntos y mapa listo
   useEffect(() => {
@@ -177,6 +250,27 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
     );
     mapInstance.current.fitBounds(bounds);
   }, [mapReady, form.puntos]);
+
+  useEffect(() => {
+    if (!mapReady || !mapInstance.current) return;
+    // limpiar previos
+    otherPolysRef.current.forEach((p) => p.setMap(null));
+    otherPolysRef.current = [];
+
+    otherLotesCoords.forEach((loteItem) => {
+      const poly = new window.google.maps.Polygon({
+        paths: loteItem.coords,
+        map: mapInstance.current,
+        strokeColor: "#94a3b8",
+        strokeWeight: 1,
+        strokeOpacity: 0.35,
+        fillColor: "#94a3b8",
+        fillOpacity: 0.12,
+        clickable: false,
+      });
+      otherPolysRef.current.push(poly);
+    });
+  }, [mapReady, otherLotesCoords]);
 
   // cargar tipos de inmobiliaria
   useEffect(() => {
@@ -245,6 +339,23 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
       formData.append("descripcion", form.descripcion);
       formData.append("puntos", JSON.stringify(form.puntos));
       formData.append("vendido", form.vendido);
+      formData.append("area_total_m2", form.area_total_m2);
+      formData.append("ancho", form.ancho);
+      formData.append("largo", form.largo);
+      formData.append("dormitorios", form.dormitorios);
+      formData.append("banos", form.banos);
+      formData.append("cuartos", form.cuartos);
+      formData.append("titulo_propiedad", form.titulo_propiedad);
+      formData.append("cochera", form.cochera);
+      formData.append("cocina", form.cocina);
+      formData.append("sala", form.sala);
+      formData.append("patio", form.patio);
+      formData.append("jardin", form.jardin);
+      formData.append("terraza", form.terraza);
+      formData.append("azotea", form.azotea);
+      formData.append("pais", form.pais);
+      formData.append("moneda", form.moneda);
+      formData.append("bandera", form.bandera);
       formData.append("imagenes_eliminadas", JSON.stringify(removedImageIds));
 
       form.imagenes.forEach((img) => {
@@ -279,107 +390,350 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
       style={{ display: visible ? "flex" : "none" }}
     >
       <div className={style.modalContent}>
-        <button className={style.closeBtn} onClick={onClose}>
-          ✖
-        </button>
-        <form className={style.formContainer} onSubmit={handleSubmit}>
-          <h2 style={{ color: "var(--theme-text-main)" }}>Editar Lote</h2>
-          <div
-            ref={mapRef}
-            style={{ width: "100%", height: "300px", marginBottom: "1rem" }}
-          />
-          <label>Tipo:</label>
-          <select
-            name="idtipoinmobiliaria"
-            value={form.idtipoinmobiliaria}
-            onChange={handleTipoChange}
-            className={style.input}
-          >
-            {tipos.map((t) => (
-              <option key={t.idtipoinmobiliaria} value={t.idtipoinmobiliaria}>
-                {t.nombre}
-              </option>
-            ))}
-          </select>
-          <label>Nombre:</label>
-          <input
-            name="nombre"
-            value={form.nombre}
-            onChange={handleChange}
-            className={style.input}
-          />
-          <label>Precio:</label>
-          <input
-            name="precio"
-            type="number"
-            value={form.precio}
-            onChange={handleChange}
-            className={style.input}
-          />
-          <label>Descripción:</label>
-          <textarea
-            name="descripcion"
-            value={form.descripcion}
-            onChange={handleChange}
-            className={style.input}
-          />
-          <label>Imágenes actuales:</label>
-          {visibleExistingImages.length === 0 ? (
-            <p style={{ marginTop: "6px", marginBottom: "6px" }}>
-              No hay imágenes actuales.
+        <div className={style.header}>
+          <div>
+            <h1 className={style.title}>Editar Lote</h1>
+            <p className={style.subtitle}>
+              Actualiza datos, ubicación y recursos del lote seleccionado.
             </p>
-          ) : (
-            <div className={style.previewContainer}>
-              {visibleExistingImages.map((img, i) => {
-                const src = withApiBase(
-                  `https://api.geohabita.com${img.imagen || ""}`,
-                );
-                const key = img.idimagenes || img.idimagen || img.id || i;
-                return (
-                  <div className={style.previewItem} key={key}>
-                    <img src={src} alt={`Actual ${i + 1}`} />
-                    <button
-                      type="button"
-                      className={style.removeBtn}
-                      onClick={() => removeExistingImage(img)}
-                      title="Quitar imagen actual"
-                    >
-                      ✖
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <label>Agregar imágenes nuevas:</label>
-          <input
-            type="file"
-            ref={fileInputRef}
-            multiple
-            accept="image/*"
-            onChange={handleImagenesChange}
-            className={style.input}
-          />
-          {form.imagenes.length > 0 && (
-            <div className={style.previewContainer}>
-              {form.imagenes.map((img, i) => (
-                <div className={style.previewItem} key={`new-${i}`}>
-                  <img src={img.preview} alt={`Nueva ${i + 1}`} />
-                  <button
-                    type="button"
-                    className={style.removeBtn}
-                    onClick={() => removeNewImage(i)}
-                  >
-                    ✖
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <button type="submit" className={style.submitBtn}>
-            Guardar Cambios
+          </div>
+          <button className={style.closeBtn} onClick={onClose}>
+            ✖
           </button>
+        </div>
+
+        <form className={style.formBody} onSubmit={handleSubmit}>
+          <div className={style.gridContainer}>
+            <div className={style.leftColumn}>
+              <section className={style.sectionCard}>
+                <h2 className={style.sectionTitle}>
+                  <span className="material-icons-outlined">edit</span>
+                  Detalles del lote
+                </h2>
+
+                <div className={style.inputGroup}>
+                  <label>Tipo</label>
+                  <select
+                    name="idtipoinmobiliaria"
+                    value={form.idtipoinmobiliaria}
+                    onChange={handleTipoChange}
+                    className={style.select}
+                  >
+                    {tipos.map((t) => (
+                      <option key={t.idtipoinmobiliaria} value={t.idtipoinmobiliaria}>
+                        {t.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className={style.inputGroup}>
+                  <label>Nombre</label>
+                  <input
+                    name="nombre"
+                    value={form.nombre}
+                    onChange={handleChange}
+                    className={style.input}
+                  />
+                </div>
+
+                <div className={style.inputGroup}>
+                  <label>Precio</label>
+                  <input
+                    name="precio"
+                    type="number"
+                    value={form.precio}
+                    onChange={handleChange}
+                    className={style.input}
+                  />
+                </div>
+
+                <div className={style.inputGroup}>
+                  <label>Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    value={form.descripcion}
+                    onChange={handleChange}
+                    className={style.textarea}
+                  />
+                </div>
+
+                <div className={style.compactGrid}>
+                  <div className={style.compactField}>
+                    <label>Área total (m²)</label>
+                    <input
+                      name="area_total_m2"
+                      value={form.area_total_m2}
+                      onChange={handleChange}
+                      className={style.input}
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Ancho (m)</label>
+                    <input
+                      name="ancho"
+                      type="number"
+                      step="0.01"
+                      value={form.ancho}
+                      onChange={handleChange}
+                      className={style.input}
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Largo (m)</label>
+                    <input
+                      name="largo"
+                      type="number"
+                      step="0.01"
+                      value={form.largo}
+                      onChange={handleChange}
+                      className={style.input}
+                    />
+                  </div>
+                </div>
+
+                <div className={style.compactGrid}>
+                  <div className={style.compactField}>
+                    <label>País</label>
+                    <input
+                      name="pais"
+                      value={form.pais}
+                      onChange={handleChange}
+                      className={style.input}
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Moneda</label>
+                    <input
+                      name="moneda"
+                      value={form.moneda}
+                      onChange={handleChange}
+                      className={style.input}
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Bandera (URL)</label>
+                    <input
+                      name="bandera"
+                      value={form.bandera}
+                      onChange={handleChange}
+                      className={style.input}
+                    />
+                  </div>
+                </div>
+
+                <div className={style.inputGroup}>
+                  <label>Título de propiedad</label>
+                  <select
+                    name="titulo_propiedad"
+                    value={form.titulo_propiedad}
+                    onChange={handleChange}
+                    className={style.select}
+                  >
+                    <option value={0}>No</option>
+                    <option value={1}>Sí</option>
+                  </select>
+                </div>
+
+                {isCasa && (
+                  <div className={style.compactGrid}>
+                    <div className={style.compactField}>
+                      <label>Dormitorios</label>
+                      <input
+                        name="dormitorios"
+                        type="number"
+                        min="0"
+                        value={form.dormitorios}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Baños</label>
+                      <input
+                        name="banos"
+                        type="number"
+                        min="0"
+                        value={form.banos}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Cuartos</label>
+                      <input
+                        name="cuartos"
+                        type="number"
+                        min="0"
+                        value={form.cuartos}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Cochera</label>
+                      <input
+                        name="cochera"
+                        type="number"
+                        min="0"
+                        value={form.cochera}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Cocina</label>
+                      <input
+                        name="cocina"
+                        type="number"
+                        min="0"
+                        value={form.cocina}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Sala</label>
+                      <input
+                        name="sala"
+                        type="number"
+                        min="0"
+                        value={form.sala}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Patio</label>
+                      <input
+                        name="patio"
+                        type="number"
+                        min="0"
+                        value={form.patio}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Jardín</label>
+                      <input
+                        name="jardin"
+                        type="number"
+                        min="0"
+                        value={form.jardin}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Terraza</label>
+                      <input
+                        name="terraza"
+                        type="number"
+                        min="0"
+                        value={form.terraza}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Azotea</label>
+                      <input
+                        name="azotea"
+                        type="number"
+                        min="0"
+                        value={form.azotea}
+                        onChange={handleChange}
+                        className={style.input}
+                      />
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section className={style.sectionCard}>
+                <h2 className={style.sectionTitle}>
+                  <span className="material-icons-outlined">image</span>
+                  Imágenes
+                </h2>
+
+                <div className={style.inputGroup}>
+                  <label>Imágenes actuales</label>
+                  {visibleExistingImages.length === 0 ? (
+                    <p style={{ marginTop: "6px", marginBottom: "6px" }}>
+                      No hay imágenes actuales.
+                    </p>
+                  ) : (
+                    <div className={style.imagePreviewGrid}>
+                      {visibleExistingImages.map((img, i) => {
+                        const src = withApiBase(
+                          `https://api.geohabita.com${img.imagen || ""}`,
+                        );
+                        const key = img.idimagenes || img.idimagen || img.id || i;
+                        return (
+                          <div className={style.imagePreviewItem} key={key}>
+                            <img src={src} alt={`Actual ${i + 1}`} />
+                            <button
+                              type="button"
+                              className={style.imageRemoveBtn}
+                              onClick={() => removeExistingImage(img)}
+                              title="Quitar imagen actual"
+                            >
+                              ✖
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className={style.inputGroup}>
+                  <label>Agregar imágenes nuevas</label>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    multiple
+                    accept="image/*"
+                    onChange={handleImagenesChange}
+                    className={style.input}
+                  />
+                  {form.imagenes.length > 0 && (
+                    <div className={style.imagePreviewGrid}>
+                      {form.imagenes.map((img, i) => (
+                        <div className={style.imagePreviewItem} key={`new-${i}`}>
+                          <img src={img.preview} alt={`Nueva ${i + 1}`} />
+                          <button
+                            type="button"
+                            className={style.imageRemoveBtn}
+                            onClick={() => removeNewImage(i)}
+                          >
+                            ✖
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <div className={style.actionRow}>
+                <button type="submit" className={style.submitBtn}>
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+
+            <div className={style.rightColumn}>
+              <h2 className={style.sectionTitle}>
+                <span className="material-icons-outlined">map</span>
+                Mapa
+              </h2>
+              <div className={style.mapWrapper}>
+                <div ref={mapRef} className={style.googleMap} />
+              </div>
+            </div>
+          </div>
         </form>
       </div>
     </div>

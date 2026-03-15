@@ -49,6 +49,7 @@ export default function IconoModal({ onClose, idproyecto }) {
   const lotesPolygonsRef = useRef([]);
   const [map, setMap] = useState(null);
   const [iconosDisponibles, setIconosDisponibles] = useState([]);
+  const iconosDisponiblesRef = useRef([]);
   const [iconosMapa, setIconosMapa] = useState([]);
   const [draggedIcono, setDraggedIcono] = useState(null);
   const [iconosLoading, setIconosLoading] = useState(true);
@@ -148,52 +149,78 @@ export default function IconoModal({ onClose, idproyecto }) {
         });
         proyectoPolygonRef.current = proyectoPolygon;
 
-        const runHeavy = async () => {
-          const [resLotes, resIconosProyecto] = await Promise.all([
-            authFetch(
-              withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              },
+        const iconosCatalogoPromise =
+          iconosDisponiblesRef.current.length === 0
+            ? authFetch(withApiBase("https://api.geohabita.com/api/listIconos/"))
+            : null;
+
+        const [resLotes, resIconosProyecto, resIconosCatalogo] =
+          await Promise.all([
+          authFetch(
+            withApiBase(
+              `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
             ),
-            authFetch(
-              withApiBase(`https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}`),
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
               },
+            },
+          ),
+          authFetch(
+            withApiBase(
+              `https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}`,
             ),
-          ]);
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          ),
+          iconosCatalogoPromise,
+        ]);
 
-          const lotesConPuntos = await resLotes.json();
-          const iconosRegistrados = await resIconosProyecto.json();
+        const lotesConPuntos = await resLotes.json();
+        const iconosRegistrados = await resIconosProyecto.json();
+        if (resIconosCatalogo) {
+          const data = await resIconosCatalogo.json();
+          iconosDisponiblesRef.current = data;
+          setIconosDisponibles(data);
+        }
 
-          const lotesPolygons = lotesConPuntos
-            .map((lote) => {
-              const loteCoords = normalizePolygonCoords(lote.puntos || []);
+        const lotesPolygons = lotesConPuntos
+          .map((lote) => {
+            const loteCoords = normalizePolygonCoords(lote.puntos || []);
 
-              if (!loteCoords.length) return null;
+            if (!loteCoords.length) return null;
 
-              return new window.google.maps.Polygon({
-                paths: loteCoords,
-                map: map.mapInstance,
-                strokeColor: "#333",
-                strokeWeight: 1,
-                fillColor: getColorLote(lote.vendido),
-                fillOpacity: 0.45,
-              });
-            })
-            .filter(Boolean);
+            return new window.google.maps.Polygon({
+              paths: loteCoords,
+              map: map.mapInstance,
+              strokeColor: "#333",
+              strokeWeight: 1,
+              fillColor: getColorLote(lote.vendido),
+              fillOpacity: 0.45,
+            });
+          })
+          .filter(Boolean);
 
-          lotesPolygonsRef.current = lotesPolygons;
+        lotesPolygonsRef.current = lotesPolygons;
 
-          setIconosMapa((prev) => {
-            prev.forEach((ic) => ic.marker?.setMap(null));
+        setIconosMapa((prev) => {
+          prev.forEach((ic) => ic.marker?.setMap(null));
 
-            return iconosRegistrados.map((ico) => {
+          return iconosRegistrados
+            .map((ico) => {
+              const iconoDetalle =
+                ico.icono_detalle ||
+                iconosDisponiblesRef.current.find(
+                  (i) =>
+                    i.idicono === ico.idicono ||
+                    i.idicono === ico.idiconos,
+                );
+
+              if (!iconoDetalle?.imagen) return null;
+
               const marker = new window.google.maps.Marker({
                 position: {
                   lat: parseFloat(ico.latitud),
@@ -201,11 +228,13 @@ export default function IconoModal({ onClose, idproyecto }) {
                 },
                 map: map.mapInstance,
                 icon: {
-                  url: withApiBase(`https://api.geohabita.com${ico.icono_detalle.imagen}`),
+                  url: withApiBase(
+                    `https://api.geohabita.com${iconoDetalle.imagen}`,
+                  ),
                   scaledSize: new window.google.maps.Size(40, 40),
                 },
                 draggable: true,
-                title: ico.icono_detalle.nombre,
+                title: iconoDetalle.nombre,
               });
 
               marker.addListener("rightclick", () => {
@@ -218,18 +247,12 @@ export default function IconoModal({ onClose, idproyecto }) {
                 latitud: ico.latitud,
                 longitud: ico.longitud,
                 marker,
-                icono_detalle: ico.icono_detalle,
+                icono_detalle: iconoDetalle,
                 saved: true,
               };
-            });
-          });
-        };
-
-        if (window.requestIdleCallback) {
-          window.requestIdleCallback(runHeavy, { timeout: 1500 });
-        } else {
-          setTimeout(runHeavy, 0);
-        }
+            })
+            .filter(Boolean);
+        });
       } catch (error) {
         console.error("Error loading project geometry:", error);
       } finally {
@@ -344,6 +367,7 @@ export default function IconoModal({ onClose, idproyecto }) {
     const fetchIconos = async () => {
       const res = await authFetch(withApiBase("https://api.geohabita.com/api/listIconos/"));
       const data = await res.json();
+      iconosDisponiblesRef.current = data;
       setIconosDisponibles(data);
     };
     fetchIconos();
@@ -437,24 +461,24 @@ export default function IconoModal({ onClose, idproyecto }) {
           </h3>
           <div className={style.iconRegisteredList}>
             {iconosMapa.map((ico, idx) => {
-              // const imagen =
-              //   ico.icono_detalle?.imagen ||
-              //   iconosDisponibles.find((i) => i.idicono === ico.idicono)
-              //     ?.imagen;
+              const iconoDetalle =
+                ico.icono_detalle ||
+                iconosDisponibles.find(
+                  (i) =>
+                    i.idicono === ico.idicono ||
+                    i.idicono === ico.idiconos,
+                );
 
-              // const nombre =
-              //   ico.icono_detalle?.nombre ||
-              //   iconosDisponibles.find((i) => i.idicono === ico.idicono)
-              //     ?.nombre;
+              if (!iconoDetalle?.imagen) return null;
 
               return (
                 <div key={idx} className={style.iconRegisteredItemWrap}>
                   <img
                     src={withApiBase(
-                      `https://api.geohabita.com${ico.icono_detalle.imagen}`,
+                      `https://api.geohabita.com${iconoDetalle.imagen}`,
                     )}
-                    alt={ico.icono_detalle.nombre}
-                    title={ico.icono_detalle.nombre}
+                    alt={iconoDetalle.nombre}
+                    title={iconoDetalle.nombre}
                     className={style.iconRegisteredItem}
                   />
                   {!ico.saved && (

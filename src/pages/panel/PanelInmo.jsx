@@ -56,12 +56,11 @@ import {
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
 import Loader from "../../components/Loading";
+import GeoHabitaLoader from "../../components/GeoHabitaLoader";
 const ProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/agregarProyecto"),
 );
-const LotesModal = React.lazy(
-  () => import("../inmobiliaria/lote/LotesModal"),
-);
+const LotesModal = React.lazy(() => import("../inmobiliaria/lote/LotesModal"));
 const EditProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/editProyecto"),
 );
@@ -300,7 +299,9 @@ const PanelInmo = () => {
       setLoading(true);
       const [resProy, resClicks] = await Promise.all([
         authFetch(
-          withApiBase(`https://api.geohabita.com/api/getProyectoInmo/${idInmo}`),
+          withApiBase(
+            `https://api.geohabita.com/api/getProyectoInmo/${idInmo}`,
+          ),
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -357,17 +358,14 @@ const PanelInmo = () => {
           lotesReservados: lotesAcumulados.filter(
             (l) => String(l.vendido) === "2",
           ).length,
-          lotesVendidos: lotesAcumulados.filter((l) => String(l.vendido) === "1")
-            .length,
+          lotesVendidos: lotesAcumulados.filter(
+            (l) => String(l.vendido) === "1",
+          ).length,
         });
         setLotesLoading(false);
       };
 
-      if (window.requestIdleCallback) {
-        window.requestIdleCallback(loadLotes, { timeout: 1500 });
-      } else {
-        setTimeout(loadLotes, 0);
-      }
+      await loadLotes();
     } catch (err) {
       console.error(err);
     } finally {
@@ -446,7 +444,8 @@ const PanelInmo = () => {
     if (!proyectos.length) return 0;
     return Math.round((totalContactos / proyectos.length) * 10) / 10;
   }, [totalContactos, proyectos.length]);
-  if (loading) return <Loader />;
+  // if (loading) return <Loader />;
+  if (loading) return <GeoHabitaLoader autoHide={false} />;
 
   const redes = [
     { nombre: "Whatsapp", icono: <FaWhatsapp color="green" /> },

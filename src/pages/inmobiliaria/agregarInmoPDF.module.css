@@ -108,6 +108,20 @@
   gap: 16px;
 }
 
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.toggleRow input {
+  width: 16px;
+  height: 16px;
+  accent-color: #0ea5e9;
+}
+
 .labelRow {
   display: flex;
   justify-content: space-between;

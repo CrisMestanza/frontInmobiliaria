@@ -25,6 +25,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
   const [showModalLotePDF, setShowModalLotePDF] = useState(false);
   const [showModalEdit, setShowModalEdit] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
+  const [priceSort, setPriceSort] = useState("id");
   const token = localStorage.getItem("access");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,6 +84,16 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
       l.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  const sortedLotes = [...filteredLotes].sort((a, b) => {
+    if (priceSort === "asc") {
+      return Number(a.precio ?? 0) - Number(b.precio ?? 0);
+    }
+    if (priceSort === "desc") {
+      return Number(b.precio ?? 0) - Number(a.precio ?? 0);
+    }
+    return Number(a.idlote ?? 0) - Number(b.idlote ?? 0);
+  });
 
   const handleEstadoChange = async (idlote, nuevoEstado) => {
     try {
@@ -238,13 +249,61 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                 <tr>
                   <th>Nº</th>
                   <th>Lote / Descripción</th>
-                  <th>Precio</th>
+                  <th>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      Precio
+                      <div style={{ display: "inline-flex", gap: "4px" }}>
+                        <button
+                          type="button"
+                          title="Ordenar por precio ascendente"
+                          onClick={() => setPriceSort("asc")}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: priceSort === "asc" ? "var(--primari)" : "inherit",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          title="Ordenar por precio descendente"
+                          onClick={() => setPriceSort("desc")}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: priceSort === "desc" ? "var(--primari)" : "inherit",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ▼
+                        </button>
+                        <button
+                          type="button"
+                          title="Ordenar por registro"
+                          onClick={() => setPriceSort("id")}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            color: priceSort === "id" ? "var(--primari)" : "inherit",
+                            fontWeight: 700,
+                          }}
+                        >
+                          ⦿
+                        </button>
+                      </div>
+                    </div>
+                  </th>
                   <th className={style.thCenter}>Estado</th>
                   <th className={style.thRight}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLotes.length === 0 ? (
+                {sortedLotes.length === 0 ? (
                   <tr>
                     <td colSpan={5} className={style.emptyCell}>
                       <div className={style.emptyState}>
@@ -258,7 +317,7 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                     </td>
                   </tr>
                 ) : (
-                  filteredLotes.map((lote, index) => (
+                  sortedLotes.map((lote, index) => (
                     <tr key={lote.idlote} className={style.rowHover}>
                       <td className={style.rowIndex}>{index + 1}</td>
                       <td>

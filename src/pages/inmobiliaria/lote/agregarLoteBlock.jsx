@@ -2,7 +2,7 @@ import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
+import { GoogleMap, Polygon, DrawingManager, Marker } from "@react-google-maps/api";
 import styles from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 import * as pdfjsLib from "pdfjs-dist";
@@ -70,6 +70,10 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [selectedLote, setSelectedLote] = useState(null);
   const [formValues, setFormValues] = useState({});
   const [gridParams, setGridParams] = useState({ rows: 2, cols: 2 });
+  const [rowNumbering, setRowNumbering] = useState([]);
+  const [manzanaLabel, setManzanaLabel] = useState("");
+  const [useRowPrice, setUseRowPrice] = useState(false);
+  const manualOverridesRef = useRef({});
   const [rotationDeg, setRotationDeg] = useState(0);
   const [basePolygonCoords, setBasePolygonCoords] = useState(null);
   const [detectedAngle, setDetectedAngle] = useState(0);
@@ -389,6 +393,25 @@ export default function LoteModal({ onClose, idproyecto }) {
       }
     }));
   };
+
+  useEffect(() => {
+    if (!countries.length || !selectedLote) return;
+    if (selectedCountry) return;
+    const peru = countries.find(
+      (c) => (c.name || "").toLowerCase() === "peru" || (c.name || "").toLowerCase() === "perú"
+    );
+    if (!peru) return;
+    setSelectedCountry(peru);
+    setFormValues((prev) => ({
+      ...prev,
+      [selectedLote]: {
+        ...prev[selectedLote],
+        pais: peru.name || "",
+        moneda: peru.currencySymbol || "",
+        bandera: peru.flag || "",
+      },
+    }));
+  }, [countries, selectedLote, selectedCountry]);
 
   const [mapZoom, setMapZoom] = useState(17); // valor por defecto
 
@@ -777,6 +800,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
           if (clippedCoords && clippedCoords.length >= 3) {
             const calculatedArea = calculatePolygonArea(clippedCoords);
+            const center = getPolygonCenter(clippedCoords);
             grid.push({
               id: loteCounter++,
               coords: clippedCoords,
@@ -787,14 +811,73 @@ export default function LoteModal({ onClose, idproyecto }) {
               vendido: 0,
               row: r,
               col: c,
+              center,
             });
           }
         }
       }
 
+      const applyNumbering = (items) => {
+        if (!items.length) return items;
+
+        const grouped = new Map();
+        items.forEach((item) => {
+          const key = item.row;
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key).push(item);
+        });
+
+        const rowMeta = [...grouped.entries()].map(([rowKey, rowItems]) => {
+          const avgLat =
+            rowItems.reduce((acc, it) => acc + (it.center?.lat ?? 0), 0) /
+            Math.max(1, rowItems.length);
+          return { rowKey: Number(rowKey), avgLat };
+        });
+
+        const rowsSorted = rowMeta.sort((a, b) => b.avgLat - a.avgLat);
+        rowsSorted.forEach((rowInfo, displayIdx) => {
+          const rowItems = grouped
+            .get(rowInfo.rowKey)
+            .sort((a, b) => {
+              const aLng = a.center?.lng ?? 0;
+              const bLng = b.center?.lng ?? 0;
+              return aLng - bLng;
+            });
+
+          const cfg = rowNumbering[displayIdx];
+          const start = Number(cfg?.start);
+          const end = Number(cfg?.end);
+          const step =
+            Number.isFinite(start) &&
+            Number.isFinite(end) &&
+            start > end
+              ? -1
+              : 1;
+
+          const safeStart = Number.isFinite(start) ? start : 1;
+
+          rowItems.forEach((item, idx) => {
+            const value = safeStart + step * idx;
+            const manualName = manualOverridesRef.current[item.id]?.nombreManual;
+            if (!manualName) {
+              item.nombre = manzanaLabel
+                ? `Lote ${value}, Manzana ${manzanaLabel}`
+                : `Lote ${value}`;
+            }
+            const manual = manualOverridesRef.current[item.id]?.precioManual;
+            if (useRowPrice && Number.isFinite(Number(cfg?.price)) && !manual) {
+              item.precio = Number(cfg.price);
+            }
+          });
+        });
+
+        return items;
+      };
+
+      applyNumbering(grid);
       return grid;
     },
-    [googleRef],
+    [googleRef, rowNumbering, manzanaLabel, useRowPrice],
   );
 
   const handleRegenerateGrid = useCallback(() => {
@@ -822,11 +905,87 @@ export default function LoteModal({ onClose, idproyecto }) {
   }, [
     gridParams.rows,
     gridParams.cols,
+    rowNumbering,
     rotationDeg,
     basePolygonCoords,
     isLoaded,
     handleRegenerateGrid,
   ]);
+
+  const buildDefaultRowNumbering = useCallback((rows, cols) => {
+    const next = [];
+    let counter = 1;
+    for (let r = 0; r < rows; r++) {
+      const rowStart = counter;
+      const rowEnd = counter + Math.max(0, cols - 1);
+      next.push({ start: rowStart, end: rowEnd });
+      counter = rowEnd + 1;
+    }
+    return next;
+  }, []);
+
+  useEffect(() => {
+    setRowNumbering((prev) => {
+      if (prev.length === gridParams.rows) return prev;
+      return buildDefaultRowNumbering(gridParams.rows, gridParams.cols);
+    });
+  }, [gridParams.rows, gridParams.cols, buildDefaultRowNumbering]);
+
+  useEffect(() => {
+    if (!generatedLotes.length) return;
+    setGeneratedLotes((prev) => {
+      const items = prev.map((item) => ({ ...item }));
+      const grouped = new Map();
+      items.forEach((item) => {
+        const key = item.row;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(item);
+      });
+      const rowMeta = [...grouped.entries()].map(([rowKey, rowItems]) => {
+        const avgLat =
+          rowItems.reduce((acc, it) => acc + (it.center?.lat ?? 0), 0) /
+          Math.max(1, rowItems.length);
+        return { rowKey: Number(rowKey), avgLat };
+      });
+      const rowsSorted = rowMeta.sort((a, b) => b.avgLat - a.avgLat);
+      rowsSorted.forEach((rowInfo, displayIdx) => {
+        const rowItems = grouped
+          .get(rowInfo.rowKey)
+          .sort((a, b) => {
+            const aLng = a.center?.lng ?? 0;
+            const bLng = b.center?.lng ?? 0;
+            return aLng - bLng;
+          });
+        const cfg = rowNumbering[displayIdx];
+        const start = Number(cfg?.start);
+        const end = Number(cfg?.end);
+        const step =
+          Number.isFinite(start) &&
+          Number.isFinite(end) &&
+          start > end
+            ? -1
+            : 1;
+        const safeStart = Number.isFinite(start) ? start : 1;
+        rowItems.forEach((item, idx) => {
+          const value = safeStart + step * idx;
+          const manualName = manualOverridesRef.current[item.id]?.nombreManual;
+          if (!manualName) {
+            item.nombre = manzanaLabel
+              ? `Lote ${value}, Manzana ${manzanaLabel}`
+              : `Lote ${value}`;
+          }
+          const manual = manualOverridesRef.current[item.id]?.precioManual;
+          if (useRowPrice && Number.isFinite(Number(cfg?.price)) && !manual) {
+            item.precio = Number(cfg.price);
+          }
+        });
+      });
+      return items;
+    });
+  }, [rowNumbering, manzanaLabel, useRowPrice]);
+
+  // Sincronización de formulario ocurre al seleccionar el lote,
+  // evitando loops de renderizado.
 
   const onPolygonComplete = (poly) => {
     if (!poly) return;
@@ -873,6 +1032,64 @@ export default function LoteModal({ onClose, idproyecto }) {
     pruneDuplicateDrawingControls();
   };
 
+  const getPolygonCenter = (coords) => {
+    if (!coords || coords.length === 0) return null;
+    const sum = coords.reduce(
+      (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+      { lat: 0, lng: 0 },
+    );
+    return {
+      lat: sum.lat / coords.length,
+      lng: sum.lng / coords.length,
+    };
+  };
+
+  const getRowCenters = (items) => {
+    const grouped = new Map();
+    items.forEach((item) => {
+      if (!item.center) return;
+      const key = item.row;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(item.center);
+    });
+
+    const rows = [...grouped.entries()].map(([rowKey, centers]) => {
+      const sum = centers.reduce(
+        (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+        { lat: 0, lng: 0 },
+      );
+      const sorted = [...centers].sort((a, b) => a.lng - b.lng);
+      const minLng = sorted[0]?.lng ?? 0;
+      const maxLng = sorted[sorted.length - 1]?.lng ?? 0;
+      const spanLng = Math.max(0.00001, maxLng - minLng);
+      const gaps = sorted
+        .map((p, i) => (i === 0 ? null : p.lng - sorted[i - 1].lng))
+        .filter((v) => typeof v === "number" && v > 0);
+      const avgGap =
+        gaps.length > 0
+          ? gaps.reduce((acc, v) => acc + v, 0) / gaps.length
+          : spanLng / Math.max(1, sorted.length - 1);
+      const minOffset = Math.max(0.000005, avgGap * 0.2);
+      const maxOffset = 0.00002;
+      const offset = Math.min(Math.max(avgGap * 0.3, minOffset), maxOffset);
+      return {
+        row: Number(rowKey),
+        avgLat: sum.lat / centers.length,
+        position: {
+          lat: sum.lat / centers.length,
+          lng: minLng + offset,
+        },
+      };
+    });
+
+    return rows
+      .sort((a, b) => b.avgLat - a.avgLat)
+      .map((row, idx) => ({
+        ...row,
+        displayIndex: idx + 1,
+      }));
+  };
+
   const handleGridParamChange = (name, value) => {
     setGridParams((prev) => ({ ...prev, [name]: value }));
   };
@@ -917,13 +1134,30 @@ export default function LoteModal({ onClose, idproyecto }) {
     const parsedValue =
       type === "number" ? (value === "" ? "" : Number(value)) : value;
 
-    setFormValues((prev) => ({
-      ...prev,
-      [selectedLote]: {
-        ...prev[selectedLote],
-        [name]: parsedValue,
-      },
-    }));
+    setFormValues((prev) => {
+      const next = {
+        ...prev,
+        [selectedLote]: {
+          ...prev[selectedLote],
+          [name]: parsedValue,
+        },
+      };
+      if (name === "precio") {
+        next[selectedLote].precioManual = true;
+        manualOverridesRef.current[selectedLote] = {
+          ...(manualOverridesRef.current[selectedLote] || {}),
+          precioManual: true,
+        };
+      }
+      if (name === "nombre") {
+        next[selectedLote].nombreManual = true;
+        manualOverridesRef.current[selectedLote] = {
+          ...(manualOverridesRef.current[selectedLote] || {}),
+          nombreManual: true,
+        };
+      }
+      return next;
+    });
   };
   const handleTipoChange = (e) => {
     const value = Number(e.target.value);
@@ -954,8 +1188,6 @@ export default function LoteModal({ onClose, idproyecto }) {
   const buildClonePayload = (source, loteFallback) => {
     const base = {
       tipo_inmueble: source?.tipo_inmueble ?? 1,
-      nombre: source?.nombre ?? loteFallback?.nombre ?? "",
-      precio: source?.precio ?? loteFallback?.precio ?? 0,
       descripcion: source?.descripcion ?? loteFallback?.descripcion ?? "",
       area_total_m2: source?.area_total_m2 ?? loteFallback?.area_total_m2 ?? "",
       ancho: source?.ancho ?? 0,
@@ -996,7 +1228,6 @@ export default function LoteModal({ onClose, idproyecto }) {
           ...existing,
           ...clonePayload,
           nombre:
-            source?.nombre ??
             existing.nombre ??
             lote.nombre ??
             `Lote ${lote.id}`,
@@ -1010,6 +1241,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [registerMessage, setRegisterMessage] = useState("Registrando inmuebles...");
   const [isRegistering, setIsRegistering] = useState(false);
+  const [registerItems, setRegisterItems] = useState([]);
 
   const handleRegisterAll = async () => {
     for (const l of generatedLotes) {
@@ -1022,35 +1254,64 @@ export default function LoteModal({ onClose, idproyecto }) {
     setShowRegisterModal(true); // Abrir modal
     setRegisterMessage("Registrando inmuebles...");
     setIsRegistering(true);
+    setRegisterItems(
+      generatedLotes.map((lote) => ({
+        id: lote.id,
+        nombre:
+          formValues[lote.id]?.nombre?.trim() ||
+          lote.nombre ||
+          `Lote ${lote.id}`,
+      })),
+    );
 
     const formData = new FormData();
 
     generatedLotes.forEach((lote, index) => {
+      const overrides = formValues[lote.id] || {};
+      const normalizedName =
+        typeof overrides.nombre === "string" && overrides.nombre.trim()
+          ? overrides.nombre.trim()
+          : lote.nombre;
+      const normalizedDesc =
+        typeof overrides.descripcion === "string"
+          ? overrides.descripcion
+          : lote.descripcion ?? "";
+      const normalizedPrice =
+        overrides.precio !== undefined && overrides.precio !== ""
+          ? overrides.precio
+          : lote.precio ?? 0;
+
       const data = {
         tipo_inmueble: 1,
-        nombre: lote.nombre,
-        precio: lote.precio ?? 0,
-        descripcion: lote.descripcion ?? "",
-        area_total_m2: lote.area_total_m2 ?? "",
-        ancho: 0,
-        largo: 0,
-        dormitorios: 0,
-        banos: 0,
-        cuartos: 0,
-        cochera: 0,
-        cocina: 0,
-        sala: 0,
-        patio: 0,
-        jardin: 0,
-        terraza: 0,
-        azotea: 0,
-        titulo_propiedad: 0,
-        ...(formValues[lote.id] || {}),
+        nombre: normalizedName,
+        precio: normalizedPrice,
+        descripcion: normalizedDesc,
+        area_total_m2:
+          overrides.area_total_m2 !== undefined && overrides.area_total_m2 !== ""
+            ? overrides.area_total_m2
+            : lote.area_total_m2 ?? "",
+        ancho: overrides.ancho ?? 0,
+        largo: overrides.largo ?? 0,
+        dormitorios: overrides.dormitorios ?? 0,
+        banos: overrides.banos ?? 0,
+        cuartos: overrides.cuartos ?? 0,
+        cochera: overrides.cochera ?? 0,
+        cocina: overrides.cocina ?? 0,
+        sala: overrides.sala ?? 0,
+        patio: overrides.patio ?? 0,
+        jardin: overrides.jardin ?? 0,
+        terraza: overrides.terraza ?? 0,
+        azotea: overrides.azotea ?? 0,
+        titulo_propiedad: overrides.titulo_propiedad ?? 0,
+        pais: overrides.pais ?? lote.pais,
+        moneda: overrides.moneda ?? lote.moneda,
+        bandera: overrides.bandera ?? lote.bandera,
+        tipo_inmueble_override: overrides.tipo_inmueble,
       };
 
       const lotePayload = {
         idproyecto,
-        idtipoinmobiliaria: data.tipo_inmueble ?? 1,
+        idtipoinmobiliaria: data.tipo_inmueble_override ?? data.tipo_inmueble ?? 1,
         nombre: data.nombre,
         precio: data.precio,
         descripcion: data.descripcion,
@@ -1213,6 +1474,16 @@ export default function LoteModal({ onClose, idproyecto }) {
                       className={styles.input}
                     />
                   </div>
+                  <div className={styles.controlField}>
+                    <label>Manzana</label>
+                    <input
+                      type="text"
+                      value={manzanaLabel}
+                      onChange={(e) => setManzanaLabel(e.target.value)}
+                      className={styles.input}
+                      placeholder="Ej: C"
+                    />
+                  </div>
                   <div className={styles.controlFieldWide}>
                     <label>Ajuste</label>
                     <div className={styles.rangeRow}>
@@ -1275,6 +1546,83 @@ export default function LoteModal({ onClose, idproyecto }) {
                 </div>
               </section>
 
+              {generatedLotes.length > 0 && (
+                <section className={styles.sectionCard}>
+                  <h2 className={styles.sectionTitle}>
+                    <span className="material-icons-outlined">format_list_numbered</span>
+                    Numeración por fila
+                  </h2>
+                  <div className={styles.controlGrid}>
+                    <div className={styles.controlFieldWide}>
+                      <label className={styles.inlineRow}>
+                        <input
+                          type="checkbox"
+                          checked={useRowPrice}
+                          onChange={(e) => setUseRowPrice(e.target.checked)}
+                        />
+                        <span>Aplicar precio fijo por fila</span>
+                      </label>
+                    </div>
+                    {rowNumbering.map((cfg, idx) => (
+                      <div key={idx} className={styles.controlFieldWide}>
+                        <label>Fila {idx + 1}</label>
+                        <div className={styles.rangeRow}>
+                          <input
+                          type="number"
+                          min="1"
+                          value={cfg.start}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value || 1, 10);
+                            setRowNumbering((prev) =>
+                              prev.map((row, i) =>
+                                i === idx ? { ...row, start: value } : row,
+                              ),
+                            );
+                          }}
+                          className={styles.input}
+                        />
+                          <span className={styles.rangeValue}>a</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={cfg.end}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value || 1, 10);
+                            setRowNumbering((prev) =>
+                              prev.map((row, i) =>
+                                i === idx ? { ...row, end: value } : row,
+                              ),
+                            );
+                          }}
+                            className={styles.input}
+                          />
+                          {useRowPrice && (
+                            <input
+                              type="number"
+                              min="0"
+                              value={cfg.price ?? ""}
+                              onChange={(e) => {
+                                const value =
+                                  e.target.value === ""
+                                    ? ""
+                                    : Number(e.target.value);
+                                setRowNumbering((prev) =>
+                                  prev.map((row, i) =>
+                                    i === idx ? { ...row, price: value } : row,
+                                  ),
+                                );
+                              }}
+                              className={styles.input}
+                              placeholder="Precio"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {selectedLote && (
                 <section className={styles.sectionCard}>
                   <h2 className={styles.sectionTitle}>
@@ -1310,9 +1658,10 @@ export default function LoteModal({ onClose, idproyecto }) {
                       <input
                         name="nombre"
                         value={
-                          formValues[selectedLote]?.nombre ||
-                          generatedLotes.find((l) => l.id === selectedLote)?.nombre ||
-                          ""
+                          formValues[selectedLote]?.nombreManual
+                            ? formValues[selectedLote]?.nombre || ""
+                            : generatedLotes.find((l) => l.id === selectedLote)
+                                ?.nombre || ""
                         }
                         onChange={handleFormChange}
                         className={`${styles.input} ${styles.compactInputLg}`}
@@ -1323,7 +1672,11 @@ export default function LoteModal({ onClose, idproyecto }) {
                   <div className={`${styles.compactGrid} ${styles.compactGridTwo}`}>
                     <div className={styles.compactField}>
                       <label>País y moneda</label>
-                      <select onChange={handleCountryChange} className={styles.select}>
+                      <select
+                        onChange={handleCountryChange}
+                        value={selectedCountry?.name || ""}
+                        className={styles.select}
+                      >
                         <option value="">Seleccionar país</option>
                         {countries.map((c, i) => (
                           <option key={i} value={c.name}>
@@ -1351,9 +1704,10 @@ export default function LoteModal({ onClose, idproyecto }) {
                           min="0"
                           step="0.01"
                           value={
-                            formValues[selectedLote]?.precio ||
-                            generatedLotes.find((l) => l.id === selectedLote)?.precio ||
-                            ""
+                            formValues[selectedLote]?.precioManual
+                              ? formValues[selectedLote]?.precio ?? ""
+                              : generatedLotes.find((l) => l.id === selectedLote)
+                                  ?.precio ?? ""
                           }
                           onChange={handleFormChange}
                           className={`${styles.input} ${styles.compactInputLg}`}
@@ -1672,6 +2026,53 @@ export default function LoteModal({ onClose, idproyecto }) {
                     />
                   ))}
 
+                  {generatedLotes.map((lote) => (
+                    <Marker
+                      key={`label-${lote.id}`}
+                      position={lote.center || getPolygonCenter(lote.coords)}
+                      label={{
+                        text:
+                          formValues[lote.id]?.nombreManual
+                            ? formValues[lote.id]?.nombre || ""
+                            : lote.nombre || "",
+                        color: "#0f172a",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                      }}
+                      clickable={false}
+                      options={{
+                        icon: {
+                          path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
+                          scale: 0,
+                          fillOpacity: 0,
+                          strokeOpacity: 0,
+                        },
+                      }}
+                    />
+                  ))}
+
+                  {getRowCenters(generatedLotes).map((rowCenter) => (
+                    <Marker
+                      key={`row-${rowCenter.row}`}
+                      position={rowCenter.position}
+                      label={{
+                        text: `Fila ${rowCenter.displayIndex ?? rowCenter.row + 1}`,
+                        color: "#1d4ed8",
+                        fontSize: "12px",
+                        fontWeight: "800",
+                      }}
+                      clickable={false}
+                      options={{
+                        icon: {
+                          path: window.google?.maps?.SymbolPath?.CIRCLE || 0,
+                          scale: 0,
+                          fillOpacity: 0,
+                          strokeOpacity: 0,
+                        },
+                      }}
+                    />
+                  ))}
+
                   <DrawingManager
                     onLoad={(dm) => {
                       if (
@@ -1820,7 +2221,10 @@ export default function LoteModal({ onClose, idproyecto }) {
       </div>
       {showRegisterModal && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: "400px" }}>
+          <div
+            className={styles.modalContent}
+            style={{ maxWidth: "420px", maxHeight: "320px", height: "auto" }}
+          >
             <div className={styles.header}>
               <div>
                 <h1 className={styles.title}>Registro</h1>
@@ -1836,8 +2240,31 @@ export default function LoteModal({ onClose, idproyecto }) {
                 </button>
               )}
             </div>
-            <div className={styles.formBody} style={{ textAlign: "center" }}>
+            <div className={styles.formBody} style={{ textAlign: "left" }}>
               <h3>{registerMessage}</h3>
+              {registerItems.length > 0 && (
+                <div
+                  style={{
+                    marginTop: "0.75rem",
+                    maxHeight: "140px",
+                    overflowY: "auto",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "8px",
+                    padding: "0.5rem 0.6rem",
+                    background: "var(--theme-bg-soft)",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  <strong style={{ display: "block", marginBottom: "0.4rem" }}>
+                    Registrando:
+                  </strong>
+                  {registerItems.map((item) => (
+                    <div key={item.id} style={{ marginBottom: "0.25rem" }}>
+                      {item.nombre}
+                    </div>
+                  ))}
+                </div>
+              )}
               {!isRegistering && (
                 <button
                   className={styles.submitBtn}

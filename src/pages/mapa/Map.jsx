@@ -15,11 +15,12 @@ import CustomSelect from "./CustomSelect";
 import styles from "./Mapa.module.css";
 import ChatBotPanel from "../mybot/ChatBotPanel";
 import loader from "../../components/loader";
+import GeoHabitaLoader from "../../components/GeoHabitaLoader";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
-const defaultCenter = { lat: -6.49935, lng: -76.371809 };
+const defaultCenter = { lat: -6.487753, lng: -76.359871 };
 const LIBRARIES = ["places"];
 const GEOLOCATION_ONBOARDING_DONE_KEY = "geoHabitaGeolocationOnboardingDone";
 
@@ -267,6 +268,7 @@ function MyMap() {
   const prefetchIdleRef = useRef(null);
   const pendingShareFocusRef = useRef(null);
   const pendingProjectsRef = useRef(null);
+  const pendingGeolocationRef = useRef(null);
   // const inmoId = null;
   const { inmoId } = useParams();
   const [searchParams] = useSearchParams();
@@ -343,6 +345,9 @@ function MyMap() {
   const [shareResolveStatus, setShareResolveStatus] = useState(
     hasShareParams ? "pending" : "idle",
   );
+  const shouldShowShareLoader =
+    hasShareParams &&
+    (shareResolveStatus === "pending" || isProyectoLoading || isLoteLoading);
 
   const normalizeNumber = (value) => {
     const n = parseFloat(value);
@@ -874,15 +879,20 @@ function MyMap() {
 
     navigator.geolocation?.getCurrentPosition(
       (pos) => {
-        setCurrentPosition({
+        const nextPosition = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        });
+        };
         try {
           localStorage.setItem(GEOLOCATION_ONBOARDING_DONE_KEY, "1");
         } catch {
           // ignore storage errors
         }
+        if (selectedProyecto || selectedLote || shareFocusActive) {
+          pendingGeolocationRef.current = nextPosition;
+          return;
+        }
+        setCurrentPosition(nextPosition);
       },
       () => {
         console.warn("Permiso de ubicación denegado.");
@@ -893,7 +903,24 @@ function MyMap() {
         }
       },
     );
-  }, [hasSearchedLocation, inmoId]);
+  }, [
+    hasSearchedLocation,
+    inmoId,
+    selectedProyecto,
+    selectedLote,
+    shareFocusActive,
+  ]);
+
+  useEffect(() => {
+    if (hasSearchedLocation) {
+      pendingGeolocationRef.current = null;
+      return;
+    }
+    if (selectedProyecto || selectedLote || shareFocusActive) return;
+    if (!pendingGeolocationRef.current) return;
+    setCurrentPosition(pendingGeolocationRef.current);
+    pendingGeolocationRef.current = null;
+  }, [hasSearchedLocation, selectedProyecto, selectedLote, shareFocusActive]);
 
   const filterLotesByRango = useCallback((lotesSource, rango) => {
     if (!rango) return lotesSource;
@@ -1600,9 +1627,7 @@ function MyMap() {
 
       const quickProyecto = proyectoShare?.proyecto ?? null;
       const quickInmo = proyectoShare?.inmobiliaria ?? null;
-      const quickPuntos = normalizePuntosWithOrder(
-        proyectoShare?.puntos || [],
-      );
+      const quickPuntos = normalizePuntosWithOrder(proyectoShare?.puntos || []);
 
       if (
         inmoId &&
@@ -1712,7 +1737,9 @@ function MyMap() {
 
       const [projectImages, loteImages] = await Promise.allSettled([
         loadProyectoImagenes(proyectoId, controller.signal),
-        loteId ? loadLoteImagenes(loteId, controller.signal) : Promise.resolve([]),
+        loteId
+          ? loadLoteImagenes(loteId, controller.signal)
+          : Promise.resolve([]),
       ]);
 
       if (projectImages.status === "fulfilled") {
@@ -1837,22 +1864,22 @@ function MyMap() {
       const clickUrl = withApiBase(
         "https://api.geohabita.com/api/registerClickProyecto/",
       );
-        const clickOrigin = new URL(clickUrl, window.location.origin).origin;
-        if (clickOrigin === window.location.origin && navigator.sendBeacon) {
-          navigator.sendBeacon(
-            clickUrl,
-            new Blob([clickPayload], { type: "application/json" }),
-          );
-        } else {
-          fetch(clickUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: clickPayload,
-            keepalive: true,
-            credentials: "omit",
-            mode: "cors",
-          }).catch(() => null);
-        }
+      const clickOrigin = new URL(clickUrl, window.location.origin).origin;
+      if (clickOrigin === window.location.origin && navigator.sendBeacon) {
+        navigator.sendBeacon(
+          clickUrl,
+          new Blob([clickPayload], { type: "application/json" }),
+        );
+      } else {
+        fetch(clickUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: clickPayload,
+          keepalive: true,
+          credentials: "omit",
+          mode: "cors",
+        }).catch(() => null);
+      }
 
       calculateInfo("WALKING", proyecto);
       calculateInfo("DRIVING", proyecto);
@@ -2188,6 +2215,7 @@ function MyMap() {
         className={`${styles.mapViewport} ${shouldShrinkMapForSidebar ? styles.mapViewportWithSidebar : ""}`}
         style={{ "--map-header-offset": `${mapHeaderOffsetPx}px` }}
       >
+        {shouldShowShareLoader && <GeoHabitaLoader autoHide={false} />}
         {inmoId && !selectedProyecto && !selectedLote && (
           <button
             type="button"

@@ -13,6 +13,49 @@ import {
   deletePdfFromIndexedDB,
 } from "../../../components/utils/indexedDB";
 
+const isSamePoint = (a, b, eps = 1e-10) =>
+  Math.abs(a.lat - b.lat) < eps && Math.abs(a.lng - b.lng) < eps;
+
+const orderCoordsByAngle = (points) => {
+  const center = points.reduce(
+    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
+    { lat: 0, lng: 0 },
+  );
+  center.lat /= points.length;
+  center.lng /= points.length;
+
+  return [...points].sort((a, b) => {
+    const angleA = Math.atan2(a.lat - center.lat, a.lng - center.lng);
+    const angleB = Math.atan2(b.lat - center.lat, b.lng - center.lng);
+    return angleA - angleB;
+  });
+};
+
+const normalizePolygonCoords = (coords) => {
+  const normalized = (coords || [])
+    .map((p) => ({
+      lat: parseFloat(p.lat ?? p.latitud),
+      lng: parseFloat(p.lng ?? p.longitud),
+      orden: p.orden,
+    }))
+    .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
+  if (normalized.length < 2) return normalized;
+
+  const hasOrder = normalized.every(
+    (p) => p.orden !== null && p.orden !== undefined,
+  );
+  const ordered = hasOrder
+    ? [...normalized].sort((a, b) => Number(a.orden) - Number(b.orden))
+    : orderCoordsByAngle(normalized);
+
+  if (ordered.length > 2 && isSamePoint(ordered[0], ordered[ordered.length - 1])) {
+    ordered.pop();
+  }
+
+  return ordered.map((p) => ({ lat: p.lat, lng: p.lng }));
+};
+
 export default function LoteModal({ onClose, idproyecto }) {
   const token = localStorage.getItem("access");
   const [isLoaded, setIsLoaded] = useState(false);
@@ -26,6 +69,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [basePolygonCoords, setBasePolygonCoords] = useState(null);
   const [detectedAngle, setDetectedAngle] = useState(0);
   const [lotesCoords, setLotesCoords] = useState([]);
+  const [showProjectLotes, setShowProjectLotes] = useState(true);
   const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
   const [reliefEnabled, setReliefEnabled] = useState(false);
   const [labelsEnabled, setLabelsEnabled] = useState(true);
@@ -43,8 +87,22 @@ export default function LoteModal({ onClose, idproyecto }) {
   const googleRef = useRef(null);
   const drawnPolygonRef = useRef(null);
   const fileInputRef = useRef(null);
+  const configInputRef = useRef(null);
   const originalPdfImageRef = useRef(null);
   const overlayRef = useRef(null);
+
+  const getLoteFillColor = (vendido) => {
+    switch (vendido) {
+      case 0:
+        return "rgba(34,197,94,0.45)";
+      case 1:
+        return "rgba(244,63,94,0.42)";
+      case 2:
+        return "rgba(250,204,21,0.5)";
+      default:
+        return "rgba(59,130,246,0.35)";
+    }
+  };
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -159,6 +217,67 @@ export default function LoteModal({ onClose, idproyecto }) {
     });
   }, []);
 
+  const handleExportConfig = () => {
+    if (!pdfImage || !overlayBounds) {
+      alert("Primero carga un PDF y ajusta su posición antes de exportar.");
+      return;
+    }
+
+    const payload = {
+      version: 1,
+      overlayBounds,
+      overlayOpacity,
+      pdfRotation,
+      savedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pdf-config-${idproyecto}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const applyConfigPayload = (payload) => {
+    if (!payload?.overlayBounds) {
+      alert("Configuración inválida.");
+      return;
+    }
+    setOverlayBounds(payload.overlayBounds);
+    if (Number.isFinite(Number(payload.overlayOpacity))) {
+      setOverlayOpacity(Number(payload.overlayOpacity));
+    }
+    if (Number.isFinite(Number(payload.pdfRotation))) {
+      setPdfRotation(Number(payload.pdfRotation));
+    }
+  };
+
+  const handleImportConfig = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!pdfImage) {
+      alert("Primero carga un PDF y luego importa la configuración.");
+      e.target.value = "";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      applyConfigPayload(payload);
+    } catch (err) {
+      console.error("Error importando configuración:", err);
+      alert("No se pudo importar la configuración.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -168,57 +287,50 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   const fetchProyecto = useCallback(async () => {
     try {
-      const res = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`),
-      );
-      const puntosProyecto = await res.json();
-      if (!puntosProyecto || !puntosProyecto.length) return;
+      const [resLotes, resPuntosProyecto] = await Promise.all([
+        authFetch(
+          withApiBase(
+            `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
+          ),
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+        authFetch(
+          withApiBase(
+            `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`,
+          ),
+          { headers: { Authorization: `Bearer ${token}` } },
+        ),
+      ]);
 
-      const center = {
-        lat: parseFloat(puntosProyecto[0].latitud),
-        lng: parseFloat(puntosProyecto[0].longitud),
-      };
-      setMapCenter(center);
+      const data = (await resLotes.json()) || [];
+      const puntosProyecto = (await resPuntosProyecto.json()) || [];
 
-      const coords = puntosProyecto
-        .sort((a, b) => a.orden - b.orden)
-        .map((p) => ({
-        lat: parseFloat(p.latitud),
-        lng: parseFloat(p.longitud),
-      }));
-      setProyectoCoords(coords);
-
-      const resLotes = await authFetch(
-        withApiBase(`https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`),
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const lotes = await resLotes.json();
-
-      const lotesData = [];
-      for (const lote of lotes) {
-        const resPuntos = await authFetch(
-          withApiBase(`https://api.geohabita.com/api/listPuntos/${lote.idlote}`),
-        );
-        const puntos = await resPuntos.json();
-        if (!puntos.length) continue;
-
-        const coords = puntos
-          .sort((a, b) => a.orden - b.orden)
-          .map((p) => ({
-            lat: parseFloat(p.latitud),
-            lng: parseFloat(p.longitud),
-          }));
-
-        if (coords.length > 2) coords.push(coords[0]);
-        lotesData.push({ coords, vendido: lote.vendido });
-      }
+      const lotesData = data
+        .map((lote) => ({
+          coords: normalizePolygonCoords(lote.puntos || []),
+          vendido: lote.vendido,
+        }))
+        .filter((lote) => lote.coords.length >= 3);
       setLotesCoords(lotesData);
+
+      const orderedProyecto = normalizePolygonCoords(puntosProyecto);
+      setProyectoCoords(orderedProyecto);
+
+      if (lotesData.length > 0 && lotesData[0].coords.length > 0) {
+        setMapCenter(lotesData[0].coords[0]);
+      } else if (orderedProyecto.length > 0) {
+        const centerLat =
+          orderedProyecto.reduce((sum, p) => sum + p.lat, 0) /
+          orderedProyecto.length;
+        const centerLng =
+          orderedProyecto.reduce((sum, p) => sum + p.lng, 0) /
+          orderedProyecto.length;
+        setMapCenter({ lat: centerLat, lng: centerLng });
+      }
     } catch (err) {
       console.error("Error cargando proyecto:", err);
     }
-  }, [idproyecto]);
+  }, [idproyecto, token]);
 
   useEffect(() => {
     if (isLoaded) fetchProyecto();
@@ -1050,8 +1162,53 @@ export default function LoteModal({ onClose, idproyecto }) {
                         Quitar
                       </button>
                     </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "8px",
+                      }}
+                    >
+                      <button
+                        className={style.btnSecondary}
+                        onClick={handleExportConfig}
+                      >
+                        <span className="material-icons-round">download</span>
+                        Exportar config
+                      </button>
+                      <button
+                        className={style.btnSecondary}
+                        onClick={() => configInputRef.current?.click()}
+                      >
+                        <span className="material-icons-round">upload</span>
+                        Importar config
+                      </button>
+                      <input
+                        ref={configInputRef}
+                        type="file"
+                        accept="application/json,.json,.txt"
+                        onChange={handleImportConfig}
+                        style={{ display: "none" }}
+                      />
+                    </div>
                   </div>
                 )}
+              </div>
+
+              <div className={style.section}>
+                <h2 className={style.sectionTitle}>
+                  <span className="material-icons-round">visibility</span>{" "}
+                  Capas
+                </h2>
+                <label className={style.toggleRow}>
+                  <input
+                    type="checkbox"
+                    checked={showProjectLotes}
+                    onChange={(e) => setShowProjectLotes(e.target.checked)}
+                  />
+                  <span>Mostrar lotes del proyecto</span>
+                </label>
               </div>
 
               {/* TRANSFORMACIÓN */}
@@ -1403,6 +1560,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                 options={{
                   mapTypeId: "satellite",
                   tilt: 0,
+                  gestureHandling: "greedy",
                   fullscreenControl: false,
                   streetViewControl: false,
                 }}
@@ -1433,6 +1591,22 @@ export default function LoteModal({ onClose, idproyecto }) {
                     }}
                   />
                 )}
+
+                {showProjectLotes &&
+                  lotesCoords.map((lote, i) => (
+                    <Polygon
+                      key={`proj-lote-${i}`}
+                      paths={lote.coords}
+                      options={{
+                        fillColor: getLoteFillColor(lote.vendido),
+                        fillOpacity: 0.5,
+                        strokeColor: "#ffffff",
+                        strokeOpacity: 0.95,
+                        strokeWeight: 1.5,
+                        clickable: false,
+                      }}
+                    />
+                  ))}
 
                 {generatedLotes.map((lote) => (
                   <Polygon
