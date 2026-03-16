@@ -552,6 +552,60 @@ body.dark .btn-gestionar-unidades {
   backdrop-filter: blur(6px);
 }
 
+.public-toggle {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(16, 185, 129, 0.92);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.public-toggle:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgba(16, 185, 129, 1);
+}
+
+.public-toggle:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.public-toggle--off {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.public-toggle-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.18);
+}
+
+.public-toggle--off .public-toggle-dot {
+  background: #94a3b8;
+}
+
+.public-toggle-label {
+  text-transform: uppercase;
+}
+
 .card-info-content {
   position: absolute;
   inset: 0;

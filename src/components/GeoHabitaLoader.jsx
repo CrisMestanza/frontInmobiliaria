@@ -263,7 +263,16 @@ export default function GeoHabitaLoader({ onFinish, autoHide = true }) {
             <div className="gh-bracket gh-br-br" />
             <img className="gh-logo" src={logoGH} alt="GeoHabita" />
             <div className="gh-shimmer" />
-            <div className="gh-pin">📍</div>
+            <div className="gh-pin" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                className="gh-pin-icon"
+                role="img"
+                aria-label="Ubicación"
+              >
+                <path d="M12 2.5c-3.04 0-5.5 2.46-5.5 5.5 0 4.22 4.63 9.54 5.02 9.98a.75.75 0 0 0 1.12 0c.39-.44 5.02-5.76 5.02-9.98 0-3.04-2.46-5.5-5.5-5.5Zm0 7.4a1.9 1.9 0 1 1 0-3.8 1.9 1.9 0 0 1 0 3.8Z" />
+              </svg>
+            </div>
           </div>
 
           {/* Marca */}
@@ -424,6 +433,13 @@ const styles = `
   position: absolute; top: -14px; right: -14px; font-size: 22px; opacity: 0;
   filter: drop-shadow(0 2px 8px rgba(56,210,100,0.8));
   animation: ghPinIn .5s 1.7s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+.gh-pin-icon {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: #38d264;
+  filter: drop-shadow(0 2px 8px rgba(56,210,100,0.8));
 }
 @keyframes ghPinIn {
   0%   { opacity: 0; transform: translateY(-30px) scale(0); }

@@ -73,7 +73,15 @@ import { useTheme } from "../../context/ThemeContext";
 const proyectoImagesCache = new Map();
 const proyectoImagesInflight = new Map();
 
-const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
+const CardProyecto = ({
+  proyecto,
+  onViewLotes,
+  onEdit,
+  onIcon,
+  onDelete,
+  onTogglePublic,
+  isUpdatingPublic,
+}) => {
   const [imagenes, setImagenes] = useState([]);
   const [index, setIndex] = useState(0);
 
@@ -135,6 +143,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
   const currentImg = getImageUrl();
 
   const estadosMap = { 0: "Vendido", 1: "Disponible", 2: "Agotado" };
+  const isPublic = proyecto.publico_mapa !== 0;
 
   return (
     <div className="proyecto-card">
@@ -155,6 +164,22 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
         <div className="estado-badge">
           {estadosMap[proyecto.estado] || "ACTIVO"}
         </div>
+        <button
+          type="button"
+          className={`public-toggle ${isPublic ? "" : "public-toggle--off"}`}
+          onClick={() => onTogglePublic?.(proyecto, !isPublic)}
+          disabled={isUpdatingPublic}
+          title={
+            isPublic
+              ? "Visible en mapa público"
+              : "Oculto del mapa público"
+          }
+        >
+          <span className="public-toggle-dot" />
+          <span className="public-toggle-label">
+            {isUpdatingPublic ? "Guardando..." : isPublic ? "Público" : "Privado"}
+          </span>
+        </button>
         <div className="card-info-content">
           <h3 className="card-title">{proyecto.nombreproyecto}</h3>
           <div className="card-location">
@@ -205,7 +230,7 @@ const CardProyecto = ({ proyecto, onViewLotes, onEdit, onIcon, onDelete }) => {
   );
 };
 
-const PanelInmo = () => {
+const PanelInmo = ({ setAppLoading }) => {
   const { isDark, toggleTheme } = useTheme();
   const [resumen, setResumen] = useState(null);
   const [clicks, setClicks] = useState(null);
@@ -225,6 +250,7 @@ const PanelInmo = () => {
   const [showModalEditProyecto, setShowModalEditProyecto] = useState(false);
   const [showIconoModal, setShowIconoModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
+  const [publicoUpdating, setPublicoUpdating] = useState({});
   const tutorialScrollRef = useRef(null);
   const [tutorialScroll, setTutorialScroll] = useState({
     left: false,
@@ -437,6 +463,46 @@ const PanelInmo = () => {
     }
   };
 
+  const handleTogglePublicoMapa = async (proyecto, nextValue) => {
+    if (!proyecto?.idproyecto) return;
+    const id = proyecto.idproyecto;
+    const nextPublico = nextValue ? 1 : 0;
+
+    setPublicoUpdating((prev) => ({ ...prev, [id]: true }));
+    setProyectos((prev) =>
+      prev.map((p) =>
+        p.idproyecto === id ? { ...p, publico_mapa: nextPublico } : p,
+      ),
+    );
+
+    try {
+      const res = await authFetch(
+        withApiBase(`https://api.geohabita.com/api/updateProyecto/${id}/`),
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ publico_mapa: nextPublico }),
+        },
+      );
+      if (!res.ok) {
+        throw new Error("No se pudo actualizar visibilidad.");
+      }
+    } catch (error) {
+      console.error(error);
+      setProyectos((prev) =>
+        prev.map((p) =>
+          p.idproyecto === id ? { ...p, publico_mapa: proyecto.publico_mapa } : p,
+        ),
+      );
+      window.alertError?.("No se pudo actualizar la visibilidad.");
+    } finally {
+      setPublicoUpdating((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
   const totalLotes = lotes.length;
   const totalContactos = clicks?.total_clicks_contactos || 0;
   const totalInteres = clicks?.total_clicks_proyectos || 0;
@@ -444,8 +510,13 @@ const PanelInmo = () => {
     if (!proyectos.length) return 0;
     return Math.round((totalContactos / proyectos.length) * 10) / 10;
   }, [totalContactos, proyectos.length]);
+  useEffect(() => {
+    if (!setAppLoading) return;
+    setAppLoading(loading);
+  }, [loading, setAppLoading]);
+
   // if (loading) return <Loader />;
-  if (loading) return <GeoHabitaLoader autoHide={false} />;
+  if (loading && !setAppLoading) return <GeoHabitaLoader autoHide={false} />;
 
   const redes = [
     { nombre: "Whatsapp", icono: <FaWhatsapp color="green" /> },
@@ -698,6 +769,8 @@ const PanelInmo = () => {
                 onEdit={setShowModalEditProyecto}
                 onIcon={setShowIconoModal}
                 onDelete={setProjectToDelete}
+                onTogglePublic={handleTogglePublicoMapa}
+                isUpdatingPublic={!!publicoUpdating[p.idproyecto]}
               />
             ))}
           </div>

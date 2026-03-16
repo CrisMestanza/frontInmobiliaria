@@ -2,10 +2,12 @@ import { withApiBase } from "../config/api.js";
 import { authFetch } from "../config/authFetch.js";
 // src/components/PrivateRoute.jsx
 import React, { useEffect, useState } from "react";
+import GeoHabitaLoader from "./GeoHabitaLoader";
 import { Navigate } from "react-router-dom";
 
 const PrivateRoute = ({ children }) => {
   const [isAuth, setIsAuth] = useState(null);
+  const [appLoading, setAppLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -43,8 +45,19 @@ const PrivateRoute = ({ children }) => {
     checkAuth();
   }, []);
 
-  if (isAuth === null) return <p>Cargando...</p>;
-  return isAuth ? children : <Navigate to="/" />;
+  if (isAuth === null) return <GeoHabitaLoader autoHide={false} />;
+  if (!isAuth) return <Navigate to="/" />;
+
+  const renderedChildren = React.isValidElement(children)
+    ? React.cloneElement(children, { setAppLoading })
+    : children;
+
+  return (
+    <>
+      {appLoading && <GeoHabitaLoader autoHide={false} />}
+      {renderedChildren}
+    </>
+  );
 };
 
 export default PrivateRoute;
