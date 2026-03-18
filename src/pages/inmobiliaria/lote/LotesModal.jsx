@@ -336,7 +336,6 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                                 parseInt(e.target.value),
                               )
                             }
-                            disabled={lote.vendido === 1}
                           >
                             <option value={0}>Disponible</option>
                             <option value={1}>Vendido</option>
@@ -357,7 +356,6 @@ const LotesModal = ({ idproyecto, proyectoNombre, onClose }) => {
                             setSelectedLote(lote);
                             setShowModalEdit(true);
                           }}
-                          disabled={lote.vendido === 1}
                           aria-label="Editar lote"
                         >
                           <Pencil size={16} />
