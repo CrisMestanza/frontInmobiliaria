@@ -61,6 +61,7 @@ const ProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/agregarProyecto"),
 );
 const LotesModal = React.lazy(() => import("../inmobiliaria/lote/LotesModal"));
+const EditLoteModal = React.lazy(() => import("../inmobiliaria/lote/editLote"));
 const EditProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/editProyecto"),
 );
@@ -75,6 +76,7 @@ const proyectoImagesInflight = new Map();
 
 const CardProyecto = ({
   proyecto,
+  loteStats,
   onViewLotes,
   onEdit,
   onIcon,
@@ -185,6 +187,20 @@ const CardProyecto = ({
           <div className="card-location">
             <MapPin size={14} /> {proyecto.latitud}, {proyecto.longitud}
           </div>
+          <div className="card-lote-stats">
+            <span className="stat-chip stat-chip-total">
+              {loteStats?.total ?? 0} Total
+            </span>
+            <span className="stat-chip stat-chip-available">
+              {loteStats?.disponible ?? 0} Disp.
+            </span>
+            <span className="stat-chip stat-chip-reserved">
+              {loteStats?.reservado ?? 0} Res.
+            </span>
+            <span className="stat-chip stat-chip-sold">
+              {loteStats?.vendido ?? 0} Vend.
+            </span>
+          </div>
           <div className="card-footer">
             <div className="card-actions-left">
               <button
@@ -239,6 +255,14 @@ const PanelInmo = ({ setAppLoading }) => {
   const [lotesLoading, setLotesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [areaMin, setAreaMin] = useState("");
+  const [areaMax, setAreaMax] = useState("");
+  const [sortKey, setSortKey] = useState("nombre");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [showRedes, setShowRedes] = useState(false);
   const token = localStorage.getItem("access");
   const nombre = localStorage.getItem("nombre");
@@ -250,6 +274,8 @@ const PanelInmo = ({ setAppLoading }) => {
   const [showModalEditProyecto, setShowModalEditProyecto] = useState(false);
   const [showIconoModal, setShowIconoModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
+  const [showEditLote, setShowEditLote] = useState(false);
+  const [selectedLote, setSelectedLote] = useState(null);
   const [publicoUpdating, setPublicoUpdating] = useState({});
   const tutorialScrollRef = useRef(null);
   const [tutorialScroll, setTutorialScroll] = useState({
@@ -379,7 +405,7 @@ const PanelInmo = ({ setAppLoading }) => {
         setResumen({
           proyectosActivos: cleanProyectos.length,
           lotesDisponibles: lotesAcumulados.filter(
-            (l) => String(l.estado) === "1",
+            (l) => String(l.vendido) === "0",
           ).length,
           lotesReservados: lotesAcumulados.filter(
             (l) => String(l.vendido) === "2",
@@ -404,6 +430,13 @@ const PanelInmo = ({ setAppLoading }) => {
   }, []);
 
   useEffect(() => {
+    document.body.classList.add("panel-inmo-body");
+    return () => {
+      document.body.classList.remove("panel-inmo-body");
+    };
+  }, []);
+
+  useEffect(() => {
     const container = tutorialScrollRef.current;
     if (!container) return;
 
@@ -416,6 +449,7 @@ const PanelInmo = ({ setAppLoading }) => {
       window.removeEventListener("resize", updateTutorialScrollState);
     };
   }, [tutoriales.length]);
+
 
   const handleLogout = () => {
     const doLogout = async () => {
@@ -510,6 +544,81 @@ const PanelInmo = ({ setAppLoading }) => {
     if (!proyectos.length) return 0;
     return Math.round((totalContactos / proyectos.length) * 10) / 10;
   }, [totalContactos, proyectos.length]);
+
+  const proyectoNombrePorId = useMemo(() => {
+    const map = new Map();
+    proyectos.forEach((p) => map.set(p.idproyecto, p.nombreproyecto));
+    return map;
+  }, [proyectos]);
+
+  const lotesStatsPorProyecto = useMemo(() => {
+    const map = new Map();
+    lotes.forEach((l) => {
+      const id = l.idproyecto;
+      if (!map.has(id)) {
+        map.set(id, { total: 0, disponible: 0, reservado: 0, vendido: 0 });
+      }
+      const stats = map.get(id);
+      stats.total += 1;
+      const v = Number(l.vendido);
+      if (v === 0) stats.disponible += 1;
+      else if (v === 2) stats.reservado += 1;
+      else if (v === 1) stats.vendido += 1;
+    });
+    return map;
+  }, [lotes]);
+
+  const getEstadoLote = (vendido) => {
+    const value = Number(vendido);
+    if (value === 0) return { label: "Disponible", className: "status-available" };
+    if (value === 2) return { label: "Reservado", className: "status-reserved" };
+    if (value === 1) return { label: "Vendido", className: "status-sold" };
+    return { label: "Sin estado", className: "status-unknown" };
+  };
+
+  const parseDateSafe = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const isNewLote = (lote) => {
+    const date =
+      parseDateSafe(lote.created_at) ||
+      parseDateSafe(lote.fecha_creacion) ||
+      parseDateSafe(lote.fecha_registro) ||
+      parseDateSafe(lote.createdAt) ||
+      parseDateSafe(lote.fecha);
+    if (!date) return false;
+    const diffDays = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7;
+  };
+
+  const handleEstadoChange = async (idlote, nuevoEstado) => {
+    try {
+      const res = await authFetch(
+        withApiBase(
+          `https://api.geohabita.com/api/updateLoteVendido/${idlote}/`,
+        ),
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ vendido: nuevoEstado }),
+        },
+      );
+      if (res.ok) {
+        fetchData();
+      } else {
+        window.alertError?.("No se pudo actualizar el estado ❌");
+      }
+    } catch (err) {
+      console.error(err);
+      window.alertError?.("Error al actualizar el estado 🚫");
+    }
+  };
   useEffect(() => {
     if (!setAppLoading) return;
     setAppLoading(loading);
@@ -523,6 +632,47 @@ const PanelInmo = ({ setAppLoading }) => {
     { nombre: "Facebook", icono: <FaFacebook color="#1877f2" /> },
     { nombre: "Web", icono: <FaGlobe color="#0077b6" /> },
   ];
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const filteredLotes = lotes.filter((l) => {
+    const proyectoNombre = proyectoNombrePorId.get(l.idproyecto) || "";
+    const matchesSearch =
+      !normalizedSearch ||
+      l.nombre?.toLowerCase().includes(normalizedSearch) ||
+      l.descripcion?.toLowerCase().includes(normalizedSearch) ||
+      proyectoNombre.toLowerCase().includes(normalizedSearch);
+    const matchesStatus =
+      statusFilter === "all" || String(l.vendido) === statusFilter;
+    const matchesProject =
+      projectFilter === "all" || String(l.idproyecto) === projectFilter;
+    const priceValue = Number(l.precio ?? 0);
+    const areaValue = Number(l.area_total_m2 ?? 0);
+    const minPrice = priceMin === "" ? null : Number(priceMin);
+    const maxPrice = priceMax === "" ? null : Number(priceMax);
+    const minArea = areaMin === "" ? null : Number(areaMin);
+    const maxArea = areaMax === "" ? null : Number(areaMax);
+    const matchesPrice =
+      (minPrice === null || priceValue >= minPrice) &&
+      (maxPrice === null || priceValue <= maxPrice);
+    const matchesArea =
+      (minArea === null || areaValue >= minArea) &&
+      (maxArea === null || areaValue <= maxArea);
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesProject &&
+      matchesPrice &&
+      matchesArea
+    );
+  });
+  const sortedLotes = [...filteredLotes].sort((a, b) => {
+    if (sortKey === "precio-asc") return Number(a.precio ?? 0) - Number(b.precio ?? 0);
+    if (sortKey === "precio-desc") return Number(b.precio ?? 0) - Number(a.precio ?? 0);
+    if (sortKey === "area-asc") return Number(a.area_total_m2 ?? 0) - Number(b.area_total_m2 ?? 0);
+    if (sortKey === "area-desc") return Number(b.area_total_m2 ?? 0) - Number(a.area_total_m2 ?? 0);
+    if (sortKey === "estado") return Number(a.vendido ?? 0) - Number(b.vendido ?? 0);
+    return String(a.nombre || "").localeCompare(String(b.nombre || ""));
+  });
 
   return (
     <div className="panel-inmo-container">
@@ -765,6 +915,7 @@ const PanelInmo = ({ setAppLoading }) => {
               <CardProyecto
                 key={p.idproyecto}
                 proyecto={p}
+                loteStats={lotesStatsPorProyecto.get(p.idproyecto)}
                 onViewLotes={setShowLotes}
                 onEdit={setShowModalEditProyecto}
                 onIcon={setShowIconoModal}
@@ -780,57 +931,187 @@ const PanelInmo = ({ setAppLoading }) => {
         <section className="table-section">
           <div className="table-header">
             <h2 className="table-title">Listado de Lotes</h2>
+            <select
+              className="input-styled table-filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filtrar por estado"
+            >
+              <option value="all">Todos</option>
+              <option value="0">Disponible</option>
+              <option value="2">Reservado</option>
+              <option value="1">Vendido</option>
+            </select>
+            <select
+              className="input-styled table-filter-select"
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              aria-label="Filtrar por proyecto"
+            >
+              <option value="all">Todos los proyectos</option>
+              {proyectos.map((p) => (
+                <option key={p.idproyecto} value={String(p.idproyecto)}>
+                  {p.nombreproyecto}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input-styled table-filter-select"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value)}
+              aria-label="Ordenar lotes"
+            >
+              <option value="nombre">Nombre (A-Z)</option>
+              <option value="precio-asc">Precio ↑</option>
+              <option value="precio-desc">Precio ↓</option>
+              <option value="area-asc">Área ↑</option>
+              <option value="area-desc">Área ↓</option>
+              <option value="estado">Estado</option>
+            </select>
+            <button
+              type="button"
+              className="btn-advanced-filters"
+              onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            >
+              {showAdvancedFilters ? "Ocultar filtros" : "Filtros avanzados"}
+            </button>
+            {lotesLoading && (
+              <span className="table-loading">Cargando lotes...</span>
+            )}
+          </div>
+          <div className="table-search-row">
             <div className="table-search-wrap">
               <input
+                value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar..."
                 className="input-styled table-search-input"
               />
               <Search size={18} className="table-search-icon" />
             </div>
-            {lotesLoading && (
-              <span className="table-loading">Cargando lotes...</span>
-            )}
+          </div>
+          <div
+            className={`table-filters ${showAdvancedFilters ? "is-open" : ""}`}
+          >
+            <div className="filter-group">
+              <label className="filter-label">Precio (S/.)</label>
+              <div className="filter-inputs">
+                <input
+                  type="number"
+                  min="0"
+                  value={priceMin}
+                  onChange={(e) => setPriceMin(e.target.value)}
+                  className="input-styled filter-input"
+                  placeholder="Min"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={priceMax}
+                  onChange={(e) => setPriceMax(e.target.value)}
+                  className="input-styled filter-input"
+                  placeholder="Max"
+                />
+              </div>
+            </div>
+            <div className="filter-group">
+              <label className="filter-label">Área (m²)</label>
+              <div className="filter-inputs">
+                <input
+                  type="number"
+                  min="0"
+                  value={areaMin}
+                  onChange={(e) => setAreaMin(e.target.value)}
+                  className="input-styled filter-input"
+                  placeholder="Min"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={areaMax}
+                  onChange={(e) => setAreaMax(e.target.value)}
+                  className="input-styled filter-input"
+                  placeholder="Max"
+                />
+              </div>
+            </div>
           </div>
           <div className="table-wrapper">
             <table className="table-main">
               <thead>
                 <tr>
                   <th>Lote</th>
+                  <th>Proyecto</th>
                   <th>Descripción</th>
+                  <th>Área m²</th>
                   <th>Precio</th>
                   <th>Estado</th>
                   <th className="th-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {lotes
-                  .filter((l) =>
-                    l.nombre.toLowerCase().includes(searchTerm.toLowerCase()),
-                  )
-                  .map((lote) => (
-                    <tr key={lote.idlote}>
-                      <td className="td-bold">{lote.nombre}</td>
+                {sortedLotes.map((lote) => {
+                  const estadoMeta = getEstadoLote(lote.vendido);
+                  const proyectoNombre =
+                    proyectoNombrePorId.get(lote.idproyecto) || "—";
+                  const areaValue =
+                    lote.area_total_m2 !== undefined && lote.area_total_m2 !== ""
+                      ? Number(lote.area_total_m2).toLocaleString()
+                      : "—";
+                  const isNew = isNewLote(lote);
+                  return (
+                    <tr
+                      key={lote.idlote}
+                      className={`lote-row lote-row-${String(lote.vendido)}`}
+                    >
+                      <td className="td-bold">
+                        <span className="lote-name">
+                          {lote.nombre}
+                          {isNew && <span className="new-badge">Nuevo</span>}
+                        </span>
+                      </td>
+                      <td>{proyectoNombre}</td>
                       <td>{lote.descripcion}</td>
+                      <td>{areaValue}</td>
                       <td className="td-price">
                         S/. {lote.precio?.toLocaleString()}
                       </td>
                       <td>
-                        <span
-                          className={`status-pill ${String(lote.estado) === "1" ? "status-available" : "status-sold"}`}
-                        >
-                          {String(lote.estado) === "1"
-                            ? "Disponible"
-                            : "Vendido"}
-                        </span>
+                        <div className="status-select-wrap">
+                          <select
+                            className={`status-select ${estadoMeta.className}`}
+                            value={String(lote.vendido)}
+                            onChange={(e) =>
+                              handleEstadoChange(
+                                lote.idlote,
+                                Number(e.target.value),
+                              )
+                            }
+                          >
+                            <option value="0">Disponible</option>
+                            <option value="2">Reservado</option>
+                            <option value="1">Vendido</option>
+                          </select>
+                        </div>
                       </td>
                       <td className="td-right">
-                        <button className="btn-icon-small">
+                        <button
+                          className="btn-icon-small"
+                          title="Editar lote"
+                          onClick={() => {
+                            setSelectedLote(lote);
+                            setShowEditLote(true);
+                          }}
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button className="btn-icon-small" title="Eliminar">
                           <Trash2 size={18} />
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -882,6 +1163,20 @@ const PanelInmo = ({ setAppLoading }) => {
           <IconoModal
             onClose={() => setShowIconoModal(false)}
             idproyecto={showIconoModal}
+          />
+        </Suspense>
+      )}
+      {showEditLote && selectedLote && (
+        <Suspense fallback={<Loader />}>
+          <EditLoteModal
+            onClose={() => {
+              setShowEditLote(false);
+              setSelectedLote(null);
+              fetchData();
+            }}
+            idproyecto={selectedLote.idproyecto}
+            lote={selectedLote}
+            visible={showEditLote}
           />
         </Suspense>
       )}
