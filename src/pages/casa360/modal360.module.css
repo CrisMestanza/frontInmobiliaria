@@ -1,0 +1,247 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85); /* Un poco más oscuro */
+  backdrop-filter: blur(8px); /* Blur más intenso para enfoque */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.modalContent360 {
+  background: #0f1113; /* Fondo más oscuro tipo Nexus */
+  width: 100%;
+  max-width: 650px;
+  border-radius: 20px;
+  border: 1px solid rgba(34, 197, 94, 0.2); /* Borde sutil verde */
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(34, 197, 94, 0.05);
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  animation: modalAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes modalAppear {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modalHeader {
+  padding: 24px 28px;
+  background: linear-gradient(to bottom, #1a1d21, #0f1113);
+  border-bottom: 1px solid #222;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: #fff;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+/* El ID del proyecto resaltado con el verde de GeoHabita */
+.modalHeader h2 span {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+.closeButton {
+  background: #1a1d21;
+  border: 1px solid #333;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.modalBody {
+  padding: 28px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Estilo del Dropzone / Botón añadir */
+.btnAddFiles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(34, 197, 94, 0.02);
+  color: #e5e7eb;
+  padding: 32px;
+  border-radius: 16px;
+  border: 2px dashed #333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 24px;
+}
+
+.btnAddFiles:hover {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.05);
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.1);
+  color: #fff;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #16191d;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #222;
+  transition: transform 0.2s ease;
+}
+
+.itemRow:hover {
+  border-color: #333;
+  background: #1c1f24;
+}
+
+.fileNamePreview {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inputName {
+  flex: 2;
+  background: #0f1113;
+  border: 1px solid #222;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #22c55e; /* Texto en verde neón al escribir */
+  font-size: 0.95rem;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.inputName:focus {
+  border-color: #22c55e;
+  background: #16191d;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.btnDel {
+  background: transparent;
+  color: #4b5563;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnDel:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.modalFooter {
+  padding: 24px 28px;
+  background: #0f1113;
+  border-top: 1px solid #222;
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.btnCancel {
+  background: transparent;
+  color: #9ca3af;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btnCancel:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btnPrimary360 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #22c55e;
+  color: #000; /* Texto negro sobre fondo verde para contraste alto */
+  border: none;
+  padding: 12px 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+  transition: all 0.3s ease;
+}
+
+.btnPrimary360:hover:not(:disabled) {
+  background: #2ced70;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.btnPrimary360:active {
+  transform: translateY(0);
+}
+
+.btnPrimary360:disabled {
+  background: #1a1d21;
+  color: #444;
+  box-shadow: none;
+  cursor: not-allowed;
+  border: 1px solid #222;
+}
+
+/* Scrollbar personalizado para el modal */
+.modalBody::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modalBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modalBody::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 10px;
+}
+
+.modalBody::-webkit-scrollbar-thumb:hover {
+  background: #333;
+}

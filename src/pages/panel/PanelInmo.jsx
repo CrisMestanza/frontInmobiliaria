@@ -56,6 +56,7 @@ import {
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
 import Loader from "../../components/Loading";
+import Modal360 from "../casa360/Modal360";
 import GeoHabitaLoader from "../../components/GeoHabitaLoader";
 const ProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/agregarProyecto"),
@@ -83,6 +84,7 @@ const CardProyecto = ({
   onDelete,
   onTogglePublic,
   isUpdatingPublic,
+  onOpen360
 }) => {
   const [imagenes, setImagenes] = useState([]);
   const [index, setIndex] = useState(0);
@@ -231,6 +233,16 @@ const CardProyecto = ({
                 <MapPlus size={16} />
                 <span className="btn-action-text">Íconos</span>
               </button>
+
+              <button
+                onClick={() => onOpen360(proyecto.idproyecto)} // <--- 3. Llama a la función pasando el ID
+                className="btn-gestionar-unidades"
+                title="360"
+              >
+                <MapPlus size={16} />
+                <span className="btn-action-text">360</span>
+              </button>
+
             </div>
             <button
               onClick={() => onDelete && onDelete(proyecto.idproyecto)}
@@ -247,6 +259,8 @@ const CardProyecto = ({
 };
 
 const PanelInmo = ({ setAppLoading }) => {
+  const [showModal360, setShowModal360] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
   const { isDark, toggleTheme } = useTheme();
   const [resumen, setResumen] = useState(null);
   const [clicks, setClicks] = useState(null);
@@ -922,6 +936,10 @@ const PanelInmo = ({ setAppLoading }) => {
                 onDelete={setProjectToDelete}
                 onTogglePublic={handleTogglePublicoMapa}
                 isUpdatingPublic={!!publicoUpdating[p.idproyecto]}
+                onOpen360={(id) => {
+                  setSelectedProjectId(id);
+                  setShowModal360(true);
+                }}
               />
             ))}
           </div>
@@ -1211,6 +1229,17 @@ const PanelInmo = ({ setAppLoading }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal 360 */}
+      {showModal360 && (
+        <Modal360
+          idproyecto={selectedProjectId}
+          onClose={() => {
+            setShowModal360(false);
+            setSelectedProjectId(null);
+          }}
+        />
       )}
     </div>
   );
