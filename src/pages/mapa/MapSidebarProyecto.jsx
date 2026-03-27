@@ -773,11 +773,14 @@ const ProyectoSidebar = ({
                     )}
                   </div>
 
+                  <br />
                   {images360.length > 0 && (
                     <button onClick={() => setShow360(true)} className={styles.btn360}>
+                      <FaGlobe className={styles.icon360} />
                       Ver Tour 360°
                     </button>
                   )}
+                  <br />
                   <br />
                   <p className={styles.proyectoP}>Proyecto</p>
                   <br></br>

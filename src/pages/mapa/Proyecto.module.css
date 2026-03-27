@@ -7,8 +7,85 @@
   transition: opacity 0.4s ease;
 }
 
+/* btn360 */
+
+.btn360 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px; /* Espacio para un posible icono */
+  padding: 14px 28px;
+  
+  /* Gradiente verde GeoHabita Premium */
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+  color: #ffffff; /* Texto blanco para máximo contraste */
+  
+  /* Bordes suaves y modernos */
+  border: none;
+  border-radius: 50px; /* Estilo 'píldora', muy actual */
+  
+  /* Tipografía profesional */
+  font-family: 'Montserrat', 'Poppins', sans-serif; /* O la que uses en GeoHabita */
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  
+  /* Interactividad y Sombras */
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Animación elástica suave */
+  box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); /* Sombra verde sutil */
+  
+  /* Prevenir selección de texto */
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Efecto al pasar el mouse (Hover) */
+.btn360:hover {
+  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); /* Invertimos gradiente */
+  transform: translateY(-3px) scale(1.02); /* Pequeño salto y aumento */
+  box-shadow: 0 8px 25px rgba(46, 204, 113, 0.6); /* El glow se intensifica */
+}
+
+/* Efecto de clic (Active) */
+.btn360:active {
+  transform: translateY(1px) scale(0.98); /* Se hunde ligeramente */
+  box-shadow: 0 2px 10px rgba(46, 204, 113, 0.4);
+  transition: all 0.1s ease;
+}
+
+/* Opcional: Icono Verde */
+.icon360 {
+  font-size: 1.3rem;
+  /* Asegúrate de que el icono sea blanco o verde muy claro si lo añades */
+}
+
+/* Opcional: Un pequeño pulso de brillo al hover */
+.btn360::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: all 0.8s;
+}
+
+.btn360:hover::after {
+  left: 100%;
+}
 
 
+
+/* btn360 */
 .flagIcon {
   width: 24px;           /* Ajusta ancho de la bandera */
   height: auto;          /* Mantiene proporción */
