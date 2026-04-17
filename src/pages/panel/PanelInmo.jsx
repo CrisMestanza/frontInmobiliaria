@@ -1,4 +1,4 @@
-import { withApiBase } from "../../config/api.js";
+﻿import { withApiBase } from "../../config/api.js";
 import { authFetch } from "../../config/authFetch.js";
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import "./PanelInmo.css";
@@ -115,7 +115,7 @@ const CardProyecto = ({
         })
         .catch((err) => {
           proyectoImagesInflight.delete(key);
-          console.error("Error cargando imágenes:", err);
+          console.error("Error cargando imÃ¡genes:", err);
           return [];
         });
 
@@ -175,13 +175,13 @@ const CardProyecto = ({
           disabled={isUpdatingPublic}
           title={
             isPublic
-              ? "Visible en mapa público"
-              : "Oculto del mapa público"
+              ? "Visible en mapa pÃºblico"
+              : "Oculto del mapa pÃºblico"
           }
         >
           <span className="public-toggle-dot" />
           <span className="public-toggle-label">
-            {isUpdatingPublic ? "Guardando..." : isPublic ? "Público" : "Privado"}
+            {isUpdatingPublic ? "Guardando..." : isPublic ? "PÃºblico" : "Privado"}
           </span>
         </button>
         <div className="card-info-content">
@@ -227,14 +227,15 @@ const CardProyecto = ({
               <button
                 onClick={() => onIcon(proyecto.idproyecto)}
                 className="btn-gestionar-unidades"
-                title="Íconos"
+                title="Ãconos"
                 aria-label="Agregar iconos"
               >
                 <MapPlus size={16} />
-                <span className="btn-action-text">Íconos</span>
+                <span className="btn-action-text">Ãconos</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => onOpen360(proyecto.idproyecto)} // <--- 3. Llama a la función pasando el ID
                 className="btn-gestionar-unidades"
                 title="360"
@@ -309,27 +310,27 @@ const PanelInmo = ({ setAppLoading }) => {
     },
     {
       href: "https://www.youtube.com/watch?v=PEvwYZO2BtU",
-      titulo: "Agregar PDF para trazado, después de crear proyecto",
+      titulo: "Agregar PDF para trazado, despuÃ©s de crear proyecto",
       descripcion: "Sube planos en PDF para dibujar lotes correctamente.",
       imagen: `${publicBase}2.jpg`,
     },
     {
       href: "https://www.youtube.com/watch?v=gzZHYnXD_5Q",
       titulo: "Registrar Casa Individual en el Mapa",
-      descripcion: "Agrega propiedades individuales fácilmente.",
+      descripcion: "Agrega propiedades individuales fÃ¡cilmente.",
       imagen: `${publicBase}3.jpg`,
     },
     {
       href: "https://www.youtube.com/watch?v=zOIoX1ZvAM0",
-      titulo: "Agregar lotes, después de crear el proyecto",
-      descripcion: "Aprende a añadir más lotes cuando tu proyecto ya existe.",
+      titulo: "Agregar lotes, despuÃ©s de crear el proyecto",
+      descripcion: "Aprende a aÃ±adir mÃ¡s lotes cuando tu proyecto ya existe.",
       imagen: `${publicBase}4.jpg`,
     },
     {
       href: "https://www.youtube.com/watch?v=JHP9YWTIgJs",
       titulo: "Registro de Proyecto de Departamentos",
       descripcion:
-        "Aprende paso a paso cómo crear y configurar un proyecto inmobiliario de departamentos dentro de GeoHabita.",
+        "Aprende paso a paso cÃ³mo crear y configurar un proyecto inmobiliario de departamentos dentro de GeoHabita.",
       imagen: `${publicBase}5.jpg`,
     },
   ];
@@ -473,7 +474,7 @@ const PanelInmo = ({ setAppLoading }) => {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
       } catch (err) {
-        console.error("Error al cerrar sesión:", err);
+        console.error("Error al cerrar sesiÃ³n:", err);
       } finally {
         localStorage.clear();
         window.location.href = "/";
@@ -495,17 +496,17 @@ const PanelInmo = ({ setAppLoading }) => {
       );
 
       if (!res.ok) {
-        window.alertError?.("No se pudo eliminar el proyecto ❌");
+        window.alertError?.("No se pudo eliminar el proyecto âŒ");
         return;
       }
 
       setProyectos((prev) => prev.filter((p) => p.idproyecto !== idproyecto));
       setLotes((prev) => prev.filter((l) => l.idproyecto !== idproyecto));
-      window.alertSuccess?.("Proyecto eliminado ✅");
+      window.alertSuccess?.("Proyecto eliminado âœ…");
       fetchData();
     } catch (err) {
       console.error("Error eliminando proyecto:", err);
-      window.alertError?.("Error de red al eliminar proyecto 🚫");
+      window.alertError?.("Error de red al eliminar proyecto ðŸš«");
     } finally {
       setProjectToDelete(null);
     }
@@ -626,11 +627,11 @@ const PanelInmo = ({ setAppLoading }) => {
       if (res.ok) {
         fetchData();
       } else {
-        window.alertError?.("No se pudo actualizar el estado ❌");
+        window.alertError?.("No se pudo actualizar el estado âŒ");
       }
     } catch (err) {
       console.error(err);
-      window.alertError?.("Error al actualizar el estado 🚫");
+      window.alertError?.("Error al actualizar el estado ðŸš«");
     }
   };
   useEffect(() => {
@@ -698,7 +699,7 @@ const PanelInmo = ({ setAppLoading }) => {
           </div>
           <div>
             <h1 className="brand-title">{nombreInmo}</h1>
-            <p className="brand-subtitle">Gestión Inmobiliaria</p>
+            <p className="brand-subtitle">GestiÃ³n Inmobiliaria</p>
           </div>
         </div>
         <div className="header-user">
@@ -726,8 +727,8 @@ const PanelInmo = ({ setAppLoading }) => {
             <p className="dashboard-hero-eyebrow">Panel Comercial</p>
             <h2>Impulsa tus conversiones con una vista clara del negocio</h2>
             <p>
-              Monitorea inventario, interés y contactos en tiempo real para
-              tomar decisiones más rápidas.
+              Monitorea inventario, interÃ©s y contactos en tiempo real para
+              tomar decisiones mÃ¡s rÃ¡pidas.
             </p>
           </div>
           <div className="dashboard-hero-metrics">
@@ -873,7 +874,7 @@ const PanelInmo = ({ setAppLoading }) => {
             </div>
           </div>
           <div className="stat-box accent-blue">
-            <div className="stat-label">Interés en Proyectos</div>
+            <div className="stat-label">InterÃ©s en Proyectos</div>
             <div className="stat-value stat-value-blue">
               {clicks?.total_clicks_proyectos || 0}
               <ChartSplineIcon size={24} />
@@ -916,7 +917,7 @@ const PanelInmo = ({ setAppLoading }) => {
           </div>
         </div>
 
-        {/* GALERÍA */}
+        {/* GALERÃA */}
         <section>
           <div className="section-header">
             <h2 className="section-title">Mis Proyectos</h2>
@@ -980,10 +981,10 @@ const PanelInmo = ({ setAppLoading }) => {
               aria-label="Ordenar lotes"
             >
               <option value="nombre">Nombre (A-Z)</option>
-              <option value="precio-asc">Precio ↑</option>
-              <option value="precio-desc">Precio ↓</option>
-              <option value="area-asc">Área ↑</option>
-              <option value="area-desc">Área ↓</option>
+              <option value="precio-asc">Precio â†‘</option>
+              <option value="precio-desc">Precio â†“</option>
+              <option value="area-asc">Ãrea â†‘</option>
+              <option value="area-desc">Ãrea â†“</option>
               <option value="estado">Estado</option>
             </select>
             <button
@@ -1033,7 +1034,7 @@ const PanelInmo = ({ setAppLoading }) => {
               </div>
             </div>
             <div className="filter-group">
-              <label className="filter-label">Área (m²)</label>
+              <label className="filter-label">Ãrea (mÂ²)</label>
               <div className="filter-inputs">
                 <input
                   type="number"
@@ -1060,8 +1061,8 @@ const PanelInmo = ({ setAppLoading }) => {
                 <tr>
                   <th>Lote</th>
                   <th>Proyecto</th>
-                  <th>Descripción</th>
-                  <th>Área m²</th>
+                  <th>DescripciÃ³n</th>
+                  <th>Ãrea mÂ²</th>
                   <th>Precio</th>
                   <th>Estado</th>
                   <th className="th-right">Acciones</th>
@@ -1071,11 +1072,11 @@ const PanelInmo = ({ setAppLoading }) => {
                 {sortedLotes.map((lote) => {
                   const estadoMeta = getEstadoLote(lote.vendido);
                   const proyectoNombre =
-                    proyectoNombrePorId.get(lote.idproyecto) || "—";
+                    proyectoNombrePorId.get(lote.idproyecto) || "â€”";
                   const areaValue =
                     lote.area_total_m2 !== undefined && lote.area_total_m2 !== ""
                       ? Number(lote.area_total_m2).toLocaleString()
-                      : "—";
+                      : "â€”";
                   const isNew = isNewLote(lote);
                   return (
                     <tr
@@ -1208,7 +1209,7 @@ const PanelInmo = ({ setAppLoading }) => {
           <div className="confirm-card" role="dialog" aria-modal="true">
             <h3>Eliminar proyecto</h3>
             <p>
-              Esta acción eliminará el proyecto y sus datos relacionados. No se
+              Esta acciÃ³n eliminarÃ¡ el proyecto y sus datos relacionados. No se
               puede deshacer.
             </p>
             <div className="confirm-actions">
@@ -1246,3 +1247,6 @@ const PanelInmo = ({ setAppLoading }) => {
 };
 
 export default PanelInmo;
+
+
+
