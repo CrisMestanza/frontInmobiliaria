@@ -240,6 +240,19 @@
   font-size: 0.88rem;
 }
 
+.galleryOverlayTag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.14);
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  color: #9fdefc;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
 .helperBox {
   border-radius: 14px;
   border: 1px solid rgba(74, 222, 128, 0.16);
@@ -373,6 +386,91 @@
   height: 100%;
 }
 
+.projectOverlayLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.projectOverlayEditing {
+  pointer-events: auto;
+}
+
+.projectOverlayCard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(62vw, 760px);
+  max-width: calc(100% - 36px);
+  transform-origin: top left;
+  cursor: default;
+  user-select: none;
+}
+
+.projectOverlayEditing .projectOverlayCard {
+  cursor: grab;
+}
+
+.projectOverlayEditing .projectOverlayCard:active {
+  cursor: grabbing;
+}
+
+.projectOverlayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.overlayTitleBadge,
+.overlayEditHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(9, 16, 21, 0.72);
+  color: #f3fff6;
+  font-size: 0.76rem;
+  backdrop-filter: blur(14px);
+}
+
+.overlayTitleBadge {
+  background: rgba(21, 128, 61, 0.8);
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+.projectOverlaySvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 16px 35px rgba(0, 0, 0, 0.32));
+}
+
+.overlayProjectGlow {
+  fill: rgba(21, 128, 61, 0.18);
+  stroke: rgba(34, 197, 94, 0.28);
+  stroke-width: 36;
+  stroke-linejoin: round;
+}
+
+.overlayProjectPath {
+  fill: rgba(14, 116, 44, 0.26);
+  stroke: #14532d;
+  stroke-width: 12;
+  stroke-linejoin: round;
+}
+
+.overlayLotePath {
+  stroke: rgba(255, 255, 255, 0.86);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  transition: 0.2s ease;
+}
+
 .viewerLoading,
 .viewerPlaceholder,
 .emptyState {
@@ -416,6 +514,67 @@
   padding: 10px 12px;
   color: #dff5e6;
   font-size: 0.9rem;
+}
+
+.overlayStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overlayStats span,
+.rangeControl,
+.toggleButton {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+}
+
+.overlayStats span {
+  padding: 10px 12px;
+  color: #dff5e6;
+  font-size: 0.84rem;
+}
+
+.rangeControl {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 58px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  color: #dceee0;
+}
+
+.rangeControl span,
+.rangeControl strong {
+  font-size: 0.84rem;
+}
+
+.rangeControl input[type="range"] {
+  width: 100%;
+  accent-color: #4ade80;
+}
+
+.toggleRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.toggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #def7e4;
+  padding: 11px 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.toggleButton:hover {
+  border-color: rgba(74, 222, 128, 0.34);
+  background: rgba(74, 222, 128, 0.09);
 }
 
 .panelActions {
@@ -489,6 +648,20 @@
   }
 
   .pointInfo {
+    grid-template-columns: 1fr;
+  }
+
+  .projectOverlayCard {
+    width: calc(100% - 22px);
+    max-width: calc(100% - 22px);
+  }
+
+  .overlayStats,
+  .toggleRow {
+    grid-template-columns: 1fr;
+  }
+
+  .rangeControl {
     grid-template-columns: 1fr;
   }
 }

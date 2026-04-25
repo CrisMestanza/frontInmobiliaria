@@ -18,6 +18,8 @@ import styles from "./Viewer360.module.css";
 
 const API_BASE = "https://api.geohabita.com";
 const MARKER_SIZE = { width: 118, height: 78 };
+const OVERLAY_VIEWBOX = { width: 1200, height: 780 };
+const OVERLAY_HEADER_OFFSET = 42;
 
 const HOTSPOT_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="118" height="78" viewBox="0 0 118 78">
@@ -78,7 +80,6 @@ const VIEWER_LOADING_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 const GALLERY_PRELOAD_RANGE = 1;
 const VIEWER_RESOLUTION = 32;
 const VIEWER_MOVE_SPEED = 1.75;
-
 const shouldPrioritizeThumb = (idx, currentIndex) =>
   Math.abs(idx - currentIndex) <= GALLERY_PRELOAD_RANGE;
 
@@ -139,6 +140,222 @@ const normalizeImage = (img) => ({
   imagen: normalizeUrl(img.imagen),
 });
 
+const tryParseJson = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string") return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const isValidPolygonPixels = (polygon) =>
+  Array.isArray(polygon) &&
+  polygon.length >= 3 &&
+  polygon.every(
+    (point) =>
+      Array.isArray(point) &&
+      point.length === 2 &&
+      Number.isFinite(Number(point[0])) &&
+      Number.isFinite(Number(point[1])),
+  );
+
+const isValidTexturePoint = (point) =>
+  Array.isArray(point) &&
+  point.length === 2 &&
+  Number.isFinite(Number(point[0])) &&
+  Number.isFinite(Number(point[1]));
+
+const transformOverlayPoint = (point, config) => {
+  const angle = ((config?.rotation || 0) * Math.PI) / 180;
+  const scale = config?.scale || 1;
+  const tx = config?.x || 0;
+  const ty = config?.y || 0;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const rx = point.x * cos - point.y * sin;
+  const ry = point.x * sin + point.y * cos;
+
+  return {
+    x: tx + rx * scale,
+    y: ty + ry * scale,
+  };
+};
+
+const projectViewerPointToTexture = (viewer, viewerPoint) => {
+  const width = viewer?.state?.size?.width || 0;
+  const height = viewer?.state?.size?.height || 0;
+  const viewerX = Number(viewerPoint?.x);
+  const viewerY = Number(viewerPoint?.y);
+
+  if (!width || !height || !Number.isFinite(viewerX) || !Number.isFinite(viewerY)) {
+    return null;
+  }
+
+  if (viewerX < 0 || viewerY < 0 || viewerX > width || viewerY > height) {
+    return null;
+  }
+
+  const spherical = viewer.dataHelper.viewerCoordsToSphericalCoords({
+    x: viewerX,
+    y: viewerY,
+  });
+  if (!spherical) return null;
+
+  const texture = viewer.dataHelper.sphericalCoordsToTextureCoords(spherical);
+  if (!texture) return null;
+
+  return Number.isFinite(texture.x) && Number.isFinite(texture.y)
+    ? [texture.x, texture.y]
+    : null;
+};
+
+const buildAnchoredOverlayFromLayout = (viewer, geometry, layout, imageId, containerWidth) => {
+  if (!viewer || !geometry || !layout || !imageId || !containerWidth) return null;
+
+  const currentViewerWidth = viewer?.state?.size?.width || containerWidth;
+  const currentViewerHeight = viewer?.state?.size?.height || 0;
+  const savedViewerWidth = Number(layout.viewerWidth) || currentViewerWidth;
+  const savedViewerHeight = Number(layout.viewerHeight) || currentViewerHeight || savedViewerWidth;
+  const scaleX = savedViewerWidth ? currentViewerWidth / savedViewerWidth : 1;
+  const scaleY = savedViewerHeight ? currentViewerHeight / savedViewerHeight : scaleX;
+
+  const fallbackCardWidth = Math.min(savedViewerWidth - 36, Math.min(savedViewerWidth * 0.62, 760));
+  const svgWidth = Number(layout.overlayWidth) || fallbackCardWidth;
+  const svgHeight =
+    Number(layout.overlayHeight) || (svgWidth / OVERLAY_VIEWBOX.width) * OVERLAY_VIEWBOX.height;
+  const overlayOffsetX = Number(layout.overlayOffsetX) || 0;
+  const overlayOffsetY = Number(layout.overlayOffsetY) || OVERLAY_HEADER_OFFSET;
+
+  if (!Number.isFinite(svgWidth) || !Number.isFinite(svgHeight) || svgWidth <= 0 || svgHeight <= 0) {
+    return null;
+  }
+
+  const convertPoint = (point) => {
+    const localPoint = {
+      x: overlayOffsetX + (point.x / OVERLAY_VIEWBOX.width) * svgWidth,
+      y: overlayOffsetY + (point.y / OVERLAY_VIEWBOX.height) * svgHeight,
+    };
+    const savedViewerPoint = transformOverlayPoint(localPoint, layout);
+    const viewerPoint = {
+      x: savedViewerPoint.x * scaleX,
+      y: savedViewerPoint.y * scaleY,
+    };
+    return projectViewerPointToTexture(viewer, viewerPoint);
+  };
+
+  const projectPolygonPixels = (geometry.projectPoints || [])
+    .map(convertPoint)
+    .filter(isValidTexturePoint);
+
+  const lotPolygons = (geometry.lotes || [])
+    .map((lote) => ({
+      idlote: lote.idlote,
+      color: lote.color,
+      vendido: lote.vendido,
+      polygonPixels: (lote.points || [])
+        .map(convertPoint)
+        .filter(isValidTexturePoint),
+    }))
+    .filter((lote) => lote.polygonPixels.length >= 3);
+
+  if (projectPolygonPixels.length < 3 && !lotPolygons.length) return null;
+
+  return {
+    imageId: String(imageId),
+    visible: layout.visible !== false,
+    lotOpacity: layout.lotOpacity ?? 0.82,
+    showProjectOutline: layout.showProjectOutline !== false,
+    projectPolygonPixels: projectPolygonPixels.length >= 3 ? projectPolygonPixels : [],
+    lotPolygons,
+  };
+};
+
+const buildScreenOverlayFromLayout = (layout, containerWidth, containerHeight) => {
+  const overlay = layout?.screenOverlay;
+  if (!overlay?.visible) return null;
+
+  const savedWidth = Number(overlay.viewerWidth) || containerWidth;
+  const savedHeight = Number(overlay.viewerHeight) || containerHeight || savedWidth;
+  const scaleX = savedWidth ? containerWidth / savedWidth : 1;
+  const scaleY = savedHeight ? containerHeight / savedHeight : scaleX;
+
+  const scalePolygon = (polygon) =>
+    (polygon || [])
+      .map((point) =>
+        Array.isArray(point) && point.length === 2
+          ? [Number(point[0]) * scaleX, Number(point[1]) * scaleY]
+          : null,
+      )
+      .filter(isValidTexturePoint);
+
+  const projectPolygonPoints = scalePolygon(overlay.projectPolygonPoints);
+  const lotPolygons = (overlay.lotPolygons || [])
+    .map((lote) => ({
+      ...lote,
+      polygonPoints: scalePolygon(lote.polygonPoints),
+    }))
+    .filter((lote) => lote.polygonPoints.length >= 3);
+
+  if (projectPolygonPoints.length < 3 && !lotPolygons.length) return null;
+
+  return {
+    ...overlay,
+    projectPolygonPoints,
+    lotPolygons,
+  };
+};
+
+const normalizeOverlayBundle = (rawOverlay) => {
+  const candidate = tryParseJson(rawOverlay);
+  if (!candidate || typeof candidate !== "object") return null;
+
+  const anchoredRaw = Array.isArray(candidate.anchoredOverlays)
+    ? candidate.anchoredOverlays
+    : Array.isArray(candidate.panoramaOverlays)
+      ? candidate.panoramaOverlays
+      : [];
+  const layoutsRaw = Array.isArray(candidate.layouts) ? candidate.layouts : [];
+
+  const anchored = anchoredRaw.reduce((acc, item) => {
+    const imageId = String(item?.imageId ?? item?.imagenId ?? item?.id_imagen ?? "");
+    if (!imageId) return acc;
+    acc[imageId] = item;
+    return acc;
+  }, {});
+
+  const layouts = layoutsRaw.reduce((acc, item) => {
+    const imageId = String(item?.imageId ?? item?.imagenId ?? item?.id_imagen ?? "");
+    if (!imageId) return acc;
+    acc[imageId] = item;
+    return acc;
+  }, {});
+
+  return {
+    geometry: candidate.geometry || null,
+    layouts,
+    layoutsList: layoutsRaw,
+    anchored,
+    anchoredList: anchoredRaw,
+  };
+};
+
+const collectOverlayBundles = (images = []) =>
+  images
+    .map((img) => ({
+      imageId: String(getImageId(img) ?? ""),
+      bundle: normalizeOverlayBundle(
+        img?.overlays_2d ??
+          img?.overlay_2d ??
+          img?.overlay2d ??
+          img?.tour_overlay ??
+          img?.tour_data,
+      ),
+    }))
+    .filter((item) => item.bundle);
+
 const Viewer360Modal = ({ images360 = [], onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [hotspots, setHotspots] = useState([]);
@@ -146,6 +363,8 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
   const [viewerReady, setViewerReady] = useState(false);
   const [viewerLoadMessage, setViewerLoadMessage] = useState("Preparando recorrido 360...");
   const [travelingTo, setTravelingTo] = useState("");
+  const [computedOverlay, setComputedOverlay] = useState(null);
+  const [screenOverlay, setScreenOverlay] = useState(null);
   const viewerRef = useRef(null);
   const containerRef = useRef(null);
   const travelTimerRef = useRef(null);
@@ -154,9 +373,49 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
     () => (Array.isArray(images360) ? images360.map(normalizeImage) : []),
     [images360],
   );
-
+  const overlayBundles = useMemo(
+    () => collectOverlayBundles(normalizedImages),
+    [normalizedImages],
+  );
   const currentImage = normalizedImages[currentIndex];
   const currentImageId = getImageId(currentImage);
+  const currentAnchoredOverlay = useMemo(() => {
+    const imageKey = String(currentImageId ?? "");
+    if (!imageKey) return null;
+
+    for (const entry of overlayBundles) {
+      const directMatch = entry.bundle?.anchored?.[imageKey];
+      if (directMatch) return directMatch;
+    }
+
+    const sameRowBundle = overlayBundles.find((entry) => entry.imageId === imageKey)?.bundle;
+    if (sameRowBundle?.anchoredList?.[0]) {
+      return sameRowBundle.anchoredList[0];
+    }
+
+    for (const entry of overlayBundles) {
+      if (entry.bundle?.anchoredList?.[0]) {
+        return entry.bundle.anchoredList[0];
+      }
+    }
+
+    return null;
+  }, [currentImageId, overlayBundles]);
+  const currentOverlayBundle = useMemo(() => {
+    const imageKey = String(currentImageId ?? "");
+    if (!imageKey) return null;
+
+    return (
+      overlayBundles.find((entry) => entry.imageId === imageKey)?.bundle ||
+      overlayBundles.find((entry) => entry.bundle?.layouts?.[imageKey])?.bundle ||
+      overlayBundles.find((entry) => entry.bundle?.geometry)?.bundle ||
+      null
+    );
+  }, [currentImageId, overlayBundles]);
+  const currentLayout = useMemo(() => {
+    const imageKey = String(currentImageId ?? "");
+    return imageKey ? currentOverlayBundle?.layouts?.[imageKey] || null : null;
+  }, [currentImageId, currentOverlayBundle]);
 
   const travelToImageById = useCallback((id, label) => {
     const index = normalizedImages.findIndex((img) => String(getImageId(img)) === String(id));
@@ -264,12 +523,23 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
       await warmUpImage(currentImage.imagen);
       if (!active || !containerRef.current) return;
 
+      const imageKey = String(currentImageId ?? "");
+      const initialLayout = currentOverlayBundle?.layouts?.[imageKey];
+
       viewerInstance = new Viewer({
         container: containerRef.current,
         panorama: currentImage.imagen,
         caption: currentImage.nombre,
         adapter: [EquirectangularAdapter, { resolution: VIEWER_RESOLUTION }],
-        defaultZoomLvl: 35,
+        defaultZoomLvl: Number.isFinite(Number(initialLayout?.zoomLevel))
+          ? Number(initialLayout.zoomLevel)
+          : 35,
+        defaultYaw: Number.isFinite(Number(initialLayout?.yaw))
+          ? Number(initialLayout.yaw)
+          : undefined,
+        defaultPitch: Number.isFinite(Number(initialLayout?.pitch))
+          ? Number(initialLayout.pitch)
+          : undefined,
         moveSpeed: VIEWER_MOVE_SPEED,
         fisheye: false,
         loadingImg: VIEWER_LOADING_ICON,
@@ -301,13 +571,78 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
       viewerInstance?.destroy();
       viewerRef.current = null;
     };
-  }, [currentImage, travelToImageById]);
+  }, [currentImage, currentImageId, currentOverlayBundle, travelToImageById]);
+
+  useEffect(() => {
+    if (!viewerReady || !viewerRef.current || currentAnchoredOverlay?.visible) {
+      setComputedOverlay(null);
+      return;
+    }
+
+    const imageKey = String(currentImageId ?? "");
+    const geometry = currentOverlayBundle?.geometry;
+    const layout = currentOverlayBundle?.layouts?.[imageKey];
+    const containerWidth = containerRef.current?.clientWidth || 0;
+
+    const fallbackOverlay = buildAnchoredOverlayFromLayout(
+      viewerRef.current,
+      geometry,
+      layout,
+      imageKey,
+      containerWidth,
+    );
+
+    setComputedOverlay(fallbackOverlay);
+  }, [viewerReady, currentAnchoredOverlay, currentOverlayBundle, currentImageId]);
+
+  useEffect(() => {
+    const width = containerRef.current?.clientWidth || 0;
+    const height = containerRef.current?.clientHeight || 0;
+    setScreenOverlay(buildScreenOverlayFromLayout(currentLayout, width, height));
+  }, [currentLayout, currentImageId, viewerReady]);
 
   useEffect(() => {
     if (!viewerReady || !viewerRef.current) return;
 
     const markers = viewerRef.current.getPlugin(MarkersPlugin);
     markers.clearMarkers();
+
+    const overlayToRender = currentAnchoredOverlay?.visible ? currentAnchoredOverlay : computedOverlay;
+
+    if (overlayToRender?.visible) {
+      if (
+        overlayToRender.showProjectOutline !== false &&
+        isValidPolygonPixels(overlayToRender.projectPolygonPixels)
+      ) {
+        markers.addMarker({
+          id: `overlay-project-${currentImageId}`,
+          polygonPixels: overlayToRender.projectPolygonPixels,
+          svgStyle: {
+            fill: "rgba(14, 116, 44, 0.26)",
+            stroke: "#14532d",
+            strokeWidth: "12px",
+            strokeLinejoin: "round",
+          },
+          zIndex: 5,
+        });
+      }
+
+      (overlayToRender.lotPolygons || []).forEach((lote) => {
+        if (!isValidPolygonPixels(lote.polygonPixels)) return;
+        markers.addMarker({
+          id: `overlay-lote-${currentImageId}-${lote.idlote}`,
+          polygonPixels: lote.polygonPixels,
+          svgStyle: {
+            fill: lote.color || "#22c55e",
+            fillOpacity: String(overlayToRender.lotOpacity ?? 0.82),
+            stroke: "rgba(255,255,255,0.86)",
+            strokeWidth: "3px",
+            strokeLinejoin: "round",
+          },
+          zIndex: 6,
+        });
+      });
+    }
 
     hotspots.forEach((hotspot) => {
       if (!Number.isFinite(Number(hotspot.yaw)) || !Number.isFinite(Number(hotspot.pitch))) return;
@@ -328,7 +663,7 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
         },
       });
     });
-  }, [viewerReady, hotspots]);
+  }, [viewerReady, hotspots, currentAnchoredOverlay, computedOverlay, currentImageId]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -365,6 +700,42 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
         <div className={styles.viewerWrapper}>
           {!viewerReady && <div className={styles.loading360}>{viewerLoadMessage}</div>}
           <div className={styles.viewerContainer} ref={containerRef} />
+          {!currentAnchoredOverlay?.visible && !computedOverlay && screenOverlay?.visible && (
+            <svg
+              viewBox={`0 0 ${containerRef.current?.clientWidth || 1} ${containerRef.current?.clientHeight || 1}`}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                pointerEvents: "none",
+                zIndex: 6,
+              }}
+              aria-hidden="true"
+            >
+              {screenOverlay.showProjectOutline !== false &&
+                isValidPolygonPixels(screenOverlay.projectPolygonPoints) && (
+                  <polygon
+                    points={screenOverlay.projectPolygonPoints.map((p) => `${p[0]},${p[1]}`).join(" ")}
+                    fill="rgba(14, 116, 44, 0.26)"
+                    stroke="#14532d"
+                    strokeWidth="6"
+                    strokeLinejoin="round"
+                  />
+                )}
+              {(screenOverlay.lotPolygons || []).map((lote, index) => (
+                <polygon
+                  key={lote.idlote ?? `screen-lote-${index}`}
+                  points={lote.polygonPoints.map((p) => `${p[0]},${p[1]}`).join(" ")}
+                  fill={lote.color || "#22c55e"}
+                  fillOpacity={screenOverlay.lotOpacity ?? 0.82}
+                  stroke="rgba(255,255,255,0.86)"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </svg>
+          )}
           {travelingTo && (
             <div className={styles.travelOverlay}>
               <div className={styles.travelTunnel} />

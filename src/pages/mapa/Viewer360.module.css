@@ -112,6 +112,49 @@
   display: block;
 }
 
+.projectOverlayLayerPublic {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.projectOverlayCardPublic {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: min(62vw, 760px);
+  max-width: calc(100% - 36px);
+  transform-origin: top left;
+}
+
+.projectOverlaySvgPublic {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 16px 35px rgba(0, 0, 0, 0.32));
+}
+
+.overlayProjectGlowPublic {
+  fill: rgba(21, 128, 61, 0.18);
+  stroke: rgba(34, 197, 94, 0.28);
+  stroke-width: 36;
+  stroke-linejoin: round;
+}
+
+.overlayProjectPathPublic {
+  fill: rgba(14, 116, 44, 0.26);
+  stroke: #14532d;
+  stroke-width: 12;
+  stroke-linejoin: round;
+}
+
+.overlayLotePathPublic {
+  stroke: rgba(255, 255, 255, 0.86);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
 .loading360 {
   position: absolute;
   inset: 0;
@@ -586,6 +629,11 @@
   .hotspotHint {
     left: 14px;
     bottom: 14px;
+  }
+
+  .projectOverlayCardPublic {
+    width: calc(100% - 22px);
+    max-width: calc(100% - 22px);
   }
 
   .prev { left: 14px; }

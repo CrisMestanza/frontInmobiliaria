@@ -1,13 +1,18 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Viewer } from "@photo-sphere-viewer/core";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
 import "@photo-sphere-viewer/core/index.css";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import {
+  Eye,
+  EyeOff,
   ImagePlus,
   Link2,
+  Map as MapIcon,
   MousePointerClick,
+  Move,
   Plus,
+  RotateCw,
   Upload,
   X,
 } from "lucide-react";
@@ -16,7 +21,20 @@ import { withApiBase } from "../../config/api.js";
 import styles from "./modal360.module.css";
 
 const MARKER_SIZE = { width: 34, height: 34 };
+const OVERLAY_VIEWBOX = { width: 1200, height: 780 };
+const DEFAULT_LAYOUT_CONFIG = {
+  visible: true,
+  x: 70,
+  y: 70,
+  scale: 0.78,
+  rotation: -8,
+  opacity: 0.92,
+  lotOpacity: 0.82,
+  showProjectOutline: true,
+};
+
 const buildApiUrl = (path) => withApiBase(`https://api.geohabita.com${path}`);
+
 const normalizeImageUrl = (url) => {
   if (!url) return "";
   return url.startsWith("http") ? url : buildApiUrl(url);
@@ -57,6 +75,197 @@ const removeTempMarker = (markers) => {
 
 const makeMarkerPosition = (yaw, pitch) => ({ yaw, pitch });
 
+const normalizePolygonCoords = (coords = []) => {
+  const normalized = coords
+    .map((point) => ({
+      lat: Number(point.lat ?? point.latitud),
+      lng: Number(point.lng ?? point.longitud),
+      orden: point.orden,
+    }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+
+  if (normalized.length < 2) return normalized;
+
+  const hasOrder = normalized.every(
+    (point) => point.orden !== null && point.orden !== undefined,
+  );
+
+  if (hasOrder) {
+    return normalized
+      .sort((a, b) => Number(a.orden) - Number(b.orden))
+      .map((point) => ({ lat: point.lat, lng: point.lng }));
+  }
+
+  const center = normalized.reduce(
+    (acc, point) => ({
+      lat: acc.lat + point.lat,
+      lng: acc.lng + point.lng,
+    }),
+    { lat: 0, lng: 0 },
+  );
+
+  center.lat /= normalized.length;
+  center.lng /= normalized.length;
+
+  return normalized
+    .sort((a, b) => {
+      const angleA = Math.atan2(a.lat - center.lat, a.lng - center.lng);
+      const angleB = Math.atan2(b.lat - center.lat, b.lng - center.lng);
+      return angleA - angleB;
+    })
+    .map((point) => ({ lat: point.lat, lng: point.lng }));
+};
+
+const buildSvgPath = (points) =>
+  points.length
+    ? `${points
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+        .join(" ")} Z`
+    : "";
+
+const getLoteFill = (vendido) => {
+  const value = Number(vendido);
+  if (value === 1) return "#ef4444";
+  if (value === 2) return "#f59e0b";
+  return "#22c55e";
+};
+
+const buildImportedGeometry = (projectPoints = [], lotes = []) => {
+  const normalizedProject = normalizePolygonCoords(projectPoints);
+  const normalizedLotes = Array.isArray(lotes)
+    ? lotes
+        .map((lote) => ({
+          ...lote,
+          puntos: normalizePolygonCoords(lote.puntos || []),
+        }))
+        .filter((lote) => lote.puntos.length >= 3)
+    : [];
+
+  const allPoints = [
+    ...normalizedProject,
+    ...normalizedLotes.flatMap((lote) => lote.puntos),
+  ];
+
+  if (!allPoints.length) return null;
+
+  const bounds = allPoints.reduce(
+    (acc, point) => ({
+      minLat: Math.min(acc.minLat, point.lat),
+      maxLat: Math.max(acc.maxLat, point.lat),
+      minLng: Math.min(acc.minLng, point.lng),
+      maxLng: Math.max(acc.maxLng, point.lng),
+    }),
+    {
+      minLat: Infinity,
+      maxLat: -Infinity,
+      minLng: Infinity,
+      maxLng: -Infinity,
+    },
+  );
+
+  const spanLat = Math.max(bounds.maxLat - bounds.minLat, 0.000001);
+  const spanLng = Math.max(bounds.maxLng - bounds.minLng, 0.000001);
+  const padding = 56;
+  const drawableWidth = OVERLAY_VIEWBOX.width - padding * 2;
+  const drawableHeight = OVERLAY_VIEWBOX.height - padding * 2;
+
+  const projectPoint = (point) => ({
+    x: padding + ((point.lng - bounds.minLng) / spanLng) * drawableWidth,
+    y: padding + ((bounds.maxLat - point.lat) / spanLat) * drawableHeight,
+  });
+
+  const projectSvgPoints = normalizedProject.map(projectPoint);
+  const projectPath = buildSvgPath(projectSvgPoints);
+
+  const lotesSvg = normalizedLotes.map((lote) => {
+    const points = lote.puntos.map(projectPoint);
+    return {
+      idlote: lote.idlote,
+      precio: lote.precio,
+      vendido: lote.vendido,
+      color: getLoteFill(lote.vendido),
+      points,
+      path: buildSvgPath(points),
+    };
+  });
+
+  return {
+    projectPath,
+    projectCount: normalizedProject.length,
+    projectPoints: projectSvgPoints,
+    lotes: lotesSvg,
+  };
+};
+
+const serializeOverlayLayouts = (overlayLayouts, runtimeByImage = {}) =>
+  Object.entries(overlayLayouts).map(([imageId, config]) => ({
+    imageId,
+    ...config,
+    ...(runtimeByImage[String(imageId)] || {}),
+  }));
+
+const isValidTexturePoint = (point) =>
+  Array.isArray(point) &&
+  point.length === 2 &&
+  Number.isFinite(Number(point[0])) &&
+  Number.isFinite(Number(point[1]));
+
+const transformOverlayPoint = (point, config, baseScaleX, baseScaleY) => {
+  const angle = ((Number(config?.rotation) || 0) * Math.PI) / 180;
+  const scale = Number(config?.scale) || 1;
+  const tx = Number(config?.x) || 0;
+  const ty = Number(config?.y) || 0;
+  const localX = point.x * baseScaleX;
+  const localY = point.y * baseScaleY;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const rx = localX * cos - localY * sin;
+  const ry = localX * sin + localY * cos;
+
+  return {
+    x: tx + rx * scale,
+    y: ty + ry * scale,
+  };
+};
+
+const hasAnchoredGeometry = (snapshot) =>
+  !!snapshot &&
+  (snapshot.projectPolygonPixels?.length >= 3 ||
+    (snapshot.lotPolygons || []).some((lote) => lote.polygonPixels?.length >= 3));
+
+const remapImageId = (value, imageMap = {}) => {
+  const key = String(value ?? "");
+  return imageMap[key] || value;
+};
+
+const projectViewerPointToTexture = (viewer, viewerPoint) => {
+  const width = viewer?.state?.size?.width || 0;
+  const height = viewer?.state?.size?.height || 0;
+  const viewerX = Number(viewerPoint?.x);
+  const viewerY = Number(viewerPoint?.y);
+
+  if (!width || !height || !Number.isFinite(viewerX) || !Number.isFinite(viewerY)) {
+    return null;
+  }
+
+  if (viewerX < 0 || viewerY < 0 || viewerX > width || viewerY > height) {
+    return null;
+  }
+
+  const spherical = viewer.dataHelper.viewerCoordsToSphericalCoords({
+    x: viewerX,
+    y: viewerY,
+  });
+  if (!spherical) return null;
+
+  const texture = viewer.dataHelper.sphericalCoordsToTextureCoords(spherical);
+  if (!texture) return null;
+
+  return Number.isFinite(texture.x) && Number.isFinite(texture.y)
+    ? [texture.x, texture.y]
+    : null;
+};
+
 const Modal360 = ({ idproyecto, onClose }) => {
   const [imagenes, setImagenes] = useState([]);
   const [conexiones, setConexiones] = useState([]);
@@ -67,11 +276,24 @@ const Modal360 = ({ idproyecto, onClose }) => {
   const [newPointName, setNewPointName] = useState("");
   const [newPointFile, setNewPointFile] = useState(null);
   const [savingTour, setSavingTour] = useState(false);
+  const [projectGeometry, setProjectGeometry] = useState(null);
+  const [geometryLoading, setGeometryLoading] = useState(false);
+  const [overlayLayouts, setOverlayLayouts] = useState({});
+  const [anchoredOverlays, setAnchoredOverlays] = useState({});
+  const [layoutEditMode, setLayoutEditMode] = useState(false);
+  const [dragState, setDragState] = useState(null);
 
+  const token = localStorage.getItem("access");
   const viewerRef = useRef(null);
   const viewerInstance = useRef(null);
+  const overlaySvgRef = useRef(null);
   const batchItemsRef = useRef([]);
   const imagenesRef = useRef([]);
+  const layoutEditModeRef = useRef(false);
+  const overlayVisibleRef = useRef(false);
+
+  const selectedImageId = selectedImg?.id_imagen ? String(selectedImg.id_imagen) : "";
+  const selectedOverlayConfig = selectedImageId ? overlayLayouts[selectedImageId] : null;
 
   const existingDestinations = useMemo(() => {
     if (!selectedImg) return [];
@@ -82,6 +304,14 @@ const Modal360 = ({ idproyecto, onClose }) => {
     if (!selectedImg) return [];
     return conexiones.filter((item) => item.origenId === selectedImg.id_imagen);
   }, [conexiones, selectedImg]);
+
+  const importedOverlaySummary = useMemo(() => {
+    if (!projectGeometry) return null;
+    return {
+      lotes: projectGeometry.lotes.length,
+      vertices: projectGeometry.projectCount,
+    };
+  }, [projectGeometry]);
 
   const hasValidCoords =
     Number.isFinite(coords?.yaw) && Number.isFinite(coords?.pitch);
@@ -101,6 +331,47 @@ const Modal360 = ({ idproyecto, onClose }) => {
     const markers = viewer.getPlugin(MarkersPlugin);
     markers.clearMarkers();
 
+    const anchoredPreview =
+      !layoutEditModeRef.current && selectedOverlayConfig?.visible
+        ? buildAnchoredOverlaySnapshot(selectedImg.id_imagen, selectedOverlayConfig)
+        : anchoredOverlays[String(selectedImg.id_imagen)] || null;
+
+    if (anchoredPreview?.visible) {
+      if (
+        anchoredPreview.showProjectOutline !== false &&
+        Array.isArray(anchoredPreview.projectPolygonPixels) &&
+        anchoredPreview.projectPolygonPixels.length >= 3
+      ) {
+        markers.addMarker({
+          id: `overlay-project-${selectedImg.id_imagen}`,
+          polygonPixels: anchoredPreview.projectPolygonPixels,
+          svgStyle: {
+            fill: "rgba(14, 116, 44, 0.26)",
+            stroke: "#14532d",
+            strokeWidth: "12px",
+            strokeLinejoin: "round",
+          },
+          zIndex: 5,
+        });
+      }
+
+      (anchoredPreview.lotPolygons || []).forEach((lote) => {
+        if (!Array.isArray(lote.polygonPixels) || lote.polygonPixels.length < 3) return;
+        markers.addMarker({
+          id: `overlay-lote-${selectedImg.id_imagen}-${lote.idlote}`,
+          polygonPixels: lote.polygonPixels,
+          svgStyle: {
+            fill: lote.color || "#22c55e",
+            fillOpacity: String(anchoredPreview.lotOpacity ?? 0.82),
+            stroke: "rgba(255,255,255,0.86)",
+            strokeWidth: "3px",
+            strokeLinejoin: "round",
+          },
+          zIndex: 6,
+        });
+      });
+    }
+
     conexionesActuales.forEach((hotspot) => {
       markers.addMarker({
         id: hotspot.id,
@@ -112,6 +383,326 @@ const Modal360 = ({ idproyecto, onClose }) => {
         data: { destinoId: hotspot.destinoId },
       });
     });
+
+    if (hasValidCoords) {
+      markers.addMarker({
+        id: "temp",
+        image: TEMP_MARKER_ICON,
+        size: MARKER_SIZE,
+        anchor: "center center",
+        position: makeMarkerPosition(coords.yaw, coords.pitch),
+        tooltip: "Nuevo punto",
+      });
+    }
+  };
+
+  const updateSelectedOverlayConfig = (patch) => {
+    if (!selectedImageId) return;
+
+    setOverlayLayouts((prev) => ({
+      ...prev,
+      [selectedImageId]: {
+        ...(prev[selectedImageId] || DEFAULT_LAYOUT_CONFIG),
+        ...patch,
+      },
+    }));
+  };
+
+  const getCurrentOverlayRuntime = () => {
+    const viewer = viewerInstance.current;
+    const viewerElement = viewerRef.current;
+    if (!viewer || !viewerElement) return null;
+
+    const position = viewer.getPosition?.();
+    const zoomLevel = viewer.getZoomLevel?.();
+    const overlaySvg = overlaySvgRef.current;
+
+    return {
+      yaw: Number(position?.yaw),
+      pitch: Number(position?.pitch),
+      zoomLevel: Number(zoomLevel),
+      viewerWidth: Number(viewerElement.clientWidth || 0),
+      viewerHeight: Number(viewerElement.clientHeight || 0),
+      overlayWidth: Number(
+        overlaySvg?.clientWidth || overlaySvg?.viewBox?.baseVal?.width || OVERLAY_VIEWBOX.width,
+      ),
+      overlayHeight: Number(
+        overlaySvg?.clientHeight || overlaySvg?.viewBox?.baseVal?.height || OVERLAY_VIEWBOX.height,
+      ),
+      overlayOffsetX: Number(overlaySvg?.offsetLeft || 0),
+      overlayOffsetY: Number(overlaySvg?.offsetTop || 0),
+    };
+  };
+
+  const getCurrentScreenOverlaySnapshot = (
+    config = selectedOverlayConfig,
+    runtime = getCurrentOverlayRuntime(),
+  ) => {
+    if (!config?.visible || !projectGeometry || !runtime) return null;
+
+    const svgWidth = Number(runtime.overlayWidth) || OVERLAY_VIEWBOX.width;
+    const svgHeight = Number(runtime.overlayHeight) || OVERLAY_VIEWBOX.height;
+    const offsetX = Number(runtime.overlayOffsetX) || 0;
+    const offsetY = Number(runtime.overlayOffsetY) || 0;
+
+    const convertPoint = (point) => {
+      const localPoint = {
+        x: offsetX + (point.x / OVERLAY_VIEWBOX.width) * svgWidth,
+        y: offsetY + (point.y / OVERLAY_VIEWBOX.height) * svgHeight,
+      };
+      const viewerPoint = transformOverlayPoint(localPoint, config, 1, 1);
+
+      if (!Number.isFinite(viewerPoint.x) || !Number.isFinite(viewerPoint.y)) return null;
+      return [viewerPoint.x, viewerPoint.y];
+    };
+
+    const projectPolygonPoints = (projectGeometry.projectPoints || [])
+      .map(convertPoint)
+      .filter(isValidTexturePoint);
+
+    const lotPolygons = (projectGeometry.lotes || [])
+      .map((lote) => ({
+        idlote: lote.idlote,
+        color: lote.color,
+        vendido: lote.vendido,
+        polygonPoints: (lote.points || [])
+          .map(convertPoint)
+          .filter(isValidTexturePoint),
+      }))
+      .filter((lote) => lote.polygonPoints.length >= 3);
+
+    if (projectPolygonPoints.length < 3 && !lotPolygons.length) return null;
+
+    return {
+      visible: true,
+      lotOpacity: config.lotOpacity,
+      showProjectOutline: config.showProjectOutline !== false,
+      viewerWidth: Number(runtime.viewerWidth) || 0,
+      viewerHeight: Number(runtime.viewerHeight) || 0,
+      projectPolygonPoints,
+      lotPolygons,
+    };
+  };
+
+  const captureCurrentLayoutRuntime = (imageId = selectedImageId) => {
+    if (!imageId) return null;
+
+    const runtime = getCurrentOverlayRuntime();
+    if (!runtime) return null;
+    const screenOverlay = getCurrentScreenOverlaySnapshot(selectedOverlayConfig, runtime);
+
+    setOverlayLayouts((prev) => ({
+      ...prev,
+      [String(imageId)]: {
+        ...(prev[String(imageId)] || DEFAULT_LAYOUT_CONFIG),
+        ...runtime,
+        ...(screenOverlay ? { screenOverlay } : {}),
+      },
+    }));
+
+    return {
+      ...runtime,
+      ...(screenOverlay ? { screenOverlay } : {}),
+    };
+  };
+
+  const buildAnchoredOverlaySnapshot = (imageId = selectedImageId, config = selectedOverlayConfig) => {
+    const viewer = viewerInstance.current;
+    const viewerElement = viewerRef.current;
+    const overlaySvg = overlaySvgRef.current;
+    if (!viewer || !viewerElement || !overlaySvg || !projectGeometry || !config?.visible || !imageId) {
+      return anchoredOverlays[String(imageId)] || null;
+    }
+
+    const svgMatrix = overlaySvg.getScreenCTM?.();
+    const viewerRect = viewerElement.getBoundingClientRect();
+    const svgLayoutWidth = overlaySvg.clientWidth || overlaySvg.viewBox?.baseVal?.width || OVERLAY_VIEWBOX.width;
+    const svgLayoutHeight =
+      overlaySvg.clientHeight || overlaySvg.viewBox?.baseVal?.height || OVERLAY_VIEWBOX.height;
+    const svgOffsetX = overlaySvg.offsetLeft || 0;
+    const svgOffsetY = overlaySvg.offsetTop || 0;
+
+    if (!svgLayoutWidth || !svgLayoutHeight || !viewerRect.width || !viewerRect.height) {
+      return anchoredOverlays[String(imageId)] || null;
+    }
+
+    const buildSnapshotFromConverter = (convertPoint) => {
+      const projectPolygonPixels = (projectGeometry.projectPoints || [])
+        .map(convertPoint)
+        .filter(isValidTexturePoint);
+
+      const lotPolygons = projectGeometry.lotes
+        .map((lote) => ({
+          idlote: lote.idlote,
+          color: lote.color,
+          vendido: lote.vendido,
+          polygonPixels: (lote.points || [])
+            .map(convertPoint)
+            .filter(isValidTexturePoint),
+        }))
+        .filter((lote) => lote.polygonPixels.length >= 3);
+
+      return {
+        imageId: String(imageId),
+        visible: config.visible !== false,
+        lotOpacity: config.lotOpacity,
+        showProjectOutline: config.showProjectOutline !== false,
+        projectPolygonPixels:
+          projectPolygonPixels.length >= 3 ? projectPolygonPixels : [],
+        lotPolygons,
+      };
+    };
+
+    const scoreSnapshot = (snapshot) =>
+      (snapshot.projectPolygonPixels?.length || 0) +
+      (snapshot.lotPolygons || []).reduce(
+        (sum, lote) => sum + (lote.polygonPixels?.length || 0),
+        0,
+      );
+
+    const convertPointFromLayout = (point) => {
+      const localPoint = {
+        x: svgOffsetX + (point.x / OVERLAY_VIEWBOX.width) * svgLayoutWidth,
+        y: svgOffsetY + (point.y / OVERLAY_VIEWBOX.height) * svgLayoutHeight,
+      };
+      const viewerPoint = transformOverlayPoint(localPoint, config, 1, 1);
+
+      if (!Number.isFinite(viewerPoint.x) || !Number.isFinite(viewerPoint.y)) return null;
+      return projectViewerPointToTexture(viewer, viewerPoint);
+    };
+
+    const layoutSnapshot = buildSnapshotFromConverter(convertPointFromLayout);
+
+    if (!svgMatrix) {
+      return layoutSnapshot;
+    }
+
+    const convertPointFromMatrix = (point) => {
+      const screenPoint = new DOMPoint(point.x, point.y).matrixTransform(svgMatrix);
+      const viewerPoint = {
+        x: screenPoint.x - viewerRect.left,
+        y: screenPoint.y - viewerRect.top,
+      };
+
+      if (!Number.isFinite(viewerPoint.x) || !Number.isFinite(viewerPoint.y)) return null;
+      return projectViewerPointToTexture(viewer, viewerPoint);
+    };
+
+    const matrixSnapshot = buildSnapshotFromConverter(convertPointFromMatrix);
+
+    return scoreSnapshot(matrixSnapshot) >= scoreSnapshot(layoutSnapshot)
+      ? matrixSnapshot
+      : layoutSnapshot;
+  };
+
+  const snapshotOverlayForImage = (imageId = selectedImageId, config = selectedOverlayConfig) => {
+    const snapshot = buildAnchoredOverlaySnapshot(imageId, config);
+    if (!snapshot) return null;
+
+    setAnchoredOverlays((prev) => ({
+      ...prev,
+      [String(imageId)]: snapshot,
+    }));
+
+    return snapshot;
+  };
+
+  const handleSelectImage = (img) => {
+    captureCurrentLayoutRuntime();
+    snapshotOverlayForImage();
+    setSelectedImg(img);
+  };
+
+  const load2DGeometry = async () => {
+    if (projectGeometry || geometryLoading) return projectGeometry;
+
+    setGeometryLoading(true);
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    try {
+      const projectRequest = authFetch(
+        withApiBase(`https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`),
+        { headers },
+      );
+
+      const lotesRequest = authFetch(
+        withApiBase(`https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`),
+        { headers },
+      );
+
+      const [projectRes, lotesRes] = await Promise.allSettled([
+        projectRequest,
+        lotesRequest,
+      ]);
+
+      const projectResponse =
+        projectRes.status === "fulfilled" ? projectRes.value : null;
+      const lotesResponse =
+        lotesRes.status === "fulfilled" ? lotesRes.value : null;
+
+      const projectData = projectResponse?.ok
+        ? await projectResponse.json().catch(() => [])
+        : [];
+
+      let lotesData = [];
+
+      if (lotesResponse?.ok) {
+        lotesData = await lotesResponse.json().catch(() => []);
+      } else {
+        const fallback = await authFetch(
+          withApiBase(`https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`),
+          { headers },
+        );
+
+        lotesData = fallback.ok ? await fallback.json().catch(() => []) : [];
+      }
+
+      const geometry = buildImportedGeometry(projectData, lotesData);
+      setProjectGeometry(geometry);
+
+      if (!geometry) {
+        window.alertInfo?.("Este proyecto aun no tiene trazos 2D listos para importar.");
+      }
+
+      return geometry;
+    } catch (error) {
+      console.error("Error cargando trazos 2D para 360:", error);
+      window.alertError?.("No se pudieron importar los trazos 2D del proyecto.");
+      return null;
+    } finally {
+      setGeometryLoading(false);
+    }
+  };
+
+  const importLayoutIntoCurrentImage = async (event) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (!selectedImg) return;
+
+    const geometry = await load2DGeometry();
+    if (!geometry) return;
+
+    const currentConfig = overlayLayouts[selectedImageId] || {};
+    setOverlayLayouts((prev) => ({
+      ...prev,
+      [selectedImageId]: {
+        ...DEFAULT_LAYOUT_CONFIG,
+        ...currentConfig,
+        visible: true,
+      },
+    }));
+    setLayoutEditMode(true);
+    window.alertSuccess?.("Trazos 2D importados en esta vista 360.");
+  };
+
+  const resetOverlayForCurrentImage = () => {
+    if (!selectedImageId) return;
+    setOverlayLayouts((prev) => ({
+      ...prev,
+      [selectedImageId]: {
+        ...DEFAULT_LAYOUT_CONFIG,
+      },
+    }));
   };
 
   useEffect(() => {
@@ -121,6 +712,19 @@ const Modal360 = ({ idproyecto, onClose }) => {
   useEffect(() => {
     imagenesRef.current = imagenes;
   }, [imagenes]);
+
+  useEffect(() => {
+    layoutEditModeRef.current = layoutEditMode;
+  }, [layoutEditMode]);
+
+  useEffect(() => {
+    overlayVisibleRef.current = !!selectedOverlayConfig?.visible;
+  }, [selectedOverlayConfig?.visible]);
+
+  useEffect(() => {
+    setLayoutEditMode(false);
+    setDragState(null);
+  }, [selectedImageId]);
 
   useEffect(() => {
     if (!selectedImg || !viewerRef.current) return undefined;
@@ -141,6 +745,10 @@ const Modal360 = ({ idproyecto, onClose }) => {
     const markers = viewer.getPlugin(MarkersPlugin);
 
     viewer.addEventListener("click", ({ data }) => {
+      if (layoutEditModeRef.current && overlayVisibleRef.current) {
+        return;
+      }
+
       const yaw = data?.yaw ?? data?.longitude;
       const pitch = data?.pitch ?? data?.latitude;
 
@@ -169,6 +777,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
 
       const destino = imagenes.find((img) => img.id_imagen === marker.data.destinoId);
       if (destino) {
+        snapshotOverlayForImage();
         setSelectedImg(destino);
       }
     });
@@ -182,13 +791,21 @@ const Modal360 = ({ idproyecto, onClose }) => {
       viewer.destroy();
       viewerInstance.current = null;
     };
-  }, [selectedImg]);
+  }, [selectedImg, imagenes]);
 
   useEffect(() => {
     if (viewerReady) {
       renderHotspots();
     }
-  }, [viewerReady, conexionesActuales]);
+  }, [
+    viewerReady,
+    conexionesActuales,
+    coords,
+    selectedImg,
+    selectedOverlayConfig,
+    layoutEditMode,
+    anchoredOverlays,
+  ]);
 
   const handleBatchFiles = (event) => {
     event.preventDefault();
@@ -281,6 +898,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
     ]);
 
     resetPointMode();
+    snapshotOverlayForImage();
     setSelectedImg(nuevaImagen);
     window.alertSuccess?.("Nueva vista creada y conectada en el borrador local.");
   };
@@ -295,9 +913,28 @@ const Modal360 = ({ idproyecto, onClose }) => {
     }
 
     const draftImages = imagenes.filter((img) => img.isDraft && img.file);
-    if (!draftImages.length) {
-      window.alertInfo?.("No hay imagenes nuevas para subir.");
-      return;
+    const currentLayoutRuntime = captureCurrentLayoutRuntime();
+    const currentSnapshot = snapshotOverlayForImage();
+    const serializedLayouts = serializeOverlayLayouts(overlayLayouts, {
+      ...(selectedImageId && currentLayoutRuntime
+        ? {
+            [String(selectedImageId)]: currentLayoutRuntime,
+          }
+        : {}),
+    });
+    const payloadAnchoredOverlays = [
+      ...Object.values(anchoredOverlays).filter(
+        (item) => item?.imageId !== currentSnapshot?.imageId && hasAnchoredGeometry(item),
+      ),
+      ...(hasAnchoredGeometry(currentSnapshot) ? [currentSnapshot] : []),
+    ];
+
+    if (selectedOverlayConfig?.visible && projectGeometry && !payloadAnchoredOverlays.length) {
+      const projectCount = currentSnapshot?.projectPolygonPixels?.length || 0;
+      const lotCount = (currentSnapshot?.lotPolygons || []).length;
+      window.alertInfo?.(
+        `No se pudo anclar el overlay 2D a la esfera 360. Proyecto: ${projectCount} puntos validos, lotes: ${lotCount}. Se guardara el layout 2D para reconstruirlo en el visor.`,
+      );
     }
 
     const formData = new FormData();
@@ -322,6 +959,15 @@ const Modal360 = ({ idproyecto, onClose }) => {
       ),
     );
 
+    formData.append(
+      "overlays_2d",
+      JSON.stringify({
+        geometry: projectGeometry,
+        layouts: serializedLayouts,
+        anchoredOverlays: payloadAnchoredOverlays,
+      }),
+    );
+
     setSavingTour(true);
     try {
       const res = await authFetch(buildApiUrl("/api/guardar_tour_360_completo/"), {
@@ -338,6 +984,32 @@ const Modal360 = ({ idproyecto, onClose }) => {
       const savedImagesByDraft = new Map(
         (data.imagenes || []).map((img) => [img.draft_id, img]),
       );
+      const resolvedOverlayPayload = {
+        geometry: projectGeometry,
+        layouts: serializedLayouts.map((layout) => ({
+          ...layout,
+          imageId: remapImageId(layout.imageId, imageMap),
+        })),
+        anchoredOverlays: payloadAnchoredOverlays.map((overlay) => ({
+          ...overlay,
+          imageId: remapImageId(overlay.imageId, imageMap),
+        })),
+      };
+
+      if (resolvedOverlayPayload.layouts.length || resolvedOverlayPayload.anchoredOverlays.length) {
+        const overlayUpdateForm = new FormData();
+        overlayUpdateForm.append("idproyecto", idproyecto);
+        overlayUpdateForm.append("conexiones", JSON.stringify([]));
+        overlayUpdateForm.append(
+          "overlays_2d",
+          JSON.stringify(resolvedOverlayPayload),
+        );
+
+        await authFetch(buildApiUrl("/api/guardar_tour_360_completo/"), {
+          method: "POST",
+          body: overlayUpdateForm,
+        });
+      }
 
       setImagenes((prev) =>
         prev.map((img) => {
@@ -361,6 +1033,26 @@ const Modal360 = ({ idproyecto, onClose }) => {
         })),
       );
 
+      setOverlayLayouts((prev) => {
+        const next = {};
+        Object.entries(prev).forEach(([imageId, config]) => {
+          next[imageMap[imageId] || imageId] = config;
+        });
+        return next;
+      });
+
+      setAnchoredOverlays((prev) => {
+        const next = {};
+        Object.entries(prev).forEach(([imageId, overlay]) => {
+          const resolvedImageId = String(imageMap[imageId] || imageId);
+          next[resolvedImageId] = {
+            ...overlay,
+            imageId: resolvedImageId,
+          };
+        });
+        return next;
+      });
+
       setSelectedImg((prev) => {
         if (!prev) return prev;
         const saved = savedImagesByDraft.get(prev.id_imagen);
@@ -374,7 +1066,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
         };
       });
 
-      window.alertSuccess?.("Tour 360 guardado en el backend correctamente.");
+      window.alertSuccess?.("Tour 360 y overlay 2D guardados correctamente.");
     } catch (error) {
       console.error(error);
       window.alertError?.(error.message || "No se pudo guardar el tour 360.");
@@ -396,6 +1088,106 @@ const Modal360 = ({ idproyecto, onClose }) => {
     };
   }, []);
 
+  const startOverlayDrag = (event) => {
+    if (!layoutEditMode || !selectedOverlayConfig?.visible) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    setDragState({
+      pointerX: event.clientX,
+      pointerY: event.clientY,
+      x: selectedOverlayConfig.x,
+      y: selectedOverlayConfig.y,
+    });
+  };
+
+  const handleOverlayPointerMove = (event) => {
+    if (!dragState) return;
+
+    const deltaX = event.clientX - dragState.pointerX;
+    const deltaY = event.clientY - dragState.pointerY;
+    updateSelectedOverlayConfig({
+      x: Math.round(dragState.x + deltaX),
+      y: Math.round(dragState.y + deltaY),
+    });
+  };
+
+  const stopOverlayDrag = () => {
+    if (!dragState) return;
+    setDragState(null);
+  };
+
+  const renderImportedOverlay = () => {
+    if (!selectedOverlayConfig?.visible || !projectGeometry) return null;
+
+    return (
+      <div
+        className={`${styles.projectOverlayLayer} ${layoutEditMode ? styles.projectOverlayEditing : ""}`}
+        onMouseMove={handleOverlayPointerMove}
+        onMouseUp={stopOverlayDrag}
+        onMouseLeave={stopOverlayDrag}
+      >
+        <div
+          className={styles.projectOverlayCard}
+          style={{
+            transform: `translate(${selectedOverlayConfig.x}px, ${selectedOverlayConfig.y}px) scale(${selectedOverlayConfig.scale}) rotate(${selectedOverlayConfig.rotation}deg)`,
+            opacity: layoutEditMode ? selectedOverlayConfig.opacity : 0,
+            visibility: layoutEditMode ? "visible" : "hidden",
+          }}
+          onMouseDown={startOverlayDrag}
+        >
+          <div className={styles.projectOverlayHeader}>
+            <span className={styles.overlayTitleBadge}>Trazos 2D</span>
+            {layoutEditMode ? (
+              <span className={styles.overlayEditHint}>
+                <Move size={13} />
+                Arrastra para ubicar
+              </span>
+            ) : (
+              <span className={styles.overlayEditHint}>
+                <Eye size={13} />
+                Vista previa
+              </span>
+            )}
+          </div>
+
+          <svg
+            ref={overlaySvgRef}
+            className={styles.projectOverlaySvg}
+            viewBox={`0 0 ${OVERLAY_VIEWBOX.width} ${OVERLAY_VIEWBOX.height}`}
+            role="img"
+            aria-label="Trazos 2D del proyecto importados al editor 360"
+          >
+            {selectedOverlayConfig.showProjectOutline && !!projectGeometry.projectPath && (
+              <path
+                d={projectGeometry.projectPath}
+                className={styles.overlayProjectGlow}
+              />
+            )}
+            {selectedOverlayConfig.showProjectOutline && !!projectGeometry.projectPath && (
+              <path
+                d={projectGeometry.projectPath}
+                className={styles.overlayProjectPath}
+              />
+            )}
+
+            {projectGeometry.lotes.map((lote, index) => (
+              <g key={lote.idlote ?? lote.path ?? `lote-${index}`}>
+                <path
+                  d={lote.path}
+                  fill={lote.color}
+                  fillOpacity={selectedOverlayConfig.lotOpacity}
+                  className={styles.overlayLotePath}
+                />
+              </g>
+            ))}
+          </svg>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className={styles.modalOverlay}
@@ -416,7 +1208,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
               Tour 360 <span>#{idproyecto}</span>
             </h2>
             <p className={styles.headerText}>
-              Editor en frontend: todo se queda en borrador local hasta conectar el backend.
+              Sube vistas 360, crea hotspots y ahora importa los trazos 2D del proyecto para acomodarlos sobre cada imagen.
             </p>
           </div>
           <button
@@ -494,28 +1286,35 @@ const Modal360 = ({ idproyecto, onClose }) => {
                   <div className={styles.emptyState}>Aun no hay imagenes en el borrador.</div>
                 ) : (
                   <div className={styles.galleryList}>
-                    {imagenes.map((img) => (
-                      <button
-                        key={img.id_imagen}
-                        type="button"
-                        className={`${styles.galleryItem} ${selectedImg?.id_imagen === img.id_imagen ? styles.activeItem : ""}`}
-                        onClick={() => setSelectedImg(img)}
-                      >
-                        <img src={img.imagen} alt={img.nombre} className={styles.galleryThumb} />
-                        <div className={styles.galleryMeta}>
-                          <strong>{img.nombre}</strong>
-                          <span>{img.isDraft ? "Borrador local" : "Sincronizada"}</span>
-                        </div>
-                      </button>
-                    ))}
+                    {imagenes.map((img) => {
+                      const imageOverlay = overlayLayouts[String(img.id_imagen)];
+
+                      return (
+                        <button
+                          key={img.id_imagen}
+                          type="button"
+                          className={`${styles.galleryItem} ${selectedImg?.id_imagen === img.id_imagen ? styles.activeItem : ""}`}
+                          onClick={() => handleSelectImage(img)}
+                        >
+                          <img src={img.imagen} alt={img.nombre} className={styles.galleryThumb} />
+                          <div className={styles.galleryMeta}>
+                            <strong>{img.nombre}</strong>
+                            <span>{img.isDraft ? "Borrador local" : "Sincronizada"}</span>
+                            {imageOverlay?.visible && (
+                              <span className={styles.galleryOverlayTag}>Con trazos 2D</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
                 {!!imagenes.length && (
                   <div className={styles.helperBox}>
                     {imagenes.length === 1
-                      ? "Ya tienes la primera vista en borrador. Agrega una segunda para empezar a crear conexiones."
-                      : "Selecciona una vista, haz click en el visor y conecta ese punto con otra imagen del borrador."}
+                      ? "Ya tienes la primera vista en borrador. Puedes importar trazos 2D en esta imagen o agregar otra para crear conexiones."
+                      : "Selecciona una vista para importar sus trazos 2D o haz click en el visor para crear hotspots entre imagenes."}
                   </div>
                 )}
               </div>
@@ -529,7 +1328,11 @@ const Modal360 = ({ idproyecto, onClose }) => {
                       <span className={styles.viewerBadge}>Vista activa</span>
                       <h3>{selectedImg.nombre}</h3>
                     </div>
-                    <p>Haz click dentro de la imagen para crear un punto en este borrador.</p>
+                    <p>
+                      {layoutEditMode && selectedOverlayConfig?.visible
+                        ? "Modo de trazos 2D activo: arrastra el overlay y usa los controles del panel derecho."
+                        : "Haz click dentro de la imagen para crear un punto en este borrador."}
+                    </p>
                   </div>
                   {imagenes.length < 2 && (
                     <div className={styles.helperBox}>
@@ -539,13 +1342,14 @@ const Modal360 = ({ idproyecto, onClose }) => {
                   <div className={styles.viewerFrame}>
                     {!viewerReady && <div className={styles.viewerLoading}>Cargando visor...</div>}
                     <div ref={viewerRef} className={styles.viewerCanvas} />
+                    {renderImportedOverlay()}
                   </div>
                 </>
               ) : (
                 <div className={styles.viewerPlaceholder}>
                   <ImagePlus size={34} />
                   <h3>Selecciona o agrega una imagen 360</h3>
-                  <p>La vista elegida aparecera aqui para que puedas crear hotspots en local.</p>
+                  <p>La vista elegida aparecera aqui para crear hotspots y superponer los trazos 2D del proyecto.</p>
                 </div>
               )}
             </section>
@@ -553,7 +1357,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
             <aside className={styles.connectionPanel}>
               <div className={styles.sectionTitleRow}>
                 <Link2 size={16} />
-                <h3>Conexion del punto</h3>
+                <h3>Conexion y trazos</h3>
               </div>
 
               <div className={styles.helperBox}>
@@ -570,10 +1374,171 @@ const Modal360 = ({ idproyecto, onClose }) => {
                 {savingTour ? "Subiendo tour..." : "Subir tour al backend"}
               </button>
 
+              <div className={styles.panelBlock}>
+                <div className={styles.sectionTitleRow}>
+                  <MapIcon size={16} />
+                  <h3>Trazos 2D sobre esta imagen</h3>
+                </div>
+
+                {importedOverlaySummary ? (
+                  <div className={styles.overlayStats}>
+                    <span>{importedOverlaySummary.lotes} lotes listos para importar</span>
+                    <span>{importedOverlaySummary.vertices} puntos del proyecto</span>
+                  </div>
+                ) : (
+                  <p className={styles.helperText}>
+                    Importa el proyecto 2D para colocarlo encima de la vista 360, como maqueta editable.
+                  </p>
+                )}
+
+                <div className={styles.panelActions}>
+                  <button
+                    type="button"
+                    className={styles.btnPrimary360}
+                    onClick={importLayoutIntoCurrentImage}
+                    disabled={!selectedImg || geometryLoading}
+                  >
+                    <MapIcon size={16} />
+                    {geometryLoading ? "Importando..." : "Importar puntos 2D"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btnCancel}
+                    onClick={() => setLayoutEditMode((prev) => !prev)}
+                    disabled={!selectedOverlayConfig?.visible}
+                  >
+                    <Move size={16} />
+                    {layoutEditMode ? "Salir de edicion" : "Editar posicion"}
+                  </button>
+                </div>
+
+                {selectedOverlayConfig ? (
+                  <>
+                    <div className={styles.toggleRow}>
+                      <button
+                        type="button"
+                        className={styles.toggleButton}
+                        onClick={() =>
+                          updateSelectedOverlayConfig({
+                            visible: !selectedOverlayConfig.visible,
+                          })
+                        }
+                      >
+                        {selectedOverlayConfig.visible ? <EyeOff size={15} /> : <Eye size={15} />}
+                        {selectedOverlayConfig.visible ? "Ocultar overlay" : "Mostrar overlay"}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.toggleButton}
+                        onClick={resetOverlayForCurrentImage}
+                      >
+                        <RotateCw size={15} />
+                        Reiniciar ajuste
+                      </button>
+                    </div>
+
+                    <label className={styles.rangeControl}>
+                      <span>Escala</span>
+                      <input
+                        type="range"
+                        min="0.3"
+                        max="1.8"
+                        step="0.01"
+                        value={selectedOverlayConfig.scale}
+                        onChange={(event) =>
+                          updateSelectedOverlayConfig({
+                            scale: Number(event.target.value),
+                          })
+                        }
+                      />
+                      <strong>{Math.round(selectedOverlayConfig.scale * 100)}%</strong>
+                    </label>
+
+                    <label className={styles.rangeControl}>
+                      <span>Rotacion</span>
+                      <input
+                        type="range"
+                        min="-180"
+                        max="180"
+                        step="1"
+                        value={selectedOverlayConfig.rotation}
+                        onChange={(event) =>
+                          updateSelectedOverlayConfig({
+                            rotation: Number(event.target.value),
+                          })
+                        }
+                      />
+                      <strong>{selectedOverlayConfig.rotation}°</strong>
+                    </label>
+
+                    <label className={styles.rangeControl}>
+                      <span>Opacidad general</span>
+                      <input
+                        type="range"
+                        min="0.15"
+                        max="1"
+                        step="0.01"
+                        value={selectedOverlayConfig.opacity}
+                        onChange={(event) =>
+                          updateSelectedOverlayConfig({
+                            opacity: Number(event.target.value),
+                          })
+                        }
+                      />
+                      <strong>{Math.round(selectedOverlayConfig.opacity * 100)}%</strong>
+                    </label>
+
+                    <label className={styles.rangeControl}>
+                      <span>Relleno de lotes</span>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1"
+                        step="0.01"
+                        value={selectedOverlayConfig.lotOpacity}
+                        onChange={(event) =>
+                          updateSelectedOverlayConfig({
+                            lotOpacity: Number(event.target.value),
+                          })
+                        }
+                      />
+                      <strong>{Math.round(selectedOverlayConfig.lotOpacity * 100)}%</strong>
+                    </label>
+
+                    <div className={styles.toggleRow}>
+                      <button
+                        type="button"
+                        className={styles.toggleButton}
+                        onClick={() =>
+                          updateSelectedOverlayConfig({
+                            showProjectOutline: !selectedOverlayConfig.showProjectOutline,
+                          })
+                        }
+                      >
+                        {selectedOverlayConfig.showProjectOutline ? <EyeOff size={15} /> : <Eye size={15} />}
+                        {selectedOverlayConfig.showProjectOutline ? "Ocultar contorno" : "Mostrar contorno"}
+                      </button>
+                    </div>
+
+                    <p className={styles.helperText}>
+                      Consejo: activa "Editar posicion", arrastra el overlay desde la vista y afina escala/rotacion hasta que coincida con la foto 360.
+                    </p>
+                  </>
+                ) : (
+                  <div className={styles.emptyState}>
+                    {selectedImg
+                      ? "Todavia no has importado trazos 2D en esta imagen."
+                      : "Primero agrega o selecciona una imagen 360."}
+                  </div>
+                )}
+              </div>
+
               {!hasValidCoords ? (
                 <div className={styles.emptyState}>
                   {selectedImg
-                    ? "Haz click en el visor para colocar un punto nuevo."
+                    ? layoutEditMode && selectedOverlayConfig?.visible
+                      ? "Sal del modo de edicion si quieres volver a poner hotspots."
+                      : "Haz click en el visor para colocar un punto nuevo."
                     : "Primero agrega o selecciona una imagen 360."}
                 </div>
               ) : (
