@@ -10,9 +10,11 @@ import {
   ChevronRight,
   Image as ImageIcon,
   MapPinned,
+  Ruler,
   Navigation,
   Route,
   Sparkles,
+  Tag,
 } from "lucide-react";
 import { withApiBase } from "../../config/api.js";
 import styles from "./Viewer360.module.css";
@@ -89,6 +91,33 @@ const getFetchPriority = (idx, currentIndex) =>
 
 const getLoadingMode = (idx, currentIndex) =>
   shouldPrioritizeThumb(idx, currentIndex) ? "eager" : "lazy";
+
+const formatMoney = (lote) => {
+  const precio = lote?.precio;
+  if (precio === null || precio === undefined || precio === "") return "Consultar";
+  const numeric = Number(precio);
+  const value = Number.isFinite(numeric) ? numeric.toLocaleString("es-PE") : precio;
+  return `${lote?.moneda || ""} ${value}`.trim();
+};
+
+const hasDisplayValue = (value) => value !== null && value !== undefined && value !== "";
+const hasUsefulLoteInfo = (lote) =>
+  !!lote &&
+  [
+    lote.nombre,
+    lote.precio,
+    lote.area_total_m2,
+    lote.ancho,
+    lote.largo,
+    lote.moneda,
+  ].some(hasDisplayValue);
+const normalizeText = (value) =>
+  String(value || "")
+    .trim()
+    .toLocaleLowerCase("es-PE");
+const getLoteId = (lote) => lote?.idlote ?? lote?.id ?? lote?.id_lote ?? lote?.lote_id;
+const getProjectId = (img) =>
+  img?.idproyecto?.idproyecto ?? img?.idproyecto_id ?? img?.idproyecto ?? img?.proyecto?.idproyecto;
 
 const waitForNextFrame = () =>
   new Promise((resolve) => {
@@ -303,7 +332,13 @@ const buildAnchoredOverlayFromLayout = (viewer, geometry, layout, imageId, conta
         .filter((point) => point?.spherical);
 
       return {
-        idlote: lote.idlote,
+        idlote: getLoteId(lote),
+        nombre: lote.nombre,
+        precio: lote.precio,
+        moneda: lote.moneda,
+        area_total_m2: lote.area_total_m2,
+        ancho: lote.ancho,
+        largo: lote.largo,
         color: lote.color,
         vendido: lote.vendido,
         polygon: anchoredPoints.map((point) => point.spherical).filter(isValidSphericalPoint),
@@ -368,7 +403,13 @@ const buildAnchoredOverlayFromScreenOverlay = (
       const anchoredPoints = convertPolygon(lote.polygonPoints);
 
       return {
-        idlote: lote.idlote,
+        idlote: getLoteId(lote),
+        nombre: lote.nombre,
+        precio: lote.precio,
+        moneda: lote.moneda,
+        area_total_m2: lote.area_total_m2,
+        ancho: lote.ancho,
+        largo: lote.largo,
         color: lote.color,
         vendido: lote.vendido,
         polygon: anchoredPoints.map((point) => point.spherical).filter(isValidSphericalPoint),
@@ -446,9 +487,15 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
   const [viewerLoadMessage, setViewerLoadMessage] = useState("Preparando recorrido 360...");
   const [travelingTo, setTravelingTo] = useState("");
   const [computedOverlay, setComputedOverlay] = useState(null);
+  const [selectedLoteInfo, setSelectedLoteInfo] = useState(null);
+  const [loteInfoLoading, setLoteInfoLoading] = useState(false);
+  const [loteInfoError, setLoteInfoError] = useState("");
   const viewerRef = useRef(null);
   const containerRef = useRef(null);
   const travelTimerRef = useRef(null);
+  const loteInfoCacheRef = useRef(new Map());
+  const loteInfoAbortRef = useRef(null);
+  const projectLotesCacheRef = useRef(new Map());
 
   const normalizedImages = useMemo(
     () => (Array.isArray(images360) ? images360.map(normalizeImage) : []),
@@ -505,6 +552,161 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
     }, 720);
   }, [normalizedImages]);
 
+  const loadLoteInfo = useCallback(async (idlote, fallbackLote = null) => {
+    const loteId = String(idlote ?? "");
+    if (!loteId) return;
+
+    loteInfoAbortRef.current?.abort();
+    setLoteInfoError("");
+
+    const cached = loteInfoCacheRef.current.get(loteId);
+    if (cached) {
+      setSelectedLoteInfo(cached);
+      setLoteInfoLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    loteInfoAbortRef.current = controller;
+    setLoteInfoLoading(true);
+    setSelectedLoteInfo({
+      lote: fallbackLote || { idlote: loteId, nombre: `Lote ${loteId}` },
+      proyecto: null,
+      inmobiliaria: null,
+    });
+
+    try {
+      const res = await fetch(buildApiUrl(`/api/mapa/lote_detalle/${loteId}/`), {
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "No se pudo cargar el lote.");
+      }
+
+      const normalized = {
+        lote: data?.lote || { idlote: loteId, nombre: `Lote ${loteId}` },
+        proyecto: data?.proyecto || null,
+        inmobiliaria: data?.inmobiliaria || null,
+      };
+      loteInfoCacheRef.current.set(loteId, normalized);
+      setSelectedLoteInfo(normalized);
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      if (hasUsefulLoteInfo(fallbackLote)) {
+        const fallbackInfo = {
+          lote: { ...fallbackLote, idlote: getLoteId(fallbackLote) ?? loteId },
+          proyecto: null,
+          inmobiliaria: null,
+        };
+        loteInfoCacheRef.current.set(loteId, fallbackInfo);
+        setSelectedLoteInfo(fallbackInfo);
+        setLoteInfoError("");
+        return;
+      }
+      setLoteInfoError(
+        error instanceof TypeError
+          ? "No se pudo cargar el detalle completo del lote."
+          : error.message || "No se pudo cargar el lote.",
+      );
+    } finally {
+      if (!controller.signal.aborted) setLoteInfoLoading(false);
+    }
+  }, []);
+
+  const loadProjectLotes = useCallback(async (projectId) => {
+    const key = String(projectId ?? "");
+    if (!key) return [];
+
+    const cached = projectLotesCacheRef.current.get(key);
+    if (cached) return cached;
+
+    const urls = [`/api/getLoteProyecto/${key}`, `/api/listPuntosLoteProyecto/${key}/`];
+
+    for (const url of urls) {
+      const res = await fetch(buildApiUrl(url));
+      if (!res.ok) continue;
+      const data = await res.json().catch(() => []);
+      const lotes = Array.isArray(data) ? data : [];
+      if (lotes.length) {
+        projectLotesCacheRef.current.set(key, lotes);
+        return lotes;
+      }
+    }
+
+    projectLotesCacheRef.current.set(key, []);
+    return [];
+  }, []);
+
+  const openLoteFromMarker = useCallback(
+    async (markerData) => {
+      const inlineLote = markerData?.lote || null;
+      const inlineId = getLoteId(inlineLote) ?? markerData?.idlote;
+
+      if (inlineId) {
+        setSelectedLoteInfo({
+          lote: inlineLote || { idlote: inlineId, nombre: `Lote ${inlineId}` },
+          proyecto: null,
+          inmobiliaria: null,
+        });
+        setLoteInfoLoading(true);
+        setLoteInfoError("");
+
+        let fallbackLote = inlineLote;
+        try {
+          const projectId = getProjectId(currentImage);
+          const lotes = await loadProjectLotes(projectId);
+          const match = lotes.find((lote) => {
+            const loteId = getLoteId(lote);
+            return (
+              String(loteId ?? "") === String(inlineId) ||
+              (!!inlineLote?.nombre && normalizeText(lote.nombre) === normalizeText(inlineLote.nombre))
+            );
+          });
+          if (match) {
+            fallbackLote = {
+              ...inlineLote,
+              ...match,
+              idlote: getLoteId(match) ?? inlineId,
+            };
+          }
+        } catch {
+          fallbackLote = inlineLote;
+        }
+
+        loadLoteInfo(inlineId, fallbackLote);
+        return;
+      }
+
+      if (inlineLote?.nombre) {
+        setSelectedLoteInfo({
+          lote: inlineLote,
+          proyecto: null,
+          inmobiliaria: null,
+        });
+        setLoteInfoLoading(true);
+        setLoteInfoError("");
+
+        try {
+          const projectId = getProjectId(currentImage);
+          const lotes = await loadProjectLotes(projectId);
+          const match = lotes.find(
+            (lote) => normalizeText(lote.nombre) === normalizeText(inlineLote.nombre),
+          );
+          const matchId = getLoteId(match);
+          if (matchId) {
+            loadLoteInfo(matchId, { ...inlineLote, ...match, idlote: matchId });
+            return;
+          }
+          setLoteInfoLoading(false);
+        } catch {
+          setLoteInfoLoading(false);
+        }
+      }
+    },
+    [currentImage, loadLoteInfo, loadProjectLotes],
+  );
+
   const nextImage = useCallback(() => {
     if (!normalizedImages.length) return;
     setCurrentIndex((prev) => (prev + 1) % normalizedImages.length);
@@ -543,6 +745,18 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
   useEffect(() => () => window.clearTimeout(travelTimerRef.current), []);
 
   useEffect(() => {
+    setSelectedLoteInfo(null);
+    setLoteInfoError("");
+  }, [currentImageId]);
+
+  useEffect(
+    () => () => {
+      loteInfoAbortRef.current?.abort();
+    },
+    [],
+  );
+
+  useEffect(() => {
     if (!currentImageId) {
       setHotspots([]);
       return undefined;
@@ -570,7 +784,7 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
       })
       .catch((error) => {
         if (!active) return;
-        console.error("Error cargando hotspots 360:", error);
+        console.warn("No se pudieron cargar hotspots 360:", error);
         setHotspots([]);
       })
       .finally(() => {
@@ -601,36 +815,46 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
 
       const imageKey = String(currentImageId ?? "");
       const initialLayout = currentOverlayBundle?.layouts?.[imageKey];
-
-      viewerInstance = new Viewer({
+      const initialYaw = Number(initialLayout?.yaw);
+      const initialPitch = Number(initialLayout?.pitch);
+      const initialZoom = Number(initialLayout?.zoomLevel);
+      const viewerOptions = {
         container: containerRef.current,
         panorama: currentImage.imagen,
         caption: currentImage.nombre,
         adapter: [EquirectangularAdapter, { resolution: VIEWER_RESOLUTION }],
-        defaultZoomLvl: Number.isFinite(Number(initialLayout?.zoomLevel))
-          ? Number(initialLayout.zoomLevel)
-          : 35,
-        defaultYaw: Number.isFinite(Number(initialLayout?.yaw))
-          ? Number(initialLayout.yaw)
-          : undefined,
-        defaultPitch: Number.isFinite(Number(initialLayout?.pitch))
-          ? Number(initialLayout.pitch)
-          : undefined,
+        defaultZoomLvl: Number.isFinite(initialZoom) ? initialZoom : 35,
         moveSpeed: VIEWER_MOVE_SPEED,
         fisheye: false,
         loadingImg: VIEWER_LOADING_ICON,
         loadingTxt: "Cargando vista 360...",
         navbar: ["zoom", "move", "caption", "fullscreen"],
         plugins: [[MarkersPlugin, {}]],
-      });
+      };
+
+      if (Number.isFinite(initialYaw)) {
+        viewerOptions.defaultYaw = initialYaw;
+      }
+
+      if (Number.isFinite(initialPitch)) {
+        viewerOptions.defaultPitch = initialPitch;
+      }
+
+      viewerInstance = new Viewer(viewerOptions);
 
       viewerRef.current = viewerInstance;
       const markers = viewerInstance.getPlugin(MarkersPlugin);
 
       markers.addEventListener("select-marker", (event) => {
         const marker = event?.marker || event?.detail?.marker;
-        const destinoId = marker?.data?.destinoId;
-        if (destinoId) travelToImageById(destinoId, marker?.data?.destinoNombre);
+        const markerData = marker?.data || marker?.config?.data || {};
+        if (markerData.type === "lote") {
+          openLoteFromMarker(markerData);
+          return;
+        }
+
+        const destinoId = markerData.destinoId;
+        if (destinoId) travelToImageById(destinoId, markerData.destinoNombre);
       });
 
       viewerInstance.addEventListener("ready", () => {
@@ -647,7 +871,7 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
       viewerInstance?.destroy();
       viewerRef.current = null;
     };
-  }, [currentImage, currentImageId, currentOverlayBundle, travelToImageById]);
+  }, [currentImage, currentImageId, currentOverlayBundle, openLoteFromMarker, travelToImageById]);
 
   useEffect(() => {
     if (!viewerReady || !viewerRef.current || currentAnchoredOverlay?.visible) {
@@ -709,13 +933,24 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
         });
       }
 
-      (overlayToRender.lotPolygons || []).forEach((lote) => {
+      (overlayToRender.lotPolygons || []).forEach((lote, index) => {
         const hasSpherical = isValidPolygonPixels(lote.polygon);
         const hasPixels = isValidPolygonPixels(lote.polygonPixels);
         if (!hasSpherical && !hasPixels) return;
+        const loteId = getLoteId(lote);
+        const markerKey = loteId ?? lote.nombre ?? index;
         markers.addMarker({
-          id: `overlay-lote-${currentImageId}-${lote.idlote}`,
+          id: `overlay-lote-${currentImageId}-${markerKey}-${index}`,
           ...(hasSpherical ? { polygon: lote.polygon } : { polygonPixels: lote.polygonPixels }),
+          tooltip: lote.nombre || `Lote ${lote.idlote}`,
+          data: {
+            type: "lote",
+            idlote: loteId,
+            lote: {
+              ...lote,
+              idlote: loteId,
+            },
+          },
           svgStyle: {
             fill: lote.color || "#22c55e",
             fillOpacity: String(overlayToRender.lotOpacity ?? 0.82),
@@ -761,6 +996,8 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
   }, [nextImage, onClose, prevImage]);
 
   if (!normalizedImages.length) return null;
+
+  const selectedLote = selectedLoteInfo?.lote;
 
   return (
     <div className={styles.overlay360}>
@@ -811,6 +1048,7 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
               </button>
             </>
           )}
+
         </div>
       </div>
 
@@ -847,6 +1085,72 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
             </button>
           ))}
         </div>
+
+        {selectedLoteInfo && (
+          <div className={styles.loteInfoPanel}>
+            <div className={styles.loteInfoHeader}>
+              <div>
+                <span className={styles.loteInfoBadge}>Lote seleccionado</span>
+                <h4>{selectedLote?.nombre || `Lote ${selectedLote?.idlote || ""}`}</h4>
+              </div>
+              <button
+                type="button"
+                className={styles.loteInfoClose}
+                onClick={() => {
+                  setSelectedLoteInfo(null);
+                  setLoteInfoError("");
+                }}
+                aria-label="Cerrar informacion del lote"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {loteInfoLoading ? (
+              <div className={styles.loteInfoState}>Cargando lote...</div>
+            ) : loteInfoError ? (
+              <div className={styles.loteInfoState}>{loteInfoError}</div>
+            ) : (
+              <>
+                <div className={styles.loteInfoPrice}>
+                  <Tag size={17} />
+                  <strong>{formatMoney(selectedLote)}</strong>
+                  <span>Precio</span>
+                </div>
+
+                <div className={styles.loteInfoGrid}>
+                  <div>
+                    <Ruler size={15} />
+                    <strong>
+                      {hasDisplayValue(selectedLote?.area_total_m2)
+                        ? `${selectedLote.area_total_m2} m2`
+                        : "Consultar"}
+                    </strong>
+                    <span>Area total</span>
+                  </div>
+                  <div>
+                    <Ruler size={15} />
+                    <strong>
+                      {hasDisplayValue(selectedLote?.ancho)
+                        ? `${selectedLote.ancho} m`
+                        : "Consultar"}
+                    </strong>
+                    <span>Ancho</span>
+                  </div>
+                  <div>
+                    <Ruler size={15} />
+                    <strong>
+                      {hasDisplayValue(selectedLote?.largo)
+                        ? `${selectedLote.largo} m`
+                        : "Consultar"}
+                    </strong>
+                    <span>Largo</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div className={styles.hotspotsPanel}>
           <div className={styles.hotspotsHeader}>

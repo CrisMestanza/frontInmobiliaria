@@ -131,6 +131,8 @@ const getLoteFill = (vendido) => {
   return "#22c55e";
 };
 
+const getLoteId = (lote) => lote?.idlote ?? lote?.id ?? lote?.id_lote ?? lote?.lote_id;
+
 const buildImportedGeometry = (projectPoints = [], lotes = []) => {
   const normalizedProject = normalizePolygonCoords(projectPoints);
   const normalizedLotes = Array.isArray(lotes)
@@ -181,8 +183,13 @@ const buildImportedGeometry = (projectPoints = [], lotes = []) => {
   const lotesSvg = normalizedLotes.map((lote) => {
     const points = lote.puntos.map(projectPoint);
     return {
-      idlote: lote.idlote,
+      idlote: getLoteId(lote),
+      nombre: lote.nombre,
       precio: lote.precio,
+      moneda: lote.moneda,
+      area_total_m2: lote.area_total_m2,
+      ancho: lote.ancho,
+      largo: lote.largo,
       vendido: lote.vendido,
       color: getLoteFill(lote.vendido),
       points,
@@ -401,12 +408,13 @@ const Modal360 = ({ idproyecto, onClose }) => {
         });
       }
 
-      (anchoredPreview.lotPolygons || []).forEach((lote) => {
+      (anchoredPreview.lotPolygons || []).forEach((lote, index) => {
         const hasSpherical = Array.isArray(lote.polygon) && lote.polygon.length >= 3;
         const hasPixels = Array.isArray(lote.polygonPixels) && lote.polygonPixels.length >= 3;
         if (!hasSpherical && !hasPixels) return;
+        const markerKey = lote.idlote ?? lote.nombre ?? index;
         markers.addMarker({
-          id: `overlay-lote-${selectedImg.id_imagen}-${lote.idlote}`,
+          id: `overlay-lote-${selectedImg.id_imagen}-${markerKey}-${index}`,
           ...(hasSpherical ? { polygon: lote.polygon } : { polygonPixels: lote.polygonPixels }),
           svgStyle: {
             fill: lote.color || "#22c55e",
@@ -592,7 +600,13 @@ const Modal360 = ({ idproyecto, onClose }) => {
             .filter((point) => point?.spherical);
 
           return {
-            idlote: lote.idlote,
+            idlote: getLoteId(lote),
+            nombre: lote.nombre,
+            precio: lote.precio,
+            moneda: lote.moneda,
+            area_total_m2: lote.area_total_m2,
+            ancho: lote.ancho,
+            largo: lote.largo,
             color: lote.color,
             vendido: lote.vendido,
             polygon: anchoredPoints
@@ -983,6 +997,18 @@ const Modal360 = ({ idproyecto, onClose }) => {
     }
 
     const draftImages = imagenes.filter((img) => img.isDraft && img.file);
+    const draftIdsBeingUploaded = new Set(draftImages.map((img) => String(img.id_imagen)));
+    const canResolveImageIdOnSave = (value) => {
+      const id = String(value ?? "");
+      if (!id) return false;
+      return !id.startsWith("draft-") || draftIdsBeingUploaded.has(id);
+    };
+    const resolvableConnections = conexiones.filter(
+      (conexion) =>
+        canResolveImageIdOnSave(conexion.origenId) &&
+        canResolveImageIdOnSave(conexion.destinoId),
+    );
+    const skippedConnections = conexiones.length - resolvableConnections.length;
     const currentLayoutRuntime = captureCurrentLayoutRuntime();
     const currentSnapshot = snapshotOverlayForImage();
     const serializedLayouts = serializeOverlayLayouts(overlayLayouts, {
@@ -1021,7 +1047,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
     formData.append(
       "conexiones",
       JSON.stringify(
-        conexiones.map((conexion) => ({
+        resolvableConnections.map((conexion) => ({
           origenId: conexion.origenId,
           destinoId: conexion.destinoId,
           destinoNombre: conexion.destinoNombre,
@@ -1050,6 +1076,12 @@ const Modal360 = ({ idproyecto, onClose }) => {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data?.error || "No se pudo guardar el tour 360");
+      }
+
+      if (skippedConnections > 0) {
+        window.alertInfo?.(
+          `${skippedConnections} conexion(es) no se enviaron porque apuntaban a imagenes temporales que no estaban en este guardado.`,
+        );
       }
 
       const imageMap = data.image_map || {};
