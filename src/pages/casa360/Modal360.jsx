@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Viewer } from "@photo-sphere-viewer/core";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
+import { Vector3 } from "three";
 import "@photo-sphere-viewer/core/index.css";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import {
@@ -210,6 +211,8 @@ const isValidTexturePoint = (point) =>
   Number.isFinite(Number(point[0])) &&
   Number.isFinite(Number(point[1]));
 
+const isValidSphericalPoint = isValidTexturePoint;
+
 const transformOverlayPoint = (point, config, baseScaleX, baseScaleY) => {
   const angle = ((Number(config?.rotation) || 0) * Math.PI) / 180;
   const scale = Number(config?.scale) || 1;
@@ -230,15 +233,36 @@ const transformOverlayPoint = (point, config, baseScaleX, baseScaleY) => {
 
 const hasAnchoredGeometry = (snapshot) =>
   !!snapshot &&
-  (snapshot.projectPolygonPixels?.length >= 3 ||
-    (snapshot.lotPolygons || []).some((lote) => lote.polygonPixels?.length >= 3));
+  (snapshot.projectPolygon?.length >= 3 ||
+    snapshot.projectPolygonPixels?.length >= 3 ||
+    (snapshot.lotPolygons || []).some(
+      (lote) => lote.polygon?.length >= 3 || lote.polygonPixels?.length >= 3,
+    ));
 
 const remapImageId = (value, imageMap = {}) => {
   const key = String(value ?? "");
   return imageMap[key] || value;
 };
 
-const projectViewerPointToTexture = (viewer, viewerPoint) => {
+const projectViewerPointWithCamera = (viewer, viewerPoint, width, height) => {
+  const camera = viewer?.renderer?.camera;
+  if (!camera || !width || !height) return null;
+
+  const ndcX = (Number(viewerPoint.x) / width) * 2 - 1;
+  const ndcY = 1 - (Number(viewerPoint.y) / height) * 2;
+  const direction = new Vector3(ndcX, ndcY, 0.5)
+    .unproject(camera)
+    .sub(camera.position)
+    .normalize();
+
+  return viewer.dataHelper.vector3ToSphericalCoords(direction);
+};
+
+const projectViewerPointToAnchoredPoint = (
+  viewer,
+  viewerPoint,
+  { allowOutOfViewport = false } = {},
+) => {
   const width = viewer?.state?.size?.width || 0;
   const height = viewer?.state?.size?.height || 0;
   const viewerX = Number(viewerPoint?.x);
@@ -248,21 +272,38 @@ const projectViewerPointToTexture = (viewer, viewerPoint) => {
     return null;
   }
 
-  if (viewerX < 0 || viewerY < 0 || viewerX > width || viewerY > height) {
+  if (
+    !allowOutOfViewport &&
+    (viewerX < 0 || viewerY < 0 || viewerX > width || viewerY > height)
+  ) {
     return null;
   }
 
-  const spherical = viewer.dataHelper.viewerCoordsToSphericalCoords({
-    x: viewerX,
-    y: viewerY,
-  });
+  const spherical =
+    viewer.dataHelper.viewerCoordsToSphericalCoords({
+      x: viewerX,
+      y: viewerY,
+    }) || projectViewerPointWithCamera(viewer, { x: viewerX, y: viewerY }, width, height);
   if (!spherical) return null;
 
-  const texture = viewer.dataHelper.sphericalCoordsToTextureCoords(spherical);
-  if (!texture) return null;
+  let texture = null;
+  try {
+    texture = viewer.dataHelper.sphericalCoordsToTextureCoords(spherical);
+  } catch {
+    texture = null;
+  }
 
-  return Number.isFinite(texture.x) && Number.isFinite(texture.y)
-    ? [texture.x, texture.y]
+  const texturePoint =
+    Number.isFinite(texture?.textureX) && Number.isFinite(texture?.textureY)
+      ? [texture.textureX, texture.textureY]
+      : null;
+
+  return Number.isFinite(spherical.yaw) &&
+    Number.isFinite(spherical.pitch)
+    ? {
+        spherical: [spherical.yaw, spherical.pitch],
+        pixels: texturePoint,
+      }
     : null;
 };
 
@@ -339,12 +380,17 @@ const Modal360 = ({ idproyecto, onClose }) => {
     if (anchoredPreview?.visible) {
       if (
         anchoredPreview.showProjectOutline !== false &&
-        Array.isArray(anchoredPreview.projectPolygonPixels) &&
-        anchoredPreview.projectPolygonPixels.length >= 3
+        ((Array.isArray(anchoredPreview.projectPolygon) &&
+          anchoredPreview.projectPolygon.length >= 3) ||
+          (Array.isArray(anchoredPreview.projectPolygonPixels) &&
+            anchoredPreview.projectPolygonPixels.length >= 3))
       ) {
         markers.addMarker({
           id: `overlay-project-${selectedImg.id_imagen}`,
-          polygonPixels: anchoredPreview.projectPolygonPixels,
+          ...(Array.isArray(anchoredPreview.projectPolygon) &&
+          anchoredPreview.projectPolygon.length >= 3
+            ? { polygon: anchoredPreview.projectPolygon }
+            : { polygonPixels: anchoredPreview.projectPolygonPixels }),
           svgStyle: {
             fill: "rgba(14, 116, 44, 0.26)",
             stroke: "#14532d",
@@ -356,10 +402,12 @@ const Modal360 = ({ idproyecto, onClose }) => {
       }
 
       (anchoredPreview.lotPolygons || []).forEach((lote) => {
-        if (!Array.isArray(lote.polygonPixels) || lote.polygonPixels.length < 3) return;
+        const hasSpherical = Array.isArray(lote.polygon) && lote.polygon.length >= 3;
+        const hasPixels = Array.isArray(lote.polygonPixels) && lote.polygonPixels.length >= 3;
+        if (!hasSpherical && !hasPixels) return;
         markers.addMarker({
           id: `overlay-lote-${selectedImg.id_imagen}-${lote.idlote}`,
-          polygonPixels: lote.polygonPixels,
+          ...(hasSpherical ? { polygon: lote.polygon } : { polygonPixels: lote.polygonPixels }),
           svgStyle: {
             fill: lote.color || "#22c55e",
             fillOpacity: String(anchoredPreview.lotOpacity ?? 0.82),
@@ -527,26 +575,42 @@ const Modal360 = ({ idproyecto, onClose }) => {
     }
 
     const buildSnapshotFromConverter = (convertPoint) => {
-      const projectPolygonPixels = (projectGeometry.projectPoints || [])
+      const projectAnchoredPoints = (projectGeometry.projectPoints || [])
         .map(convertPoint)
+        .filter((point) => point?.spherical);
+      const projectPolygon = projectAnchoredPoints
+        .map((point) => point.spherical)
+        .filter(isValidSphericalPoint);
+      const projectPolygonPixels = projectAnchoredPoints
+        .map((point) => point.pixels)
         .filter(isValidTexturePoint);
 
       const lotPolygons = projectGeometry.lotes
-        .map((lote) => ({
-          idlote: lote.idlote,
-          color: lote.color,
-          vendido: lote.vendido,
-          polygonPixels: (lote.points || [])
+        .map((lote) => {
+          const anchoredPoints = (lote.points || [])
             .map(convertPoint)
-            .filter(isValidTexturePoint),
-        }))
-        .filter((lote) => lote.polygonPixels.length >= 3);
+            .filter((point) => point?.spherical);
+
+          return {
+            idlote: lote.idlote,
+            color: lote.color,
+            vendido: lote.vendido,
+            polygon: anchoredPoints
+              .map((point) => point.spherical)
+              .filter(isValidSphericalPoint),
+            polygonPixels: anchoredPoints
+              .map((point) => point.pixels)
+              .filter(isValidTexturePoint),
+          };
+        })
+        .filter((lote) => lote.polygon.length >= 3 || lote.polygonPixels.length >= 3);
 
       return {
         imageId: String(imageId),
         visible: config.visible !== false,
         lotOpacity: config.lotOpacity,
         showProjectOutline: config.showProjectOutline !== false,
+        projectPolygon: projectPolygon.length >= 3 ? projectPolygon : [],
         projectPolygonPixels:
           projectPolygonPixels.length >= 3 ? projectPolygonPixels : [],
         lotPolygons,
@@ -554,9 +618,11 @@ const Modal360 = ({ idproyecto, onClose }) => {
     };
 
     const scoreSnapshot = (snapshot) =>
+      (snapshot.projectPolygon?.length || 0) +
       (snapshot.projectPolygonPixels?.length || 0) +
       (snapshot.lotPolygons || []).reduce(
-        (sum, lote) => sum + (lote.polygonPixels?.length || 0),
+        (sum, lote) =>
+          sum + Math.max(lote.polygon?.length || 0, lote.polygonPixels?.length || 0),
         0,
       );
 
@@ -568,7 +634,9 @@ const Modal360 = ({ idproyecto, onClose }) => {
       const viewerPoint = transformOverlayPoint(localPoint, config, 1, 1);
 
       if (!Number.isFinite(viewerPoint.x) || !Number.isFinite(viewerPoint.y)) return null;
-      return projectViewerPointToTexture(viewer, viewerPoint);
+      return projectViewerPointToAnchoredPoint(viewer, viewerPoint, {
+        allowOutOfViewport: true,
+      });
     };
 
     const layoutSnapshot = buildSnapshotFromConverter(convertPointFromLayout);
@@ -585,7 +653,9 @@ const Modal360 = ({ idproyecto, onClose }) => {
       };
 
       if (!Number.isFinite(viewerPoint.x) || !Number.isFinite(viewerPoint.y)) return null;
-      return projectViewerPointToTexture(viewer, viewerPoint);
+      return projectViewerPointToAnchoredPoint(viewer, viewerPoint, {
+        allowOutOfViewport: true,
+      });
     };
 
     const matrixSnapshot = buildSnapshotFromConverter(convertPointFromMatrix);
@@ -931,10 +1001,12 @@ const Modal360 = ({ idproyecto, onClose }) => {
 
     if (selectedOverlayConfig?.visible && projectGeometry && !payloadAnchoredOverlays.length) {
       const projectCount = currentSnapshot?.projectPolygonPixels?.length || 0;
+      const sphericalProjectCount = currentSnapshot?.projectPolygon?.length || 0;
       const lotCount = (currentSnapshot?.lotPolygons || []).length;
-      window.alertInfo?.(
-        `No se pudo anclar el overlay 2D a la esfera 360. Proyecto: ${projectCount} puntos validos, lotes: ${lotCount}. Se guardara el layout 2D para reconstruirlo en el visor.`,
+      window.alertError?.(
+        `No se pudo anclar el overlay 2D a la esfera 360. Proyecto: ${Math.max(projectCount, sphericalProjectCount)} puntos validos, lotes: ${lotCount}. No se subio el tour. Ajusta el overlay dentro de la vista 360 e intenta otra vez.`,
       );
+      return;
     }
 
     const formData = new FormData();

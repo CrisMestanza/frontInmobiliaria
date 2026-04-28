@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EquirectangularAdapter, Viewer } from "@photo-sphere-viewer/core";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
+import { Vector3 } from "three";
 import "@photo-sphere-viewer/core/index.css";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import {
@@ -168,6 +169,22 @@ const isValidTexturePoint = (point) =>
   Number.isFinite(Number(point[0])) &&
   Number.isFinite(Number(point[1]));
 
+const isValidSphericalPoint = isValidTexturePoint;
+
+const projectViewerPointWithCamera = (viewer, viewerPoint, width, height) => {
+  const camera = viewer?.renderer?.camera;
+  if (!camera || !width || !height) return null;
+
+  const ndcX = (Number(viewerPoint.x) / width) * 2 - 1;
+  const ndcY = 1 - (Number(viewerPoint.y) / height) * 2;
+  const direction = new Vector3(ndcX, ndcY, 0.5)
+    .unproject(camera)
+    .sub(camera.position)
+    .normalize();
+
+  return viewer.dataHelper.vector3ToSphericalCoords(direction);
+};
+
 const transformOverlayPoint = (point, config) => {
   const angle = ((config?.rotation || 0) * Math.PI) / 180;
   const scale = config?.scale || 1;
@@ -184,7 +201,11 @@ const transformOverlayPoint = (point, config) => {
   };
 };
 
-const projectViewerPointToTexture = (viewer, viewerPoint) => {
+const projectViewerPointToAnchoredPoint = (
+  viewer,
+  viewerPoint,
+  { allowOutOfViewport = false } = {},
+) => {
   const width = viewer?.state?.size?.width || 0;
   const height = viewer?.state?.size?.height || 0;
   const viewerX = Number(viewerPoint?.x);
@@ -194,21 +215,38 @@ const projectViewerPointToTexture = (viewer, viewerPoint) => {
     return null;
   }
 
-  if (viewerX < 0 || viewerY < 0 || viewerX > width || viewerY > height) {
+  if (
+    !allowOutOfViewport &&
+    (viewerX < 0 || viewerY < 0 || viewerX > width || viewerY > height)
+  ) {
     return null;
   }
 
-  const spherical = viewer.dataHelper.viewerCoordsToSphericalCoords({
-    x: viewerX,
-    y: viewerY,
-  });
+  const spherical =
+    viewer.dataHelper.viewerCoordsToSphericalCoords({
+      x: viewerX,
+      y: viewerY,
+    }) || projectViewerPointWithCamera(viewer, { x: viewerX, y: viewerY }, width, height);
   if (!spherical) return null;
 
-  const texture = viewer.dataHelper.sphericalCoordsToTextureCoords(spherical);
-  if (!texture) return null;
+  let texture = null;
+  try {
+    texture = viewer.dataHelper.sphericalCoordsToTextureCoords(spherical);
+  } catch {
+    texture = null;
+  }
 
-  return Number.isFinite(texture.x) && Number.isFinite(texture.y)
-    ? [texture.x, texture.y]
+  const texturePoint =
+    Number.isFinite(texture?.textureX) && Number.isFinite(texture?.textureY)
+      ? [texture.textureX, texture.textureY]
+      : null;
+
+  return Number.isFinite(spherical.yaw) &&
+    Number.isFinite(spherical.pitch)
+    ? {
+        spherical: [spherical.yaw, spherical.pitch],
+        pixels: texturePoint,
+      }
     : null;
 };
 
@@ -243,67 +281,111 @@ const buildAnchoredOverlayFromLayout = (viewer, geometry, layout, imageId, conta
       x: savedViewerPoint.x * scaleX,
       y: savedViewerPoint.y * scaleY,
     };
-    return projectViewerPointToTexture(viewer, viewerPoint);
+    return projectViewerPointToAnchoredPoint(viewer, viewerPoint, {
+      allowOutOfViewport: true,
+    });
   };
 
-  const projectPolygonPixels = (geometry.projectPoints || [])
+  const projectAnchoredPoints = (geometry.projectPoints || [])
     .map(convertPoint)
+    .filter((point) => point?.spherical);
+  const projectPolygon = projectAnchoredPoints
+    .map((point) => point.spherical)
+    .filter(isValidSphericalPoint);
+  const projectPolygonPixels = projectAnchoredPoints
+    .map((point) => point.pixels)
     .filter(isValidTexturePoint);
 
   const lotPolygons = (geometry.lotes || [])
-    .map((lote) => ({
-      idlote: lote.idlote,
-      color: lote.color,
-      vendido: lote.vendido,
-      polygonPixels: (lote.points || [])
+    .map((lote) => {
+      const anchoredPoints = (lote.points || [])
         .map(convertPoint)
-        .filter(isValidTexturePoint),
-    }))
-    .filter((lote) => lote.polygonPixels.length >= 3);
+        .filter((point) => point?.spherical);
 
-  if (projectPolygonPixels.length < 3 && !lotPolygons.length) return null;
+      return {
+        idlote: lote.idlote,
+        color: lote.color,
+        vendido: lote.vendido,
+        polygon: anchoredPoints.map((point) => point.spherical).filter(isValidSphericalPoint),
+        polygonPixels: anchoredPoints.map((point) => point.pixels).filter(isValidTexturePoint),
+      };
+    })
+    .filter((lote) => lote.polygon.length >= 3 || lote.polygonPixels.length >= 3);
+
+  if (projectPolygon.length < 3 && projectPolygonPixels.length < 3 && !lotPolygons.length) return null;
 
   return {
     imageId: String(imageId),
     visible: layout.visible !== false,
     lotOpacity: layout.lotOpacity ?? 0.82,
     showProjectOutline: layout.showProjectOutline !== false,
+    projectPolygon: projectPolygon.length >= 3 ? projectPolygon : [],
     projectPolygonPixels: projectPolygonPixels.length >= 3 ? projectPolygonPixels : [],
     lotPolygons,
   };
 };
 
-const buildScreenOverlayFromLayout = (layout, containerWidth, containerHeight) => {
+const buildAnchoredOverlayFromScreenOverlay = (
+  viewer,
+  layout,
+  imageId,
+  containerWidth,
+  containerHeight,
+) => {
   const overlay = layout?.screenOverlay;
-  if (!overlay?.visible) return null;
+  if (!viewer || !overlay?.visible || !imageId || !containerWidth || !containerHeight) return null;
 
   const savedWidth = Number(overlay.viewerWidth) || containerWidth;
   const savedHeight = Number(overlay.viewerHeight) || containerHeight || savedWidth;
   const scaleX = savedWidth ? containerWidth / savedWidth : 1;
   const scaleY = savedHeight ? containerHeight / savedHeight : scaleX;
 
-  const scalePolygon = (polygon) =>
+  const convertPolygon = (polygon) =>
     (polygon || [])
       .map((point) =>
         Array.isArray(point) && point.length === 2
-          ? [Number(point[0]) * scaleX, Number(point[1]) * scaleY]
+          ? projectViewerPointToAnchoredPoint(
+              viewer,
+              {
+                x: Number(point[0]) * scaleX,
+                y: Number(point[1]) * scaleY,
+              },
+              { allowOutOfViewport: true },
+            )
           : null,
       )
-      .filter(isValidTexturePoint);
+      .filter((point) => point?.spherical);
 
-  const projectPolygonPoints = scalePolygon(overlay.projectPolygonPoints);
+  const projectAnchoredPoints = convertPolygon(overlay.projectPolygonPoints);
+  const projectPolygon = projectAnchoredPoints
+    .map((point) => point.spherical)
+    .filter(isValidSphericalPoint);
+  const projectPolygonPixels = projectAnchoredPoints
+    .map((point) => point.pixels)
+    .filter(isValidTexturePoint);
   const lotPolygons = (overlay.lotPolygons || [])
-    .map((lote) => ({
-      ...lote,
-      polygonPoints: scalePolygon(lote.polygonPoints),
-    }))
-    .filter((lote) => lote.polygonPoints.length >= 3);
+    .map((lote) => {
+      const anchoredPoints = convertPolygon(lote.polygonPoints);
 
-  if (projectPolygonPoints.length < 3 && !lotPolygons.length) return null;
+      return {
+        idlote: lote.idlote,
+        color: lote.color,
+        vendido: lote.vendido,
+        polygon: anchoredPoints.map((point) => point.spherical).filter(isValidSphericalPoint),
+        polygonPixels: anchoredPoints.map((point) => point.pixels).filter(isValidTexturePoint),
+      };
+    })
+    .filter((lote) => lote.polygon.length >= 3 || lote.polygonPixels.length >= 3);
+
+  if (projectPolygon.length < 3 && projectPolygonPixels.length < 3 && !lotPolygons.length) return null;
 
   return {
-    ...overlay,
-    projectPolygonPoints,
+    imageId: String(imageId),
+    visible: true,
+    lotOpacity: overlay.lotOpacity ?? layout?.lotOpacity ?? 0.82,
+    showProjectOutline: overlay.showProjectOutline !== false,
+    projectPolygon: projectPolygon.length >= 3 ? projectPolygon : [],
+    projectPolygonPixels: projectPolygonPixels.length >= 3 ? projectPolygonPixels : [],
     lotPolygons,
   };
 };
@@ -364,7 +446,6 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
   const [viewerLoadMessage, setViewerLoadMessage] = useState("Preparando recorrido 360...");
   const [travelingTo, setTravelingTo] = useState("");
   const [computedOverlay, setComputedOverlay] = useState(null);
-  const [screenOverlay, setScreenOverlay] = useState(null);
   const viewerRef = useRef(null);
   const containerRef = useRef(null);
   const travelTimerRef = useRef(null);
@@ -412,11 +493,6 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
       null
     );
   }, [currentImageId, overlayBundles]);
-  const currentLayout = useMemo(() => {
-    const imageKey = String(currentImageId ?? "");
-    return imageKey ? currentOverlayBundle?.layouts?.[imageKey] || null : null;
-  }, [currentImageId, currentOverlayBundle]);
-
   const travelToImageById = useCallback((id, label) => {
     const index = normalizedImages.findIndex((img) => String(getImageId(img)) === String(id));
     if (index < 0) return;
@@ -583,6 +659,7 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
     const geometry = currentOverlayBundle?.geometry;
     const layout = currentOverlayBundle?.layouts?.[imageKey];
     const containerWidth = containerRef.current?.clientWidth || 0;
+    const containerHeight = containerRef.current?.clientHeight || 0;
 
     const fallbackOverlay = buildAnchoredOverlayFromLayout(
       viewerRef.current,
@@ -591,15 +668,16 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
       imageKey,
       containerWidth,
     );
+    const screenOverlayAsAnchored = buildAnchoredOverlayFromScreenOverlay(
+      viewerRef.current,
+      layout,
+      imageKey,
+      containerWidth,
+      containerHeight,
+    );
 
-    setComputedOverlay(fallbackOverlay);
+    setComputedOverlay(fallbackOverlay || screenOverlayAsAnchored);
   }, [viewerReady, currentAnchoredOverlay, currentOverlayBundle, currentImageId]);
-
-  useEffect(() => {
-    const width = containerRef.current?.clientWidth || 0;
-    const height = containerRef.current?.clientHeight || 0;
-    setScreenOverlay(buildScreenOverlayFromLayout(currentLayout, width, height));
-  }, [currentLayout, currentImageId, viewerReady]);
 
   useEffect(() => {
     if (!viewerReady || !viewerRef.current) return;
@@ -610,13 +688,17 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
     const overlayToRender = currentAnchoredOverlay?.visible ? currentAnchoredOverlay : computedOverlay;
 
     if (overlayToRender?.visible) {
+      const hasProjectSpherical = isValidPolygonPixels(overlayToRender.projectPolygon);
+      const hasProjectPixels = isValidPolygonPixels(overlayToRender.projectPolygonPixels);
       if (
         overlayToRender.showProjectOutline !== false &&
-        isValidPolygonPixels(overlayToRender.projectPolygonPixels)
+        (hasProjectSpherical || hasProjectPixels)
       ) {
         markers.addMarker({
           id: `overlay-project-${currentImageId}`,
-          polygonPixels: overlayToRender.projectPolygonPixels,
+          ...(hasProjectSpherical
+            ? { polygon: overlayToRender.projectPolygon }
+            : { polygonPixels: overlayToRender.projectPolygonPixels }),
           svgStyle: {
             fill: "rgba(14, 116, 44, 0.26)",
             stroke: "#14532d",
@@ -628,10 +710,12 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
       }
 
       (overlayToRender.lotPolygons || []).forEach((lote) => {
-        if (!isValidPolygonPixels(lote.polygonPixels)) return;
+        const hasSpherical = isValidPolygonPixels(lote.polygon);
+        const hasPixels = isValidPolygonPixels(lote.polygonPixels);
+        if (!hasSpherical && !hasPixels) return;
         markers.addMarker({
           id: `overlay-lote-${currentImageId}-${lote.idlote}`,
-          polygonPixels: lote.polygonPixels,
+          ...(hasSpherical ? { polygon: lote.polygon } : { polygonPixels: lote.polygonPixels }),
           svgStyle: {
             fill: lote.color || "#22c55e",
             fillOpacity: String(overlayToRender.lotOpacity ?? 0.82),
@@ -700,42 +784,6 @@ const Viewer360Modal = ({ images360 = [], onClose }) => {
         <div className={styles.viewerWrapper}>
           {!viewerReady && <div className={styles.loading360}>{viewerLoadMessage}</div>}
           <div className={styles.viewerContainer} ref={containerRef} />
-          {!currentAnchoredOverlay?.visible && !computedOverlay && screenOverlay?.visible && (
-            <svg
-              viewBox={`0 0 ${containerRef.current?.clientWidth || 1} ${containerRef.current?.clientHeight || 1}`}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                pointerEvents: "none",
-                zIndex: 6,
-              }}
-              aria-hidden="true"
-            >
-              {screenOverlay.showProjectOutline !== false &&
-                isValidPolygonPixels(screenOverlay.projectPolygonPoints) && (
-                  <polygon
-                    points={screenOverlay.projectPolygonPoints.map((p) => `${p[0]},${p[1]}`).join(" ")}
-                    fill="rgba(14, 116, 44, 0.26)"
-                    stroke="#14532d"
-                    strokeWidth="6"
-                    strokeLinejoin="round"
-                  />
-                )}
-              {(screenOverlay.lotPolygons || []).map((lote, index) => (
-                <polygon
-                  key={lote.idlote ?? `screen-lote-${index}`}
-                  points={lote.polygonPoints.map((p) => `${p[0]},${p[1]}`).join(" ")}
-                  fill={lote.color || "#22c55e"}
-                  fillOpacity={screenOverlay.lotOpacity ?? 0.82}
-                  stroke="rgba(255,255,255,0.86)"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                />
-              ))}
-            </svg>
-          )}
           {travelingTo && (
             <div className={styles.travelOverlay}>
               <div className={styles.travelTunnel} />
