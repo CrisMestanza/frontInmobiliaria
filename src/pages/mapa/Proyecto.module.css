@@ -188,20 +188,6 @@
   height: 100%;
 }
 
-.noImageLayout {
-  display: block;
-}
-
-.noImageLayout .infoSection {
-  width: 100%;
-}
-
-.noImageLayout .noImage {
-  width: auto;
-  height: 120px;
-  margin: 24px 24px 0;
-}
-
 .mobileTopHeader {
   display: none;
 }
@@ -354,84 +340,52 @@
 
 .mobileContactRow {
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 68px;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   margin: 0;
-  padding: 0;
-  align-items: stretch;
 }
 
 .pantallaContactos {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: 68px;
-  gap: 12px;
-  width: 100%;
-  max-width: 420px;
-  margin-left: auto;
-  flex: 1 1 0;
-  align-items: stretch;
-}
-
-.mobileContactRow > :nth-child(1),
-.pantallaContactos > :nth-child(1) {
-  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 
 .mobileContactRow .mobileContactBtn,
 .mobileContactRow .contactMiniBtn {
   width: 100%;
-  max-width: none;
-  min-height: 68px;
+  max-width: 260px;
+  min-height: 44px;
   font-size: 13px;
   font-weight: 700;
   font-family: inherit;
-  padding: 10px 12px;
-  justify-content: flex-start;
-  text-align: left;
-  box-sizing: border-box;
-}
-
-.mobileContactRow > *,
-.pantallaContactos > * {
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  min-height: 68px;
-  margin: 0;
-  align-self: stretch;
-  justify-self: stretch;
+  padding: 8px 12px;
+  justify-content: center;
+  text-align: center;
   box-sizing: border-box;
 }
 
 .pantallaContactos .contactMiniBtn {
-  min-height: 68px;
-  height: 68px;
-  width: 100%;
-  margin-bottom: 0;
+  min-height: 40px;
 }
 
 .mobileContactBtn {
-  min-height: 68px;
-  border-radius: 18px;
+  min-height: 30px;
+  border-radius: 12px;
   text-decoration: none;
   color: #fff;
   font-weight: 700;
   font-size: 13px;
   display: flex;
-  flex-direction: row;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  margin-bottom: 0;
-  width: 100%;
-  border: none;
-  font-family: inherit;
-  appearance: none;
-  line-height: 1;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
 }
 
 .mobileWhatsappBtn {
@@ -442,21 +396,6 @@
 .mobileCallBtn {
   background: #1d7df2;
   box-shadow: 0 8px 18px rgba(29, 125, 242, 0.28);
-}
-
-.mobileShareBtn {
-  background: linear-gradient(135deg, #22d3ee, #155e75);
-  box-shadow: 0 10px 20px rgba(21, 94, 117, 0.28);
-}
-
-.mobileFacebookBtn {
-  background: linear-gradient(135deg, #60a5fa, #1d4ed8);
-  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.26);
-}
-
-.mobileWebBtn {
-  background: linear-gradient(135deg, #94a3b8, #334155);
-  box-shadow: 0 10px 20px rgba(51, 65, 85, 0.26);
 }
 
 .mobileDisabledBtn {
@@ -480,18 +419,6 @@
   gap: 0;
   border-top: 1px solid #d4d4d8;
   border-bottom: 1px solid #d4d4d8;
-}
-
-.desktopMetricsBox {
-  margin: 12px 0 16px;
-  padding: 8px 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  border-radius: 0;
-  border: none;
-  background: transparent !important;
-  box-shadow: none;
 }
 
 .mobileMetricGroup {
@@ -648,15 +575,11 @@
 .priceContainer {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  background: transparent;
+  align-items: center;
+  background: #f8fafc;
   padding: 15px 20px;
-  border-radius: 22px;
+  border-radius: 20px;
   margin: 10px 0;
-  border: none;
-  box-shadow: none;
-  min-width: 0;
 }
 
 .labelSmall {
@@ -673,41 +596,22 @@
 }
 
 .contactMiniBtn {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: #10b981;
   color: white;
   text-decoration: none;
-  padding: 10px 12px;
-  border-radius: 18px;
+  padding: 10px 20px;
+  border-radius: 12px;
   font-weight: 700;
   font-size: 14px;
   display: flex;
-  flex-direction: row;
   align-items: center;
-  gap: 10px;
-  box-shadow: 0 12px 24px rgba(22, 163, 74, 0.22);
-  margin-bottom: 0;
-  min-height: 68px;
-  height: 68px;
-  justify-content: flex-start;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  position: relative;
-  overflow: hidden;
-  letter-spacing: 0.01em;
-  width: 100%;
-  font-family: inherit;
-  appearance: none;
-  line-height: 1;
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    filter 0.22s ease;
-}
-
-.contactMiniBtn:hover,
-.mobileContactBtn:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 20px 34px rgba(15, 23, 42, 0.22);
-  filter: saturate(1.08);
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  margin-bottom: 6px;
+  min-height: 40px;
+  height: 40px;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .pantallaContactos .contactMiniBtn {
@@ -716,87 +620,18 @@
 }
 
 .contactCallBtn {
-  background: linear-gradient(135deg, #38bdf8, #1d4ed8);
-  box-shadow: 0 16px 28px rgba(29, 78, 216, 0.28);
+  background: #1d7df2;
+  box-shadow: 0 4px 12px rgba(29, 125, 242, 0.28);
 }
 
 .contactWhatsappBtn {
-  background: linear-gradient(135deg, #22c55e, #15803d);
-  box-shadow: 0 16px 28px rgba(21, 128, 61, 0.28);
+  background: #25d366;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.28);
 }
 
 .contactShareBtn {
-  background: linear-gradient(135deg, #22d3ee, #155e75);
-  box-shadow: 0 16px 28px rgba(21, 94, 117, 0.28);
-}
-
-.contactFacebookBtn {
-  background: linear-gradient(135deg, #60a5fa, #1d4ed8);
-  box-shadow: 0 16px 28px rgba(29, 78, 216, 0.28);
-}
-
-.contactWebBtn {
-  background: linear-gradient(135deg, #94a3b8, #334155);
-  box-shadow: 0 16px 28px rgba(51, 65, 85, 0.28);
-}
-
-.contactIconWrap {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    0 8px 16px rgba(15, 23, 42, 0.12);
-  font-size: 16px;
-}
-
-.contactTextWrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.02;
-}
-
-.contactTextWrap small {
-  display: block;
-  font-size: 9px;
-  font-weight: 600;
-  opacity: 0.82;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.contactTextWrap strong {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  line-height: 1.1;
-}
-
-@media (max-width: 768px) {
-  .priceContainer {
-    gap: 14px;
-    align-items: stretch;
-    padding: 10px 0;
-  }
-
-  .pantallaContactos {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-    max-width: 100%;
-    flex-basis: auto;
-    margin-left: 0;
-  }
-
-  .aboutCard {
-    margin-right: 30px;
-  }
+  background: #0ea5e9;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.28);
 }
 
 
@@ -833,39 +668,6 @@
   color: #334155;
 }
 
-.aboutCard {
-  margin: 6px 0 18px;
-  padding: 18px 18px 16px;
-  border-radius: 20px;
-  background:
-    radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), transparent 32%),
-    linear-gradient(145deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.92));
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
-}
-
-.aboutHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.aboutHeader .sectionTitle {
-  margin: 0;
-}
-
-.aboutBadge {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(16, 110, 46, 0.1);
-  color: #106e2e;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .divider {
   margin: 30px 0;
   border: 0;
@@ -876,7 +678,6 @@
   line-height: 1.6;
   color: #475569;
   font-size: 14px;
-  margin: 12px 0 0;
 }
 
 .featuresGrid {
@@ -1453,7 +1254,6 @@
 
 [data-theme="dark"] .imageSection,
 [data-theme="dark"] .priceContainer,
-[data-theme="dark"] .aboutCard,
 [data-theme="dark"] .qBadge,
 [data-theme="dark"] .fItem,
 [data-theme="dark"] .distanciaBox,
@@ -1462,24 +1262,6 @@
 [data-theme="dark"] .noImage {
   background: var(--theme-bg-soft);
   border-color: var(--theme-border-color);
-}
-
-[data-theme="dark"] .aboutBadge {
-  background: color-mix(in srgb, #10b981 18%, var(--theme-bg-soft));
-  color: #86efac;
-}
-
-[data-theme="dark"] .contactMiniBtn,
-[data-theme="dark"] .mobileContactBtn {
-  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.35);
-}
-
-[data-theme="dark"] .contactIconWrap {
-  background: color-mix(in srgb, var(--theme-bg-surface) 45%, rgba(255, 255, 255, 0.12));
-  border-color: color-mix(in srgb, var(--theme-border-color) 80%, transparent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 8px 16px rgba(2, 6, 23, 0.26);
 }
 
 [data-theme="dark"] .inmoCard {

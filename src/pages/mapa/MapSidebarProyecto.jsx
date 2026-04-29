@@ -1,8 +1,6 @@
 import { withApiBase } from "../../config/api.js";
 import Viewer360Modal from "./Viewer360ModalCasa";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
 import {
   FaBed,
   FaBath,
@@ -32,8 +30,6 @@ import {
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
 import { FaChevronDown } from "react-icons/fa";
-
-gsap.registerPlugin(useGSAP);
 
 const ProyectoSidebar = ({
   inmo,
@@ -322,84 +318,6 @@ const ProyectoSidebar = ({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  useGSAP(
-    () => {
-      if (isLoading) return;
-      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-      tl.fromTo(
-        sidebarRef.current,
-        {
-          autoAlpha: 0,
-          y: isMobileView ? 80 : 40,
-          x: isMobileView ? 0 : 20,
-          scale: isMobileView ? 0.98 : 0.94,
-          rotateX: isMobileView ? 0 : 8,
-          filter: "blur(10px)",
-        },
-        {
-          autoAlpha: 1,
-          y: 0,
-          x: 0,
-          scale: 1,
-          rotateX: 0,
-          filter: "blur(0px)",
-          duration: 0.75,
-          ease: "expo.out",
-        },
-      )
-        .fromTo(
-          "[data-gsap='media']",
-          {
-            autoAlpha: 0,
-            x: isMobileView ? 0 : -56,
-            y: isMobileView ? 24 : 0,
-            scale: 1.08,
-            rotateZ: isMobileView ? 0 : -2,
-            filter: "blur(12px)",
-          },
-          {
-            autoAlpha: 1,
-            x: 0,
-            y: 0,
-            scale: 1,
-            rotateZ: 0,
-            filter: "blur(0px)",
-            duration: 0.8,
-            ease: "expo.out",
-          },
-          "-=0.55",
-        )
-        .fromTo(
-          "[data-gsap='card'], [data-gsap='metric'], [data-gsap='action']",
-          {
-            autoAlpha: 0,
-            y: 34,
-            scale: 0.92,
-            rotateX: -18,
-            transformOrigin: "50% 100%",
-          },
-          {
-            autoAlpha: 1,
-            y: 0,
-            scale: 1,
-            rotateX: 0,
-            duration: 0.7,
-            stagger: 0.09,
-            ease: "back.out(1.9)",
-          },
-          "-=0.5",
-        );
-      gsap.to("[data-gsap='metric']", {
-        boxShadow: "0 22px 60px rgba(16, 110, 46, 0.18)",
-        duration: 1.6,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut",
-      });
-    },
-    { scope: sidebarRef, dependencies: [isLoading, isMobileView, proyecto?.idproyecto], revertOnUpdate: true },
-  );
-
   const getSheetAnchors = useCallback(() => {
     if (typeof window === "undefined") {
       return { expandedTop: 0, midTop: 360, collapsedTop: 0 };
@@ -593,12 +511,15 @@ const ProyectoSidebar = ({
   };
 
   const handleScroll = () => {
-    return;
+    if (!contentRef.current) return;
+    const { scrollTop } = contentRef.current;
+    if (!expanded && scrollTop > 400) setExpanded(true);
+    if (expanded && scrollTop < 5) setExpanded(false);
   };
 
   if (!proyecto) return null;
 
-  const overlayActive = false;
+  const overlayActive = isMobileView ? false : expanded;
   // console.log("Proyecto:", proyecto);
   // console.log("Precio:", proyecto.precio);
   // console.log("Moneda:", proyecto.moneda);
@@ -675,7 +596,7 @@ const ProyectoSidebar = ({
               <p>No hay imágenes disponibles</p>
             </div>
           ) : (
-            <div className={styles.imageSection} data-gsap="media">
+            <div className={styles.imageSection}>
               {isMobileView ? (
                 <div
                   className={styles.mobileCarouselWrap}
@@ -817,10 +738,22 @@ const ProyectoSidebar = ({
               </div>
             ) : (
               <>
+                {/* FLECHA SCROLL */}
+                {!isMobileView && !expanded && (
+                  <div
+                    className={styles.scrollHint}
+                    onClick={() =>
+                      contentRef.current?.scrollTo({ top: 500, behavior: "smooth" })
+                    }
+                  >
+                    <FaChevronDown />
+                    <span>Desliza</span>
+                  </div>
+                )}
+
                 <div className={styles.primeInfo}>
                   <div
                     className={`${styles.inmoCard} ${isMobileView && validImages.length > 0 ? styles.mobileInmoCard : ""}`}
-                    data-gsap="card"
                   >
                     <div className={styles.inmoHeader}>
                       <div className={styles.inmoIcon}>🏢</div>
@@ -842,7 +775,7 @@ const ProyectoSidebar = ({
 
                   <br />
                   {images360.length > 0 && (
-                    <button onClick={() => setShow360(true)} className={styles.btn360} data-gsap="action">
+                    <button onClick={() => setShow360(true)} className={styles.btn360}>
                       <FaGlobe className={styles.icon360} />
                       Ver Tour 360°
                     </button>
@@ -863,44 +796,8 @@ const ProyectoSidebar = ({
                     {proyecto.nombreproyecto}
                   </h1>
                   {/* <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p> */}
-                  {isMobileView ? (
-                    <div className={styles.mobileMetricsBox} data-gsap="metric">
-                      <div className={styles.mobileMetricsRow}>
-                        <div className={styles.mobileMetricGroup}>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {carMinutes}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>MIN</span>
-                            <FaCar className={styles.mobileMetricIcon} />
-                          </div>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {carKm}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>KM</span>
-                          </div>
-                        </div>
-                        <div className={styles.mobileMetricDivider}></div>
-                        <div className={styles.mobileMetricGroup}>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {walkMinutes}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>MIN</span>
-                            <FaWalking className={styles.mobileMetricIcon} />
-                          </div>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {walkKm}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>KM</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className={styles.desktopMetricsBox} data-gsap="metric">
+                  {isMobileView && (
+                    <div className={styles.mobileMetricsBox}>
                       <div className={styles.mobileMetricsRow}>
                         <div className={styles.mobileMetricGroup}>
                           <div className={styles.mobileMetricItem}>
@@ -937,7 +834,7 @@ const ProyectoSidebar = ({
                     </div>
                   )}
 
-                  <div className={styles.priceContainer} data-gsap="card">
+                  <div className={styles.priceContainer}>
                     {proyecto.precio > 0 && (
                       <div className={styles.priceRow}>
 
@@ -963,72 +860,28 @@ const ProyectoSidebar = ({
                           target="_blank"
                           rel="noreferrer"
                           className={`${styles.mobileContactBtn} ${styles.mobileWhatsappBtn}`}
-                          data-gsap="action"
                           onClick={() => registrarClickContacto("Whatsapp")}
                         >
-                          <span className={styles.contactIconWrap}><FaWhatsapp /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Respuesta rápida</small>
-                            <strong>Contactar</strong>
-                          </span>
+                          <FaWhatsapp />
+                          WhatsApp
                         </a>
 
                         <a
                           href={phoneNumber ? `tel:${phoneNumber}` : undefined}
                           className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
-                          data-gsap="action"
                           onClick={() => registrarClickContacto("Llamada")}
                         >
-                          <span className={styles.contactIconWrap}><FaPhoneAlt /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Atención directa</small>
-                            <strong>Llamar</strong>
-                          </span>
+                          <FaPhoneAlt /> Llamar
                         </a>
 
                         <button
                           type="button"
-                          className={`${styles.mobileContactBtn} ${styles.mobileShareBtn}`}
-                          data-gsap="action"
+                          className={`${styles.mobileContactBtn} ${styles.mobileWhatsappBtn}`}
                           onClick={handleShare}
                           disabled={!shareUrl}
                         >
-                          <span className={styles.contactIconWrap}><FaShareAlt /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Enviar enlace</small>
-                            <strong>Compartir</strong>
-                          </span>
+                          <FaShareAlt /> Compartir
                         </button>
-
-                        <a
-                          href={facebookHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`${styles.mobileContactBtn} ${styles.mobileFacebookBtn}`}
-                          data-gsap="action"
-                          onClick={() => registrarClickContacto("Facebook")}
-                        >
-                          <span className={styles.contactIconWrap}><FaFacebook /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Ver Perfil</small>
-                            <strong>Facebook</strong>
-                          </span>
-                        </a>
-
-                        <a
-                          href={webHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`${styles.mobileContactBtn} ${styles.mobileWebBtn}`}
-                          data-gsap="action"
-                          onClick={() => registrarClickContacto("Web")}
-                        >
-                          <span className={styles.contactIconWrap}><FaGlobe /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Ver Más</small>
-                            <strong>Web</strong>
-                          </span>
-                        </a>
                       </div>
                     ) : (
                       <div className={styles.pantallaContactos}>
@@ -1038,75 +891,50 @@ const ProyectoSidebar = ({
                           target="_blank"
                           rel="noreferrer"
                           className={`${styles.contactMiniBtn} ${styles.contactWhatsappBtn}`}
-                          data-gsap="action"
                           onClick={() => registrarClickContacto("Whatsapp")}
                         >
-                          <span className={styles.contactIconWrap}><FaWhatsapp /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Respuesta rápida</small>
-                            <strong>Contactar</strong>
-                          </span>
+                          <FaWhatsapp /> Contactar
                         </a>
 
                         <a
                           href={phoneNumber ? `tel:${phoneNumber}` : undefined}
                           className={`${styles.contactMiniBtn} ${styles.contactCallBtn}`}
-                          data-gsap="action"
                           onClick={() => registrarClickContacto("Llamada")}
                         >
-                          <span className={styles.contactIconWrap}><FaPhoneAlt /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Atención directa</small>
-                            <strong>Llamar</strong>
-                          </span>
+                          <FaPhoneAlt /> Llamar
                         </a>
 
                         <button
                           type="button"
                           className={`${styles.contactMiniBtn} ${styles.contactShareBtn}`}
-                          data-gsap="action"
                           onClick={handleShare}
                           disabled={!shareUrl}
                         >
-                          <span className={styles.contactIconWrap}><FaShareAlt /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Enviar enlace</small>
-                            <strong>Compartir</strong>
-                          </span>
+                          <FaShareAlt /> Compartir
                         </button>
-
-                        <a
-                          href={facebookHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`${styles.contactMiniBtn} ${styles.contactFacebookBtn}`}
-                          data-gsap="action"
-                          onClick={() => registrarClickContacto("Facebook")}
-                        >
-                          <span className={styles.contactIconWrap}><FaFacebook /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Ver Perfil</small>
-                            <strong>Facebook</strong>
-                          </span>
-                        </a>
-
-                        <a
-                          href={webHref}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`${styles.contactMiniBtn} ${styles.contactWebBtn}`}
-                          data-gsap="action"
-                          onClick={() => registrarClickContacto("Web")}
-                        >
-                          <span className={styles.contactIconWrap}><FaGlobe /></span>
-                          <span className={styles.contactTextWrap}>
-                            <small>Ver Más</small>
-                            <strong>Web</strong>
-                          </span>
-                        </a>
                       </div>
                     )}
                   </div>
+                  {isMobileView && (
+                    <div className={styles.mobileSocialRow}>
+                      <a
+                        href={facebookHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => registrarClickContacto("Facebook")}
+                      >
+                        <FaFacebook />
+                      </a>
+                      <a
+                        href={webHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => registrarClickContacto("Web")}
+                      >
+                        <FaGlobe />
+                      </a>
+                    </div>
+                  )}
                   {proyecto.area_total_m2 > 0 && (
                     <div className={styles.quickGrid}>
                       <div className={styles.qBadge}>
@@ -1138,12 +966,8 @@ const ProyectoSidebar = ({
                 <div className={styles.extraContent}>
                   {/* <hr className={styles.divider} /> */}
                   <br></br>
-                  <div className={styles.aboutCard}>
-                    <div className={styles.aboutHeader}>
-                      <h3 className={styles.sectionTitle}>Acerca del Proyecto</h3>
-                    </div>
-                    <p className={styles.fullDescription}>{proyecto.descripcion}</p>
-                  </div>
+                  <h3 className={styles.sectionTitle}>Acerca del Proyecto</h3>
+                  <p className={styles.fullDescription}>{proyecto.descripcion}</p>
 
                   {proyecto.idtipoinmobiliaria === 2 && (
                     <>
@@ -1198,13 +1022,32 @@ const ProyectoSidebar = ({
 
                   {!isMobileView && (
                     <>
-                      {/* <h3 className={styles.sectionTitle}>
+                      <h3 className={styles.sectionTitle}>
                         Distancia (actual o buscada)
-                      </h3> */}
-                      {/* <div className={styles.distanciaBox}>
+                      </h3>
+                      <div className={styles.distanciaBox}>
                         <span>🚶 {walkingInfo?.duration || "Calc..."}</span>
                         <span>🚗 {drivingInfo?.duration || "Calc..."}</span>
-                      </div> */}
+                      </div>
+
+                      <div className={styles.socialFooter}>
+                        <a
+                          href={facebookHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => registrarClickContacto("Facebook")}
+                        >
+                          <FaFacebook />
+                        </a>
+                        <a
+                          href={webHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => registrarClickContacto("Web")}
+                        >
+                          <FaGlobe />
+                        </a>
+                      </div>
                     </>
                   )}
                 </div>
