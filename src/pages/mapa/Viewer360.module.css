@@ -4,7 +4,11 @@
   width: 100vw;
   height: 100dvh;
   background:
-    radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 32%),
+    radial-gradient(
+      circle at top left,
+      rgba(34, 197, 94, 0.16),
+      transparent 32%
+    ),
     linear-gradient(135deg, #020607 0%, #07110c 45%, #0b0f12 100%);
   z-index: 9999;
   display: grid;
@@ -25,7 +29,12 @@
   position: absolute;
   inset: 0 0 auto 0;
   padding: 24px 30px 90px;
-  background: linear-gradient(180deg, rgba(2, 6, 7, 0.86), rgba(2, 6, 7, 0.44), transparent);
+  background: linear-gradient(
+    180deg,
+    rgba(2, 6, 7, 0.86),
+    rgba(2, 6, 7, 0.44),
+    transparent
+  );
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -74,6 +83,82 @@
   font-size: 0.95rem;
 }
 
+.projectName {
+  margin: 8px 0 0;
+  color: #22d3ee;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.geoHabitaBranding {
+  position: absolute;
+  top: 90px;
+  left: 24px;
+  z-index: 22;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: rgba(2, 6, 7, 0.72);
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(16px);
+}
+
+.logo {
+  height: 55px;
+  /* ⬅ más visible */
+}
+
+.brandLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandLogo img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.brandLogo span {
+  color: #22d3ee;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.brandStats {
+  display: flex;
+  gap: 16px;
+}
+
+.brandStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.statValue {
+  color: #f8fff9;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.statLabel {
+  color: rgba(220, 252, 231, 0.62);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .closeBtn {
   pointer-events: auto;
   display: inline-flex;
@@ -86,7 +171,10 @@
   border-radius: 999px;
   cursor: pointer;
   backdrop-filter: blur(14px);
-  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .closeBtn:hover {
@@ -101,6 +189,241 @@
   min-height: 0;
 }
 
+.brandName {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  font-family: "Inter", "Poppins", system-ui, sans-serif;
+}
+
+.geo {
+  color: var(--theme-text-main);
+  font-weight: 900;
+}
+
+.habita {
+  color: #0ea66b;
+  font-weight: 800;
+  /* margin-left: 2px; */
+}
+
+.loteDrawer {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  bottom: 24px;
+  width: min(360px, calc(100% - 48px));
+  z-index: 24;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 26px;
+  color: #ecfdf3;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(34, 197, 94, 0.14),
+      transparent 28%
+    ),
+    linear-gradient(180deg, rgba(3, 9, 8, 0.96), rgba(5, 13, 12, 0.94));
+  border: 1px solid rgba(134, 239, 172, 0.18);
+  box-shadow:
+    0 28px 64px rgba(0, 0, 0, 0.42),
+    0 0 34px rgba(34, 197, 94, 0.12);
+  backdrop-filter: blur(18px);
+  overflow: auto;
+}
+
+.loteDrawerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.loteDrawerHeader h4 {
+  margin: 6px 0 8px;
+  font-size: 1.34rem;
+  color: #f8fff9;
+  line-height: 1.05;
+}
+
+.loteDrawerHeader p {
+  margin: 0;
+  color: rgba(220, 252, 231, 0.68);
+  font-size: 0.84rem;
+}
+
+.loteDrawerEyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.loteActionButtons {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.actionBtnWhatsApp,
+.actionBtnCall,
+.actionBtnShare {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.actionBtnWhatsApp {
+  background: linear-gradient(135deg, #25d366, #128c7e);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.actionBtnWhatsApp:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(37, 211, 102, 0.4);
+}
+
+.actionBtnCall {
+  background: linear-gradient(135deg, #34b7f1, #2a9d8f);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.actionBtnCall:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(52, 183, 241, 0.4);
+}
+
+.actionBtnShare {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ecfdf3;
+}
+
+.actionBtnShare:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.loteDrawerClose {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ecfdf3;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.loteDrawerClose:hover {
+  transform: translateY(-1px);
+  background: rgba(239, 68, 68, 0.82);
+}
+
+.loteDrawerHero {
+  padding: 16px;
+  border-radius: 22px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(34, 211, 238, 0.12),
+      transparent 32%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.02)
+    );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.loteDrawerStatusWrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.loteDrawerPriceBlock small {
+  display: block;
+  color: rgba(220, 252, 231, 0.58);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.loteDrawerPriceBlock strong {
+  color: #f8fff9;
+  font-size: 1.8rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.loteDrawerMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.loteMetaCard {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.loteMetaCard span {
+  display: block;
+  color: rgba(220, 252, 231, 0.58);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.loteMetaCard strong {
+  display: block;
+  color: #f8fff9;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
 .viewerContainer {
   width: 100%;
   height: 100%;
@@ -110,6 +433,116 @@
 
 .viewerContainer canvas {
   display: block;
+}
+
+.viewerHud {
+  position: absolute;
+  inset: auto 24px 88px 24px;
+  z-index: 21;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+  pointer-events: none;
+}
+
+.hudCluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hudPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: #ecfdf5;
+  background: rgba(2, 6, 7, 0.62);
+  border: 1px solid rgba(134, 239, 172, 0.24);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(14px);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.orientationCard {
+  min-width: 150px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 22px;
+  color: #ecfdf5;
+  background: rgba(2, 6, 7, 0.68);
+  border: 1px solid rgba(134, 239, 172, 0.22);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(14px);
+}
+
+.orientationDial {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(240, 253, 244, 0.12),
+      rgba(2, 6, 7, 0.7) 62%
+    ),
+    conic-gradient(
+      from 180deg,
+      rgba(34, 197, 94, 0.22),
+      rgba(20, 184, 166, 0.1),
+      rgba(34, 197, 94, 0.22)
+    );
+  border: 1px solid rgba(187, 247, 208, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.orientationNeedle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 22px;
+  background: linear-gradient(180deg, #ecfeff, #22d3ee 62%, transparent 100%);
+  transform-origin: center bottom;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.48);
+}
+
+.orientationCenter {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #f0fdf4;
+}
+
+.orientationMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orientationMeta strong {
+  color: #f8fff9;
+  font-size: 1.02rem;
+}
+
+.orientationMeta span {
+  color: rgba(220, 252, 231, 0.64);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .projectOverlayLayerPublic {
@@ -184,6 +617,21 @@
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(14px);
   font-size: 0.9rem;
+  overflow: hidden;
+}
+
+.hotspotHint::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(236, 254, 255, 0.2) 48%,
+    transparent 82%
+  );
+  transform: translateX(-130%);
+  animation: hintSweep 3.6s ease-in-out infinite;
 }
 
 .travelOverlay {
@@ -194,7 +642,12 @@
   place-items: center;
   pointer-events: none;
   overflow: hidden;
-  background: radial-gradient(circle at center, rgba(236, 253, 245, 0.1), rgba(2, 6, 7, 0.42) 58%, rgba(2, 6, 7, 0.7));
+  background: radial-gradient(
+    circle at center,
+    rgba(236, 253, 245, 0.1),
+    rgba(2, 6, 7, 0.42) 58%,
+    rgba(2, 6, 7, 0.7)
+  );
   animation: travelFade 0.9s ease forwards;
 }
 
@@ -220,8 +673,22 @@
   aspect-ratio: 1;
   border-radius: 50%;
   background:
-    radial-gradient(circle, transparent 0 22%, rgba(236, 253, 245, 0.28) 23%, transparent 24% 35%, rgba(34, 197, 94, 0.18) 36%, transparent 38% 100%),
-    conic-gradient(from 0deg, transparent, rgba(187, 247, 208, 0.36), transparent, rgba(20, 184, 166, 0.28), transparent);
+    radial-gradient(
+      circle,
+      transparent 0 22%,
+      rgba(236, 253, 245, 0.28) 23%,
+      transparent 24% 35%,
+      rgba(34, 197, 94, 0.18) 36%,
+      transparent 38% 100%
+    ),
+    conic-gradient(
+      from 0deg,
+      transparent,
+      rgba(187, 247, 208, 0.36),
+      transparent,
+      rgba(20, 184, 166, 0.28),
+      transparent
+    );
   filter: blur(0.2px);
   animation: travelTunnel 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -238,7 +705,9 @@
   border-radius: 8px;
   color: #ecfdf5;
   background: rgba(4, 17, 11, 0.78);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34), 0 0 34px rgba(34, 197, 94, 0.22);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.34),
+    0 0 34px rgba(34, 197, 94, 0.22);
   font-weight: 900;
   text-align: center;
   backdrop-filter: blur(16px);
@@ -260,7 +729,9 @@
   cursor: pointer;
   transform: translateY(-50%);
   backdrop-filter: blur(12px);
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
 }
 
 .navBtn:hover {
@@ -268,8 +739,12 @@
   transform: translateY(-50%) scale(1.06);
 }
 
-.prev { left: 24px; }
-.next { right: 24px; }
+.prev {
+  left: 24px;
+}
+.next {
+  right: 24px;
+}
 
 .loteInfoPanel {
   margin: 0 16px 16px;
@@ -278,7 +753,9 @@
   background:
     linear-gradient(180deg, rgba(9, 17, 14, 0.94), rgba(3, 9, 8, 0.92)),
     rgba(4, 17, 11, 0.86);
-  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.46), 0 0 34px rgba(34, 197, 94, 0.12);
+  box-shadow:
+    0 22px 58px rgba(0, 0, 0, 0.46),
+    0 0 34px rgba(34, 197, 94, 0.12);
   color: #ecfdf3;
   padding: 15px;
   backdrop-filter: blur(18px);
@@ -337,6 +814,38 @@
   padding: 14px;
   color: rgba(236, 253, 243, 0.72);
   font-size: 0.88rem;
+}
+
+.loteInfoStatusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.loteStatusChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 98px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #031007;
+  background: var(--lot-status-color, #22c55e);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 22px
+    color-mix(in srgb, var(--lot-status-color, #22c55e) 35%, transparent);
+}
+
+.loteInfoAssist {
+  color: rgba(220, 252, 231, 0.56);
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .loteInfoPrice {
@@ -404,7 +913,7 @@
   height: 100dvh;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 0;
   overflow: hidden;
   background:
@@ -412,6 +921,247 @@
     radial-gradient(circle at top, rgba(34, 197, 94, 0.12), transparent 36%);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: -24px 0 60px rgba(0, 0, 0, 0.34);
+}
+
+:global(.psv-marker.gh-portal-lot-marker) {
+  opacity: 1;
+}
+
+:global(.psv-marker.gh-portal-lot-marker.gh-lot-selected) {
+  z-index: 12;
+}
+
+:global(.psv-marker.gh-portal-lot-marker svg),
+:global(.psv-marker.gh-portal-lot-marker path),
+:global(.psv-marker.gh-portal-lot-marker polygon) {
+  transition: opacity 0.18s ease;
+}
+
+:global(.psv-marker.gh-portal-hotspot-marker) {
+  opacity: 1;
+}
+
+:global(.psv-tooltip) {
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(134, 239, 172, 0.24);
+  background: rgba(3, 9, 8, 0.92);
+  color: #ecfdf5;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(16px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.experiencePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.015)
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(34, 197, 94, 0.12),
+      transparent 40%
+    );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.experienceHeader {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #bbf7d0;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.experienceStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.experienceStat {
+  min-width: 0;
+  padding: 12px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.experienceStat strong {
+  display: block;
+  color: #f8fff9;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.experienceStat span {
+  color: rgba(220, 252, 231, 0.62);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lotLegend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lotLegendItem {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.lotLegendSwatch {
+  width: 24px;
+  height: 12px;
+  flex: 0 0 24px;
+  border-radius: 999px;
+  background: var(--legend-color, #22c55e);
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  outline: 1px solid rgba(2, 6, 7, 0.36);
+}
+
+.lotLegendItem small {
+  color: rgba(220, 252, 231, 0.72);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.minimapCard {
+  padding: 14px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top, rgba(34, 197, 94, 0.12), transparent 36%),
+    linear-gradient(180deg, rgba(3, 9, 8, 0.96), rgba(6, 16, 14, 0.94));
+  border: 1px solid rgba(134, 239, 172, 0.16);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+.minimapHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #dcfce7;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.minimapCanvas {
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(240, 253, 244, 0.05),
+      transparent 58%
+    ),
+    linear-gradient(180deg, rgba(2, 6, 7, 0.82), rgba(9, 17, 14, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.minimapSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.minimapLotGroup {
+  cursor: pointer;
+}
+
+.minimapProjectPolygon {
+  fill: rgba(20, 83, 45, 0.22);
+  stroke: rgba(34, 197, 94, 0.3);
+  stroke-width: 10;
+  stroke-linejoin: round;
+}
+
+.minimapLotShadow {
+  fill: var(--lot-shadow-color, #166534);
+  fill-opacity: 0.52;
+  stroke: rgba(2, 6, 7, 0.34);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.minimapLot {
+  fill: var(--lot-color, #22c55e);
+  fill-opacity: 0.72;
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  transition:
+    fill-opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.minimapLotSelected {
+  fill: #22d3ee;
+  fill-opacity: 0.9;
+  stroke: #ecfeff;
+  stroke-width: 3.8;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.5));
+}
+
+.minimapLotGroup:hover .minimapLot {
+  fill-opacity: 0.88;
+}
+
+.minimapLotGroup:hover .minimapLotShadow {
+  fill-opacity: 0.7;
+}
+
+.minimapLotLabel {
+  fill: rgba(248, 255, 249, 0.94);
+  font-size: 10px;
+  font-weight: 900;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.minimapCamera {
+  transform-origin: center;
+}
+
+.minimapCameraDot {
+  fill: #f8fff9;
+  stroke: rgba(34, 197, 94, 0.48);
+  stroke-width: 3;
+}
+
+.minimapCameraArrow {
+  fill: #22d3ee;
+  stroke: rgba(236, 254, 255, 0.86);
+  stroke-width: 1.5;
 }
 
 .galleryHeader {
@@ -441,7 +1191,9 @@
   text-transform: none;
 }
 
-.greenText { color: #86efac; }
+.greenText {
+  color: #86efac;
+}
 
 .galleryList {
   overflow-y: auto;
@@ -466,7 +1218,11 @@
   gap: 10px;
   padding: 10px;
   opacity: 0.72;
-  transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .galleryItem:hover,
@@ -484,7 +1240,12 @@
   border-radius: 13px;
   overflow: hidden;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(134, 239, 172, 0.12), rgba(255, 255, 255, 0.04)),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(134, 239, 172, 0.12),
+      rgba(255, 255, 255, 0.04)
+    ),
     #08100c;
   background-size: 220% 100%;
   animation: thumbLoading 1.4s ease-in-out infinite;
@@ -577,7 +1338,11 @@
   cursor: pointer;
   text-align: left;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .hotspotItem:hover {
@@ -585,7 +1350,9 @@
   background:
     linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(20, 184, 166, 0.14)),
     rgba(4, 17, 11, 0.9);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24), 0 0 26px rgba(34, 197, 94, 0.16);
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.24),
+    0 0 26px rgba(34, 197, 94, 0.16);
   transform: translateX(3px);
 }
 
@@ -597,7 +1364,9 @@
   border-radius: 8px;
   color: #052016;
   background: linear-gradient(135deg, #ecfdf5, #86efac 55%, #10b981);
-  box-shadow: 0 0 0 5px rgba(134, 239, 172, 0.1), 0 10px 20px rgba(0, 0, 0, 0.24);
+  box-shadow:
+    0 0 0 5px rgba(134, 239, 172, 0.1),
+    0 10px 20px rgba(0, 0, 0, 0.24);
 }
 
 .hotspotItem strong,
@@ -635,6 +1404,17 @@
 
   100% {
     background-position: -110% 0;
+  }
+}
+
+@keyframes hintSweep {
+  0%,
+  74% {
+    transform: translateX(-130%);
+  }
+
+  100% {
+    transform: translateX(130%);
   }
 }
 
@@ -725,7 +1505,7 @@
   .sideGallery {
     height: 250px;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
@@ -736,7 +1516,7 @@
   }
 
   .galleryList {
-    grid-row: 2 / 4;
+    grid-row: 3 / 5;
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
@@ -750,7 +1530,7 @@
 
   .hotspotsPanel {
     grid-column: 2;
-    grid-row: 3;
+    grid-row: 4;
     max-height: none;
     border-top: none;
     border-left: 1px solid rgba(255, 255, 255, 0.08);
@@ -761,10 +1541,26 @@
     bottom: 14px;
   }
 
-  .loteInfoPanel {
-    grid-column: 2;
-    grid-row: 2;
-    margin: 0 12px 12px;
+  .viewerHud {
+    inset: auto 14px 72px 14px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .orientationCard {
+    align-self: flex-end;
+  }
+
+  .loteDrawer {
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: min(320px, calc(100% - 32px));
+  }
+
+  .experiencePanel {
+    grid-column: 1 / -1;
+    padding: 14px 16px;
   }
 
   .projectOverlayCardPublic {
@@ -772,8 +1568,12 @@
     max-width: calc(100% - 22px);
   }
 
-  .prev { left: 14px; }
-  .next { right: 14px; }
+  .prev {
+    left: 14px;
+  }
+  .next {
+    right: 14px;
+  }
 }
 
 @media (max-width: 620px) {
@@ -793,7 +1593,7 @@
   }
 
   .galleryList,
-  .loteInfoPanel,
+  .experiencePanel,
   .hotspotsPanel {
     grid-column: auto;
     grid-row: auto;
@@ -806,12 +1606,49 @@
     overflow: visible;
   }
 
-  .loteInfoPanel {
-    margin: 0 12px 12px;
+  .loteDrawer {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: 56dvh;
   }
 
   .loteInfoGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .loteDrawerMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .viewerHud {
+    inset: auto 12px 68px 12px;
+  }
+
+  .hudPill {
+    padding: 9px 12px;
+    font-size: 0.74rem;
+  }
+
+  .orientationCard {
+    min-width: 132px;
+    padding: 10px 12px;
+  }
+
+  .orientationDial {
+    width: 50px;
+    height: 50px;
+    flex-basis: 50px;
+  }
+
+  .experienceStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lotLegend {
+    grid-template-columns: 1fr;
   }
 
   .galleryList {

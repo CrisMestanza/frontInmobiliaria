@@ -1,6 +1,12 @@
 import { withApiBase } from "../../config/api.js";
 import Viewer360Modal from "./Viewer360ModalCasa";
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import {
@@ -38,7 +44,7 @@ gsap.registerPlugin(useGSAP);
 const ProyectoSidebar = ({
   inmo,
   proyecto,
-  imagenes = [],
+  imagenes,
   onClose,
   walkingInfo,
   drivingInfo,
@@ -74,34 +80,38 @@ const ProyectoSidebar = ({
   const nestedStartAtBottom = useRef(false);
   const nestedScrollableTarget = useRef(null);
   const previousSheetStateRef = useRef(null);
+  const imagesPending = imagenes === null;
+  const imageItems = Array.isArray(imagenes) ? imagenes : [];
   const validImages = useMemo(
     () =>
-      imagenes.filter((img) => {
+      imageItems.filter((img) => {
         const src = img?.imagenproyecto;
         if (typeof src !== "string") return false;
         const trimmed = src.trim();
         if (!trimmed) return false;
         return !trimmed.toLowerCase().includes("no hay imagenes referenciales");
       }),
-    [imagenes],
+    [imageItems],
   );
 
   // 360
   useEffect(() => {
     if (proyecto?.idproyecto) {
-      console.log("Proyecto: ", proyecto.idproyecto)
-      fetch(`https://api.geohabita.com/api/get_imagen_360_casa/${proyecto.idproyecto}/`)
-        .then(res => res.json())
-        .then(data => setImages360(data))
-        .catch(err => console.error("Error cargando 360:", err));
+      console.log("Proyecto: ", proyecto.idproyecto);
+      fetch(
+        `https://api.geohabita.com/api/get_imagen_360_casa/${proyecto.idproyecto}/`,
+      )
+        .then((res) => res.json())
+        .then((data) => setImages360(data))
+        .catch((err) => console.error("Error cargando 360:", err));
     }
   }, [proyecto?.idproyecto]);
 
   const mensajeWhatsapp = encodeURIComponent(
     `Hola, vengo desde GeoHabita.\n` +
-    `Estoy interesado en el proyecto *"${proyecto.nombreproyecto}"*.\n` +
-    `Me gustaría recibir más información sobre disponibilidad, valor y formas de pago.\n` +
-    `¡Quedo atento(a)!`,
+      `Estoy interesado en el proyecto *"${proyecto.nombreproyecto}"*.\n` +
+      `Me gustaría recibir más información sobre disponibilidad, valor y formas de pago.\n` +
+      `¡Quedo atento(a)!`,
   );
   const phoneNumber = useMemo(() => {
     const raw =
@@ -152,6 +162,15 @@ const ProyectoSidebar = ({
     if (!inmoId || !proyectoId) return "";
     return `${window.location.origin}/mapa/${inmoId}?proyecto=${proyectoId}`;
   }, [inmo, proyecto]);
+  const projectNameWords = useMemo(
+    () =>
+      String(proyecto?.nombreproyecto || "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean),
+    [proyecto?.nombreproyecto],
+  );
+  const isCasaProject = Number(proyecto?.idtipoinmobiliaria) === 2;
 
   const handleShare = async () => {
     if (!shareUrl) return;
@@ -174,7 +193,6 @@ const ProyectoSidebar = ({
     }
     window.prompt("Copia el link para compartir:", shareUrl);
   };
-
 
   const prevImgIndex =
     validImages.length > 0
@@ -240,13 +258,9 @@ const ProyectoSidebar = ({
     if (Math.abs(distance) < carouselSwipeDistance) return;
 
     if (distance > 0) {
-      setCurrentImg((prev) =>
-        prev === validImages.length - 1 ? 0 : prev + 1,
-      );
+      setCurrentImg((prev) => (prev === validImages.length - 1 ? 0 : prev + 1));
     } else {
-      setCurrentImg((prev) =>
-        prev === 0 ? validImages.length - 1 : prev - 1,
-      );
+      setCurrentImg((prev) => (prev === 0 ? validImages.length - 1 : prev - 1));
     }
   };
 
@@ -266,18 +280,21 @@ const ProyectoSidebar = ({
 
   const registrarClickContacto = async (redSocial) => {
     try {
-      await fetch(withApiBase("https://api.geohabita.com/api/registerClickContactos/"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      await fetch(
+        withApiBase("https://api.geohabita.com/api/registerClickContactos/"),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            idproyecto: proyecto.idproyecto,
+            dia: new Date().toISOString().split("T")[0], // YYYY-MM-DD
+            hora: new Date().toLocaleTimeString(), // HH:MM:SS
+            redSocial: redSocial,
+          }),
         },
-        body: JSON.stringify({
-          idproyecto: proyecto.idproyecto,
-          dia: new Date().toISOString().split("T")[0], // YYYY-MM-DD
-          hora: new Date().toLocaleTimeString(), // HH:MM:SS
-          redSocial: redSocial,
-        }),
-      });
+      );
       console.log(`Click registrado en ${redSocial}`);
     } catch (error) {
       console.error("Error registrando click:", error);
@@ -397,7 +414,11 @@ const ProyectoSidebar = ({
         ease: "sine.inOut",
       });
     },
-    { scope: sidebarRef, dependencies: [isLoading, isMobileView, proyecto?.idproyecto], revertOnUpdate: true },
+    {
+      scope: sidebarRef,
+      dependencies: [isLoading, isMobileView, proyecto?.idproyecto],
+      revertOnUpdate: true,
+    },
   );
 
   const getSheetAnchors = useCallback(() => {
@@ -420,23 +441,32 @@ const ProyectoSidebar = ({
     };
   }, [mapHeaderOffsetPx]);
 
-  const clampSheetTop = useCallback((top) => {
-    const { expandedTop, collapsedTop } = getSheetAnchors();
-    return Math.min(Math.max(top, expandedTop), collapsedTop);
-  }, [getSheetAnchors]);
+  const clampSheetTop = useCallback(
+    (top) => {
+      const { expandedTop, collapsedTop } = getSheetAnchors();
+      return Math.min(Math.max(top, expandedTop), collapsedTop);
+    },
+    [getSheetAnchors],
+  );
 
-  const getModeByTop = useCallback((top) => {
-    const { expandedTop, collapsedTop } = getSheetAnchors();
-    if (top <= expandedTop + 24) return "expanded";
-    if (top >= collapsedTop - 24) return "collapsed";
-    return "mid";
-  }, [getSheetAnchors]);
+  const getModeByTop = useCallback(
+    (top) => {
+      const { expandedTop, collapsedTop } = getSheetAnchors();
+      if (top <= expandedTop + 24) return "expanded";
+      if (top >= collapsedTop - 24) return "collapsed";
+      return "mid";
+    },
+    [getSheetAnchors],
+  );
 
-  const setSheetTopAndMode = useCallback((nextTop) => {
-    const safeTop = clampSheetTop(nextTop);
-    setMobileSheetTop(safeTop);
-    setSheetMode(getModeByTop(safeTop));
-  }, [clampSheetTop, getModeByTop]);
+  const setSheetTopAndMode = useCallback(
+    (nextTop) => {
+      const safeTop = clampSheetTop(nextTop);
+      setMobileSheetTop(safeTop);
+      setSheetMode(getModeByTop(safeTop));
+    },
+    [clampSheetTop, getModeByTop],
+  );
 
   useEffect(() => {
     if (!isMobileView || typeof window === "undefined") {
@@ -482,8 +512,7 @@ const ProyectoSidebar = ({
     if (!isMobileView) return;
     sheetTouchStartY.current = e.targetTouches[0].clientY;
     sheetTouchDeltaY.current = 0;
-    sheetTouchStartTop.current =
-      mobileSheetTop ?? getSheetAnchors().midTop;
+    sheetTouchStartTop.current = mobileSheetTop ?? getSheetAnchors().midTop;
     setIsSheetDragging(true);
     e.stopPropagation();
   };
@@ -626,12 +655,12 @@ const ProyectoSidebar = ({
         style={
           isMobileView && mobileSheetTop !== null
             ? {
-              top: `${mobileSheetTop}px`,
-              height: `calc(100dvh - ${mobileSheetTop}px)`,
-              transition: isSheetDragging
-                ? "none"
-                : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
-            }
+                top: `${mobileSheetTop}px`,
+                height: `calc(100dvh - ${mobileSheetTop}px)`,
+                transition: isSheetDragging
+                  ? "none"
+                  : "top 0.22s cubic-bezier(0.22, 1, 0.36, 1), height 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
+              }
             : undefined
         }
       >
@@ -665,136 +694,148 @@ const ProyectoSidebar = ({
         </button>
 
         <div
-          className={`${styles.splitLayout} ${validImages.length === 0 ? styles.noImageLayout : ""} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
+          className={`${styles.splitLayout} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
           {/* SECCIÓN IMAGEN / SLIDER */}
-          {isLoading ? (
-            <div className={styles.skeletonImage} />
-          ) : validImages.length == 0 ? (
-            <div className={styles.noImage}>
-              <p>No hay imágenes disponibles</p>
-            </div>
-          ) : (
-            <div className={styles.imageSection} data-gsap="media">
-              {isMobileView ? (
-                <div
-                  className={styles.mobileCarouselWrap}
-                  onTouchStart={onCarouselTouchStart}
-                  onTouchMove={onCarouselTouchMove}
-                  onTouchEnd={onCarouselTouchEnd}
-                >
-                  {validImages.length === 1 && (
-                    <div className={styles.mobileSingleWrap}>
-                      <img
-                        key={currentImg}
-                        src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
-                        alt="Propiedad"
-                        className={styles.mobileSingleImage}
-                        onClick={() => setFullscreenImgIndex(currentImg)}
-                      />
-                    </div>
-                  )}
-
-                  {validImages.length === 2 && (
-                    <div className={styles.mobileDualTrack}>
-                      <button
-                        className={styles.mobileDualItem}
-                        onClick={() => setFullscreenImgIndex(0)}
-                        aria-label="Ver imagen 1"
-                      >
-                        <img
-                          src={withApiBase(`https://api.geohabita.com${validImages[0].imagenproyecto}`)}
-                          alt="Imagen 1"
-                          className={styles.mobileDualImage}
-                        />
-                      </button>
-                      <button
-                        className={styles.mobileDualItem}
-                        onClick={() => setFullscreenImgIndex(1)}
-                        aria-label="Ver imagen 2"
-                      >
-                        <img
-                          src={withApiBase(`https://api.geohabita.com${validImages[1].imagenproyecto}`)}
-                          alt="Imagen 2"
-                          className={styles.mobileDualImage}
-                        />
-                      </button>
-                    </div>
-                  )}
-
-                  {validImages.length >= 3 && (
-                    <div className={styles.mobileCarouselTrack}>
-                      <button
-                        className={`${styles.mobileSideSlide} ${styles.mobileSideLeft}`}
-                        onClick={prevSlide}
-                        aria-label="Imagen anterior"
-                      >
-                        <img
-                          src={withApiBase(`https://api.geohabita.com${validImages[prevImgIndex].imagenproyecto}`)}
-                          alt="Anterior"
-                          className={styles.mobileSideImage}
-                        />
-                      </button>
-                      <img
-                        key={currentImg}
-                        src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
-                        alt="Propiedad"
-                        className={styles.mobileMainImage}
-                        onClick={() => setFullscreenImgIndex(currentImg)}
-                      />
-                      <button
-                        className={`${styles.mobileSideSlide} ${styles.mobileSideRight}`}
-                        onClick={nextSlide}
-                        aria-label="Imagen siguiente"
-                      >
-                        <img
-                          src={withApiBase(`https://api.geohabita.com${validImages[nextImgIndex].imagenproyecto}`)}
-                          alt="Siguiente"
-                          className={styles.mobileSideImage}
-                        />
-                      </button>
-                    </div>
-                  )}
-
-                  {validImages.length >= 3 && (
-                    <div className={styles.mobileDots}>
-                      {validImages.map((_, idx) => (
-                        <button
-                          key={`dot-${idx}`}
-                          className={`${styles.mobileDot} ${idx === currentImg ? styles.mobileDotActive : ""}`}
-                          onClick={() => setCurrentImg(idx)}
-                          aria-label={`Ir a imagen ${idx + 1}`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <img
-                    key={currentImg}
-                    src={withApiBase(`https://api.geohabita.com${validImages[currentImg].imagenproyecto}`)}
-                    alt="Propiedad"
-                    className={styles.mainImage}
-                    onClick={() => setFullscreenImgIndex(currentImg)}
-                  />
-                  {validImages.length > 1 && (
-                    <div className={styles.sliderControls}>
-                      <button onClick={prevSlide} className={styles.navArrow}>
-                        <FaChevronLeft />
-                      </button>
-                      <button onClick={nextSlide} className={styles.navArrow}>
-                        <FaChevronRight />
-                      </button>
-                    </div>
-                  )}
-                  <div className={styles.imageBadge}>
-                    {currentImg + 1} / {validImages.length} FOTOS
+          <div className={styles.imageSection} data-gsap="media">
+            {isLoading || imagesPending ? (
+              <div className={styles.skeletonImage} />
+            ) : validImages.length === 0 ? (
+              <div className={styles.noImage}>
+                <p>No hay imágenes disponibles</p>
+              </div>
+            ) : isMobileView ? (
+              <div
+                className={styles.mobileCarouselWrap}
+                onTouchStart={onCarouselTouchStart}
+                onTouchMove={onCarouselTouchMove}
+                onTouchEnd={onCarouselTouchEnd}
+              >
+                {validImages.length === 1 && (
+                  <div className={styles.mobileSingleWrap}>
+                    <img
+                      key={currentImg}
+                      src={withApiBase(
+                        `https://api.geohabita.com${validImages[currentImg].imagenproyecto}`,
+                      )}
+                      alt="Propiedad"
+                      className={styles.mobileSingleImage}
+                      onClick={() => setFullscreenImgIndex(currentImg)}
+                    />
                   </div>
-                </>
-              )}
-            </div>
-          )}
+                )}
+
+                {validImages.length === 2 && (
+                  <div className={styles.mobileDualTrack}>
+                    <button
+                      className={styles.mobileDualItem}
+                      onClick={() => setFullscreenImgIndex(0)}
+                      aria-label="Ver imagen 1"
+                    >
+                      <img
+                        src={withApiBase(
+                          `https://api.geohabita.com${validImages[0].imagenproyecto}`,
+                        )}
+                        alt="Imagen 1"
+                        className={styles.mobileDualImage}
+                      />
+                    </button>
+                    <button
+                      className={styles.mobileDualItem}
+                      onClick={() => setFullscreenImgIndex(1)}
+                      aria-label="Ver imagen 2"
+                    >
+                      <img
+                        src={withApiBase(
+                          `https://api.geohabita.com${validImages[1].imagenproyecto}`,
+                        )}
+                        alt="Imagen 2"
+                        className={styles.mobileDualImage}
+                      />
+                    </button>
+                  </div>
+                )}
+
+                {validImages.length >= 3 && (
+                  <div className={styles.mobileCarouselTrack}>
+                    <button
+                      className={`${styles.mobileSideSlide} ${styles.mobileSideLeft}`}
+                      onClick={prevSlide}
+                      aria-label="Imagen anterior"
+                    >
+                      <img
+                        src={withApiBase(
+                          `https://api.geohabita.com${validImages[prevImgIndex].imagenproyecto}`,
+                        )}
+                        alt="Anterior"
+                        className={styles.mobileSideImage}
+                      />
+                    </button>
+                    <img
+                      key={currentImg}
+                      src={withApiBase(
+                        `https://api.geohabita.com${validImages[currentImg].imagenproyecto}`,
+                      )}
+                      alt="Propiedad"
+                      className={styles.mobileMainImage}
+                      onClick={() => setFullscreenImgIndex(currentImg)}
+                    />
+                    <button
+                      className={`${styles.mobileSideSlide} ${styles.mobileSideRight}`}
+                      onClick={nextSlide}
+                      aria-label="Imagen siguiente"
+                    >
+                      <img
+                        src={withApiBase(
+                          `https://api.geohabita.com${validImages[nextImgIndex].imagenproyecto}`,
+                        )}
+                        alt="Siguiente"
+                        className={styles.mobileSideImage}
+                      />
+                    </button>
+                  </div>
+                )}
+
+                {validImages.length >= 3 && (
+                  <div className={styles.mobileDots}>
+                    {validImages.map((_, idx) => (
+                      <button
+                        key={`dot-${idx}`}
+                        className={`${styles.mobileDot} ${idx === currentImg ? styles.mobileDotActive : ""}`}
+                        onClick={() => setCurrentImg(idx)}
+                        aria-label={`Ir a imagen ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <img
+                  key={currentImg}
+                  src={withApiBase(
+                    `https://api.geohabita.com${validImages[currentImg].imagenproyecto}`,
+                  )}
+                  alt="Propiedad"
+                  className={styles.mainImage}
+                  onClick={() => setFullscreenImgIndex(currentImg)}
+                />
+                {validImages.length > 1 && (
+                  <div className={styles.sliderControls}>
+                    <button onClick={prevSlide} className={styles.navArrow}>
+                      <FaChevronLeft />
+                    </button>
+                    <button onClick={nextSlide} className={styles.navArrow}>
+                      <FaChevronRight />
+                    </button>
+                  </div>
+                )}
+                <div className={styles.imageBadge}>
+                  {currentImg + 1} / {validImages.length} FOTOS
+                </div>
+              </>
+            )}
+          </div>
 
           {/* SECCIÓN INFORMACIÓN */}
           <div
@@ -836,13 +877,19 @@ const ProyectoSidebar = ({
                     </div>
 
                     {inmo?.descripcion && (
-                      <p className={styles.inmoDescription}>{inmo.descripcion}</p>
+                      <p className={styles.inmoDescription}>
+                        {inmo.descripcion}
+                      </p>
                     )}
                   </div>
 
                   <br />
                   {images360.length > 0 && (
-                    <button onClick={() => setShow360(true)} className={styles.btn360} data-gsap="action">
+                    <button
+                      onClick={() => setShow360(true)}
+                      className={styles.btn360}
+                      data-gsap="action"
+                    >
                       <FaGlobe className={styles.icon360} />
                       Ver Tour 360°
                     </button>
@@ -860,7 +907,16 @@ const ProyectoSidebar = ({
                   )}
 
                   <h1 className={styles.nombreProyecto}>
-                    {proyecto.nombreproyecto}
+                    {projectNameWords.length > 0
+                      ? projectNameWords.map((word, index) => (
+                          <span
+                            key={`${word}-${index}`}
+                            className={styles.nombreProyectoWord}
+                          >
+                            {word}
+                          </span>
+                        ))
+                      : proyecto.nombreproyecto}
                   </h1>
                   {/* <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p> */}
                   {isMobileView ? (
@@ -900,7 +956,10 @@ const ProyectoSidebar = ({
                       </div>
                     </div>
                   ) : (
-                    <div className={styles.desktopMetricsBox} data-gsap="metric">
+                    <div
+                      className={styles.desktopMetricsBox}
+                      data-gsap="metric"
+                    >
                       <div className={styles.mobileMetricsRow}>
                         <div className={styles.mobileMetricGroup}>
                           <div className={styles.mobileMetricItem}>
@@ -937,11 +996,17 @@ const ProyectoSidebar = ({
                     </div>
                   )}
 
-                  <div className={styles.priceContainer} data-gsap="card">
+                  <div
+                    className={`${styles.priceContainer} ${isCasaProject ? styles.housePriceContainer : ""}`}
+                    data-gsap="card"
+                  >
                     {proyecto.precio > 0 && (
                       <div className={styles.priceRow}>
-
-                        <img src={proyecto.bandera} className={styles.flagIcon} alt="Bandera" />
+                        <img
+                          src={proyecto.bandera}
+                          className={styles.flagIcon}
+                          alt="Bandera"
+                        />
 
                         <span className={styles.labelSmall}>
                           Precio de venta del inmueble:
@@ -952,7 +1017,6 @@ const ProyectoSidebar = ({
                         <span className={styles.priceValue}>
                           {proyecto.moneda} {proyecto.precio}
                         </span>
-
                       </div>
                     )}
 
@@ -966,7 +1030,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Whatsapp")}
                         >
-                          <span className={styles.contactIconWrap}><FaWhatsapp /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaWhatsapp />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Respuesta rápida</small>
                             <strong>Contactar</strong>
@@ -979,7 +1045,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Llamada")}
                         >
-                          <span className={styles.contactIconWrap}><FaPhoneAlt /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaPhoneAlt />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Atención directa</small>
                             <strong>Llamar</strong>
@@ -993,7 +1061,9 @@ const ProyectoSidebar = ({
                           onClick={handleShare}
                           disabled={!shareUrl}
                         >
-                          <span className={styles.contactIconWrap}><FaShareAlt /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaShareAlt />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Enviar enlace</small>
                             <strong>Compartir</strong>
@@ -1008,7 +1078,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Facebook")}
                         >
-                          <span className={styles.contactIconWrap}><FaFacebook /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaFacebook />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Ver Perfil</small>
                             <strong>Facebook</strong>
@@ -1023,7 +1095,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Web")}
                         >
-                          <span className={styles.contactIconWrap}><FaGlobe /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaGlobe />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Ver Más</small>
                             <strong>Web</strong>
@@ -1032,7 +1106,6 @@ const ProyectoSidebar = ({
                       </div>
                     ) : (
                       <div className={styles.pantallaContactos}>
-
                         <a
                           href={whatsappHref}
                           target="_blank"
@@ -1041,7 +1114,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Whatsapp")}
                         >
-                          <span className={styles.contactIconWrap}><FaWhatsapp /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaWhatsapp />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Respuesta rápida</small>
                             <strong>Contactar</strong>
@@ -1054,7 +1129,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Llamada")}
                         >
-                          <span className={styles.contactIconWrap}><FaPhoneAlt /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaPhoneAlt />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Atención directa</small>
                             <strong>Llamar</strong>
@@ -1068,7 +1145,9 @@ const ProyectoSidebar = ({
                           onClick={handleShare}
                           disabled={!shareUrl}
                         >
-                          <span className={styles.contactIconWrap}><FaShareAlt /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaShareAlt />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Enviar enlace</small>
                             <strong>Compartir</strong>
@@ -1083,7 +1162,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Facebook")}
                         >
-                          <span className={styles.contactIconWrap}><FaFacebook /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaFacebook />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Ver Perfil</small>
                             <strong>Facebook</strong>
@@ -1098,7 +1179,9 @@ const ProyectoSidebar = ({
                           data-gsap="action"
                           onClick={() => registrarClickContacto("Web")}
                         >
-                          <span className={styles.contactIconWrap}><FaGlobe /></span>
+                          <span className={styles.contactIconWrap}>
+                            <FaGlobe />
+                          </span>
                           <span className={styles.contactTextWrap}>
                             <small>Ver Más</small>
                             <strong>Web</strong>
@@ -1140,9 +1223,13 @@ const ProyectoSidebar = ({
                   <br></br>
                   <div className={styles.aboutCard}>
                     <div className={styles.aboutHeader}>
-                      <h3 className={styles.sectionTitle}>Acerca del Proyecto</h3>
+                      <h3 className={styles.sectionTitle}>
+                        Acerca del Proyecto
+                      </h3>
                     </div>
-                    <p className={styles.fullDescription}>{proyecto.descripcion}</p>
+                    <p className={styles.fullDescription}>
+                      {proyecto.descripcion}
+                    </p>
                   </div>
 
                   {proyecto.idtipoinmobiliaria === 2 && (
@@ -1216,7 +1303,8 @@ const ProyectoSidebar = ({
 
       {fullscreenImgIndex !== null && validImages.length > 0 && (
         <div
-          className={styles.fullscreenOverlay} mobileSidebar
+          className={styles.fullscreenOverlay}
+          mobileSidebar
           onClick={() => setFullscreenImgIndex(null)}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
@@ -1263,7 +1351,9 @@ const ProyectoSidebar = ({
           )}
 
           <img
-            src={withApiBase(`https://api.geohabita.com${validImages[fullscreenImgIndex].imagenproyecto}`)}
+            src={withApiBase(
+              `https://api.geohabita.com${validImages[fullscreenImgIndex].imagenproyecto}`,
+            )}
             className={styles.fullscreenImg}
             alt="Zoom"
             onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen misma

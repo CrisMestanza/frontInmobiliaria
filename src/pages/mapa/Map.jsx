@@ -210,7 +210,7 @@ function MyMap() {
   const [selectedLote, setSelectedLote] = useState(null);
   const [routeMode, setRouteMode] = useState(null);
   const [directions, setDirections] = useState(null);
-  const [imagenesProyecto, setImagenesProyecto] = useState([]);
+  const [imagenesProyecto, setImagenesProyecto] = useState(null);
   const [imagenesLote, setImagenesLote] = useState([]);
   const [isProyectoLoading, setIsProyectoLoading] = useState(false);
   const [isLoteLoading, setIsLoteLoading] = useState(false);
@@ -1112,7 +1112,7 @@ function MyMap() {
   useEffect(() => {
     const idproyecto = selectedProyecto?.idproyecto;
     if (!idproyecto) {
-      setImagenesProyecto([]);
+      setImagenesProyecto(null);
       return undefined;
     }
 
@@ -1121,6 +1121,7 @@ function MyMap() {
     }
     const controller = new AbortController();
     projectImagesAbortRef.current = controller;
+    setImagenesProyecto(null);
 
     loadProyectoImagenes(idproyecto, controller.signal)
       .then((data) => {
@@ -2505,7 +2506,7 @@ function MyMap() {
             setWalkingInfo(null);
             setDrivingInfo(null);
             setRouteMode(null);
-            setImagenesProyecto([]);
+            setImagenesProyecto(null);
             setPuntos([]);
             setLotesProyecto([]);
             setLotesProyectoBase([]);

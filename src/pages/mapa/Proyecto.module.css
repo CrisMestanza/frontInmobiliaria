@@ -185,6 +185,8 @@
 
 .splitLayout {
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
   height: 100%;
 }
 
@@ -226,7 +228,10 @@
 
 
 .imageSection {
+  order: 1;
+  flex: 0 0 45%;
   width: 45%;
+  min-width: 0;
   position: relative;
   background: #f1f5f9;
 }
@@ -614,7 +619,10 @@
 }
 
 .infoSection {
+  order: 2;
+  flex: 1 1 55%;
   width: 55%;
+  min-width: 0;
   padding: 25px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -643,6 +651,16 @@
   margin: 10px 0;
   color: #0f172a;
   font-weight: 800;
+  line-height: 1.05;
+  overflow: visible;
+  word-break: normal;
+  hyphens: none;
+}
+
+.nombreProyectoWord {
+  display: inline-block;
+  white-space: nowrap;
+  margin-right: 0.28em;
 }
 
 .priceContainer {
@@ -657,6 +675,23 @@
   border: none;
   box-shadow: none;
   min-width: 0;
+}
+
+.housePriceContainer {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.housePriceContainer .priceRow {
+  width: 100%;
+  margin-right: 0;
+}
+
+.housePriceContainer .pantallaContactos {
+  width: 100%;
+  max-width: 420px;
+  margin-left: 0;
+  flex: 0 0 auto;
 }
 
 .labelSmall {
@@ -760,11 +795,14 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
+  text-align: left;
   line-height: 1.02;
 }
 
 .contactTextWrap small {
   display: block;
+  width: 100%;
   font-size: 9px;
   font-weight: 600;
   opacity: 0.82;
@@ -773,6 +811,7 @@
 }
 
 .contactTextWrap strong {
+  width: 100%;
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -1014,20 +1053,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%; /* mismo alto aproximado del slider */
-  width: 35%;
+  flex: 1 1 auto;
+  min-height: 220px;
+  height: auto;
+  width: 100%;
   border-radius: 16px;
   background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
   /* border: 2px dashed #cbd5e1; */
   color: #475569;
   text-align: center;
   padding: 20px;
+  box-sizing: border-box;
   font-weight: 500;
   font-size: 15px;
+  overflow: hidden;
 }
 
 .skeletonImage {
-  width: 35%;
+  width: 100%;
   height: 100%;
   border-radius: 16px;
   background: #1f2937;
@@ -1270,15 +1313,17 @@
   }
 
   .splitLayout {
-    display: block;
+    display: flex;
+    flex-direction: column;
     height: auto;
     margin-left: 0;
   }
 
   .imageSection {
     height: 100%; /* Obliga a la sección a ocupar todo el alto del sidebar */
-    display: block; 
-    min-width: 400px; /* Asegura un ancho mínimo en PC */
+    display: block;
+    min-width: 0;
+    overflow: hidden;
   }
   
   .mainImage {
@@ -1301,11 +1346,13 @@
     overflow-y: visible;
     overscroll-behavior: contain;
     height: auto;
+    position: relative;
+    z-index: 2;
   }
 
   .mobileInmoCard {
-    margin-top: -10%;
-    z-index: 5;
+    margin-top: 12px;
+    z-index: auto;
   }
 
   .proyectoP {
@@ -1313,10 +1360,17 @@
   }
 
   .nombreProyecto {
-    font-size: 42px;
+    font-size: clamp(24px, 6.6vw, 36px);
     margin: 6px 0 10px;
     text-align: center;
     margin-right: 0;
+    max-width: 100%;
+    padding: 0 10px;
+    line-height: 1.12;
+  }
+
+  .nombreProyectoWord {
+    margin-right: 0.22em;
   }
 
   .priceContainer {
@@ -1358,7 +1412,8 @@
     margin-right: 0;
   }
   .noImage{
-    display: none;
+    display: flex;
+    min-height: 160px;
   }
 }
 

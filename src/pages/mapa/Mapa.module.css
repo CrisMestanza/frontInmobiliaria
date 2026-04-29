@@ -550,10 +550,10 @@
 
 .brandName {
   font-size: 1.6rem;
-  font-weight: 900;
+  font-weight: 100;
   letter-spacing: -0.5px;
   display: flex;
-  align-items: center;
+  align-items: left;
   font-family: "Inter", "Poppins", system-ui, sans-serif;
 }
 
@@ -570,7 +570,6 @@
 
 .logo {
   height: 55px;
-  /* ⬅ más visible */
 }
 
 .map {
@@ -1770,5 +1769,4 @@
     font-size: 9px;
     padding: 0 6px;
   }
-
 }
