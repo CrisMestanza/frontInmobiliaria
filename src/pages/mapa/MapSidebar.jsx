@@ -6,6 +6,8 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import {
   FaRulerCombined,
   FaRulerHorizontal,
@@ -31,8 +33,11 @@ import {
   FaBuilding,
   FaPhoneAlt,
   FaShareAlt,
+  FaWalking,
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
+
+gsap.registerPlugin(useGSAP);
 
 const LoteSidebarOverlay = ({
   inmo,
@@ -62,6 +67,24 @@ const LoteSidebarOverlay = ({
       "";
     return String(raw).replace(/[^\d+]/g, "");
   }, [inmo]);
+  const parseMinutes = (durationText) => {
+    if (!durationText) return "---";
+    const hMatch = durationText.match(/(\d+)\s*h/i);
+    const mMatch = durationText.match(/(\d+)\s*min/i);
+    if (hMatch || mMatch) {
+      const total = Number(hMatch?.[1] || 0) * 60 + Number(mMatch?.[1] || 0);
+      return total > 0 ? `${total}` : "---";
+    }
+    const n = durationText.match(/[\d.,]+/);
+    if (!n) return "---";
+    return `${Math.round(Number(n[0].replace(",", ".")))}`;
+  };
+  const parseKm = (distanceText) => {
+    if (!distanceText) return "---";
+    const n = distanceText.match(/[\d.,]+/);
+    if (!n) return "---";
+    return n[0].replace(",", ".");
+  };
   const whatsappHref = inmo?.whatsapp
     ? `https://wa.me/${inmo.whatsapp}?text=${encodeURIComponent(
         `Hola, vengo de GeoHabita y estoy interesado en el proyecto *"${proyecto?.nombreproyecto || ""}"* y en el lote/inmueble *"${lote?.nombre || ""}"*`,
@@ -79,6 +102,10 @@ const LoteSidebarOverlay = ({
   const [sheetMode, setSheetMode] = useState("mid");
   const [mobileSheetTop, setMobileSheetTop] = useState(null);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
+  const carMinutes = parseMinutes(drivingInfo?.duration);
+  const walkMinutes = parseMinutes(walkingInfo?.duration);
+  const carKm = parseKm(drivingInfo?.distance);
+  const walkKm = parseKm(walkingInfo?.distance);
 
   const galleryRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -368,11 +395,86 @@ const LoteSidebarOverlay = ({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
   const handleScroll = () => {
-    if (!contentRef.current) return;
-    const { scrollTop } = contentRef.current;
-    if (!expanded && scrollTop > 200) setExpanded(true);
-    if (expanded && scrollTop < 5) setExpanded(false);
+    return;
   };
+
+  useGSAP(
+    () => {
+      if (isLoading) return;
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+      tl.fromTo(
+        sidebarRef.current,
+        {
+          autoAlpha: 0,
+          y: isMobileView ? 80 : 40,
+          x: isMobileView ? 0 : 20,
+          scale: isMobileView ? 0.98 : 0.94,
+          rotateX: isMobileView ? 0 : 8,
+          filter: "blur(10px)",
+        },
+        {
+          autoAlpha: 1,
+          y: 0,
+          x: 0,
+          scale: 1,
+          rotateX: 0,
+          filter: "blur(0px)",
+          duration: 0.75,
+          ease: "expo.out",
+        },
+      )
+        .fromTo(
+          "[data-gsap='media']",
+          {
+            autoAlpha: 0,
+            x: isMobileView ? 0 : -56,
+            y: isMobileView ? 24 : 0,
+            scale: 1.08,
+            rotateZ: isMobileView ? 0 : -2,
+            filter: "blur(12px)",
+          },
+          {
+            autoAlpha: 1,
+            x: 0,
+            y: 0,
+            scale: 1,
+            rotateZ: 0,
+            filter: "blur(0px)",
+            duration: 0.8,
+            ease: "expo.out",
+          },
+          "-=0.55",
+        )
+        .fromTo(
+          "[data-gsap='card'], [data-gsap='metric'], [data-gsap='action']",
+          {
+            autoAlpha: 0,
+            y: 34,
+            scale: 0.92,
+            rotateX: -18,
+            transformOrigin: "50% 100%",
+          },
+          {
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            rotateX: 0,
+            duration: 0.7,
+            stagger: 0.09,
+            ease: "back.out(1.9)",
+          },
+          "-=0.5",
+        );
+      gsap.to("[data-gsap='metric']", {
+        boxShadow: "0 22px 60px rgba(16, 110, 46, 0.18)",
+        duration: 1.6,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+      });
+    },
+    { scope: sidebarRef, dependencies: [isLoading, isMobileView, lote?.idlote], revertOnUpdate: true },
+  );
 
   if (!lote) return null;
 
@@ -381,9 +483,9 @@ const LoteSidebarOverlay = ({
       <div
         className={styles.overlay}
         style={{
-          opacity: isMobileView ? 0 : expanded ? 1 : 0,
-          background: isMobileView ? "transparent" : "rgba(15, 23, 42, 0.2)",
-          pointerEvents: isMobileView ? "none" : expanded ? "auto" : "none",
+          opacity: 0,
+          background: "transparent",
+          pointerEvents: "none",
         }}
         onClick={isMobileView ? undefined : cerrarSidebar}
       />
@@ -439,7 +541,7 @@ const LoteSidebarOverlay = ({
         <div
           className={`${styles.splitLayout} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
-          <div className={styles.imageSection}>
+          <div className={styles.imageSection} data-gsap="media">
             {isLoading ? (
               <div className={styles.skeletonImage} />
             ) : validImages.length > 0 ? (
@@ -531,7 +633,7 @@ const LoteSidebarOverlay = ({
             ) : (
               <>
               <div className={styles.primeInfo}>
-              <div className={styles.inmoCard}>
+              <div className={styles.inmoCard} data-gsap="card">
                 <div className={styles.inmoHeader}>
                   <div className={styles.inmoIcon}>🏢</div>
 
@@ -569,7 +671,7 @@ const LoteSidebarOverlay = ({
                 <FaMapMarkerAlt /> Ubicación referencial
               </p>
 
-              <div className={styles.priceContainer}>
+              <div className={styles.priceContainer} data-gsap="card">
                 <div style={{ display: "block", marginRight: "3px" }}>
                   <img src={lote.bandera} alt="" className={styles.flagIcon} />
                   <span className={styles.labelSmall}> Precio del Lote:</span>
@@ -583,36 +685,51 @@ const LoteSidebarOverlay = ({
                     href={whatsappHref}
                     target="_blank"
                     rel="noreferrer"
-                    className={styles.contactMiniBtn}
+                    className={`${styles.contactMiniBtn} ${styles.contactWhatsappBtn}`}
+                    data-gsap="action"
                     onClick={() => registrarClickContacto("Whatsapp")}
                   >
-                    <FaWhatsapp /> Contactar
+                    <span className={styles.contactIconWrap}><FaWhatsapp /></span>
+                    <span className={styles.contactTextWrap}>
+                      <small>Respuesta rápida</small>
+                      <strong>Contactar</strong>
+                    </span>
                   </a>
 
                   <a
                     href={phoneNumber ? `tel:${phoneNumber}` : undefined}
-                    className={`${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
+                    className={`${styles.contactMiniBtn} ${styles.contactCallBtn} ${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
+                    data-gsap="action"
                     onClick={() => registrarClickContacto("Llamada")}
                     aria-disabled={!phoneNumber}
                     onMouseDown={(e) => {
                       if (!phoneNumber) e.preventDefault();
                     }}
                   >
-                    <FaPhoneAlt /> Llamar
+                    <span className={styles.contactIconWrap}><FaPhoneAlt /></span>
+                    <span className={styles.contactTextWrap}>
+                      <small>Atención directa</small>
+                      <strong>Llamar</strong>
+                    </span>
                   </a>
 
                   <button
                     type="button"
-                    className={styles.contactMiniBtn}
+                    className={`${styles.contactMiniBtn} ${styles.contactShareBtn}`}
+                    data-gsap="action"
                     onClick={handleShare}
                     disabled={!shareUrl}
                   >
-                    <FaShareAlt /> Compartir
+                    <span className={styles.contactIconWrap}><FaShareAlt /></span>
+                    <span className={styles.contactTextWrap}>
+                      <small>Enviar enlace</small>
+                      <strong>Compartir</strong>
+                    </span>
                   </button>
                 </div>
               </div>
 
-              <div className={styles.quickGrid}>
+              <div className={styles.quickGrid} data-gsap="card">
                 {hasValue(lote.area_total_m2) && (
                   <div className={styles.qBadge}>
                     <FaRulerCombined />
@@ -695,15 +812,30 @@ const LoteSidebarOverlay = ({
               )}
 
               <h3 className={styles.sectionTitle}>Cercanía</h3>
-              <div className={styles.distanciaBox}>
-                <span>
-                  🚶 {walkingInfo?.duration || "---"} (
-                  {walkingInfo?.distance || ""})
-                </span>
-                <span>
-                  🚗 {drivingInfo?.duration || "---"} (
-                  {drivingInfo?.distance || ""})
-                </span>
+              <div className={styles.distanciaBox} data-gsap="metric">
+                <div className={styles.metricGroup}>
+                  <div className={styles.metricItem}>
+                    <span className={styles.metricValue}>{carMinutes}</span>
+                    <span className={styles.metricUnit}>MIN</span>
+                    <FaCar className={styles.metricIcon} />
+                  </div>
+                  <div className={styles.metricItem}>
+                    <span className={styles.metricValue}>{carKm}</span>
+                    <span className={styles.metricUnit}>KM</span>
+                  </div>
+                </div>
+                <div className={styles.metricDivider} />
+                <div className={styles.metricGroup}>
+                  <div className={styles.metricItem}>
+                    <span className={styles.metricValue}>{walkMinutes}</span>
+                    <span className={styles.metricUnit}>MIN</span>
+                    <FaWalking className={styles.metricIcon} />
+                  </div>
+                  <div className={styles.metricItem}>
+                    <span className={styles.metricValue}>{walkKm}</span>
+                    <span className={styles.metricUnit}>KM</span>
+                  </div>
+                </div>
               </div>
 
               <div className={styles.socialFooter}>
