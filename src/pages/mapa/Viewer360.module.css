@@ -50,6 +50,13 @@
   min-width: 0;
 }
 
+.headerActions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: auto;
+}
+
 .badge360 {
   width: fit-content;
   display: inline-flex;
@@ -81,6 +88,13 @@
   max-width: 520px;
   color: rgba(236, 253, 243, 0.78);
   font-size: 0.95rem;
+}
+
+.headerStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 4px;
 }
 
 .projectName {
@@ -140,8 +154,8 @@
 .brandStat {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .statValue {
@@ -240,7 +254,7 @@
 .loteDrawerHeader {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 14px;
 }
 
@@ -273,21 +287,23 @@
 }
 
 .loteActionButtons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 2px;
 }
 
 .actionBtnWhatsApp,
 .actionBtnCall,
 .actionBtnShare {
-  flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 14px;
+  min-height: 92px;
+  border-radius: 16px;
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
@@ -330,7 +346,25 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
-.loteDrawerClose {
+.actionBtnWhatsApp span,
+.actionBtnCall span,
+.actionBtnShare span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.actionBtnWhatsApp strong,
+.actionBtnCall strong,
+.actionBtnShare strong {
+  font-size: 0.9rem;
+}
+
+.loteDrawerCloseFloating {
+  position: absolute;
+  top: 18px;
+  right: 18px;
   width: 38px;
   height: 38px;
   display: grid;
@@ -343,15 +377,16 @@
   transition:
     transform 0.2s ease,
     background 0.2s ease;
+  z-index: 3;
 }
 
-.loteDrawerClose:hover {
+.loteDrawerCloseFloating:hover {
   transform: translateY(-1px);
   background: rgba(239, 68, 68, 0.82);
 }
 
 .loteDrawerHero {
-  padding: 16px;
+  padding: 16px 18px;
   border-radius: 22px;
   background:
     radial-gradient(
@@ -366,6 +401,9 @@
     );
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .loteDrawerStatusWrap {
@@ -374,6 +412,20 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.loteDrawerHero h5 {
+  margin: 0 0 8px;
+  color: #f8fff9;
+  font-size: 1.45rem;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.loteDrawerHero p {
+  margin: 0;
+  color: rgba(220, 252, 231, 0.7);
+  font-size: 0.84rem;
 }
 
 .loteDrawerPriceBlock small {
@@ -395,7 +447,7 @@
 
 .loteDrawerMeta {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -405,6 +457,19 @@
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.loteMetaCard svg {
+  color: #67e8f9;
+  margin-top: 2px;
+}
+
+.loteMetaCardBody {
+  min-width: 0;
 }
 
 .loteMetaCard span {
@@ -422,6 +487,45 @@
   color: #f8fff9;
   font-size: 0.92rem;
   line-height: 1.2;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.loteInsightStrip {
+  position: relative;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 211, 238, 0.08)),
+    rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(134, 239, 172, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.loteInsightCopy small {
+  display: block;
+  color: #86efac;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.loteInsightCopy strong {
+  display: block;
+  color: #f8fff9;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.loteInsightCopy p {
+  margin: 0;
+  color: rgba(220, 252, 231, 0.7);
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .viewerContainer {
@@ -435,15 +539,160 @@
   display: block;
 }
 
+.lotLabelsLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 16;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lotLabelsSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.lotLabel text {
+  fill: rgba(255, 255, 255, 0.96);
+  stroke: rgba(0, 0, 0, 0.18);
+  stroke-width: 1.8px;
+  paint-order: stroke fill;
+  stroke-linejoin: round;
+}
+
+.lotLabelSelected text {
+  fill: #ffffff;
+  stroke: rgba(8, 145, 178, 0.34);
+  stroke-width: 2.1px;
+  paint-order: stroke fill;
+}
+
+.lotLabelTitle {
+  font-weight: 900;
+  letter-spacing: -0.05em;
+}
+
+.lotLabelArea {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: rgba(0, 0, 0, 0.12);
+  stroke-width: 1.2px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.lotLabelBlock {
+  fill: rgba(255, 255, 255, 0.8);
+  stroke: rgba(0, 0, 0, 0.08);
+  stroke-width: 1px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .viewerHud {
   position: absolute;
-  inset: auto 24px 88px 24px;
-  z-index: 21;
+  inset: auto 24px 52px 24px;
+  z-index: 92;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-end;
   gap: 18px;
   pointer-events: none;
+}
+
+.viewerWatermark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.8;
+}
+
+.viewerWatermark img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.34));
+}
+
+.viewerWatermark span {
+  color: rgba(248, 255, 249, 0.9);
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+}
+
+.mobileSidebarWatermark {
+  display: none;
+}
+
+.mobileFloatingWatermark {
+  display: none;
+}
+
+.projectSidebarPanel {
+  padding: 14px 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.projectSidebarIntro small {
+  display: block;
+  color: #86efac;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.projectSidebarIntro h4 {
+  margin: 0 0 8px;
+  color: #f8fff9;
+  font-size: 1.05rem;
+  line-height: 1.15;
+}
+
+.projectSidebarIntro p {
+  margin: 0;
+  color: rgba(220, 252, 231, 0.68);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.projectSidebarGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.projectSidebarCard {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.projectSidebarCard span {
+  display: block;
+  color: rgba(220, 252, 231, 0.58);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.projectSidebarCard strong {
+  display: block;
+  color: #f8fff9;
+  font-size: 0.9rem;
+  line-height: 1.28;
+  text-wrap: pretty;
 }
 
 .hudCluster {
@@ -913,7 +1162,7 @@
   height: 100dvh;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
   background:
@@ -921,6 +1170,26 @@
     radial-gradient(circle at top, rgba(34, 197, 94, 0.12), transparent 36%);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: -24px 0 60px rgba(0, 0, 0, 0.34);
+}
+
+.sideGalleryBody {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.loteDrawerContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  position: relative;
 }
 
 :global(.psv-marker.gh-portal-lot-marker) {
@@ -951,6 +1220,79 @@
   backdrop-filter: blur(16px);
   font-weight: 800;
   letter-spacing: 0.02em;
+  z-index: 140 !important;
+}
+
+:global(.psv-tooltip.gh-lot-tooltip) {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+:global(.psv-tooltip.gh-lot-tooltip .psv-tooltip-content) {
+  padding: 0;
+}
+
+:global(.gh-lot-tooltip-card) {
+  min-width: 180px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:global(.gh-lot-tooltip-name) {
+  color: #f8fff9;
+  font-size: 0.88rem;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+:global(.gh-lot-tooltip-meta) {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+:global(.gh-lot-tooltip-meta span) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+:global(.psv-tooltip.gh-lot-tooltip-available) {
+  border-color: rgba(126, 217, 87, 0.5);
+  background: linear-gradient(180deg, rgba(20, 50, 16, 0.96), rgba(10, 30, 10, 0.94));
+}
+
+:global(.psv-tooltip.gh-lot-tooltip-available .gh-lot-tooltip-meta span) {
+  color: #dcfce7;
+  background: rgba(126, 217, 87, 0.18);
+}
+
+:global(.psv-tooltip.gh-lot-tooltip-reserved) {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: linear-gradient(180deg, rgba(67, 33, 4, 0.96), rgba(37, 19, 4, 0.94));
+}
+
+:global(.psv-tooltip.gh-lot-tooltip-reserved .gh-lot-tooltip-meta span) {
+  color: #fef3c7;
+  background: rgba(245, 158, 11, 0.18);
+}
+
+:global(.psv-tooltip.gh-lot-tooltip-sold) {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: linear-gradient(180deg, rgba(64, 15, 15, 0.96), rgba(34, 12, 12, 0.94));
+}
+
+:global(.psv-tooltip.gh-lot-tooltip-sold .gh-lot-tooltip-meta span) {
+  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.18);
 }
 
 .experiencePanel {
@@ -1196,6 +1538,7 @@
 }
 
 .galleryList {
+  flex: 1 1 auto;
   overflow-y: auto;
   min-height: 0;
   padding: 16px;
@@ -1387,8 +1730,13 @@
 }
 
 .galleryList::-webkit-scrollbar,
-.hotspotsPanel::-webkit-scrollbar {
-  width: 8px;
+.hotspotsPanel::-webkit-scrollbar,
+.sideGalleryBody::-webkit-scrollbar,
+.loteDrawerContent::-webkit-scrollbar,
+.loteDrawer::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .galleryList::-webkit-scrollbar-thumb,
@@ -1486,7 +1834,7 @@
 @media (max-width: 920px) {
   .overlay360 {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) 250px;
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .header360 {
@@ -1504,8 +1852,8 @@
 
   .sideGallery {
     height: 250px;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
@@ -1542,13 +1890,7 @@
   }
 
   .viewerHud {
-    inset: auto 14px 72px 14px;
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .orientationCard {
-    align-self: flex-end;
+    inset: auto 14px 52px 14px;
   }
 
   .loteDrawer {
@@ -1578,41 +1920,167 @@
 
 @media (max-width: 620px) {
   .overlay360 {
-    grid-template-rows: minmax(280px, 54dvh) minmax(260px, 46dvh);
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr);
     height: 100dvh;
-    overflow: hidden;
+    overflow: visible;
+  }
+
+  .mainContent {
+    position: relative;
+  }
+
+  .header360 {
+    padding: 16px 12px 84px;
+  }
+
+  .headerActions {
+    gap: 8px;
+  }
+
+  .headerStats {
+    gap: 12px;
+  }
+
+  .brandStat {
+    gap: 2px;
   }
 
   .sideGallery {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    z-index: 28;
     height: auto;
     min-height: 0;
-    display: block;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: none;
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -28px 62px rgba(0, 0, 0, 0.38);
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  .galleryList,
-  .experiencePanel,
-  .hotspotsPanel {
-    grid-column: auto;
-    grid-row: auto;
+  .viewerHud {
+    display: none;
+  }
+
+  .mobileFloatingWatermark {
+    position: absolute;
+    left: 16px;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  .mobileFloatingWatermark img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.34));
+  }
+
+  .mobileFloatingWatermark span {
+    color: rgba(248, 255, 249, 0.94);
+    font-size: 0.92rem;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
+  }
+
+  .mobileSheet {
+    transition: none;
+  }
+
+  .mobileExpanded {
+    /* altura controlada por JS */
+  }
+
+  .mobileCollapsed {
+    height: 86px;
+    overflow: hidden;
+  }
+
+  .mobileHiddenContent {
+    display: none;
+  }
+
+  .mobileTopHeader {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 1fr 38px;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(8, 15, 12, 0.94);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    touch-action: none;
+  }
+
+  .mobileHeaderTitle {
+    margin: 0;
+    color: #f8fff9;
+    font-size: 0.92rem;
+    font-weight: 900;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobileHeaderClose {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fff9;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+
+  .mobileDragHandle {
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(248, 255, 249, 0.3);
   }
 
   .hotspotsPanel {
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     max-height: none;
-    overflow: visible;
+    overflow: auto;
   }
 
   .loteDrawer {
+    position: absolute;
+    left: 0;
+    right: 0;
     top: auto;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
+    bottom: 0;
     width: auto;
-    max-height: 56dvh;
+    max-height: none;
+    padding: 0;
+    border-radius: 24px 24px 0 0;
+    z-index: 32;
+  }
+
+  .loteDrawerContent {
+    padding: 18px;
   }
 
   .loteInfoGrid {
@@ -1624,31 +2092,7 @@
   }
 
   .viewerHud {
-    inset: auto 12px 68px 12px;
-  }
-
-  .hudPill {
-    padding: 9px 12px;
-    font-size: 0.74rem;
-  }
-
-  .orientationCard {
-    min-width: 132px;
-    padding: 10px 12px;
-  }
-
-  .orientationDial {
-    width: 50px;
-    height: 50px;
-    flex-basis: 50px;
-  }
-
-  .experienceStats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .lotLegend {
-    grid-template-columns: 1fr;
+    inset: auto 12px calc(46dvh + 56px) 12px;
   }
 
   .galleryList {
@@ -1656,5 +2100,18 @@
     overflow-x: auto;
     overflow-y: hidden;
     padding: 12px;
+  }
+
+  .galleryHeader {
+    padding: 12px 14px;
+  }
+
+  .sideGalleryBody {
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .projectSidebarGrid {
+    grid-template-columns: 1fr;
   }
 }

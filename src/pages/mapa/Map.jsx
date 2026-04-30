@@ -345,6 +345,7 @@ function MyMap() {
   const [shareResolveStatus, setShareResolveStatus] = useState(
     hasShareParams ? "pending" : "idle",
   );
+  const [searchQuery, setSearchQuery] = useState("");
   const shouldShowShareLoader =
     hasShareParams &&
     (shareResolveStatus === "pending" || isProyectoLoading || isLoteLoading);
@@ -722,6 +723,47 @@ function MyMap() {
     img.src = url;
   }, []);
 
+  const focusMapOnLocation = useCallback((location, viewport = null) => {
+    if (!location) return;
+
+    setCurrentPosition(location);
+    setHasSearchedLocation(true);
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (viewport) {
+      map.fitBounds(viewport);
+      return;
+    }
+
+    map.panTo(location);
+    map.setZoom(17);
+    setMapZoom(17);
+  }, []);
+
+  const geocodeSearchQuery = useCallback(async () => {
+    const rawQuery = inputRef.current?.value ?? searchQuery;
+    const query = String(rawQuery || "").trim();
+    if (!query || !window.google?.maps?.Geocoder) return;
+
+    try {
+      const geocoder = new window.google.maps.Geocoder();
+      const results = await geocoder.geocode({ address: query });
+      const place = results?.results?.[0];
+      const geometry = place?.geometry;
+      if (!geometry?.location) return;
+
+      const location = {
+        lat: geometry.location.lat(),
+        lng: geometry.location.lng(),
+      };
+      focusMapOnLocation(location, geometry.viewport || null);
+    } catch (error) {
+      console.error("No se pudo geocodificar la búsqueda:", error);
+    }
+  }, [focusMapOnLocation, searchQuery]);
+
   const isSelectedProjectCasa = useMemo(() => {
     if (!selectedProyecto) return false;
     if (filtroBotActivo) return selectedProyecto.iconoTipo === "casa";
@@ -944,13 +986,18 @@ function MyMap() {
           inmo: inmoId || "",
           signal: controller.signal,
         });
-        if (!controller.signal.aborted) {
+          if (!controller.signal.aborted) {
           if (hasShareParams && shareResolveStatus === "pending") {
             pendingProjectsRef.current = data;
           } else {
             setProyecto(data);
           }
-          if (data.length > 0 && mapRef.current && window.google?.maps) {
+          if (
+            !hasSearchedLocation &&
+            data.length > 0 &&
+            mapRef.current &&
+            window.google?.maps
+          ) {
             const shouldSkipInitialFit =
               !initialViewportHandledRef.current &&
               !selectedTipo &&
@@ -1050,6 +1097,7 @@ function MyMap() {
 
   useEffect(() => {
     if (!isLoaded || !inmoId) return;
+    if (hasSearchedLocation) return;
     if (
       hasShareParams &&
       (shareFocusActive || shareResolveStatus === "pending")
@@ -1076,6 +1124,7 @@ function MyMap() {
     inmoId,
     proyecto,
     updateBoundsFromMap,
+    hasSearchedLocation,
     hasShareParams,
     shareFocusActive,
     shareResolveStatus,
@@ -2053,24 +2102,14 @@ function MyMap() {
             lat: place.geometry.location.lat(),
             lng: place.geometry.location.lng(),
           };
-
-          setCurrentPosition(location);
-          setHasSearchedLocation(true); // ✅ CLAVE
-
-          if (mapRef.current) {
-            if (place.geometry.viewport) {
-              mapRef.current.fitBounds(place.geometry.viewport);
-            } else {
-              mapRef.current.panTo(location);
-              mapRef.current.setZoom(17);
-            }
-          }
+          setSearchQuery(place.formatted_address || place.name || "");
+          focusMapOnLocation(location, place.geometry.viewport || null);
         }
       });
     } catch (error) {
       console.error("Error inicializando Autocomplete:", error);
     }
-  }, [isLoaded]);
+  }, [focusMapOnLocation, isLoaded]);
 
   if (loadError) {
     return (
@@ -2115,6 +2154,14 @@ function MyMap() {
               className={`${styles.searchInput} ${isSearchFocused ? styles.searchInputFocused : ""}`}
               onFocus={() => setIsSearchFocused(true)}
               placeholder="Buscar Lugar"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  geocodeSearchQuery();
+                }
+              }}
               onBlur={() => setIsSearchFocused(false)}
             />
           </div>
@@ -2147,7 +2194,11 @@ function MyMap() {
             </>
           }
           {/* BOTÓN LUPA */}
-          <button className={styles.searchButton}>
+          <button
+            type="button"
+            className={styles.searchButton}
+            onClick={geocodeSearchQuery}
+          >
             <svg
               viewBox="0 0 32 32"
               style={{
@@ -2228,7 +2279,7 @@ function MyMap() {
         <GoogleMap
           mapContainerClassName={styles.map}
           center={currentPosition}
-          zoom={13}
+          zoom={mapZoom}
           onLoad={(map) => {
             mapRef.current = map;
             setMapZoom(map.getZoom() ?? 13);

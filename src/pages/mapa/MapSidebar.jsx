@@ -606,9 +606,7 @@ const LoteSidebarOverlay = ({
                 </>
               )
             ) : (
-              <div className={styles.noImage}>
-                No hay imagenes referenciales
-              </div>
+              null
             )}
           </div>
 

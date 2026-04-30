@@ -701,9 +701,7 @@ const ProyectoSidebar = ({
             {isLoading || imagesPending ? (
               <div className={styles.skeletonImage} />
             ) : validImages.length === 0 ? (
-              <div className={styles.noImage}>
-                <p>No hay imágenes disponibles</p>
-              </div>
+              null
             ) : isMobileView ? (
               <div
                 className={styles.mobileCarouselWrap}
@@ -1367,6 +1365,7 @@ const ProyectoSidebar = ({
       {show360 && (
         <Viewer360Modal
           images360={images360}
+          projectName={proyecto?.nombreproyecto || ""}
           onClose={() => setShow360(false)}
         />
       )}
