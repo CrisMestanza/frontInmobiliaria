@@ -918,6 +918,73 @@
   margin: 12px 0 0;
 }
 
+.utilitiesCard {
+  margin: 6px 0 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.1), transparent 34%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+
+.utilitiesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.utilityItem {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.86);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.utilityName {
+  display: block;
+  margin-bottom: 7px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.utilityStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.utilityStatus svg {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.utilityStatusYes {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.utilityStatusNo {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.utilityStatusUnknown {
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+}
+
 .featuresGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1408,6 +1475,12 @@
   .quickGrid {
     margin-right: 0;
   }
+  .utilitiesGrid {
+    grid-template-columns: 1fr;
+  }
+  .utilitiesCard {
+    margin-right: 0;
+  }
   .featuresGrid {
     margin-right: 0;
   }
@@ -1509,6 +1582,7 @@
 [data-theme="dark"] .imageSection,
 [data-theme="dark"] .priceContainer,
 [data-theme="dark"] .aboutCard,
+[data-theme="dark"] .utilitiesCard,
 [data-theme="dark"] .qBadge,
 [data-theme="dark"] .fItem,
 [data-theme="dark"] .distanciaBox,
@@ -1522,6 +1596,30 @@
 [data-theme="dark"] .aboutBadge {
   background: color-mix(in srgb, #10b981 18%, var(--theme-bg-soft));
   color: #86efac;
+}
+
+[data-theme="dark"] .utilityItem {
+  background: var(--theme-bg-surface);
+  border-color: var(--theme-border-color);
+}
+
+[data-theme="dark"] .utilityName {
+  color: var(--theme-text-main);
+}
+
+[data-theme="dark"] .utilityStatusYes {
+  color: #86efac;
+  background: color-mix(in srgb, #10b981 18%, var(--theme-bg-soft));
+}
+
+[data-theme="dark"] .utilityStatusNo {
+  color: #fca5a5;
+  background: color-mix(in srgb, #ef4444 16%, var(--theme-bg-soft));
+}
+
+[data-theme="dark"] .utilityStatusUnknown {
+  color: var(--theme-text-muted);
+  background: color-mix(in srgb, #64748b 18%, var(--theme-bg-soft));
 }
 
 [data-theme="dark"] .contactMiniBtn,

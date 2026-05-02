@@ -40,44 +40,26 @@ const OVERLAY_HEADER_OFFSET = 42;
 const HOTSPOT_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="118" height="78" viewBox="0 0 118 78">
   <defs>
-    <radialGradient id="portalCore" cx="50%" cy="50%" r="52%">
-      <stop offset="0%" stop-color="#ecfeff" stop-opacity="1"/>
-      <stop offset="38%" stop-color="#67e8f9" stop-opacity=".94"/>
-      <stop offset="72%" stop-color="#22c55e" stop-opacity=".86"/>
-      <stop offset="100%" stop-color="#020617" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="portalRing" cx="50%" cy="50%" r="56%">
-      <stop offset="58%" stop-color="#86efac" stop-opacity="0"/>
-      <stop offset="78%" stop-color="#22d3ee" stop-opacity=".88"/>
-      <stop offset="100%" stop-color="#ecfeff" stop-opacity=".18"/>
-    </radialGradient>
-    <linearGradient id="beam" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#ecfeff" stop-opacity=".82"/>
-      <stop offset="45%" stop-color="#67e8f9" stop-opacity=".24"/>
-      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
-    </linearGradient>
     <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="10" stdDeviation="7" flood-color="#000" flood-opacity=".46"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#000" flood-opacity=".34"/>
     </filter>
-    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="3.6" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <linearGradient id="head" x1="49" x2="69" y1="14" y2="34">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="58%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="stick" x1="57" x2="61" y1="34" y2="66">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
   </defs>
+  <ellipse cx="59" cy="69" rx="11" ry="3" fill="rgba(15,23,42,.28)"/>
   <g filter="url(#shadow)">
-    <ellipse cx="59" cy="57" rx="47" ry="12" fill="rgba(8,47,73,.88)"/>
-    <ellipse cx="59" cy="57" rx="38" ry="9" fill="rgba(34,211,238,.18)"/>
+    <rect x="57" y="32" width="4" height="35" rx="2" fill="url(#stick)" stroke="rgba(15,23,42,.2)" stroke-width=".8"/>
+    <circle cx="59" cy="24" r="13" fill="url(#head)" stroke="rgba(15,23,42,.3)" stroke-width="1.6"/>
+    <circle cx="59" cy="24" r="6" fill="#ffffff" opacity=".96"/>
+    <path d="M53.5 17.5c2.4-2.1 6.1-2.8 9.2-1.6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity=".88"/>
   </g>
-  <g filter="url(#glow)">
-    <ellipse cx="59" cy="43" rx="30" ry="18" fill="url(#portalCore)"/>
-    <ellipse cx="59" cy="43" rx="36" ry="24" fill="url(#portalRing)"/>
-    <ellipse cx="59" cy="43" rx="17" ry="10" fill="#ecfeff" opacity=".82"/>
-  </g>
-  <path d="M33 10l26 33 26-33" fill="none" stroke="url(#beam)" stroke-width="4" stroke-linecap="round" opacity=".9"/>
-  <path d="M44 17l15 19 15-19" fill="none" stroke="#ecfeff" stroke-width="2.2" stroke-linecap="round" opacity=".92"/>
 </svg>
 `)}`;
 
@@ -1084,19 +1066,6 @@ const Viewer360Modal = ({
     for (const entry of overlayBundles) {
       const directMatch = entry.bundle?.anchored?.[imageKey];
       if (directMatch) return directMatch;
-    }
-
-    const sameRowBundle = overlayBundles.find(
-      (entry) => entry.imageId === imageKey,
-    )?.bundle;
-    if (sameRowBundle?.anchoredList?.[0]) {
-      return sameRowBundle.anchoredList[0];
-    }
-
-    for (const entry of overlayBundles) {
-      if (entry.bundle?.anchoredList?.[0]) {
-        return entry.bundle.anchoredList[0];
-      }
     }
 
     return null;

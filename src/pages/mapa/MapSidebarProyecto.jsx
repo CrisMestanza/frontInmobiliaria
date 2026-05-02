@@ -35,11 +35,47 @@ import {
   FaPhoneAlt,
   FaShareAlt,
   FaWalking,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaQuestionCircle,
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
 import { FaChevronDown } from "react-icons/fa";
 
 gsap.registerPlugin(useGSAP);
+
+const projectUtilityFields = [
+  { key: "agua", label: "Agua" },
+  { key: "desague", label: "Desague" },
+  { key: "luz", label: "Luz" },
+  { key: "alumbrado_publico", label: "Alumbrado publico" },
+  { key: "postes_luz", label: "Postes de luz" },
+  { key: "veredas", label: "Veredas" },
+];
+
+const getUtilityStatus = (value) => {
+  if (value === true || value === 1 || value === "1") {
+    return {
+      label: "Si tiene",
+      className: "utilityStatusYes",
+      icon: <FaCheckCircle />,
+    };
+  }
+
+  if (value === false || value === 0 || value === "0") {
+    return {
+      label: "No tiene",
+      className: "utilityStatusNo",
+      icon: <FaTimesCircle />,
+    };
+  }
+
+  return {
+    label: "No detallado",
+    className: "utilityStatusUnknown",
+    icon: <FaQuestionCircle />,
+  };
+};
 
 const ProyectoSidebar = ({
   inmo,
@@ -1228,6 +1264,32 @@ const ProyectoSidebar = ({
                     <p className={styles.fullDescription}>
                       {proyecto.descripcion}
                     </p>
+                  </div>
+
+                  <div className={styles.utilitiesCard}>
+                    <div className={styles.aboutHeader}>
+                      <h3 className={styles.sectionTitle}>
+                        Servicios del proyecto
+                      </h3>
+                    </div>
+                    <div className={styles.utilitiesGrid}>
+                      {projectUtilityFields.map((field) => {
+                        const status = getUtilityStatus(proyecto?.[field.key]);
+                        return (
+                          <div key={field.key} className={styles.utilityItem}>
+                            <span className={styles.utilityName}>
+                              {field.label}
+                            </span>
+                            <span
+                              className={`${styles.utilityStatus} ${styles[status.className]}`}
+                            >
+                              {status.icon}
+                              {status.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {proyecto.idtipoinmobiliaria === 2 && (

@@ -7,6 +7,20 @@ import styles from "./addproyect.module.css";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const token = localStorage.getItem("access");
+const utilityFields = [
+  { name: "agua", label: "Agua" },
+  { name: "desague", label: "Desague" },
+  { name: "luz", label: "Luz" },
+  { name: "alumbrado_publico", label: "Alumbrado publico" },
+  { name: "postes_luz", label: "Postes de luz" },
+  { name: "veredas", label: "Veredas" },
+];
+
+const normalizeUtilityValue = (value) => {
+  if (value === true || value === 1 || value === "1") return "1";
+  if (value === false || value === 0 || value === "0") return "0";
+  return "";
+};
 
 const normalizePoint = (p, index) => ({
   latitud: Number(p?.latitud),
@@ -36,6 +50,12 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
     longitud: proyecto?.longitud || "",
     puntos: [],
     imagenes: [],
+    agua: normalizeUtilityValue(proyecto?.agua),
+    desague: normalizeUtilityValue(proyecto?.desague),
+    luz: normalizeUtilityValue(proyecto?.luz),
+    alumbrado_publico: normalizeUtilityValue(proyecto?.alumbrado_publico),
+    postes_luz: normalizeUtilityValue(proyecto?.postes_luz),
+    veredas: normalizeUtilityValue(proyecto?.veredas),
   });
 
   const mapRef = useRef(null);
@@ -136,6 +156,12 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
           idinmobiliaria,
           nombreproyecto: proyecto?.nombreproyecto || "",
           descripcion: proyecto?.descripcion || "",
+          agua: normalizeUtilityValue(proyecto?.agua),
+          desague: normalizeUtilityValue(proyecto?.desague),
+          luz: normalizeUtilityValue(proyecto?.luz),
+          alumbrado_publico: normalizeUtilityValue(proyecto?.alumbrado_publico),
+          postes_luz: normalizeUtilityValue(proyecto?.postes_luz),
+          veredas: normalizeUtilityValue(proyecto?.veredas),
           puntos: puntosDirtyRef.current ? prev.puntos : puntos,
           latitud: puntosDirtyRef.current
             ? prev.latitud
@@ -155,7 +181,7 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
     return () => {
       cancelled = true;
     };
-  }, [proyectoId, idinmobiliaria]);
+  }, [proyectoId, idinmobiliaria, proyecto]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -321,6 +347,9 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
       formData.append("longitud", latestPuntos[0]?.longitud ?? form.longitud);
       formData.append("puntos", JSON.stringify(latestPuntos));
       formData.append("imagenes_eliminadas", JSON.stringify(removedImageIds));
+      utilityFields.forEach((field) => {
+        formData.append(field.name, form[field.name]);
+      });
 
       form.imagenes.forEach((img) => {
         if (img?.file) formData.append("imagenes", img.file);
@@ -406,6 +435,28 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
                     rows="3"
                     required
                   />
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label>Servicios disponibles</label>
+                  <div className={styles.compactGrid}>
+                    {utilityFields.map((field) => (
+                      <div key={field.name} className={styles.compactField}>
+                        <label htmlFor={`edit-${field.name}`}>{field.label}</label>
+                        <select
+                          id={`edit-${field.name}`}
+                          name={field.name}
+                          value={form[field.name]}
+                          onChange={handleChange}
+                          className={styles.select}
+                        >
+                          <option value="">Seleccione...</option>
+                          <option value="1">Sí</option>
+                          <option value="0">No</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
 

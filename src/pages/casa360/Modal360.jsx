@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Viewer } from "@photo-sphere-viewer/core";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
 import { Vector3 } from "three";
@@ -40,6 +40,37 @@ const normalizeImageUrl = (url) => {
   if (!url) return "";
   return url.startsWith("http") ? url : buildApiUrl(url);
 };
+
+const getImageId = (img) => img?.id_imagen ?? img?.id;
+
+const normalizeStoredImage = (img) => ({
+  ...img,
+  id_imagen: getImageId(img),
+  nombre: img?.nombre || img?.name || `Vista ${getImageId(img) || ""}`.trim(),
+  imagen: normalizeImageUrl(img?.imagen),
+  isDraft: false,
+  file: null,
+});
+
+const parseOverlayPayload = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const getImageOverlayPayload = (img) =>
+  parseOverlayPayload(
+    img?.overlays_2d ??
+      img?.overlay_2d ??
+      img?.overlay2d ??
+      img?.tour_overlay ??
+      img?.tour_data,
+  );
 
 const TEMP_MARKER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
@@ -205,12 +236,20 @@ const buildImportedGeometry = (projectPoints = [], lotes = []) => {
   };
 };
 
-const serializeOverlayLayouts = (overlayLayouts, runtimeByImage = {}) =>
-  Object.entries(overlayLayouts).map(([imageId, config]) => ({
-    imageId,
-    ...config,
-    ...(runtimeByImage[String(imageId)] || {}),
-  }));
+const serializeOverlayLayouts = (overlayLayouts, runtimeByImage = {}, imageIds = null) => {
+  const allowedImageIds = imageIds ? new Set([...imageIds].map(String)) : null;
+
+  return Object.entries(overlayLayouts)
+    .filter(([imageId, config]) => {
+      if (allowedImageIds && !allowedImageIds.has(String(imageId))) return false;
+      return config?.visible !== false;
+    })
+    .map(([imageId, config]) => ({
+      imageId,
+      ...config,
+      ...(runtimeByImage[String(imageId)] || {}),
+    }));
+};
 
 const isValidTexturePoint = (point) =>
   Array.isArray(point) &&
@@ -337,6 +376,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
   const overlaySvgRef = useRef(null);
   const batchItemsRef = useRef([]);
   const imagenesRef = useRef([]);
+  const anchoredOverlaysRef = useRef({});
   const layoutEditModeRef = useRef(false);
   const overlayVisibleRef = useRef(false);
 
@@ -379,10 +419,12 @@ const Modal360 = ({ idproyecto, onClose }) => {
     const markers = viewer.getPlugin(MarkersPlugin);
     markers.clearMarkers();
 
+    const storedAnchoredOverlay = anchoredOverlays[String(selectedImg.id_imagen)] || null;
     const anchoredPreview =
       !layoutEditModeRef.current && selectedOverlayConfig?.visible
-        ? buildAnchoredOverlaySnapshot(selectedImg.id_imagen, selectedOverlayConfig)
-        : anchoredOverlays[String(selectedImg.id_imagen)] || null;
+        ? storedAnchoredOverlay ||
+          buildAnchoredOverlaySnapshot(selectedImg.id_imagen, selectedOverlayConfig)
+        : storedAnchoredOverlay;
 
     if (anchoredPreview?.visible) {
       if (
@@ -683,6 +725,10 @@ const Modal360 = ({ idproyecto, onClose }) => {
     const snapshot = buildAnchoredOverlaySnapshot(imageId, config);
     if (!snapshot) return null;
 
+    anchoredOverlaysRef.current = {
+      ...anchoredOverlaysRef.current,
+      [String(imageId)]: snapshot,
+    };
     setAnchoredOverlays((prev) => ({
       ...prev,
       [String(imageId)]: snapshot,
@@ -691,9 +737,19 @@ const Modal360 = ({ idproyecto, onClose }) => {
     return snapshot;
   };
 
-  const handleSelectImage = (img) => {
+  const persistCurrentOverlayPosition = () => {
+    if (!selectedOverlayConfig?.visible) return null;
     captureCurrentLayoutRuntime();
-    snapshotOverlayForImage();
+    return snapshotOverlayForImage();
+  };
+
+  const handleSelectImage = (img) => {
+    if (
+      layoutEditModeRef.current ||
+      !anchoredOverlaysRef.current[String(selectedImageId)]
+    ) {
+      persistCurrentOverlayPosition();
+    }
     setSelectedImg(img);
   };
 
@@ -758,6 +814,76 @@ const Modal360 = ({ idproyecto, onClose }) => {
     }
   };
 
+  const loadStoredImages = useCallback(async () => {
+    if (!idproyecto) return;
+
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    try {
+      const res = await authFetch(
+        buildApiUrl(`/api/get_imagen_360_casa/${idproyecto}/`),
+        { headers },
+      );
+      const data = await res.json().catch(() => []);
+      if (!res.ok || !Array.isArray(data)) return;
+
+      const storedImages = data
+        .map(normalizeStoredImage)
+        .filter((img) => img.id_imagen && img.imagen);
+
+      if (!storedImages.length) return;
+
+      setImagenes((prev) => {
+        const existingIds = new Set(prev.map((img) => String(img.id_imagen)));
+        const nextStored = storedImages.filter(
+          (img) => !existingIds.has(String(img.id_imagen)),
+        );
+        return nextStored.length ? [...nextStored, ...prev] : prev;
+      });
+
+      setSelectedImg((prev) => prev || storedImages[0] || null);
+
+      const loadedLayouts = {};
+      const loadedAnchoredOverlays = {};
+      let loadedGeometry = null;
+
+      storedImages.forEach((img) => {
+        const payload = getImageOverlayPayload(img);
+        if (!payload) return;
+        if (!loadedGeometry && payload.geometry) loadedGeometry = payload.geometry;
+
+        (payload.layouts || []).forEach((layout) => {
+          const imageId = String(
+            layout?.imageId ?? layout?.imagenId ?? layout?.id_imagen ?? "",
+          );
+          if (imageId) loadedLayouts[imageId] = layout;
+        });
+
+        (payload.anchoredOverlays || payload.panoramaOverlays || []).forEach((overlay) => {
+          const imageId = String(
+            overlay?.imageId ?? overlay?.imagenId ?? overlay?.id_imagen ?? "",
+          );
+          if (imageId && hasAnchoredGeometry(overlay)) {
+            loadedAnchoredOverlays[imageId] = {
+              ...overlay,
+              imageId,
+            };
+          }
+        });
+      });
+
+      if (loadedGeometry) setProjectGeometry((prev) => prev || loadedGeometry);
+      if (Object.keys(loadedLayouts).length) {
+        setOverlayLayouts((prev) => ({ ...loadedLayouts, ...prev }));
+      }
+      if (Object.keys(loadedAnchoredOverlays).length) {
+        setAnchoredOverlays((prev) => ({ ...loadedAnchoredOverlays, ...prev }));
+      }
+    } catch (error) {
+      console.error("Error cargando imagenes 360 guardadas:", error);
+    }
+  }, [idproyecto, token]);
+
   const importLayoutIntoCurrentImage = async (event) => {
     event?.preventDefault();
     event?.stopPropagation();
@@ -789,6 +915,20 @@ const Modal360 = ({ idproyecto, onClose }) => {
     }));
   };
 
+  const toggleLayoutEditMode = () => {
+    if (layoutEditMode) {
+      persistCurrentOverlayPosition();
+      setLayoutEditMode(false);
+      return;
+    }
+
+    setLayoutEditMode(true);
+  };
+
+  useEffect(() => {
+    loadStoredImages();
+  }, [loadStoredImages]);
+
   useEffect(() => {
     batchItemsRef.current = batchItems;
   }, [batchItems]);
@@ -796,6 +936,10 @@ const Modal360 = ({ idproyecto, onClose }) => {
   useEffect(() => {
     imagenesRef.current = imagenes;
   }, [imagenes]);
+
+  useEffect(() => {
+    anchoredOverlaysRef.current = anchoredOverlays;
+  }, [anchoredOverlays]);
 
   useEffect(() => {
     layoutEditModeRef.current = layoutEditMode;
@@ -861,7 +1005,12 @@ const Modal360 = ({ idproyecto, onClose }) => {
 
       const destino = imagenes.find((img) => img.id_imagen === marker.data.destinoId);
       if (destino) {
-        snapshotOverlayForImage();
+        if (
+          layoutEditModeRef.current ||
+          !anchoredOverlaysRef.current[String(selectedImageId)]
+        ) {
+          persistCurrentOverlayPosition();
+        }
         setSelectedImg(destino);
       }
     });
@@ -1011,19 +1160,40 @@ const Modal360 = ({ idproyecto, onClose }) => {
     const skippedConnections = conexiones.length - resolvableConnections.length;
     const currentLayoutRuntime = captureCurrentLayoutRuntime();
     const currentSnapshot = snapshotOverlayForImage();
-    const serializedLayouts = serializeOverlayLayouts(overlayLayouts, {
+    const runtimeByImage = {
       ...(selectedImageId && currentLayoutRuntime
         ? {
             [String(selectedImageId)]: currentLayoutRuntime,
           }
         : {}),
-    });
+    };
+    const layoutSource = {
+      ...overlayLayouts,
+      ...(selectedImageId && currentLayoutRuntime
+        ? {
+            [String(selectedImageId)]: {
+              ...(overlayLayouts[String(selectedImageId)] || DEFAULT_LAYOUT_CONFIG),
+              ...currentLayoutRuntime,
+            },
+          }
+        : {}),
+    };
     const payloadAnchoredOverlays = [
       ...Object.values(anchoredOverlays).filter(
-        (item) => item?.imageId !== currentSnapshot?.imageId && hasAnchoredGeometry(item),
+        (item) =>
+          String(item?.imageId ?? "") !== String(currentSnapshot?.imageId ?? "") &&
+          hasAnchoredGeometry(item),
       ),
       ...(hasAnchoredGeometry(currentSnapshot) ? [currentSnapshot] : []),
     ];
+    const overlayImageIds = new Set(
+      payloadAnchoredOverlays.map((overlay) => String(overlay.imageId)),
+    );
+    const serializedLayouts = serializeOverlayLayouts(
+      layoutSource,
+      runtimeByImage,
+      overlayImageIds,
+    );
 
     if (selectedOverlayConfig?.visible && projectGeometry && !payloadAnchoredOverlays.length) {
       const projectCount = currentSnapshot?.projectPolygonPixels?.length || 0;
@@ -1057,15 +1227,6 @@ const Modal360 = ({ idproyecto, onClose }) => {
       ),
     );
 
-    formData.append(
-      "overlays_2d",
-      JSON.stringify({
-        geometry: projectGeometry,
-        layouts: serializedLayouts,
-        anchoredOverlays: payloadAnchoredOverlays,
-      }),
-    );
-
     setSavingTour(true);
     try {
       const res = await authFetch(buildApiUrl("/api/guardar_tour_360_completo/"), {
@@ -1090,6 +1251,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
       );
       const resolvedOverlayPayload = {
         geometry: projectGeometry,
+        clearMissingOverlays: true,
         layouts: serializedLayouts.map((layout) => ({
           ...layout,
           imageId: remapImageId(layout.imageId, imageMap),
@@ -1508,7 +1670,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
                   <button
                     type="button"
                     className={styles.btnCancel}
-                    onClick={() => setLayoutEditMode((prev) => !prev)}
+                    onClick={toggleLayoutEditMode}
                     disabled={!selectedOverlayConfig?.visible}
                   >
                     <Move size={16} />

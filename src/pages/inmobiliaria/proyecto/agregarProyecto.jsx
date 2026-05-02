@@ -6,6 +6,19 @@ import loader from "../../../components/loader";
 import styles from "./addproyect.module.css";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
+const PROJECT_TYPE_BY_REGISTRATION = {
+  lote_unico: 1,
+  conjunto_lotes_casas: 1,
+  casa_unica: 2,
+};
+const utilityFields = [
+  { name: "agua", label: "Agua" },
+  { name: "desague", label: "Desague" },
+  { name: "luz", label: "Luz" },
+  { name: "alumbrado_publico", label: "Alumbrado publico" },
+  { name: "postes_luz", label: "Postes de luz" },
+  { name: "veredas", label: "Veredas" },
+];
 
 export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const token = localStorage.getItem("access");
@@ -57,6 +70,12 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     pais: "",
     bandera: "",
     moneda: "",
+    agua: "",
+    desague: "",
+    luz: "",
+    alumbrado_publico: "",
+    postes_luz: "",
+    veredas: "",
   });
 
   const isCasa = parseInt(form.idtipoinmobiliaria, 10) === 2;
@@ -130,10 +149,11 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
 
   useEffect(() => {
-    if (form.tipo_registro === "lote_unico") {
+    const mappedType = PROJECT_TYPE_BY_REGISTRATION[form.tipo_registro];
+    if (mappedType) {
       setForm((prev) => ({
         ...prev,
-        idtipoinmobiliaria: 1, // 👈 Forzamos ID 1 cuando es lote único
+        idtipoinmobiliaria: mappedType,
       }));
     }
   }, [form.tipo_registro]);
@@ -268,6 +288,17 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     const { name, value } = e.target;
     const normalizedValue =
       typeof value === "string" ? value.replace(",", ".") : value;
+    if (name === "tipo_registro") {
+      setForm((prev) => ({
+        ...prev,
+        tipo_registro: normalizedValue,
+        idtipoinmobiliaria:
+          PROJECT_TYPE_BY_REGISTRATION[normalizedValue] ??
+          (normalizedValue === "proyecto" ? "" : ""),
+      }));
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: normalizedValue,
@@ -318,6 +349,12 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       area_total_m2: Number(form.area_total_m2) || 0,
       ancho: Number(form.ancho) || 0,
       largo: Number(form.largo) || 0,
+      agua: form.agua,
+      desague: form.desague,
+      luz: form.luz,
+      alumbrado_publico: form.alumbrado_publico,
+      postes_luz: form.postes_luz,
+      veredas: form.veredas,
     };
 
     console.log("Dormitorios normalizado:", normalizedForm.dormitorios);
@@ -481,7 +518,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                 </h2>
 
                 <div className={styles.inputGroup}>
-                  <label>Agregar proyecto o lote único</label>
+                  <label>Tipo de registro</label>
                   <select
                     name="tipo_registro"
                     value={form.tipo_registro}
@@ -492,12 +529,16 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     <option value="">Seleccione...</option>
                     <option value="proyecto">Proyecto</option>
                     <option value="lote_unico">Lote único</option>
+                    <option value="conjunto_lotes_casas">
+                      Conjunto de lotes/casas
+                    </option>
+                    <option value="casa_unica">Casa única</option>
                   </select>
                 </div>
 
-                {!isLoteUnico && (
+                {form.tipo_registro === "proyecto" && (
                   <div className={styles.inputGroup}>
-                    <label>Tipo de Proyecto o casa única</label>
+                    <label>Tipo de proyecto</label>
                     <select
                       name="idtipoinmobiliaria"
                       value={form.idtipoinmobiliaria}
@@ -530,6 +571,28 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                     </select>
                   </div>
                 )}
+
+                <div className={styles.inputGroup}>
+                  <label>Servicios disponibles</label>
+                  <div className={styles.compactGrid}>
+                    {utilityFields.map((field) => (
+                      <div key={field.name} className={styles.compactField}>
+                        <label htmlFor={field.name}>{field.label}</label>
+                        <select
+                          id={field.name}
+                          name={field.name}
+                          value={form[field.name]}
+                          onChange={handleChange}
+                          className={styles.select}
+                        >
+                          <option value="">Seleccione...</option>
+                          <option value="1">Sí</option>
+                          <option value="0">No</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className={styles.inputGroup}>
                   <label>Nombre</label>
                   <input

@@ -236,6 +236,7 @@ function MyMap() {
   const [reliefEnabled, setReliefEnabled] = useState(false);
   const [mapTypeMenuFor, setMapTypeMenuFor] = useState(null);
   const [mapZoom, setMapZoom] = useState(13);
+  const [mapIntroHintVisible, setMapIntroHintVisible] = useState(false);
 
   const mapRef = useRef(null);
   const mapTypeListenerRef = useRef(null);
@@ -245,6 +246,8 @@ function MyMap() {
   const autocompleteRef = useRef(null);
   const boundsDebounceRef = useRef(null);
   const anuncioTimeoutRef = useRef(null);
+  const mapIntroHintTimeoutRef = useRef(null);
+  const previousMapZoomRef = useRef(mapZoom);
   const initialViewportHandledRef = useRef(false);
   const [mapHeaderOffsetPx, setMapHeaderOffsetPx] = useState(() =>
     typeof window !== "undefined" ? (window.innerWidth <= 550 ? 66 : 80) : 80,
@@ -906,6 +909,14 @@ function MyMap() {
     preloadImage("/proyectoicono.png");
     preloadImage("https://cdn-icons-png.freepik.com/512/11130/11130373.png");
   }, [preloadImage]);
+
+  useEffect(() => {
+    return () => {
+      if (mapIntroHintTimeoutRef.current) {
+        clearTimeout(mapIntroHintTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Solo intentar geolocalizar una vez por usuario para evitar recentrados inesperados.
@@ -2276,13 +2287,31 @@ function MyMap() {
             Ir al Mapa Completo
           </button>
         )}
+        {mapIntroHintVisible && (
+          <button
+            type="button"
+            className={styles.mapIntroHint}
+            onClick={() => setMapIntroHintVisible(false)}
+            aria-label="Ocultar sugerencia para alejar el mapa"
+          >
+            <span className={styles.mapIntroHintIcon} aria-hidden="true">
+              -
+            </span>
+            <span className={styles.mapIntroHintText}>
+              <strong>Aleja el mapa</strong>
+              <small>Descubre mas proyectos alrededor</small>
+            </span>
+          </button>
+        )}
         <GoogleMap
           mapContainerClassName={styles.map}
           center={currentPosition}
           zoom={mapZoom}
           onLoad={(map) => {
             mapRef.current = map;
-            setMapZoom(map.getZoom() ?? 13);
+            const initialZoom = map.getZoom() ?? 13;
+            previousMapZoomRef.current = initialZoom;
+            setMapZoom(initialZoom);
             map.setMapTypeId(
               resolveMapTypeId(baseMapStyle, labelsEnabled, reliefEnabled),
             );
@@ -2315,6 +2344,13 @@ function MyMap() {
               },
             );
             updateBoundsFromMap();
+            setMapIntroHintVisible(true);
+            if (mapIntroHintTimeoutRef.current) {
+              clearTimeout(mapIntroHintTimeoutRef.current);
+            }
+            mapIntroHintTimeoutRef.current = setTimeout(() => {
+              setMapIntroHintVisible(false);
+            }, 4000);
             if (pendingShareFocusRef.current) {
               focusMapForShare({
                 map,
@@ -2328,6 +2364,14 @@ function MyMap() {
           onZoomChanged={() => {
             const nextZoom = mapRef.current?.getZoom();
             if (Number.isFinite(nextZoom)) {
+              if (
+                mapIntroHintVisible &&
+                Number.isFinite(previousMapZoomRef.current) &&
+                nextZoom < previousMapZoomRef.current
+              ) {
+                setMapIntroHintVisible(false);
+              }
+              previousMapZoomRef.current = nextZoom;
               setMapZoom(nextZoom);
             }
           }}
