@@ -88,6 +88,7 @@ const GALLERY_PRELOAD_RANGE = 1;
 const VIEWER_RESOLUTION = 32;
 const VIEWER_MOVE_SPEED = 1.75;
 const LOT_LABEL_MIN_ZOOM = 10;
+const LOT_LABELS_ENABLED = false;
 const shouldPrioritizeThumb = (idx, currentIndex) =>
   Math.abs(idx - currentIndex) <= GALLERY_PRELOAD_RANGE;
 
@@ -1023,6 +1024,9 @@ const Viewer360Modal = ({
   const lotLabelBlockRefs = useRef(new Map());
   const viewerRef = useRef(null);
   const containerRef = useRef(null);
+  const lotLabelsFrameRef = useRef(null);
+  const lotLabelsZoomTimerRef = useRef(null);
+  const lotLabelsZoomingRef = useRef(false);
   const travelTimerRef = useRef(null);
   const loteInfoCacheRef = useRef(new Map());
   const loteInfoAbortRef = useRef(null);
@@ -1172,8 +1176,10 @@ const Viewer360Modal = ({
     }, {});
   }, [lotesForHud]);
   const lotLabelsData = useMemo(
-    () =>
-      lotesForHud
+    () => {
+      if (!LOT_LABELS_ENABLED) return [];
+
+      return lotesForHud
         .map((lote, index) => {
           const polygonPixels = lote?.polygonPixels || [];
           if (!isValidPolygonPixels(polygonPixels)) return null;
@@ -1192,7 +1198,8 @@ const Viewer360Modal = ({
             isSelected: String(loteId) === selectedLoteId,
           };
         })
-        .filter(Boolean),
+        .filter(Boolean);
+    },
     [availableLotVariantById, currentImageId, lotesForHud, selectedLoteId],
   );
   const travelToImageById = useCallback(
@@ -1777,9 +1784,9 @@ const Viewer360Modal = ({
       ) {
         markers.addMarker({
           id: `overlay-project-${currentImageId}`,
-          ...(hasProjectSpherical
-            ? { polygon: overlayToRender.projectPolygon }
-            : { polygonPixels: overlayToRender.projectPolygonPixels }),
+          ...(hasProjectPixels
+            ? { polygonPixels: overlayToRender.projectPolygonPixels }
+            : { polygon: overlayToRender.projectPolygon }),
           svgStyle: {
             fill: "rgba(14, 116, 44, 0.26)",
             stroke: "#14532d",
@@ -1802,9 +1809,9 @@ const Viewer360Modal = ({
           availableLotVariantById[String(loteId ?? `idx-${index}`)] ?? 0;
         markers.addMarker({
           id: `overlay-lote-${currentImageId}-${markerKey}-${index}`,
-          ...(hasSpherical
-            ? { polygon: lote.polygon }
-            : { polygonPixels: lote.polygonPixels }),
+          ...(hasPixels
+            ? { polygonPixels: lote.polygonPixels }
+            : { polygon: lote.polygon }),
           tooltip: {
             content: buildLoteTooltipContent(lote, status),
             className: `gh-lot-tooltip gh-lot-tooltip-${status.key}`,
@@ -1869,7 +1876,19 @@ const Viewer360Modal = ({
     const layer = lotLabelsLayerRef.current;
     if (!viewerReady || !viewer || !layer) return undefined;
 
+    const hideLabels = () => {
+      lotLabelGroupRefs.current.forEach((group) => {
+        group.setAttribute("display", "none");
+      });
+    };
+
     const updateLabels = () => {
+      lotLabelsFrameRef.current = null;
+      if (lotLabelsZoomingRef.current) {
+        hideLabels();
+        return;
+      }
+
       const viewportWidth = viewer?.state?.size?.width || 0;
       const viewportHeight = viewer?.state?.size?.height || 0;
       const zoomLevel =
@@ -2002,19 +2021,40 @@ const Viewer360Modal = ({
       });
     };
 
-    updateLabels();
-    viewer.addEventListener("render", updateLabels);
-    viewer.addEventListener("position-updated", updateLabels);
-    viewer.addEventListener("zoom-updated", updateLabels);
-    viewer.addEventListener("size-updated", updateLabels);
-    window.addEventListener("resize", updateLabels);
+    const scheduleLabelsUpdate = () => {
+      if (lotLabelsFrameRef.current) return;
+      lotLabelsFrameRef.current = window.requestAnimationFrame(updateLabels);
+    };
+
+    const scheduleLabelsAfterZoom = () => {
+      lotLabelsZoomingRef.current = true;
+      hideLabels();
+      window.clearTimeout(lotLabelsZoomTimerRef.current);
+      lotLabelsZoomTimerRef.current = window.setTimeout(() => {
+        lotLabelsZoomingRef.current = false;
+        scheduleLabelsUpdate();
+      }, 140);
+    };
+
+    scheduleLabelsUpdate();
+    viewer.addEventListener("render", scheduleLabelsUpdate);
+    viewer.addEventListener("position-updated", scheduleLabelsUpdate);
+    viewer.addEventListener("zoom-updated", scheduleLabelsAfterZoom);
+    viewer.addEventListener("size-updated", scheduleLabelsUpdate);
+    window.addEventListener("resize", scheduleLabelsUpdate);
 
     return () => {
-      viewer.removeEventListener("render", updateLabels);
-      viewer.removeEventListener("position-updated", updateLabels);
-      viewer.removeEventListener("zoom-updated", updateLabels);
-      viewer.removeEventListener("size-updated", updateLabels);
-      window.removeEventListener("resize", updateLabels);
+      if (lotLabelsFrameRef.current) {
+        window.cancelAnimationFrame(lotLabelsFrameRef.current);
+        lotLabelsFrameRef.current = null;
+      }
+      window.clearTimeout(lotLabelsZoomTimerRef.current);
+      lotLabelsZoomingRef.current = false;
+      viewer.removeEventListener("render", scheduleLabelsUpdate);
+      viewer.removeEventListener("position-updated", scheduleLabelsUpdate);
+      viewer.removeEventListener("zoom-updated", scheduleLabelsAfterZoom);
+      viewer.removeEventListener("size-updated", scheduleLabelsUpdate);
+      window.removeEventListener("resize", scheduleLabelsUpdate);
     };
   }, [lotLabelsData, viewerReady]);
 
@@ -2356,76 +2396,78 @@ const Viewer360Modal = ({
             <div className={styles.loading360}>{viewerLoadMessage}</div>
           )}
           <div className={styles.viewerContainer} ref={containerRef} />
-          <div className={styles.lotLabelsLayer} ref={lotLabelsLayerRef}>
-            <svg className={styles.lotLabelsSvg} aria-hidden="true">
-              {lotLabelsData.map((label) => (
-                <g
-                  key={label.id}
-                  ref={(node) => {
-                    if (node) {
-                      lotLabelGroupRefs.current.set(label.id, node);
-                    } else {
-                      lotLabelGroupRefs.current.delete(label.id);
-                    }
-                  }}
-                  opacity="0"
-                  display="none"
-                  className={label.isSelected ? styles.lotLabelSelected : styles.lotLabel}
-                >
-                  <text
+          {LOT_LABELS_ENABLED && (
+            <div className={styles.lotLabelsLayer} ref={lotLabelsLayerRef}>
+              <svg className={styles.lotLabelsSvg} aria-hidden="true">
+                {lotLabelsData.map((label) => (
+                  <g
+                    key={label.id}
                     ref={(node) => {
                       if (node) {
-                        lotLabelTitleRefs.current.set(label.id, node);
+                        lotLabelGroupRefs.current.set(label.id, node);
                       } else {
-                        lotLabelTitleRefs.current.delete(label.id);
+                        lotLabelGroupRefs.current.delete(label.id);
                       }
                     }}
-                    className={styles.lotLabelTitle}
-                    x="0"
-                    y="0"
-                    textAnchor="middle"
-                    dominantBaseline="central"
+                    opacity="0"
+                    display="none"
+                    className={label.isSelected ? styles.lotLabelSelected : styles.lotLabel}
                   >
-                    {label.labelLines.number}
-                  </text>
-                  <text
-                    ref={(node) => {
-                      if (node) {
-                        lotLabelAreaRefs.current.set(label.id, node);
-                      } else {
-                        lotLabelAreaRefs.current.delete(label.id);
-                      }
-                    }}
-                    className={styles.lotLabelArea}
-                    x="0"
-                    y="0"
-                    textAnchor="middle"
-                    dominantBaseline="hanging"
-                    display={label.labelLines.area ? "inline" : "none"}
-                  >
-                    {label.labelLines.area || ""}
-                  </text>
-                  <text
-                    ref={(node) => {
-                      if (node) {
-                        lotLabelBlockRefs.current.set(label.id, node);
-                      } else {
-                        lotLabelBlockRefs.current.delete(label.id);
-                      }
-                    }}
-                    className={styles.lotLabelBlock}
-                    x="0"
-                    y="0"
-                    textAnchor="middle"
-                    dominantBaseline="hanging"
-                    display={label.labelLines.block ? "inline" : "none"}
-                  >
-                    {label.labelLines.block || ""}
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </div>
+                    <text
+                      ref={(node) => {
+                        if (node) {
+                          lotLabelTitleRefs.current.set(label.id, node);
+                        } else {
+                          lotLabelTitleRefs.current.delete(label.id);
+                        }
+                      }}
+                      className={styles.lotLabelTitle}
+                      x="0"
+                      y="0"
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                    >
+                      {label.labelLines.number}
+                    </text>
+                    <text
+                      ref={(node) => {
+                        if (node) {
+                          lotLabelAreaRefs.current.set(label.id, node);
+                        } else {
+                          lotLabelAreaRefs.current.delete(label.id);
+                        }
+                      }}
+                      className={styles.lotLabelArea}
+                      x="0"
+                      y="0"
+                      textAnchor="middle"
+                      dominantBaseline="hanging"
+                      display={label.labelLines.area ? "inline" : "none"}
+                    >
+                      {label.labelLines.area || ""}
+                    </text>
+                    <text
+                      ref={(node) => {
+                        if (node) {
+                          lotLabelBlockRefs.current.set(label.id, node);
+                        } else {
+                          lotLabelBlockRefs.current.delete(label.id);
+                        }
+                      }}
+                      className={styles.lotLabelBlock}
+                      x="0"
+                      y="0"
+                      textAnchor="middle"
+                      dominantBaseline="hanging"
+                      display={label.labelLines.block ? "inline" : "none"}
+                    >
+                      {label.labelLines.block || ""}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            </div>
+          )}
           <div className={`${styles.viewerHud} viewer-hud-enter`}>
             <div className={styles.viewerWatermark}>
               <img src="/habitasinfondo.png" alt="GeoHabita" />

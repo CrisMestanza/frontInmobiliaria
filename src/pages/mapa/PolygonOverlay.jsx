@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Polygon } from "@react-google-maps/api";
 import LabelOverlay from "./LabelOverlay";
 
@@ -94,22 +94,29 @@ const PolygonOverlay = ({
   mapZoom = 13,
   options = {},
 }) => {
-  if (!puntos || puntos.length < 2) return null;
-
   // 🔹 Aseguramos un orden valido aun si "orden" viene null.
-  const puntosOrdenados = getCoordsWithFallbackOrder(puntos);
-  if (puntosOrdenados.length < 2) return null;
-
-  const path = puntosOrdenados.map((p) => ({
-    lat: p.lat,
-    lng: p.lng,
-  }));
+  const puntosOrdenados = useMemo(
+    () =>
+      !puntos || puntos.length < 2 ? [] : getCoordsWithFallbackOrder(puntos),
+    [puntos],
+  );
+  const path = useMemo(
+    () =>
+      puntosOrdenados.map((p) => ({
+        lat: p.lat,
+        lng: p.lng,
+      })),
+    [puntosOrdenados],
+  );
 
   // if (path.length > 2) {
   //   path.push(path[0]);
   // }
 
-  const centroide = path.length > 2 ? calcularCentroide(path) : null;
+  const centroide = useMemo(
+    () => (path.length > 2 ? calcularCentroide(path) : null),
+    [path],
+  );
   const getLabelSizing = () => {
     if (!path?.length || path.length < 3) {
       return { fontSize: 11, maxWidth: 80 };
@@ -179,6 +186,8 @@ const PolygonOverlay = ({
   const labelConfig = label && typeof label === "object" ? label : { text: label };
   const labelSizing = getLabelSizing();
 
+  if (puntosOrdenados.length < 2) return null;
+
   return (
     <>
       {haloColor ? (
@@ -241,4 +250,4 @@ const PolygonOverlay = ({
   );
 };
 
-export default PolygonOverlay;
+export default React.memo(PolygonOverlay);

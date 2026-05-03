@@ -91,8 +91,9 @@ const ProyectoSidebar = ({
   // 360
   const [show360, setShow360] = useState(false);
   const [images360, setImages360] = useState([]);
+  const [images360Status, setImages360Status] = useState("idle");
 
-  const [expanded, setExpanded] = useState(false);
+  const [expanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
   const [isMobileView, setIsMobileView] = useState(() =>
@@ -116,32 +117,67 @@ const ProyectoSidebar = ({
   const nestedStartAtBottom = useRef(false);
   const nestedScrollableTarget = useRef(null);
   const previousSheetStateRef = useRef(null);
+  const images360CacheRef = useRef(new Map());
   const imagesPending = imagenes === null;
-  const imageItems = Array.isArray(imagenes) ? imagenes : [];
   const validImages = useMemo(
-    () =>
-      imageItems.filter((img) => {
+    () => {
+      const imageItems = Array.isArray(imagenes) ? imagenes : [];
+      return imageItems.filter((img) => {
         const src = img?.imagenproyecto;
         if (typeof src !== "string") return false;
         const trimmed = src.trim();
         if (!trimmed) return false;
         return !trimmed.toLowerCase().includes("no hay imagenes referenciales");
-      }),
-    [imageItems],
+      });
+    },
+    [imagenes],
   );
 
-  // 360
   useEffect(() => {
-    if (proyecto?.idproyecto) {
-      console.log("Proyecto: ", proyecto.idproyecto);
-      fetch(
-        `https://api.geohabita.com/api/get_imagen_360_casa/${proyecto.idproyecto}/`,
-      )
-        .then((res) => res.json())
-        .then((data) => setImages360(data))
-        .catch((err) => console.error("Error cargando 360:", err));
+    setShow360(false);
+    setImages360([]);
+    setImages360Status("idle");
+  }, [proyecto?.idproyecto]);
+
+  const loadImages360 = useCallback(async () => {
+    const projectId = proyecto?.idproyecto;
+    if (!projectId) return [];
+
+    const cached = images360CacheRef.current.get(projectId);
+    if (cached) {
+      setImages360(cached);
+      setImages360Status("ready");
+      return cached;
+    }
+
+    setImages360Status("loading");
+    try {
+      const res = await fetch(
+        withApiBase(
+          `https://api.geohabita.com/api/get_imagen_360_casa/${projectId}/`,
+        ),
+      );
+      const data = res.ok ? await res.json() : [];
+      const normalized = Array.isArray(data) ? data : [];
+      images360CacheRef.current.set(projectId, normalized);
+      setImages360(normalized);
+      setImages360Status("ready");
+      return normalized;
+    } catch (err) {
+      console.error("Error cargando 360:", err);
+      setImages360Status("error");
+      return [];
     }
   }, [proyecto?.idproyecto]);
+
+  const handleOpen360 = useCallback(async () => {
+    const loadedImages = images360.length ? images360 : await loadImages360();
+    if (loadedImages.length) {
+      setShow360(true);
+      return;
+    }
+    window.alert("Este proyecto no tiene tour 360 disponible.");
+  }, [images360, loadImages360]);
 
   const mensajeWhatsapp = encodeURIComponent(
     `Hola, vengo desde GeoHabita.\n` +
@@ -338,11 +374,35 @@ const ProyectoSidebar = ({
   };
 
   useEffect(() => {
-    validImages.forEach((img) => {
-      const image = new Image();
-      image.src = withApiBase(`https://api.geohabita.com${img.imagenproyecto}`);
-    });
-  }, [validImages]);
+    if (!validImages.length) return undefined;
+
+    const indexesToPreload = new Set([
+      currentImg,
+      prevImgIndex,
+      nextImgIndex,
+    ]);
+    const preloadVisibleImages = () => {
+      indexesToPreload.forEach((index) => {
+        const img = validImages[index];
+        if (!img?.imagenproyecto) return;
+        const image = new Image();
+        image.decoding = "async";
+        image.src = withApiBase(
+          `https://api.geohabita.com${img.imagenproyecto}`,
+        );
+      });
+    };
+
+    if (typeof window !== "undefined" && window.requestIdleCallback) {
+      const idleId = window.requestIdleCallback(preloadVisibleImages, {
+        timeout: 900,
+      });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timer = window.setTimeout(preloadVisibleImages, 120);
+    return () => window.clearTimeout(timer);
+  }, [validImages, currentImg, prevImgIndex, nextImgIndex]);
 
   useEffect(() => {
     if (currentImg >= validImages.length) {
@@ -918,14 +978,17 @@ const ProyectoSidebar = ({
                   </div>
 
                   <br />
-                  {images360.length > 0 && (
+                  {proyecto?.idproyecto && (
                     <button
-                      onClick={() => setShow360(true)}
+                      onClick={handleOpen360}
                       className={styles.btn360}
                       data-gsap="action"
+                      disabled={images360Status === "loading"}
                     >
                       <FaGlobe className={styles.icon360} />
-                      Ver Tour 360°
+                      {images360Status === "loading"
+                        ? "Cargando tour..."
+                        : "Ver Tour 360°"}
                     </button>
                   )}
                   <br />

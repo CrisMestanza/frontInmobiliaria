@@ -39,6 +39,7 @@ const LotesOverlay = ({
   hoveredLote,
   mapZoom = 13,
   isMobile = false,
+  enableHalos = true,
   onLoteClick,
   onLoteMouseOver,
   onLoteMouseOut,
@@ -170,7 +171,7 @@ const LotesOverlay = ({
                     ? 2.7
                     : 2.2,
               strokeColor: strokeBaseColor,
-              haloColor: status.color,
+              haloColor: enableHalos ? status.color : undefined,
               haloOpacity: isSelected
                 ? selectedHaloOpacity
                 : isHovered
@@ -188,6 +189,8 @@ const LotesOverlay = ({
     </>
   );
 };
+
+const MemoizedLotesOverlay = React.memo(LotesOverlay);
 
 function MyMap() {
   const { isDark, toggleTheme } = useTheme();
@@ -236,6 +239,8 @@ function MyMap() {
   const [reliefEnabled, setReliefEnabled] = useState(false);
   const [mapTypeMenuFor, setMapTypeMenuFor] = useState(null);
   const [mapZoom, setMapZoom] = useState(13);
+  const [overlayZoom, setOverlayZoom] = useState(13);
+  const [isMapZooming, setIsMapZooming] = useState(false);
   const [mapIntroHintVisible, setMapIntroHintVisible] = useState(false);
 
   const mapRef = useRef(null);
@@ -248,6 +253,7 @@ function MyMap() {
   const anuncioTimeoutRef = useRef(null);
   const mapIntroHintTimeoutRef = useRef(null);
   const previousMapZoomRef = useRef(mapZoom);
+  const isMapZoomingRef = useRef(false);
   const initialViewportHandledRef = useRef(false);
   const [mapHeaderOffsetPx, setMapHeaderOffsetPx] = useState(() =>
     typeof window !== "undefined" ? (window.innerWidth <= 550 ? 66 : 80) : 80,
@@ -743,6 +749,7 @@ function MyMap() {
     map.panTo(location);
     map.setZoom(17);
     setMapZoom(17);
+    setOverlayZoom(17);
   }, []);
 
   const geocodeSearchQuery = useCallback(async () => {
@@ -2312,6 +2319,7 @@ function MyMap() {
             const initialZoom = map.getZoom() ?? 13;
             previousMapZoomRef.current = initialZoom;
             setMapZoom(initialZoom);
+            setOverlayZoom(initialZoom);
             map.setMapTypeId(
               resolveMapTypeId(baseMapStyle, labelsEnabled, reliefEnabled),
             );
@@ -2344,6 +2352,7 @@ function MyMap() {
               },
             );
             updateBoundsFromMap();
+            setOverlayZoom(initialZoom);
             setMapIntroHintVisible(true);
             if (mapIntroHintTimeoutRef.current) {
               clearTimeout(mapIntroHintTimeoutRef.current);
@@ -2372,10 +2381,24 @@ function MyMap() {
                 setMapIntroHintVisible(false);
               }
               previousMapZoomRef.current = nextZoom;
-              setMapZoom(nextZoom);
+              if (!isMapZoomingRef.current) {
+                isMapZoomingRef.current = true;
+                setIsMapZooming(true);
+              }
             }
           }}
-          onIdle={scheduleBoundsUpdate}
+          onIdle={() => {
+            const nextZoom = mapRef.current?.getZoom();
+            if (Number.isFinite(nextZoom)) {
+              setMapZoom(nextZoom);
+              setOverlayZoom(nextZoom);
+            }
+            if (isMapZoomingRef.current) {
+              isMapZoomingRef.current = false;
+              setIsMapZooming(false);
+            }
+            scheduleBoundsUpdate();
+          }}
           options={{
             gestureHandling: "greedy",
             zoomControl: false,
@@ -2448,12 +2471,13 @@ function MyMap() {
           )}
 
           {selectedProyecto && lotesProyecto.length > 0 && (
-            <LotesOverlay
+            <MemoizedLotesOverlay
               lotes={lotesProyecto}
               selectedLote={selectedLote}
               hoveredLote={hoveredLote}
-              mapZoom={mapZoom}
+              mapZoom={overlayZoom}
               isMobile={isMobileViewport}
+              enableHalos={!isMapZooming}
               onLoteClick={handleLoteClick}
               onLoteMouseOver={setHoveredLote}
               onLoteMouseOut={() => setHoveredLote(null)}
