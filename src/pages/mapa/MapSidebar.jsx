@@ -1,5 +1,6 @@
 import { withApiBase } from "../../config/api.js";
 import React, {
+  Suspense,
   useState,
   useEffect,
   useRef,
@@ -34,10 +35,54 @@ import {
   FaPhoneAlt,
   FaShareAlt,
   FaWalking,
+  FaCalculator,
+  FaPiggyBank,
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
+const Viewer360Modal = React.lazy(() => import("./Viewer360ModalCasa"));
 
 gsap.registerPlugin(useGSAP);
+
+const parseFinancingConfig = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const formatMoney = (value, currency = "S/") => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return `${currency} 0.00`;
+  return `${currency} ${amount.toLocaleString("es-PE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const clamp = (value, min, max) =>
+  Math.min(Math.max(Number(value) || 0, min), max);
+
+const getRangeStyle = (value, min, max) => {
+  const safeMin = Number.isFinite(Number(min)) ? Number(min) : 0;
+  const rawMax = Number.isFinite(Number(max)) ? Number(max) : safeMin + 1;
+  const safeMax = rawMax <= safeMin ? safeMin + 1 : rawMax;
+  const current = clamp(value, safeMin, safeMax);
+  const progress = ((current - safeMin) / (safeMax - safeMin)) * 100;
+  return { "--financing-range-progress": `${progress}%` };
+};
+
+const calcPayment = (principal, annualRate, months) => {
+  const safePrincipal = Math.max(Number(principal) || 0, 0);
+  const safeMonths = Math.max(1, Math.round(Number(months) || 1));
+  const monthlyRate = Math.max(0, Number(annualRate) || 0) / 12 / 100;
+  if (!monthlyRate) return safePrincipal / safeMonths;
+  return (
+    (safePrincipal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -safeMonths))
+  );
+};
 
 const LoteSidebarOverlay = ({
   inmo,
@@ -92,6 +137,9 @@ const LoteSidebarOverlay = ({
     : undefined;
   const facebookHref = inmo?.facebook || undefined;
   const webHref = inmo?.pagina || undefined;
+  const [show360, setShow360] = useState(false);
+  const [images360, setImages360] = useState([]);
+  const [images360Status, setImages360Status] = useState("idle");
   const [expanded, setExpanded] = useState(false);
   const [currentImg, setCurrentImg] = useState(0);
   const [fullscreenImgIndex, setFullscreenImgIndex] = useState(null);
@@ -360,6 +408,176 @@ const LoteSidebarOverlay = ({
     window.prompt("Copia el link para compartir:", shareUrl);
   };
 
+  const financingConfig = useMemo(
+    () => parseFinancingConfig(proyecto?.financing_config),
+    [proyecto?.financing_config],
+  );
+  const financingCurrency =
+    financingConfig?.currency || lote?.moneda || proyecto?.moneda || "S/";
+  const financingPrice = Number(lote?.precio || 0);
+  const financingMinInitial = Math.max(
+    0,
+    Number(
+      financingConfig?.min_initial_amount ??
+        financingConfig?.default_initial_amount ??
+        0,
+    ) || Math.round(financingPrice * 0.1),
+  );
+  const financingMaxInitial = Math.max(
+    financingMinInitial,
+    Math.min(
+      Number(financingConfig?.max_initial_amount || financingPrice || 0) ||
+        financingPrice,
+      financingPrice || Number.MAX_SAFE_INTEGER,
+    ),
+  );
+  const financingMinMonths = Math.max(
+    1,
+    Number(financingConfig?.min_months || 1),
+  );
+  const financingMaxMonths = Math.max(
+    financingMinMonths,
+    Number(financingConfig?.max_months || 60),
+  );
+  const financingDefaultInitial = clamp(
+    financingConfig?.default_initial_amount ?? financingMinInitial,
+    financingMinInitial,
+    financingMaxInitial,
+  );
+  const financingDefaultMonths = clamp(
+    financingConfig?.default_months ?? 36,
+    financingMinMonths,
+    financingMaxMonths,
+  );
+  const [financingInitial, setFinancingInitial] = useState(
+    financingDefaultInitial,
+  );
+  const [financingMonths, setFinancingMonths] = useState(
+    financingDefaultMonths,
+  );
+
+  useEffect(() => {
+    setFinancingInitial(financingDefaultInitial);
+    setFinancingMonths(financingDefaultMonths);
+  }, [financingDefaultInitial, financingDefaultMonths, lote?.idlote]);
+
+  const financingScenario = useMemo(() => {
+    if (!financingConfig || !financingPrice) return null;
+    const initial = clamp(
+      financingInitial,
+      financingMinInitial,
+      financingMaxInitial,
+    );
+    const months = clamp(
+      financingMonths,
+      financingMinMonths,
+      financingMaxMonths,
+    );
+    const annualRate = Number(financingConfig?.annual_interest_rate || 0);
+    const monthlyAdminFee = Number(financingConfig?.monthly_admin_fee || 0);
+    const insuranceMonthly = Number(financingConfig?.insurance_monthly || 0);
+    const originationFeePct = Number(financingConfig?.origination_fee_pct || 0);
+    const balloonPct = Number(financingConfig?.balloon_payment_pct || 0);
+    const financedBase = Math.max(financingPrice - initial, 0);
+    const originationFee = (financingPrice * originationFeePct) / 100;
+    const balloonPayment = (financedBase * balloonPct) / 100;
+    const principalForInstallments = Math.max(
+      financedBase + originationFee - balloonPayment,
+      0,
+    );
+    const baseMonthly = calcPayment(
+      principalForInstallments,
+      annualRate,
+      months,
+    );
+    const monthlyEstimate = baseMonthly + monthlyAdminFee + insuranceMonthly;
+    const totalPaid = initial + monthlyEstimate * months + balloonPayment;
+    const suggestedIncome = monthlyEstimate * 3;
+
+    return {
+      initial,
+      months,
+      annualRate,
+      monthlyAdminFee,
+      insuranceMonthly,
+      monthlyEstimate,
+      totalPaid,
+      suggestedIncome,
+    };
+  }, [
+    financingConfig,
+    financingPrice,
+    financingInitial,
+    financingMonths,
+    financingMinInitial,
+    financingMaxInitial,
+    financingMinMonths,
+    financingMaxMonths,
+  ]);
+
+  const financingPresets = useMemo(() => {
+    const presets = Array.isArray(financingConfig?.presets)
+      ? financingConfig.presets
+      : [];
+    if (presets.length) return presets;
+    return [
+      {
+        label: "36 meses",
+        months: 36,
+        initial_amount: financingDefaultInitial,
+      },
+      {
+        label: "48 meses",
+        months: 48,
+        initial_amount: financingDefaultInitial,
+      },
+      {
+        label: "60 meses",
+        months: 60,
+        initial_amount: financingDefaultInitial,
+      },
+    ];
+  }, [financingConfig, financingDefaultInitial]);
+  const financingWhatsAppHref =
+    financingScenario && phoneNumber
+      ? `https://wa.me/${phoneNumber.replace(/[^\d]/g, "")}?text=${encodeURIComponent(
+          `Hola, me interesa el financiamiento del lote "${lote?.nombre || ""}" del proyecto "${proyecto?.nombreproyecto || ""}".\n\nInicial: ${formatMoney(financingScenario.initial, financingCurrency)}\nPlazo: ${financingScenario.months} meses\nCuota estimada: ${formatMoney(financingScenario.monthlyEstimate, financingCurrency)}\nTotal estimado: ${formatMoney(financingScenario.totalPaid, financingCurrency)}\n\nQuiero más información sobre este plan.`,
+        )}`
+      : undefined;
+  const loadImages360 = useCallback(async () => {
+    const projectId = proyecto?.idproyecto;
+    if (!projectId) return [];
+    if (images360.length) return images360;
+    setImages360Status("loading");
+    try {
+      const response = await fetch(
+        withApiBase(
+          `https://api.geohabita.com/api/get_imagen_360_casa/${projectId}/`,
+        ),
+      );
+      const data = await response.json().catch(() => []);
+      const normalized = Array.isArray(data) ? data : [];
+      setImages360(normalized);
+      setImages360Status("ready");
+      return normalized;
+    } catch (error) {
+      console.error("No se pudo cargar la vista 360 del lote:", error);
+      setImages360Status("error");
+      return [];
+    }
+  }, [images360, proyecto?.idproyecto]);
+  const handleOpen360 = useCallback(async () => {
+    const loadedImages = images360.length ? images360 : await loadImages360();
+    if (loadedImages.length) {
+      setShow360(true);
+      return;
+    }
+    window.alert("Este proyecto no cuenta con vista 360° disponible.");
+  }, [images360, loadImages360]);
+  const handleScrollToInmoDetails = useCallback(() => {
+    const target = document.getElementById("lote-inmo-detalle");
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   useEffect(() => {
     const esc = (e) => e.key === "Escape" && cerrarSidebar();
@@ -473,7 +691,11 @@ const LoteSidebarOverlay = ({
         ease: "sine.inOut",
       });
     },
-    { scope: sidebarRef, dependencies: [isLoading, isMobileView, lote?.idlote], revertOnUpdate: true },
+    {
+      scope: sidebarRef,
+      dependencies: [isLoading, isMobileView, lote?.idlote],
+      revertOnUpdate: true,
+    },
   );
 
   if (!lote) return null;
@@ -575,7 +797,7 @@ const LoteSidebarOverlay = ({
                     )}
                     alt="Lote"
                     className={styles.mainImage}
-                    fetchpriority="high" // Le dice al navegador que esta es la prioridad #1
+                    fetchpriority="high"
                     onClick={() => setFullscreenImgIndex(currentImg)}
                   />
 
@@ -585,9 +807,8 @@ const LoteSidebarOverlay = ({
                       src={withApiBase(
                         `https://api.geohabita.com${img.imagen}`,
                       )}
-                      loading="lazy" // Solo carga cuando el usuario hace scroll hacia ella
+                      loading="lazy"
                       className={styles.mobileGalleryImage}
-                      // ... rest
                     />
                   ))}
                   {validImages.length > 1 && (
@@ -605,9 +826,7 @@ const LoteSidebarOverlay = ({
                   </div>
                 </>
               )
-            ) : (
-              null
-            )}
+            ) : null}
           </div>
 
           <div
@@ -630,238 +849,651 @@ const LoteSidebarOverlay = ({
               </div>
             ) : (
               <>
-              <div className={styles.primeInfo}>
-              <div className={styles.inmoCard} data-gsap="card">
-                <div className={styles.inmoHeader}>
-                  <div className={styles.inmoIcon}>🏢</div>
+                <div className={styles.primeInfo}>
+                  <div className={styles.inmoCard} data-gsap="card">
+                    <div className={styles.inmoHeader}>
+                      <div className={styles.inmoIcon}>🏢</div>
 
-                  <div>
-                    <span className={styles.inmoLabel}>
-                      Inmobiliaria / Persona
-                    </span>
-                    <h2 className={styles.inmoName}>
-                      {inmo?.nombreinmobiliaria}
-                    </h2>
+                      <div>
+                        <span className={styles.inmoLabel}>
+                          Inmobiliaria / Persona
+                        </span>
+                        <h2 className={styles.inmoName}>
+                          {inmo?.nombreinmobiliaria}
+                        </h2>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.inmoMoreBtn}
+                      onClick={handleScrollToInmoDetails}
+                    >
+                      Ver más
+                    </button>
                   </div>
-                </div>
 
-                {inmo?.descripcion && (
-                  <p className={styles.inmoDescription}>{inmo.descripcion}</p>
-                )}
-              </div>
+                  <p className={styles.proyectoP}>Datos del lote</p>
+                  <br></br>
 
-              <p className={styles.proyectoP}>Datos del lote</p>
-              <br></br>
-
-              <span className={styles.legalLabel}>
-                {lote.titulo_propiedad === 1 ? (
-                  <>
-                    <FaCheckCircle /> Con título de propiedad
-                  </>
-                ) : (
-                  <>
-                    <FaTimesCircle /> Sin título de propiedad
-                  </>
-                )}
-              </span>
-              <h1 className={styles.nombreLote}>{lote.nombre}</h1>
-              <p className={styles.ubicacion}>
-                <FaMapMarkerAlt /> Ubicación referencial
-              </p>
-
-              <div className={styles.priceContainer} data-gsap="card">
-                <div style={{ display: "block", marginRight: "3px" }}>
-                  <img src={lote.bandera} alt="" className={styles.flagIcon} />
-                  <span className={styles.labelSmall}> Precio del Lote:</span>
-                  <span className={styles.priceValue}>
-                    {lote.moneda} {lote.precio}
+                  <span
+                    className={`${styles.legalLabel} ${lote.titulo_propiedad === 1 ? "" : styles.legalLabelDanger}`}
+                  >
+                    {lote.titulo_propiedad === 1 ? (
+                      <>
+                        <FaCheckCircle /> Con título de propiedad
+                      </>
+                    ) : (
+                      <>
+                        <FaTimesCircle /> Sin título de propiedad
+                      </>
+                    )}
                   </span>
-                </div>
+                  <h1 className={styles.nombreLote}>{lote.nombre}</h1>
+                  <p className={styles.ubicacion}>
+                    <FaMapMarkerAlt /> Ubicación referencial
+                  </p>
 
-                <div className={styles.pantallaCelul}>
-                  <a
-                    href={whatsappHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`${styles.contactMiniBtn} ${styles.contactWhatsappBtn}`}
-                    data-gsap="action"
-                    onClick={() => registrarClickContacto("Whatsapp")}
-                  >
-                    <span className={styles.contactIconWrap}><FaWhatsapp /></span>
-                    <span className={styles.contactTextWrap}>
-                      <small>Respuesta rápida</small>
-                      <strong>Contactar</strong>
-                    </span>
-                  </a>
+                  <div className={styles.priceContainer} data-gsap="card">
+                    <div style={{ display: "block", marginRight: "3px" }}>
+                      <img
+                        src={lote.bandera}
+                        alt=""
+                        className={styles.flagIcon}
+                      />
+                      <span className={styles.labelSmall}>
+                        {" "}
+                        Precio del Lote:
+                      </span>
+                      <span className={styles.priceValue}>
+                        {lote.moneda} {lote.precio}
+                      </span>
+                    </div>
 
-                  <a
-                    href={phoneNumber ? `tel:${phoneNumber}` : undefined}
-                    className={`${styles.contactMiniBtn} ${styles.contactCallBtn} ${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
-                    data-gsap="action"
-                    onClick={() => registrarClickContacto("Llamada")}
-                    aria-disabled={!phoneNumber}
-                    onMouseDown={(e) => {
-                      if (!phoneNumber) e.preventDefault();
-                    }}
-                  >
-                    <span className={styles.contactIconWrap}><FaPhoneAlt /></span>
-                    <span className={styles.contactTextWrap}>
-                      <small>Atención directa</small>
-                      <strong>Llamar</strong>
-                    </span>
-                  </a>
+                    <div className={styles.pantallaCelul}>
+                      <button
+                        type="button"
+                        className={styles.btn360}
+                        onClick={handleOpen360}
+                        disabled={images360Status === "loading"}
+                      >
+                        <span className={styles.btn360Orbit}>
+                          <span className={styles.icon360}>360</span>
+                        </span>
+                        <span className={styles.btn360Text}>
+                          <small>
+                            {images360Status === "loading"
+                              ? "Cargando vista"
+                              : "Explora el proyecto"}
+                          </small>
+                          <strong>Visualizar en 360</strong>
+                        </span>
+                        <span className={styles.btn360Ping} />
+                      </button>
 
-                  <button
-                    type="button"
-                    className={`${styles.contactMiniBtn} ${styles.contactShareBtn}`}
-                    data-gsap="action"
-                    onClick={handleShare}
-                    disabled={!shareUrl}
-                  >
-                    <span className={styles.contactIconWrap}><FaShareAlt /></span>
-                    <span className={styles.contactTextWrap}>
-                      <small>Enviar enlace</small>
-                      <strong>Compartir</strong>
-                    </span>
-                  </button>
-                </div>
-              </div>
+                      <a
+                        href={whatsappHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`${styles.contactMiniBtn} ${styles.contactWhatsappBtn}`}
+                        data-gsap="action"
+                        onClick={() => registrarClickContacto("Whatsapp")}
+                      >
+                        <span className={styles.contactIconWrap}>
+                          <FaWhatsapp />
+                        </span>
+                        <span className={styles.contactTextWrap}>
+                          <small>Respuesta rápida</small>
+                          <strong>Contactar</strong>
+                        </span>
+                      </a>
 
-              <div className={styles.quickGrid} data-gsap="card">
-                {hasValue(lote.area_total_m2) && (
-                  <div className={styles.qBadge}>
-                    <FaRulerCombined />
-                    <div>
-                      <strong>{lote.area_total_m2} m²</strong>
-                      <span>Área Total</span>
+                      <a
+                        href={phoneNumber ? `tel:${phoneNumber}` : undefined}
+                        className={`${styles.contactMiniBtn} ${styles.contactCallBtn} ${styles.mobileContactBtn} ${styles.mobileCallBtn} ${!phoneNumber ? styles.mobileDisabledBtn : ""}`}
+                        data-gsap="action"
+                        onClick={() => registrarClickContacto("Llamada")}
+                        aria-disabled={!phoneNumber}
+                        onMouseDown={(e) => {
+                          if (!phoneNumber) e.preventDefault();
+                        }}
+                      >
+                        <span className={styles.contactIconWrap}>
+                          <FaPhoneAlt />
+                        </span>
+                        <span className={styles.contactTextWrap}>
+                          <small>Atención directa</small>
+                          <strong>Llamar</strong>
+                        </span>
+                      </a>
+
+                      <button
+                        type="button"
+                        className={`${styles.contactMiniBtn} ${styles.contactShareBtn}`}
+                        data-gsap="action"
+                        onClick={handleShare}
+                        disabled={!shareUrl}
+                      >
+                        <span className={styles.contactIconWrap}>
+                          <FaShareAlt />
+                        </span>
+                        <span className={styles.contactTextWrap}>
+                          <small>Enviar enlace</small>
+                          <strong>Compartir</strong>
+                        </span>
+                      </button>
                     </div>
                   </div>
-                )}
-                {hasValue(lote.ancho) && (
-                  <div className={styles.qBadge}>
-                    <FaRulerHorizontal />
-                    <div>
-                      <strong>{lote.ancho} m</strong>
-                      <span>Ancho</span>
-                    </div>
-                  </div>
-                )}
-                {hasValue(lote.largo) && (
-                  <div className={styles.qBadge}>
-                    <FaRulerVertical />
-                    <div>
-                      <strong>{lote.largo} m</strong>
-                      <span>Largo</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
 
-            <div className={styles.extraContent}>
-              <h3 className={styles.sectionTitle}>Descripción</h3>
-              <p className={styles.fullDescription}>{lote.descripcion}</p>
-
-              {/* Aquí es donde fallaban los iconos si no se importaban */}
-              {lote.idtipoinmobiliaria === 2 && (
-                <>
-                  <h3 className={styles.sectionTitle}>Características</h3>
-                  <div className={styles.featuresGrid}>
-                    <div className={styles.fItem}>
-                      <FaBed /> {lote.dormitorios} Dorm.
-                    </div>
-                    <div className={styles.fItem}>
-                      <FaBath /> {lote.banos} Baños
-                    </div>
-                    <div className={styles.fItem}>
-                      <FaHome /> {lote.cuartos} Cuartos
-                    </div>
-                    <div className={styles.fItem}>
-                      <FaChair /> {lote.sala} Sala
-                    </div>
-                    <div className={styles.fItem}>
-                      <FaUtensils /> {lote.cocina} Cocina
-                    </div>
-                    <div className={styles.fItem}>
-                      <FaCar /> {lote.cochera} Cochera
-                    </div>
-                    {lote.patio > 0 && (
-                      <div className={styles.fItem}>
-                        <FaCampground /> {lote.patio} Patio
+                  <div className={styles.quickGrid} data-gsap="card">
+                    {hasValue(lote.area_total_m2) && (
+                      <div className={styles.qBadge}>
+                        <FaRulerCombined />
+                        <div>
+                          <strong>{lote.area_total_m2} m²</strong>
+                          <span>Área Total</span>
+                        </div>
                       </div>
                     )}
-                    {lote.jardin > 0 && (
-                      <div className={styles.fItem}>
-                        <FaTree /> {lote.jardin} Jardín
+                    {hasValue(lote.ancho) && (
+                      <div className={styles.qBadge}>
+                        <FaRulerHorizontal />
+                        <div>
+                          <strong>{lote.ancho} m</strong>
+                          <span>Ancho</span>
+                        </div>
                       </div>
                     )}
-                    {lote.terraza > 0 && (
-                      <div className={styles.fItem}>
-                        <FaSun /> {lote.terraza} Terraza
-                      </div>
-                    )}
-                    {lote.azotea > 0 && (
-                      <div className={styles.fItem}>
-                        <FaBuilding /> {lote.azotea} Azotea
+                    {hasValue(lote.largo) && (
+                      <div className={styles.qBadge}>
+                        <FaRulerVertical />
+                        <div>
+                          <strong>{lote.largo} m</strong>
+                          <span>Largo</span>
+                        </div>
                       </div>
                     )}
                   </div>
-                </>
-              )}
 
-              <h3 className={styles.sectionTitle}>Cercanía</h3>
-              <div className={styles.distanciaBox} data-gsap="metric">
-                <div className={styles.metricGroup}>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricValue}>{carMinutes}</span>
-                    <span className={styles.metricUnit}>MIN</span>
-                    <FaCar className={styles.metricIcon} />
-                  </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricValue}>{carKm}</span>
-                    <span className={styles.metricUnit}>KM</span>
+                  <div className={styles.financingCard} data-gsap="card">
+                    <div className={styles.financingHeader}>
+                      <div>
+                        <span className={styles.financingKicker}>
+                          <FaCalculator /> Geosimulador financiero
+                        </span>
+                        <h3>{`Financiamiento para ${lote.nombre}`}</h3>
+                      </div>
+                      <div className={styles.financingMiniMeta}>
+                        <FaPiggyBank />
+                        {formatMoney(financingPrice, financingCurrency)}
+                      </div>
+                    </div>
+
+                    {financingScenario ? (
+                      <>
+                        <div className={styles.financingPrimary}>
+                          <div>
+                            <span>Inicial</span>
+                            <strong>
+                              {formatMoney(
+                                financingScenario.initial,
+                                financingCurrency,
+                              )}
+                            </strong>
+                          </div>
+                          <div>
+                            <span>Meses</span>
+                            <strong>{financingScenario.months}</strong>
+                          </div>
+                          <div>
+                            <span>Saldo a financiar</span>
+                            <strong>
+                              {formatMoney(
+                                Math.max(
+                                  financingPrice - financingScenario.initial,
+                                  0,
+                                ),
+                                financingCurrency,
+                              )}
+                            </strong>
+                          </div>
+                        </div>
+
+                        {/* <div className={styles.financingSparkRow}>
+                          <div className={styles.financingSparkCard}>
+                            <span className={styles.financingSparkIcon}>
+                              <FaPiggyBank />
+                            </span>
+                            <div>
+                              <small>Enganche actual</small>
+                              <strong>
+                                {Math.round(
+                                  (financingScenario.initial /
+                                    Math.max(financingPrice, 1)) *
+                                    100,
+                                )}
+                                %
+                              </strong>
+                            </div>
+                          </div>
+                          <div className={styles.financingSparkCard}>
+                            <span className={styles.financingSparkIcon}>
+                              <FaCalculator />
+                            </span>
+                            <div>
+                              <small>Total estimado</small>
+                              <strong>
+                                {formatMoney(
+                                  financingScenario.totalPaid,
+                                  financingCurrency,
+                                )}
+                              </strong>
+                            </div>
+                          </div>
+                        </div> */}
+
+                        <div className={styles.financingAdjustHeader}>
+                          <div>
+                            <span className={styles.financingSectionEyebrow}>
+                              Ajusta tu plan
+                            </span>
+                            <p className={styles.financingSectionNote}>
+                              Usa un plan rápido o personaliza inicial y plazo.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className={styles.financingPresets}>
+                          {financingPresets.map((preset) => (
+                            <button
+                              key={`${preset.months}-${preset.initial_amount}`}
+                              type="button"
+                              className={`${styles.financingPresetBtn} ${Number(preset.months) === financingScenario.months ? styles.financingPresetBtnActive : ""}`}
+                              onClick={() => {
+                                if (preset.initial_amount !== undefined) {
+                                  setFinancingInitial(
+                                    clamp(
+                                      preset.initial_amount,
+                                      financingMinInitial,
+                                      financingMaxInitial,
+                                    ),
+                                  );
+                                }
+                                if (preset.months !== undefined) {
+                                  setFinancingMonths(
+                                    clamp(
+                                      preset.months,
+                                      financingMinMonths,
+                                      financingMaxMonths,
+                                    ),
+                                  );
+                                }
+                              }}
+                            >
+                              <small>Plan rápido</small>
+                              <strong>
+                                {formatMoney(
+                                  calcPayment(
+                                    Math.max(
+                                      financingPrice -
+                                        clamp(
+                                          preset.initial_amount ??
+                                            financingInitial,
+                                          financingMinInitial,
+                                          financingMaxInitial,
+                                        ),
+                                      0,
+                                    ),
+                                    financingScenario.annualRate,
+                                    clamp(
+                                      preset.months ?? financingMonths,
+                                      financingMinMonths,
+                                      financingMaxMonths,
+                                    ),
+                                  ) +
+                                    financingScenario.monthlyAdminFee +
+                                    financingScenario.insuranceMonthly,
+                                  financingCurrency,
+                                )}
+                              </strong>
+                              <span>
+                                {preset.label || `${preset.months} meses`}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className={styles.financingControls}>
+                          <label className={styles.financingField}>
+                            <div className={styles.financingFieldHeader}>
+                              <span className={styles.financingFieldTitle}>
+                                Inicial
+                              </span>
+                              <small className={styles.financingFieldHint}>
+                                Cuánto pagarías al inicio.
+                              </small>
+                            </div>
+                            <div className={styles.financingInputShell}>
+                              <span className={styles.financingInputPrefix}>
+                                {financingCurrency}
+                              </span>
+                              <input
+                                type="number"
+                                min={financingMinInitial}
+                                max={financingMaxInitial}
+                                step="100"
+                                value={financingInitial}
+                                onChange={(e) =>
+                                  setFinancingInitial(
+                                    Number(e.target.value) || 0,
+                                  )
+                                }
+                              />
+                            </div>
+                            <input
+                              type="range"
+                              min={financingMinInitial}
+                              max={financingMaxInitial}
+                              step="100"
+                              value={clamp(
+                                financingInitial,
+                                financingMinInitial,
+                                financingMaxInitial,
+                              )}
+                              onChange={(e) =>
+                                setFinancingInitial(Number(e.target.value) || 0)
+                              }
+                              className={styles.financingRange}
+                              style={getRangeStyle(
+                                financingInitial,
+                                financingMinInitial,
+                                financingMaxInitial,
+                              )}
+                            />
+                            <div className={styles.financingRangeMeta}>
+                              <span>
+                                Min{" "}
+                                {formatMoney(
+                                  financingMinInitial,
+                                  financingCurrency,
+                                )}
+                              </span>
+                              <strong>
+                                {formatMoney(
+                                  clamp(
+                                    financingInitial,
+                                    financingMinInitial,
+                                    financingMaxInitial,
+                                  ),
+                                  financingCurrency,
+                                )}
+                              </strong>
+                              <span>
+                                Max{" "}
+                                {formatMoney(
+                                  financingMaxInitial,
+                                  financingCurrency,
+                                )}
+                              </span>
+                            </div>
+                          </label>
+
+                          <label className={styles.financingField}>
+                            <div className={styles.financingFieldHeader}>
+                              <span className={styles.financingFieldTitle}>
+                                Meses
+                              </span>
+                              <small className={styles.financingFieldHint}>
+                                Define el plazo total de pago.
+                              </small>
+                            </div>
+                            <div className={styles.financingInputShell}>
+                              <span
+                                className={styles.financingInputPrefixPlain}
+                              >
+                                plazo
+                              </span>
+                              <input
+                                type="number"
+                                min={financingMinMonths}
+                                max={financingMaxMonths}
+                                step="1"
+                                value={financingMonths}
+                                onChange={(e) =>
+                                  setFinancingMonths(
+                                    Number(e.target.value) || 0,
+                                  )
+                                }
+                              />
+                            </div>
+                            <input
+                              type="range"
+                              min={financingMinMonths}
+                              max={financingMaxMonths}
+                              step="1"
+                              value={clamp(
+                                financingMonths,
+                                financingMinMonths,
+                                financingMaxMonths,
+                              )}
+                              onChange={(e) =>
+                                setFinancingMonths(Number(e.target.value) || 0)
+                              }
+                              className={styles.financingRange}
+                              style={getRangeStyle(
+                                financingMonths,
+                                financingMinMonths,
+                                financingMaxMonths,
+                              )}
+                            />
+                            <div className={styles.financingRangeMeta}>
+                              <span>Min {financingMinMonths}</span>
+                              <strong>
+                                {clamp(
+                                  financingMonths,
+                                  financingMinMonths,
+                                  financingMaxMonths,
+                                )}{" "}
+                                meses
+                              </strong>
+                              <span>Max {financingMaxMonths}</span>
+                            </div>
+                          </label>
+                        </div>
+
+                        <div className={styles.financingActionRow}>
+                          <button
+                            type="button"
+                            className={styles.financingPayBtn}
+                          >
+                            <span className={styles.financingPayCopy}>
+                              <small>Precio a pagar</small>
+                              <strong>
+                                {formatMoney(
+                                  financingScenario.monthlyEstimate,
+                                  financingCurrency,
+                                )}
+                              </strong>
+                              <span>Cuota estimada mensual</span>
+                            </span>
+                          </button>
+
+                          <a
+                            href={financingWhatsAppHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`${styles.financingWhatsAppBtn} ${!financingWhatsAppHref ? styles.financingWhatsAppBtnDisabled : ""}`}
+                            aria-disabled={!financingWhatsAppHref}
+                            onClick={(e) => {
+                              if (!financingWhatsAppHref) e.preventDefault();
+                            }}
+                          >
+                            <FaWhatsapp />
+                            <span className={styles.financingWhatsAppCopy}>
+                              <small>Enviar Financiamiento</small>
+                              <strong>Lo quiero</strong>
+                            </span>
+                          </a>
+                        </div>
+
+                        <p className={styles.financingNote}>
+                          Meses permitidos: {financingMinMonths} a{" "}
+                          {financingMaxMonths}
+                          {" · "}
+                          Inicial permitida:{" "}
+                          {formatMoney(
+                            financingMinInitial,
+                            financingCurrency,
+                          )}{" "}
+                          a{" "}
+                          {formatMoney(financingMaxInitial, financingCurrency)}
+                          {" · "}
+                          Tasa anual: {financingScenario.annualRate}% · Ingreso
+                          sugerido:{" "}
+                          {formatMoney(
+                            financingScenario.suggestedIncome,
+                            financingCurrency,
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <p className={styles.financingNote}>
+                        La inmobiliaria todavía no configuró este plan.
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className={styles.metricDivider} />
-                <div className={styles.metricGroup}>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricValue}>{walkMinutes}</span>
-                    <span className={styles.metricUnit}>MIN</span>
-                    <FaWalking className={styles.metricIcon} />
+
+                <div className={styles.extraContent}>
+                  <h3 className={styles.sectionTitle}>Descripción</h3>
+                  <p className={styles.fullDescription}>{lote.descripcion}</p>
+
+                  {/* Aquí es donde fallaban los iconos si no se importaban */}
+                  {lote.idtipoinmobiliaria === 2 && (
+                    <>
+                      <h3 className={styles.sectionTitle}>Características</h3>
+                      <div className={styles.featuresGrid}>
+                        <div className={styles.fItem}>
+                          <FaBed /> {lote.dormitorios} Dorm.
+                        </div>
+                        <div className={styles.fItem}>
+                          <FaBath /> {lote.banos} Baños
+                        </div>
+                        <div className={styles.fItem}>
+                          <FaHome /> {lote.cuartos} Cuartos
+                        </div>
+                        <div className={styles.fItem}>
+                          <FaChair /> {lote.sala} Sala
+                        </div>
+                        <div className={styles.fItem}>
+                          <FaUtensils /> {lote.cocina} Cocina
+                        </div>
+                        <div className={styles.fItem}>
+                          <FaCar /> {lote.cochera} Cochera
+                        </div>
+                        {lote.patio > 0 && (
+                          <div className={styles.fItem}>
+                            <FaCampground /> {lote.patio} Patio
+                          </div>
+                        )}
+                        {lote.jardin > 0 && (
+                          <div className={styles.fItem}>
+                            <FaTree /> {lote.jardin} Jardín
+                          </div>
+                        )}
+                        {lote.terraza > 0 && (
+                          <div className={styles.fItem}>
+                            <FaSun /> {lote.terraza} Terraza
+                          </div>
+                        )}
+                        {lote.azotea > 0 && (
+                          <div className={styles.fItem}>
+                            <FaBuilding /> {lote.azotea} Azotea
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  <h3 className={styles.sectionTitle}>Cercanía</h3>
+                  <div className={styles.distanciaBox} data-gsap="metric">
+                    <div className={styles.metricGroup}>
+                      <div className={styles.metricItem}>
+                        <span className={styles.metricValue}>{carMinutes}</span>
+                        <span className={styles.metricUnit}>MIN</span>
+                        <FaCar className={styles.metricIcon} />
+                      </div>
+                      <div className={styles.metricItem}>
+                        <span className={styles.metricValue}>{carKm}</span>
+                        <span className={styles.metricUnit}>KM</span>
+                      </div>
+                    </div>
+                    <div className={styles.metricDivider} />
+                    <div className={styles.metricGroup}>
+                      <div className={styles.metricItem}>
+                        <span className={styles.metricValue}>
+                          {walkMinutes}
+                        </span>
+                        <span className={styles.metricUnit}>MIN</span>
+                        <FaWalking className={styles.metricIcon} />
+                      </div>
+                      <div className={styles.metricItem}>
+                        <span className={styles.metricValue}>{walkKm}</span>
+                        <span className={styles.metricUnit}>KM</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.metricItem}>
-                    <span className={styles.metricValue}>{walkKm}</span>
-                    <span className={styles.metricUnit}>KM</span>
+
+                  <div className={styles.socialFooter}>
+                    <a
+                      href={facebookHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.fb}
+                      onClick={() => registrarClickContacto("Facebook")}
+                    >
+                      <FaFacebook />
+                    </a>
+                    <a
+                      href={webHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={styles.web}
+                      onClick={() => registrarClickContacto("Web")}
+                    >
+                      <FaGlobe />
+                    </a>
+                  </div>
+
+                  <div className={styles.aboutCard} id="lote-inmo-detalle">
+                    <span className={styles.aboutBadge}>Inmobiliaria</span>
+                    <h3 className={styles.sectionTitle}>Sobre quien publica</h3>
+                    {inmo?.descripcion ? (
+                      <p className={styles.inmoDescription}>
+                        {inmo.descripcion}
+                      </p>
+                    ) : (
+                      <p className={styles.inmoDescription}>
+                        Información comercial del proyecto y atención directa
+                        con la inmobiliaria.
+                      </p>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              <div className={styles.socialFooter}>
-                <a
-                  href={facebookHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.fb}
-                  onClick={() => registrarClickContacto("Facebook")}
-                >
-                  <FaFacebook />
-                </a>
-                <a
-                  href={webHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.web}
-                  onClick={() => registrarClickContacto("Web")}
-                >
-                  <FaGlobe />
-                </a>
-              </div>
-            </div>
               </>
             )}
           </div>
         </div>
       </div>
+
+      {show360 && (
+        <Suspense fallback={null}>
+          <Viewer360Modal
+            images360={images360}
+            projectName={proyecto?.nombreproyecto || "GeoHabita 360"}
+            onClose={() => setShow360(false)}
+          />
+        </Suspense>
+      )}
 
       {/* VISOR PANTALLA COMPLETA INTERACTIVO */}
       {fullscreenImgIndex !== null && validImages.length > 0 && (

@@ -84,6 +84,8 @@ const darkenColor = (hex, amount = 0.2) => {
 
 const PolygonOverlay = ({
   puntos,
+  path: providedPath,
+  labelPosition,
   color = "#0000FF",
   onClick,
   onMouseOver,
@@ -96,17 +98,25 @@ const PolygonOverlay = ({
 }) => {
   // 🔹 Aseguramos un orden valido aun si "orden" viene null.
   const puntosOrdenados = useMemo(
-    () =>
-      !puntos || puntos.length < 2 ? [] : getCoordsWithFallbackOrder(puntos),
-    [puntos],
+    () => {
+      if (Array.isArray(providedPath) && providedPath.length >= 2) {
+        return Array.isArray(puntos) ? puntos : [];
+      }
+      return !puntos || puntos.length < 2 ? [] : getCoordsWithFallbackOrder(puntos);
+    },
+    [puntos, providedPath],
   );
   const path = useMemo(
-    () =>
-      puntosOrdenados.map((p) => ({
+    () => {
+      if (Array.isArray(providedPath) && providedPath.length >= 2) {
+        return providedPath;
+      }
+      return puntosOrdenados.map((p) => ({
         lat: p.lat,
         lng: p.lng,
-      })),
-    [puntosOrdenados],
+      }));
+    },
+    [puntosOrdenados, providedPath],
   );
 
   // if (path.length > 2) {
@@ -114,8 +124,8 @@ const PolygonOverlay = ({
   // }
 
   const centroide = useMemo(
-    () => (path.length > 2 ? calcularCentroide(path) : null),
-    [path],
+    () => labelPosition || (path.length > 2 ? calcularCentroide(path) : null),
+    [labelPosition, path],
   );
   const getLabelSizing = () => {
     if (!path?.length || path.length < 3) {
@@ -186,7 +196,7 @@ const PolygonOverlay = ({
   const labelConfig = label && typeof label === "object" ? label : { text: label };
   const labelSizing = getLabelSizing();
 
-  if (puntosOrdenados.length < 2) return null;
+  if (path.length < 2) return null;
 
   return (
     <>

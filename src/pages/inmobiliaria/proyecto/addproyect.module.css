@@ -387,6 +387,14 @@
   color: var(--text-muted);
 }
 
+.financingFieldHint {
+  display: block;
+  margin-top: 0.24rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 .compactInput {
   min-height: 33px;
   padding: 0.42rem 0.52rem;
@@ -480,6 +488,105 @@
   display: flex;
   justify-content: flex-start;
   margin-bottom: 0.6rem;
+}
+
+.financingPresetGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.financingPresetHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.55rem;
+}
+
+.financingPresetToggle {
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--primari) 10%, var(--theme-bg-surface));
+  color: var(--text-main);
+  min-height: 34px;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.financingPresetToggle:hover {
+  background: color-mix(in srgb, var(--primari) 18%, var(--theme-bg-surface));
+}
+
+.financingPresetCard {
+  border: 1px solid var(--border-color);
+  border-radius: 0.7rem;
+  padding: 0.75rem;
+  background: var(--theme-bg-surface);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.04);
+}
+
+.financingModalContent {
+  max-width: 760px;
+  height: min(88vh, 700px);
+  max-height: min(88vh, 700px);
+}
+
+.financingIntroCard {
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--primari) 16%, var(--border-color));
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 32%),
+    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.14), transparent 28%),
+    var(--theme-bg-soft);
+  padding: 0.95rem 1rem;
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.financingIntroTitle {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.financingIntroText {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.financingIntroGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.financingIntroPill {
+  min-width: 0;
+  padding: 0.65rem 0.72rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.55);
+  display: grid;
+  gap: 0.16rem;
+}
+
+.financingIntroPill span {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.financingIntroPill strong {
+  font-size: 0.95rem;
+  color: var(--text-main);
 }
 
 .btnWithIcon {

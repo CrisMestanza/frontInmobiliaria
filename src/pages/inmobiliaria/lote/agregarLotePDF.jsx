@@ -948,7 +948,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       localStorage.setItem(`pdf_meta_${idproyecto}`, JSON.stringify(pdfMeta));
     }
     alert("Cambios guardados");
-    onClose();
+    onClose?.({ refreshed: true });
   };
 
   // const handleClearPolygon = () => {

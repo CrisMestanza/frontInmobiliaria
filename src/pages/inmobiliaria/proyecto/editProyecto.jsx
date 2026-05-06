@@ -28,7 +28,11 @@ const normalizePoint = (p, index) => ({
   orden: Number(p?.orden ?? index + 1),
 });
 
-export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria }) {
+export default function EditProyectoModal({
+  onClose,
+  proyecto,
+  idinmobiliaria,
+}) {
   const [isLoaded, setIsLoaded] = useState(() =>
     typeof window !== "undefined" && !!window.google?.maps?.Map,
   );
@@ -366,7 +370,7 @@ export default function EditProyectoModal({ onClose, proyecto, idinmobiliaria })
 
       if (res.ok) {
         alert("Proyecto actualizado con éxito");
-        onClose();
+        onClose?.({ refreshed: true });
       } else {
         const err = await res.json().catch(() => ({}));
         console.error("Error actualizando proyecto:", err);

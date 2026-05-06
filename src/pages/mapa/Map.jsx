@@ -7,10 +7,18 @@ import React, {
   useCallback,
 } from "react";
 
-import { GoogleMap, Marker, DirectionsRenderer } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  Marker,
+  MarkerClusterer,
+  DirectionsRenderer,
+} from "@react-google-maps/api";
 import ProyectoSidebar from "./MapSidebarProyecto";
 import MapSidebar from "./MapSidebar";
 import PolygonOverlay from "./PolygonOverlay";
+import SpacePatternOverlay, {
+  getSpacePatternPreviewStyle,
+} from "./SpacePatternOverlay";
 import CustomSelect from "./CustomSelect";
 import styles from "./Mapa.module.css";
 import ChatBotPanel from "../mybot/ChatBotPanel";
@@ -127,6 +135,8 @@ const LotesOverlay = ({
           <PolygonOverlay
             key={lote.idlote}
             puntos={lote.puntos}
+            path={lote.polygonPath}
+            labelPosition={lote.polygonCenter}
             color={strokeBaseColor}
             onClick={isLibre ? () => onLoteClick(lote) : undefined}
             onMouseOver={
@@ -222,6 +232,10 @@ function MyMap() {
   const [showFilters, setShowFilters] = useState(false);
   const [hoveredLote, setHoveredLote] = useState(null);
   const [iconosProyecto, setIconosProyecto] = useState([]);
+  const [espaciosProyecto, setEspaciosProyecto] = useState([]);
+  const [showSpacesLayer, setShowSpacesLayer] = useState(true);
+  const [selectedSpace, setSelectedSpace] = useState(null);
+  const [hoveredSpace, setHoveredSpace] = useState(null);
   const [walkingInfo, setWalkingInfo] = useState(null);
   const [drivingInfo, setDrivingInfo] = useState(null);
   const [mapBounds, setMapBounds] = useState(null);
@@ -286,7 +300,6 @@ function MyMap() {
 
   // Usuario
   const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
-  const MAX_VISIBLE_MARKERS = 250;
   const PREFETCH_DETAIL_LIMIT = 8;
   const PREFETCH_IDLE_TIMEOUT = 700;
   const anuncioSlides = useMemo(
@@ -407,6 +420,83 @@ function MyMap() {
     });
   };
 
+  const buildPolygonPath = (puntos = []) =>
+    puntos
+      .map((p) => ({
+        lat: normalizeNumber(p.latitud ?? p.lat),
+        lng: normalizeNumber(p.longitud ?? p.lng),
+      }))
+      .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+
+  const calculatePolygonCentroid = (path = []) => {
+    if (!Array.isArray(path) || path.length < 3) return null;
+
+    let area = 0;
+    let cx = 0;
+    let cy = 0;
+
+    for (let i = 0; i < path.length; i += 1) {
+      const j = (i + 1) % path.length;
+      const xi = path[i].lng;
+      const yi = path[i].lat;
+      const xj = path[j].lng;
+      const yj = path[j].lat;
+      const factor = xi * yj - xj * yi;
+      area += factor;
+      cx += (xi + xj) * factor;
+      cy += (yi + yj) * factor;
+    }
+
+    if (!area) return path[0] || null;
+
+    const normalizedArea = area * 0.5;
+    return {
+      lat: cy / (6 * normalizedArea),
+      lng: cx / (6 * normalizedArea),
+    };
+  };
+
+  const normalizePolygonPoints = (puntos = []) => {
+    const ordered = normalizePuntosWithOrder(puntos);
+    const path = buildPolygonPath(ordered);
+    return {
+      puntos: ordered,
+      polygonPath: path,
+      polygonCenter: calculatePolygonCentroid(path),
+    };
+  };
+
+  const normalizeLoteDetalle = (lote) => {
+    if (!lote) return null;
+    const geometry = normalizePolygonPoints(lote.puntos || []);
+    return {
+      ...lote,
+      ...geometry,
+    };
+  };
+
+  const normalizeEspacioDetalle = (espacio) => {
+    if (!espacio) return null;
+    const geometry = normalizePolygonPoints(espacio.puntos || []);
+    return {
+      ...espacio,
+      ...geometry,
+      centerLat: normalizeNumber(espacio.centro_lat),
+      centerLng: normalizeNumber(espacio.centro_lng),
+      tipoespacio: espacio.tipoespacio || {},
+    };
+  };
+
+  const normalizeProyectoShape = (proyectoDetalle, puntosProyecto = []) => {
+    const geometry = normalizePolygonPoints(puntosProyecto);
+    return {
+      proyecto: proyectoDetalle,
+      puntos: geometry.puntos,
+      polygonPath: geometry.polygonPath,
+      polygonCenter: geometry.polygonCenter,
+    };
+  };
+
   const resolveIconUrl = (rawUrl) => {
     if (!rawUrl) return null;
     if (rawUrl.startsWith("http")) return rawUrl;
@@ -439,6 +529,12 @@ function MyMap() {
           Number.isFinite(ico.longitud) &&
           !!ico.iconUrl,
       );
+
+  const normalizeProyectoImagenes = (items = []) =>
+    Array.isArray(items) ? items.filter((img) => !!img?.imagenproyecto) : [];
+
+  const normalizeLoteImagenes = (items = []) =>
+    Array.isArray(items) ? items.filter((img) => !!img?.imagen) : [];
 
   const readSessionCache = (key) => {
     try {
@@ -726,6 +822,113 @@ function MyMap() {
       : "https://cdn-icons-png.freepik.com/512/11130/11130373.png";
   };
 
+  const clusterOptions = useMemo(() => {
+    return {
+      averageCenter: true,
+      enableRetinaIcons: true,
+      gridSize: isMobileViewport ? 38 : 46,
+      maxZoom: 17,
+      minimumClusterSize: 2,
+      styles: [
+        {
+          url: "/proyectoicono.png",
+          width: 56,
+          height: 56,
+          textColor: "#ffffff",
+          textSize: 12,
+          anchorText: [-2, 0],
+        },
+        {
+          url: "/proyectoicono.png",
+          width: 64,
+          height: 64,
+          textColor: "#ffffff",
+          textSize: 13,
+          anchorText: [-2, 0],
+        },
+        {
+          url: "/proyectoicono.png",
+          width: 72,
+          height: 72,
+          textColor: "#ffffff",
+          textSize: 14,
+          anchorText: [-2, 0],
+        },
+      ],
+      calculator: (markers) => {
+        const count = markers.length;
+        if (count < 10) return { text: String(count), index: 1, title: `${count} proyectos` };
+        if (count < 40) return { text: String(count), index: 2, title: `${count} proyectos` };
+        return { text: String(count), index: 3, title: `${count} proyectos` };
+      },
+    };
+  }, [isMobileViewport]);
+
+  const getSpaceColor = useCallback((espacio) => {
+    const raw = espacio?.tipoespacio?.color;
+    return typeof raw === "string" && raw.trim() ? raw : "#22c55e";
+  }, []);
+
+  const getSpaceVisualStyle = useCallback(
+    (espacio) => {
+      const color = getSpaceColor(espacio);
+      const kind = String(
+        espacio?.tipoespacio?.slug || espacio?.tipoespacio?.nombre || "",
+      )
+        .toLowerCase()
+        .trim();
+
+      if (
+        kind.includes("parque") ||
+        kind.includes("area-verde") ||
+        kind.includes("área verde")
+      ) {
+        return {
+          fillColor: color,
+          fillOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.34 : 0.26,
+          strokeColor: "#166534",
+          strokeWeight: selectedSpace?.idespacio === espacio.idespacio ? 3.4 : 2.6,
+          haloColor: "#86efac",
+          haloOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.36 : 0.24,
+          haloWeight: selectedSpace?.idespacio === espacio.idespacio ? 8 : 6,
+          zIndex: selectedSpace?.idespacio === espacio.idespacio ? 7 : 5,
+        };
+      }
+
+      return {
+        fillColor: color,
+        fillOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.34 : 0.22,
+        strokeColor: color,
+        strokeWeight: selectedSpace?.idespacio === espacio.idespacio ? 3 : 2,
+        haloColor: color,
+        haloOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.34 : 0.22,
+        haloWeight: selectedSpace?.idespacio === espacio.idespacio ? 7 : 5,
+        zIndex: selectedSpace?.idespacio === espacio.idespacio ? 7 : 5,
+      };
+    },
+    [getSpaceColor, selectedSpace],
+  );
+
+  const getSpaceIconUrl = useCallback((espacio) => {
+    const color = getSpaceColor(espacio);
+    const text = String(
+      espacio?.tipoespacio?.nombre?.slice(0, 2) ||
+        espacio?.nombre?.slice(0, 2) ||
+        "E",
+    )
+      .toUpperCase()
+      .replace(/\s+/g, "")
+      .slice(0, 2);
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r="18" fill="${color}" fill-opacity="0.92" />
+        <circle cx="22" cy="22" r="18" fill="none" stroke="#ffffff" stroke-width="2.5" />
+        <text x="22" y="26" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">${text}</text>
+      </svg>
+    `.trim();
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }, [getSpaceColor]);
+
   const preloadImage = useCallback((url) => {
     if (!url || typeof window === "undefined") return;
     const img = new Image();
@@ -782,6 +985,33 @@ function MyMap() {
     return !(estado === 1 && tipoInmo === 1);
   }, [selectedProyecto, filtroBotActivo]);
 
+  const visibleSpaceLegend = useMemo(() => {
+    const typeMap = new Map();
+    espaciosProyecto.forEach((espacio) => {
+      const tipo = espacio?.tipoespacio || {};
+      const key =
+        tipo.slug ||
+        tipo.idtipoespacio ||
+        tipo.nombre ||
+        espacio?.idespacio ||
+        Math.random();
+      if (!typeMap.has(key)) {
+        typeMap.set(key, {
+          key,
+          nombre: tipo.nombre || "Espacio",
+          color: getSpaceColor(espacio),
+          total: 0,
+        });
+      }
+      typeMap.get(key).total += 1;
+    });
+    return Array.from(typeMap.values()).sort(
+      (a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre),
+    );
+  }, [espaciosProyecto, getSpaceColor]);
+
+  const activeSpaceCard = selectedSpace || hoveredSpace;
+
   const visibleProyectos = useMemo(() => {
     if (shareFocusActive && (selectedProyecto || selectedLote)) {
       return [];
@@ -810,8 +1040,7 @@ function MyMap() {
       );
     });
 
-    if (filtered.length <= MAX_VISIBLE_MARKERS) return filtered;
-    return filtered.slice(0, MAX_VISIBLE_MARKERS);
+    return filtered;
   }, [proyecto, selectedProyecto, puntos.length, mapBounds, shareFocusActive]);
 
   useEffect(() => {
@@ -1626,13 +1855,13 @@ function MyMap() {
 
       const quickProyecto = loteDetalle?.proyecto ?? null;
       const quickInmo = loteDetalle?.inmobiliaria ?? null;
-      const quickLoteRaw = loteDetalle?.lote ?? null;
-      const quickLote = quickLoteRaw
-        ? {
-            ...quickLoteRaw,
-            puntos: normalizePuntosWithOrder(quickLoteRaw.puntos || []),
-          }
-        : null;
+      const quickLote = normalizeLoteDetalle(loteDetalle?.lote ?? null);
+      const bundledProjectImages = normalizeProyectoImagenes(
+        loteDetalle?.imagenes_proyecto || [],
+      );
+      const bundledLoteImages = normalizeLoteImagenes(
+        loteDetalle?.imagenes_lote || [],
+      );
 
       if (!proyectoId && quickProyecto?.idproyecto) {
         proyectoId = Number(quickProyecto.idproyecto);
@@ -1655,6 +1884,15 @@ function MyMap() {
           ...quickProyecto,
           inmo: quickInmo,
         });
+        if (bundledProjectImages.length) {
+          setImagenesProyecto(bundledProjectImages);
+          setCached(
+            "projectImages",
+            quickProyecto.idproyecto,
+            "project_images",
+            bundledProjectImages,
+          );
+        }
       }
       if (quickLote) {
         setSelectedLote({
@@ -1663,6 +1901,10 @@ function MyMap() {
         });
         setLotesProyectoBase([quickLote]);
         setLotesProyecto([quickLote]);
+        if (bundledLoteImages.length) {
+          setImagenesLote(bundledLoteImages);
+          setCached("loteImages", quickLote.idlote, "lote_images", bundledLoteImages);
+        }
         setIsLoteLoading(false);
         if (mapRef.current) {
           focusMapForShare({
@@ -1680,12 +1922,6 @@ function MyMap() {
           };
         }
       }
-
-      loadLoteImagenes(loteId, controller.signal)
-        .then((data) => {
-          if (!controller.signal.aborted) setImagenesLote(data);
-        })
-        .catch(() => null);
     } else if (proyectoId) {
       const proyectoShare = await loadProyectoShareWithRetry(
         proyectoId,
@@ -1696,6 +1932,9 @@ function MyMap() {
       const quickProyecto = proyectoShare?.proyecto ?? null;
       const quickInmo = proyectoShare?.inmobiliaria ?? null;
       const quickPuntos = normalizePuntosWithOrder(proyectoShare?.puntos || []);
+      const bundledProjectImages = normalizeProyectoImagenes(
+        proyectoShare?.imagenes_proyecto || [],
+      );
 
       if (
         inmoId &&
@@ -1712,6 +1951,15 @@ function MyMap() {
           ...quickProyecto,
           inmo: quickInmo,
         });
+        if (bundledProjectImages.length) {
+          setImagenesProyecto(bundledProjectImages);
+          setCached(
+            "projectImages",
+            quickProyecto.idproyecto,
+            "project_images",
+            bundledProjectImages,
+          );
+        }
       }
       setPuntos(quickPuntos);
       setIsProyectoLoading(false);
@@ -1730,12 +1978,6 @@ function MyMap() {
           loteTarget: null,
         };
       }
-
-      loadProyectoImagenes(proyectoId, controller.signal)
-        .then((data) => {
-          if (!controller.signal.aborted) setImagenesProyecto(data);
-        })
-        .catch(() => null);
     }
 
     if (!proyectoId) {
@@ -1763,10 +2005,13 @@ function MyMap() {
       setWalkingInfo(null);
       setDrivingInfo(null);
       setSelectedLote(null);
-      setLotesProyecto([]);
-      setLotesProyectoBase([]);
-      setPuntos([]);
-      setIconosProyecto([]);
+        setLotesProyecto([]);
+        setLotesProyectoBase([]);
+        setPuntos([]);
+        setIconosProyecto([]);
+        setEspaciosProyecto([]);
+        setSelectedSpace(null);
+        setHoveredSpace(null);
       setFiltroBotActivo(false);
       setSelectedTipo("");
       setSelectedRango("");
@@ -1777,12 +2022,20 @@ function MyMap() {
       );
       if (controller.signal.aborted) return;
 
-      const dataPuntos = normalizePuntosWithOrder(detail?.puntos || []);
-      const lotesConPuntos = (detail?.lotes || []).map((lote) => ({
-        ...lote,
-        puntos: normalizePuntosWithOrder(lote.puntos || []),
-      }));
+      const dataPuntos = normalizeProyectoShape(
+        detail?.proyecto ?? { idproyecto: proyectoId },
+        detail?.puntos || [],
+      ).puntos;
+      const lotesConPuntos = (detail?.lotes || [])
+        .map((lote) => normalizeLoteDetalle(lote))
+        .filter(Boolean);
       const dataIconos = normalizeIconos(detail?.iconos || []);
+      const dataEspacios = (detail?.espacios || [])
+        .map((espacio) => normalizeEspacioDetalle(espacio))
+        .filter(Boolean);
+      const bundledProjectImages = normalizeProyectoImagenes(
+        detail?.imagenes_proyecto || [],
+      );
       let inmoData = detail?.inmobiliaria ?? null;
       const proyectoDetalle = detail?.proyecto ?? { idproyecto: proyectoId };
 
@@ -1803,18 +2056,28 @@ function MyMap() {
         if (controller.signal.aborted) return;
       }
 
-      const [projectImages, loteImages] = await Promise.allSettled([
-        loadProyectoImagenes(proyectoId, controller.signal),
-        loteId
-          ? loadLoteImagenes(loteId, controller.signal)
-          : Promise.resolve([]),
-      ]);
-
-      if (projectImages.status === "fulfilled") {
-        setImagenesProyecto(projectImages.value);
+      if (bundledProjectImages.length) {
+        setImagenesProyecto(bundledProjectImages);
+        setCached(
+          "projectImages",
+          proyectoId,
+          "project_images",
+          bundledProjectImages,
+        );
+      } else {
+        const projectImages = await loadProyectoImagenes(
+          proyectoId,
+          controller.signal,
+        ).catch(() => null);
+        if (projectImages) setImagenesProyecto(projectImages);
       }
-      if (loteImages.status === "fulfilled") {
-        setImagenesLote(loteImages.value);
+      if (loteId) {
+        const loteImages = await loadLoteImagenes(loteId, controller.signal).catch(
+          () => null,
+        );
+        if (loteImages) {
+          setImagenesLote(loteImages);
+        }
       }
 
       setPuntos(dataPuntos);
@@ -1822,6 +2085,9 @@ function MyMap() {
       setLotesProyectoBase(lotesConPuntos);
       setLotesProyecto(lotesConPuntos);
       setIconosProyecto(dataIconos);
+      setEspaciosProyecto(dataEspacios);
+      setSelectedSpace(null);
+      setHoveredSpace(null);
 
       setselectedProyecto({
         ...proyectoDetalle,
@@ -1902,6 +2168,9 @@ function MyMap() {
       setLotesProyectoBase([]);
       setPuntos([]);
       setIconosProyecto([]);
+      setEspaciosProyecto([]);
+      setSelectedSpace(null);
+      setHoveredSpace(null);
 
       const quickLat = normalizeNumber(proyecto.latitud);
       const quickLng = normalizeNumber(proyecto.longitud);
@@ -1958,37 +2227,27 @@ function MyMap() {
       const controller = new AbortController();
       projectDetailAbortRef.current = controller;
 
-      const detailPromise = loadProyectoDetalleWithRetry(
+      const detail = await loadProyectoDetalleWithRetry(
         proyecto.idproyecto,
         controller.signal,
       );
-      const projectImagesPromise = loadProyectoImagenes(
-        proyecto.idproyecto,
-        controller.signal,
-      );
-      const detail = await detailPromise;
       if (controller.signal.aborted) return;
 
-      const dataPuntos = normalizePuntosWithOrder(detail?.puntos || []);
-      const lotesConPuntos = (detail?.lotes || []).map((lote) => ({
-        ...lote,
-        puntos: normalizePuntosWithOrder(lote.puntos || []),
-      }));
-      let dataIconos = normalizeIconos(detail?.iconos || []);
-      if (!dataIconos.length) {
-        try {
-          const resIconos = await fetch(
-            withApiBase(
-              `https://api.geohabita.com/api/list_iconos_proyecto/${proyecto.idproyecto}`,
-            ),
-          );
-          if (resIconos.ok) {
-            dataIconos = normalizeIconos(await resIconos.json());
-          }
-        } catch (error) {
-          console.warn("No se pudieron cargar íconos del proyecto", error);
-        }
-      }
+      const projectShape = normalizeProyectoShape(
+        detail?.proyecto ?? proyecto,
+        detail?.puntos || [],
+      );
+      const dataPuntos = projectShape.puntos;
+      const lotesConPuntos = (detail?.lotes || [])
+        .map((lote) => normalizeLoteDetalle(lote))
+        .filter(Boolean);
+      const dataIconos = normalizeIconos(detail?.iconos || []);
+      const dataEspacios = (detail?.espacios || [])
+        .map((espacio) => normalizeEspacioDetalle(espacio))
+        .filter(Boolean);
+      const bundledProjectImages = normalizeProyectoImagenes(
+        detail?.imagenes_proyecto || [],
+      );
       let inmoData = detail?.inmobiliaria ?? null;
       const proyectoDetalle = detail?.proyecto ?? proyecto;
 
@@ -1997,11 +2256,22 @@ function MyMap() {
         if (controller.signal.aborted) return;
       }
 
-      const projectImages = await Promise.resolve(projectImagesPromise).catch(
-        () => null,
-      );
-      if (projectImages) {
-        setImagenesProyecto(projectImages);
+      if (bundledProjectImages.length) {
+        setImagenesProyecto(bundledProjectImages);
+        setCached(
+          "projectImages",
+          proyecto.idproyecto,
+          "project_images",
+          bundledProjectImages,
+        );
+      } else {
+        const projectImages = await loadProyectoImagenes(
+          proyecto.idproyecto,
+          controller.signal,
+        ).catch(() => null);
+        if (projectImages) {
+          setImagenesProyecto(projectImages);
+        }
       }
 
       setPuntos(dataPuntos);
@@ -2020,6 +2290,9 @@ function MyMap() {
       setLotesProyectoBase(lotesConPuntos);
       setLotesProyecto(lotesFiltered);
       setIconosProyecto(dataIconos);
+      setEspaciosProyecto(dataEspacios);
+      setSelectedSpace(null);
+      setHoveredSpace(null);
 
       setselectedProyecto({
         ...proyectoDetalle,
@@ -2409,21 +2682,32 @@ function MyMap() {
         >
           {puntos.length === 0 && <Marker position={currentPosition} />}
 
-          {visibleProyectos.map((p) => (
-            <Marker
-              key={p.idproyecto}
-              position={{
-                lat: Number(p.latitud),
-                lng: Number(p.longitud),
-              }}
-              icon={{
-                url: getProjectIconUrl(p),
-                scaledSize: new window.google.maps.Size(40, 40),
-              }}
-              title={p.nombreproyecto}
-              onClick={() => handleMarkerClick(p)}
-            />
-          ))}
+          {visibleProyectos.length > 0 && (
+            <MarkerClusterer
+              options={clusterOptions}
+            >
+              {(clusterer) => (
+                <>
+                  {visibleProyectos.map((p) => (
+                    <Marker
+                      key={p.idproyecto}
+                      clusterer={clusterer}
+                      position={{
+                        lat: Number(p.latitud),
+                        lng: Number(p.longitud),
+                      }}
+                      icon={{
+                        url: getProjectIconUrl(p),
+                        scaledSize: new window.google.maps.Size(40, 40),
+                      }}
+                      title={p.nombreproyecto}
+                      onClick={() => handleMarkerClick(p)}
+                    />
+                  ))}
+                </>
+              )}
+            </MarkerClusterer>
+          )}
 
           {iconosProyecto.map((ico) => (
             <Marker
@@ -2470,6 +2754,67 @@ function MyMap() {
             />
           )}
 
+          {selectedProyecto &&
+            showSpacesLayer &&
+            espaciosProyecto.map((espacio) => (
+              <React.Fragment key={espacio.idespacio}>
+                <PolygonOverlay
+                  puntos={espacio.puntos}
+                  path={espacio.polygonPath}
+                  labelPosition={
+                    espacio.polygonCenter ||
+                    (Number.isFinite(espacio.centerLat) &&
+                    Number.isFinite(espacio.centerLng)
+                      ? { lat: espacio.centerLat, lng: espacio.centerLng }
+                      : null)
+                  }
+                  color={getSpaceColor(espacio)}
+                  label={
+                    overlayZoom >= 15 || espacio.destacado
+                      ? { text: espacio.nombre }
+                      : null
+                  }
+                  onClick={() => setSelectedSpace(espacio)}
+                  onMouseOver={() => setHoveredSpace(espacio)}
+                  onMouseOut={() => setHoveredSpace(null)}
+                  options={{
+                    clickable: true,
+                    strokeOpacity: 0.9,
+                    ...getSpaceVisualStyle(espacio),
+                  }}
+                  mapZoom={overlayZoom}
+                />
+                <SpacePatternOverlay
+                  path={espacio.polygonPath || []}
+                  espacio={espacio}
+                  color={getSpaceColor(espacio)}
+                  visible={overlayZoom >= 14 || selectedSpace?.idespacio === espacio.idespacio}
+                  emphasized={
+                    selectedSpace?.idespacio === espacio.idespacio ||
+                    hoveredSpace?.idespacio === espacio.idespacio
+                  }
+                />
+                {(espacio.polygonCenter ||
+                  (Number.isFinite(espacio.centerLat) &&
+                    Number.isFinite(espacio.centerLng))) && (
+                  <Marker
+                    position={
+                      espacio.polygonCenter ||
+                      { lat: espacio.centerLat, lng: espacio.centerLng }
+                    }
+                    icon={{
+                      url: getSpaceIconUrl(espacio),
+                      scaledSize: new window.google.maps.Size(32, 32),
+                    }}
+                    title={`${espacio.tipoespacio?.nombre || "Espacio"} · ${espacio.nombre}`}
+                    zIndex={12}
+                    clickable
+                    onClick={() => setSelectedSpace(espacio)}
+                  />
+                )}
+              </React.Fragment>
+            ))}
+
           {selectedProyecto && lotesProyecto.length > 0 && (
             <MemoizedLotesOverlay
               lotes={lotesProyecto}
@@ -2486,6 +2831,90 @@ function MyMap() {
 
           {directions && <DirectionsRenderer directions={directions} />}
         </GoogleMap>
+
+        {selectedProyecto && espaciosProyecto.length > 0 && (
+          <div className={styles.spaceLayerControl}>
+            <button
+              type="button"
+              className={`${styles.spaceLayerToggle} ${showSpacesLayer ? styles.spaceLayerToggleActive : ""}`}
+              onClick={() => {
+                setShowSpacesLayer((prev) => !prev);
+                setHoveredSpace(null);
+                if (showSpacesLayer) setSelectedSpace(null);
+              }}
+            >
+              <span className={styles.spaceLayerToggleDot} />
+              <span>
+                {showSpacesLayer ? "Ocultar Espacios" : "Mostrar Espacios"}
+              </span>
+            </button>
+
+            {showSpacesLayer && visibleSpaceLegend.length > 0 && (
+              <div className={styles.spaceLegend}>
+                <strong className={styles.spaceLegendTitle}>Leyenda</strong>
+                {visibleSpaceLegend.map((item) => (
+                  <div
+                    key={`space-legend-${item.key}-${item.nombre}`}
+                    className={styles.spaceLegendItem}
+                  >
+                    <span
+                      className={styles.spaceLegendSwatch}
+                      style={getSpacePatternPreviewStyle(
+                        {
+                          tipoespacio: {
+                            slug: item.key,
+                            nombre: item.nombre,
+                          },
+                        },
+                        item.color,
+                      )}
+                    />
+                    <span className={styles.spaceLegendName}>{item.nombre}</span>
+                    <span className={styles.spaceLegendCount}>{item.total}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {showSpacesLayer && activeSpaceCard && (
+          <div className={styles.spaceInfoCard}>
+            <div className={styles.spaceInfoHead}>
+              <div>
+                <span className={styles.spaceInfoKicker}>
+                  {activeSpaceCard?.tipoespacio?.nombre || "Espacio"}
+                </span>
+                <strong>{activeSpaceCard?.nombre || "Espacio del proyecto"}</strong>
+              </div>
+              {selectedSpace && (
+                <button
+                  type="button"
+                  className={styles.spaceInfoClose}
+                  onClick={() => setSelectedSpace(null)}
+                  aria-label="Cerrar detalle del espacio"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <div className={styles.spaceInfoMetrics}>
+              <span>
+                {Math.round(Number(activeSpaceCard?.area_m2 || 0)).toLocaleString("es-PE")} m²
+              </span>
+              {Number(activeSpaceCard?.destacado) === 1 && <span>Destacado</span>}
+            </div>
+            {activeSpaceCard?.descripcion ? (
+              <p className={styles.spaceInfoDescription}>
+                {activeSpaceCard.descripcion}
+              </p>
+            ) : (
+              <p className={styles.spaceInfoDescription}>
+                Espacio trazado dentro del masterplan del proyecto.
+              </p>
+            )}
+          </div>
+        )}
 
         <div
           ref={mapTypeControlRef}
@@ -2603,7 +3032,9 @@ function MyMap() {
         <ProyectoSidebar
           inmo={selectedProyecto?.inmo}
           proyecto={selectedProyecto}
+          selectedLote={selectedLote?.lote || null}
           imagenes={imagenesProyecto}
+          espacios={espaciosProyecto}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
           mapHeaderOffsetPx={mapHeaderOffsetPx}
@@ -2630,6 +3061,9 @@ function MyMap() {
             setLotesProyecto([]);
             setLotesProyectoBase([]);
             setIconosProyecto([]);
+            setEspaciosProyecto([]);
+            setSelectedSpace(null);
+            setHoveredSpace(null);
             setSelectedLote(null); // 🔥 CLAVE
           }}
         />

@@ -60,6 +60,14 @@
   height: 100%;
 }
 
+.noImageLayout {
+  display: block;
+}
+
+.noImageLayout .infoSection {
+  width: 100%;
+}
+
 .imageSection {
   width: 45%;
   position: relative;
@@ -140,6 +148,11 @@
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.legalLabelDanger {
+  color: #b91c1c;
+  background: #fef2f2;
 }
 
 .nombreLote {
@@ -241,6 +254,460 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 12px;
+}
+
+.financingCard {
+  margin: 18px 0 8px;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(16, 185, 129, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.18), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.12), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(240, 253, 250, 0.92));
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.financingCard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.24) 32%,
+    transparent 58%
+  );
+  pointer-events: none;
+}
+
+.financingHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.financingKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #059669;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.financingHeader h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  line-height: 1.15;
+  color: #0f172a;
+}
+
+.financingMiniMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #065f46;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  border: 1px solid rgba(16, 185, 129, 0.14);
+  backdrop-filter: blur(10px);
+}
+
+.financingPrimary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.financingPrimary > div {
+  padding: 10px 11px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.financingPrimary span,
+.financingNote {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.financingPrimary strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.financingSparkRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.financingSparkCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.financingSparkCard small {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.financingSparkCard strong {
+  display: block;
+  margin-top: 2px;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.financingSparkIcon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #0f766e;
+  background: linear-gradient(145deg, #ecfeff, #dcfce7);
+}
+
+.financingAdjustHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+
+.financingSectionEyebrow {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.financingSectionNote {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+.financingControls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.financingControls label,
+.financingField {
+  display: grid;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 14px 28px rgba(15, 23, 42, 0.05);
+}
+
+.financingFieldHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.financingFieldTitle {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.01em;
+}
+
+.financingFieldHint {
+  display: block;
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.financingInputShell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.financingInputPrefix,
+.financingInputPrefixPlain {
+  font-size: 11px;
+  font-weight: 800;
+  color: #0f766e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.financingInputPrefixPlain {
+  color: #475569;
+}
+
+.financingControls input {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.financingInputShell input {
+  border: none;
+  background: transparent;
+  padding: 8px 10px;
+  box-shadow: none;
+}
+
+.financingInputShell input:focus {
+  outline: none;
+}
+
+.financingRange {
+  appearance: none;
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  padding: 0 !important;
+  background:
+    linear-gradient(
+      90deg,
+      #10b981 0%,
+      #14b8a6 var(--financing-range-progress, 50%),
+      rgba(148, 163, 184, 0.22) var(--financing-range-progress, 50%),
+      rgba(148, 163, 184, 0.22) 100%
+    ) !important;
+  border: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.financingRangeMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.financingRangeMeta strong {
+  font-size: 11px;
+  color: #0f172a;
+  flex: 1 1 100%;
+  text-align: center;
+  order: -1;
+}
+
+.financingActionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.financingPayBtn,
+.financingWhatsAppBtn {
+  min-width: 0;
+  border-radius: 18px;
+  padding: 12px 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.financingPayBtn {
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(240, 253, 250, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 12px 24px rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+  text-align: left;
+}
+
+.financingPayCopy,
+.financingWhatsAppCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.financingPayBtn small,
+.financingWhatsAppCopy small {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.financingPayBtn strong,
+.financingWhatsAppCopy strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.financingPayCopy span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.financingWhatsAppBtn {
+  justify-content: center;
+  background: linear-gradient(135deg, #22c55e, #16a34a 58%, #0f766e);
+  color: #f8fffb;
+  box-shadow:
+    0 14px 28px rgba(22, 163, 74, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.financingWhatsAppBtn svg {
+  flex: 0 0 auto;
+  font-size: 20px;
+}
+
+.financingWhatsAppBtnDisabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.financingRange::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #ffffff, #dcfce7);
+  border: 2px solid #10b981;
+  box-shadow:
+    0 6px 12px rgba(16, 185, 129, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.financingRange::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #ffffff, #dcfce7);
+  border: 2px solid #10b981;
+  box-shadow:
+    0 6px 12px rgba(16, 185, 129, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.financingPresets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.financingPresetBtn {
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.14), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.94));
+  border-radius: 16px;
+  padding: 10px 9px;
+  text-align: left;
+  display: grid;
+  gap: 3px;
+  cursor: pointer;
+  color: #0f172a;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.financingPresetBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.08);
+}
+
+.financingPresetBtn small {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0891b2;
+}
+
+.financingPresetBtn strong {
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.financingPresetBtn span {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.financingPresetBtnActive {
+  border-color: #10b981;
+  box-shadow: 0 14px 28px rgba(16, 185, 129, 0.16);
+}
+
+.financingNote {
+  margin: 0;
+  line-height: 1.45;
 }
 
 .qBadge {
@@ -545,6 +1012,101 @@
   color: #475569;
 }
 
+.inmoMoreBtn {
+  margin-top: 14px;
+  width: 100%;
+  border: 1px solid rgba(16, 110, 46, 0.18);
+  background: rgba(16, 110, 46, 0.06);
+  color: #106e2e;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.aboutCard {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #ffffff, #f5f7fa);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.aboutBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.btn360 {
+  position: relative;
+  flex: 1 1 100%;
+  min-height: 58px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  background: linear-gradient(135deg, #0f172a, #164e63 58%, #0f766e);
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.btn360Orbit {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+}
+
+.icon360 {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.btn360Text {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.btn360Text small {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(236, 253, 245, 0.72);
+}
+
+.btn360Text strong {
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.btn360Ping {
+  position: absolute;
+  right: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #34d399;
+  box-shadow: 0 0 0 6px rgba(52, 211, 153, 0.14);
+}
+
 /* ===== DIVISOR ===== */
 .inmoDivider {
   margin: 18px 0;
@@ -748,11 +1310,14 @@
 
   .sidebar {
     height: 360px;
-    width: 100%;
+    width: 100vw;
+    max-width: 100vw;
     bottom: 0;
     border-radius: 25px 25px 0 0;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    transform: none;
+    margin: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
     display: block;
@@ -953,6 +1518,36 @@
     margin-right: 30px;
   }
 
+  .financingPrimary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .financingPresets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .financingSparkRow,
+  .financingControls {
+    grid-template-columns: 1fr;
+  }
+
+  .financingActionRow {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  }
+
+  .financingHeader {
+    flex-direction: column;
+  }
+
+  .financingField {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .financingFieldHint {
+    font-size: 9px;
+  }
+
 .navArrow {
     color: black;
     margin-right: 27px;
@@ -1007,6 +1602,12 @@
 
 [data-theme="dark"] .nombreLote,
 [data-theme="dark"] .inmoName,
+[data-theme="dark"] .financingHeader h3,
+[data-theme="dark"] .financingPrimary strong,
+[data-theme="dark"] .financingRangeMeta strong,
+[data-theme="dark"] .financingPresetBtn,
+[data-theme="dark"] .financingSparkCard strong,
+[data-theme="dark"] .financingMiniMeta,
 [data-theme="dark"] .priceValue,
 [data-theme="dark"] .qBadge strong,
 [data-theme="dark"] .sectionTitle,
@@ -1017,6 +1618,12 @@
 [data-theme="dark"] .ubicacion,
 [data-theme="dark"] .proyectoP,
 [data-theme="dark"] .inmoLabel,
+[data-theme="dark"] .financingPrimary span,
+[data-theme="dark"] .financingNote,
+[data-theme="dark"] .financingRangeMeta,
+[data-theme="dark"] .financingSparkCard small,
+[data-theme="dark"] .financingPresetBtn span,
+[data-theme="dark"] .financingControls label,
 [data-theme="dark"] .inmoDescription,
 [data-theme="dark"] .fullDescription,
 [data-theme="dark"] .labelSmall,
@@ -1027,6 +1634,14 @@
 
 [data-theme="dark"] .imageSection,
 [data-theme="dark"] .priceContainer,
+[data-theme="dark"] .aboutCard,
+[data-theme="dark"] .financingCard,
+[data-theme="dark"] .financingPrimary > div,
+[data-theme="dark"] .financingSparkCard,
+[data-theme="dark"] .financingMiniMeta,
+[data-theme="dark"] .financingControls label,
+[data-theme="dark"] .financingInputShell,
+[data-theme="dark"] .financingPresetBtn,
 [data-theme="dark"] .qBadge,
 [data-theme="dark"] .fItem,
 [data-theme="dark"] .distanciaBox,
@@ -1046,9 +1661,118 @@
   box-shadow: 0 10px 26px rgba(2, 6, 23, 0.45);
 }
 
+[data-theme="dark"] .financingCard {
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.12), transparent 28%),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--theme-bg-surface) 88%, #0b1220),
+      color-mix(in srgb, var(--theme-bg-soft) 92%, #020617)
+    );
+  box-shadow:
+    0 20px 48px rgba(2, 6, 23, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .financingKicker,
+[data-theme="dark"] .financingInputPrefix {
+  color: #5eead4;
+}
+
+[data-theme="dark"] .financingInputPrefixPlain {
+  color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .financingControls input {
+  background: color-mix(in srgb, var(--theme-bg-soft) 90%, #020617);
+  border-color: var(--theme-border-color);
+  color: var(--theme-text-main);
+}
+
+[data-theme="dark"] .financingFieldTitle {
+  color: var(--theme-text-main);
+}
+
+[data-theme="dark"] .financingFieldHint {
+  color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .financingSectionEyebrow {
+  color: #5eead4;
+}
+
+[data-theme="dark"] .financingSectionNote {
+  color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .financingPresetBtn small {
+  color: #67e8f9;
+}
+
+[data-theme="dark"] .financingPayBtn {
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 42%),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--theme-bg-surface) 90%, #020617),
+      color-mix(in srgb, var(--theme-bg-soft) 96%, #0b1220)
+    );
+  color: var(--theme-text-main);
+  border-color: var(--theme-border-color);
+}
+
+[data-theme="dark"] .financingPayBtn small,
+[data-theme="dark"] .financingPayCopy span {
+  color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .financingRange {
+  background:
+    linear-gradient(
+      90deg,
+      #34d399 0%,
+      #22d3ee var(--financing-range-progress, 50%),
+      rgba(71, 85, 105, 0.55) var(--financing-range-progress, 50%),
+      rgba(71, 85, 105, 0.55) 100%
+    ) !important;
+}
+
+[data-theme="dark"] .financingRange::-webkit-slider-thumb,
+[data-theme="dark"] .financingRange::-moz-range-thumb {
+  background: linear-gradient(145deg, #f0fdfa, #0f172a);
+  border-color: #2dd4bf;
+}
+
+[data-theme="dark"] .financingSparkIcon {
+  color: var(--theme-text-main);
+  background: color-mix(in srgb, #14b8a6 14%, var(--theme-bg-soft));
+}
+
 [data-theme="dark"] .legalLabel {
   background: color-mix(in srgb, #10b981 18%, var(--theme-bg-soft));
   color: #86efac;
+}
+
+[data-theme="dark"] .legalLabelDanger {
+  background: color-mix(in srgb, #ef4444 16%, var(--theme-bg-soft));
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .aboutBadge {
+  background: color-mix(in srgb, #10b981 18%, var(--theme-bg-soft));
+  color: #86efac;
+}
+
+[data-theme="dark"] .inmoMoreBtn {
+  background: color-mix(in srgb, #10b981 14%, var(--theme-bg-soft));
+  border-color: var(--theme-border-color);
+  color: #86efac;
+}
+
+[data-theme="dark"] .btn360 {
+  border-color: rgba(34, 211, 238, 0.2);
+  box-shadow: 0 16px 34px rgba(2, 6, 23, 0.32);
 }
 
 [data-theme="dark"] .imageBadge {

@@ -54,6 +54,7 @@ export default function IconoModal({ onClose, idproyecto }) {
   const [draggedIcono, setDraggedIcono] = useState(null);
   const [iconosLoading, setIconosLoading] = useState(true);
   const token = localStorage.getItem("access");
+  const iconQueryBustRef = useRef(Date.now());
 
   const getColorLote = (vendido) => {
     switch (vendido) {
@@ -168,7 +169,7 @@ export default function IconoModal({ onClose, idproyecto }) {
           ),
           authFetch(
             withApiBase(
-              `https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}`,
+              `https://api.geohabita.com/api/list_iconos_proyecto/${idproyecto}?t=${iconQueryBustRef.current}`,
             ),
             {
               headers: {
@@ -394,17 +395,22 @@ export default function IconoModal({ onClose, idproyecto }) {
           )
       );
 
-    await authFetch(withApiBase("https://api.geohabita.com/api/add_iconos_proyecto/"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
+    if (payload.length) {
+      await authFetch(
+        withApiBase("https://api.geohabita.com/api/add_iconos_proyecto/"),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+    }
 
     alert("Íconos guardados.");
-    onClose();
+    onClose?.({ refreshed: true });
   };
 
   const handleDeleteIcono = async (idiconoproyecto, marker) => {
@@ -424,6 +430,7 @@ export default function IconoModal({ onClose, idproyecto }) {
         },
       );
       if (marker) marker.setMap(null);
+      iconQueryBustRef.current = Date.now();
       setIconosMapa((prev) =>
         prev.filter((ic) => ic.idiconoproyecto !== idiconoproyecto),
       );

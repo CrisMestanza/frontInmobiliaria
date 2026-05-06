@@ -372,7 +372,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
       );
       if (res.ok) {
         alert("Lote actualizado ✅");
-        onClose();
+        onClose?.({ refreshed: true });
       } else {
         const errBody = await res.text().catch(() => null);
         console.error("update error:", res.status, errBody);

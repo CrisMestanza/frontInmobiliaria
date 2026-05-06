@@ -5,13 +5,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { EquirectangularAdapter, Viewer } from "@photo-sphere-viewer/core";
-import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
-import { Vector3 } from "three";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import "@photo-sphere-viewer/core/index.css";
-import "@photo-sphere-viewer/markers-plugin/index.css";
 import {
   X,
   ChevronLeft,
@@ -31,6 +26,30 @@ import {
 } from "lucide-react";
 import { withApiBase } from "../../config/api.js";
 import styles from "./Viewer360.module.css";
+
+let viewerRuntimePromise = null;
+let viewerRuntimeCache = null;
+
+const loadViewerRuntime = async () => {
+  if (!viewerRuntimePromise) {
+    viewerRuntimePromise = Promise.all([
+      import("@photo-sphere-viewer/core"),
+      import("@photo-sphere-viewer/markers-plugin"),
+      import("three"),
+      import("@photo-sphere-viewer/core/index.css"),
+      import("@photo-sphere-viewer/markers-plugin/index.css"),
+    ]).then(([core, markersPlugin, three]) => {
+      viewerRuntimeCache = {
+        Viewer: core.Viewer,
+        EquirectangularAdapter: core.EquirectangularAdapter,
+        MarkersPlugin: markersPlugin.MarkersPlugin,
+        Vector3: three.Vector3,
+      };
+      return viewerRuntimeCache;
+    });
+  }
+  return viewerRuntimePromise;
+};
 
 const API_BASE = "https://api.geohabita.com";
 const MARKER_SIZE = { width: 118, height: 78 };
@@ -111,6 +130,35 @@ const formatMoney = (lote) => {
     ? numeric.toLocaleString("es-PE")
     : precio;
   return `${lote?.moneda || ""} ${value}`.trim();
+};
+
+const parseFinancingConfig = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const formatCurrencyMoney = (value, currency = "S/") => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return `${currency} 0.00`;
+  return `${currency} ${amount.toLocaleString("es-PE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const calcPayment = (principal, annualRate, months) => {
+  const safePrincipal = Math.max(Number(principal) || 0, 0);
+  const safeMonths = Math.max(1, Math.round(Number(months) || 1));
+  const monthlyRate = Math.max(0, Number(annualRate) || 0) / 12 / 100;
+  if (!monthlyRate) return safePrincipal / safeMonths;
+  return (
+    (safePrincipal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -safeMonths))
+  );
 };
 
 const hasDisplayValue = (value) =>
@@ -399,13 +447,19 @@ const isValidTexturePoint = (point) =>
 
 const isValidSphericalPoint = isValidTexturePoint;
 
-const projectViewerPointWithCamera = (viewer, viewerPoint, width, height) => {
+const projectViewerPointWithCamera = (
+  viewer,
+  viewerPoint,
+  width,
+  height,
+  Vector3Ctor,
+) => {
   const camera = viewer?.renderer?.camera;
-  if (!camera || !width || !height) return null;
+  if (!camera || !width || !height || !Vector3Ctor) return null;
 
   const ndcX = (Number(viewerPoint.x) / width) * 2 - 1;
   const ndcY = 1 - (Number(viewerPoint.y) / height) * 2;
-  const direction = new Vector3(ndcX, ndcY, 0.5)
+  const direction = new Vector3Ctor(ndcX, ndcY, 0.5)
     .unproject(camera)
     .sub(camera.position)
     .normalize();
@@ -465,6 +519,7 @@ const projectViewerPointToAnchoredPoint = (
       { x: viewerX, y: viewerY },
       width,
       height,
+      viewerRuntimeCache?.Vector3,
     );
   if (!spherical) return null;
 
@@ -994,6 +1049,7 @@ const Viewer360Modal = ({
   const [hotspots, setHotspots] = useState([]);
   const [hotspotsLoading, setHotspotsLoading] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
+  const [viewerRuntimeReady, setViewerRuntimeReady] = useState(false);
   const [viewerLoadMessage, setViewerLoadMessage] = useState(
     "Preparando recorrido 360...",
   );
@@ -1023,6 +1079,7 @@ const Viewer360Modal = ({
   const lotLabelAreaRefs = useRef(new Map());
   const lotLabelBlockRefs = useRef(new Map());
   const viewerRef = useRef(null);
+  const viewerRuntimeRef = useRef(null);
   const containerRef = useRef(null);
   const lotLabelsFrameRef = useRef(null);
   const lotLabelsZoomTimerRef = useRef(null);
@@ -1035,6 +1092,26 @@ const Viewer360Modal = ({
   const galleryTouchStartY = useRef(0);
   const galleryTouchDeltaY = useRef(0);
   const galleryTouchStartTop = useRef(0);
+
+  useEffect(() => {
+    let active = true;
+    loadViewerRuntime()
+      .then((runtime) => {
+        if (!active) return;
+        viewerRuntimeRef.current = runtime;
+        setViewerRuntimeReady(true);
+      })
+      .catch((error) => {
+        console.error("No se pudo cargar el runtime 360:", error);
+        if (active) {
+          setViewerLoadMessage("No se pudo cargar la vista 360.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
   const galleryNestedTouchStartY = useRef(0);
   const galleryNestedTouchDeltaY = useRef(0);
   const galleryNestedScrollableTarget = useRef(null);
@@ -1108,11 +1185,101 @@ const Viewer360Modal = ({
   );
   const selectedLote = selectedLoteInfo?.lote;
   const selectedLoteId = String(getLoteId(selectedLote) ?? "");
+  const viewerFinancingConfig = useMemo(
+    () => parseFinancingConfig(selectedLoteInfo?.proyecto?.financing_config),
+    [selectedLoteInfo?.proyecto?.financing_config],
+  );
+  const viewerFinancingCurrency =
+    viewerFinancingConfig?.currency ||
+    selectedLote?.moneda ||
+    selectedLoteInfo?.proyecto?.moneda ||
+    "S/";
+  const viewerFinancingPrice = Number(selectedLote?.precio || 0);
+  const viewerFinancingMinInitial = Math.max(
+    0,
+    Number(
+      viewerFinancingConfig?.min_initial_amount ??
+        viewerFinancingConfig?.default_initial_amount ??
+        0,
+    ) || Math.round(viewerFinancingPrice * 0.1),
+  );
+  const viewerFinancingMaxInitial = Math.max(
+    viewerFinancingMinInitial,
+    Math.min(
+      Number(viewerFinancingConfig?.max_initial_amount || viewerFinancingPrice || 0) ||
+        viewerFinancingPrice,
+      viewerFinancingPrice || Number.MAX_SAFE_INTEGER,
+    ),
+  );
+  const viewerFinancingMinMonths = Math.max(
+    1,
+    Number(viewerFinancingConfig?.min_months || 1),
+  );
+  const viewerFinancingMaxMonths = Math.max(
+    viewerFinancingMinMonths,
+    Number(viewerFinancingConfig?.max_months || 60),
+  );
+  const viewerDefaultInitial = clamp(
+    viewerFinancingConfig?.default_initial_amount ?? viewerFinancingMinInitial,
+    viewerFinancingMinInitial,
+    viewerFinancingMaxInitial,
+  );
+  const viewerDefaultMonths = clamp(
+    viewerFinancingConfig?.default_months ?? 36,
+    viewerFinancingMinMonths,
+    viewerFinancingMaxMonths,
+  );
+  const [viewerFinancingInitial, setViewerFinancingInitial] =
+    useState(viewerDefaultInitial);
+  const [viewerFinancingMonths, setViewerFinancingMonths] =
+    useState(viewerDefaultMonths);
+  useEffect(() => {
+    setViewerFinancingInitial(viewerDefaultInitial);
+    setViewerFinancingMonths(viewerDefaultMonths);
+  }, [viewerDefaultInitial, viewerDefaultMonths, selectedLoteId]);
+  const viewerFinancingScenario = useMemo(() => {
+    if (!viewerFinancingConfig || !viewerFinancingPrice) return null;
+    const initial = clamp(
+      viewerFinancingInitial,
+      viewerFinancingMinInitial,
+      viewerFinancingMaxInitial,
+    );
+    const months = clamp(
+      viewerFinancingMonths,
+      viewerFinancingMinMonths,
+      viewerFinancingMaxMonths,
+    );
+    const annualRate = Number(viewerFinancingConfig?.annual_interest_rate || 0);
+    const monthlyAdminFee = Number(viewerFinancingConfig?.monthly_admin_fee || 0);
+    const insuranceMonthly = Number(viewerFinancingConfig?.insurance_monthly || 0);
+    const financedBase = Math.max(viewerFinancingPrice - initial, 0);
+    const monthlyEstimate =
+      calcPayment(financedBase, annualRate, months) +
+      monthlyAdminFee +
+      insuranceMonthly;
+    const totalPaid = initial + monthlyEstimate * months;
+    return { initial, months, annualRate, monthlyEstimate, totalPaid };
+  }, [
+    viewerFinancingConfig,
+    viewerFinancingPrice,
+    viewerFinancingInitial,
+    viewerFinancingMonths,
+    viewerFinancingMinInitial,
+    viewerFinancingMaxInitial,
+    viewerFinancingMinMonths,
+    viewerFinancingMaxMonths,
+  ]);
   const contactPhone =
     selectedLoteInfo?.inmobiliaria?.telefono ||
     selectedLoteInfo?.inmobiliaria?.celular ||
     "";
   const cleanContactPhone = String(contactPhone).replace(/\D/g, "");
+  const viewerFinancingWhatsappHref =
+    viewerFinancingScenario && cleanContactPhone
+      ? `https://wa.me/${cleanContactPhone}?text=${encodeURIComponent(
+          `Hola, quiero este lote del visor 360.\n\nProyecto: "${selectedLoteInfo?.proyecto?.nombreproyecto || projectName}"\nLote: "${selectedLote?.nombre || "Lote"}"\nInicial: ${formatCurrencyMoney(viewerFinancingScenario.initial, viewerFinancingCurrency)}\nPlazo: ${viewerFinancingScenario.months} meses\nCuota estimada: ${formatCurrencyMoney(viewerFinancingScenario.monthlyEstimate, viewerFinancingCurrency)}\nTotal estimado: ${formatCurrencyMoney(viewerFinancingScenario.totalPaid, viewerFinancingCurrency)}`,
+        )}`
+      : undefined;
   const shareText = `Mira este lote: ${selectedLote?.nombre || "Lote"} en ${selectedLoteInfo?.proyecto?.nombreproyecto || projectName || "GeoHabita"}. Precio: ${formatMoney(selectedLote)}`;
   const projectSidebarInfo = useMemo(() => {
     const record = currentProjectRecord || {};
@@ -1645,7 +1812,9 @@ const Viewer360Modal = ({
   }, [currentImageId]);
 
   useEffect(() => {
-    if (!containerRef.current || !currentImage) return undefined;
+    if (!containerRef.current || !currentImage || !viewerRuntimeReady) {
+      return undefined;
+    }
 
     let active = true;
     let viewerInstance = null;
@@ -1663,6 +1832,8 @@ const Viewer360Modal = ({
       await waitForNextFrame();
       await warmUpImage(currentImage.imagen);
       if (!active || !containerRef.current) return;
+      const runtime = viewerRuntimeRef.current || (await loadViewerRuntime());
+      if (!active || !runtime) return;
 
       const imageKey = String(currentImageId ?? "");
       const initialLayout = currentOverlayBundle?.layouts?.[imageKey];
@@ -1673,14 +1844,14 @@ const Viewer360Modal = ({
         container: containerRef.current,
         panorama: currentImage.imagen,
         caption: currentImage.nombre,
-        adapter: [EquirectangularAdapter, { resolution: VIEWER_RESOLUTION }],
+        adapter: [runtime.EquirectangularAdapter, { resolution: VIEWER_RESOLUTION }],
         defaultZoomLvl: Number.isFinite(initialZoom) ? initialZoom : 35,
         moveSpeed: VIEWER_MOVE_SPEED,
         fisheye: false,
         loadingImg: VIEWER_LOADING_ICON,
         loadingTxt: "Cargando vista 360...",
         navbar: ["zoom", "move", "caption"],
-        plugins: [[MarkersPlugin, {}]],
+        plugins: [[runtime.MarkersPlugin, {}]],
       };
 
       if (Number.isFinite(initialYaw)) {
@@ -1691,10 +1862,10 @@ const Viewer360Modal = ({
         viewerOptions.defaultPitch = initialPitch;
       }
 
-      viewerInstance = new Viewer(viewerOptions);
+      viewerInstance = new runtime.Viewer(viewerOptions);
 
       viewerRef.current = viewerInstance;
-      const markers = viewerInstance.getPlugin(MarkersPlugin);
+      const markers = viewerInstance.getPlugin(runtime.MarkersPlugin);
 
       markers.addEventListener("select-marker", (event) => {
         const marker = event?.marker || event?.detail?.marker;
@@ -1728,6 +1899,7 @@ const Viewer360Modal = ({
     currentOverlayBundle,
     openLoteFromMarker,
     travelToImageById,
+    viewerRuntimeReady,
   ]);
 
   useEffect(() => {
@@ -1768,7 +1940,9 @@ const Viewer360Modal = ({
   useEffect(() => {
     if (!viewerReady || !viewerRef.current) return;
 
-    const markers = viewerRef.current.getPlugin(MarkersPlugin);
+    const markers = viewerRef.current.getPlugin(
+      viewerRuntimeRef.current?.MarkersPlugin,
+    );
     markers.clearMarkers();
 
     if (overlayToRender?.visible) {
@@ -2723,6 +2897,92 @@ const Viewer360Modal = ({
                     <span>Precio por m2</span>
                   </div>
                 </div>
+
+                {viewerFinancingScenario && (
+                  <div className={styles.viewerFinancingCard} data-lote-card>
+                    <div className={styles.viewerFinancingHead}>
+                      <div>
+                        <span className={styles.viewerFinancingKicker}>
+                          Simulador financiero
+                        </span>
+                        <strong>
+                          {formatCurrencyMoney(
+                            viewerFinancingScenario.monthlyEstimate,
+                            viewerFinancingCurrency,
+                          )}
+                        </strong>
+                        <p>Cuota estimada mensual</p>
+                      </div>
+                      <a
+                        href={viewerFinancingWhatsappHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`${styles.viewerFinancingCta} ${!viewerFinancingWhatsappHref ? styles.viewerFinancingCtaDisabled : ""}`}
+                        aria-disabled={!viewerFinancingWhatsappHref}
+                        onClick={(e) => {
+                          if (!viewerFinancingWhatsappHref) e.preventDefault();
+                        }}
+                      >
+                        <MessageCircle size={16} />
+                        <span>Lo quiero</span>
+                      </a>
+                    </div>
+
+                    <div className={styles.viewerFinancingGrid}>
+                      <div>
+                        <span>Inicial</span>
+                        <strong>
+                          {formatCurrencyMoney(
+                            viewerFinancingScenario.initial,
+                            viewerFinancingCurrency,
+                          )}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Meses</span>
+                        <strong>{viewerFinancingScenario.months}</strong>
+                      </div>
+                      <div>
+                        <span>Total estimado</span>
+                        <strong>
+                          {formatCurrencyMoney(
+                            viewerFinancingScenario.totalPaid,
+                            viewerFinancingCurrency,
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className={styles.viewerFinancingFields}>
+                      <label>
+                        <span>Inicial</span>
+                        <input
+                          type="number"
+                          min={viewerFinancingMinInitial}
+                          max={viewerFinancingMaxInitial}
+                          step="100"
+                          value={viewerFinancingInitial}
+                          onChange={(e) =>
+                            setViewerFinancingInitial(Number(e.target.value) || 0)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Meses</span>
+                        <input
+                          type="number"
+                          min={viewerFinancingMinMonths}
+                          max={viewerFinancingMaxMonths}
+                          step="1"
+                          value={viewerFinancingMonths}
+                          onChange={(e) =>
+                            setViewerFinancingMonths(Number(e.target.value) || 0)
+                          }
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 <div className={styles.loteInsightStrip} data-lote-card>
                   <div className={styles.loteInsightCopy}>

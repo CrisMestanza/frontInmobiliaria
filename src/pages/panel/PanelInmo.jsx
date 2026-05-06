@@ -52,11 +52,11 @@ import {
   PinIcon,
   MapPinIcon,
   MapPlus,
+  EyeOff,
 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
 import Loader from "../../components/Loading";
-import Modal360 from "../casa360/Modal360";
 import GeoHabitaLoader from "../../components/GeoHabitaLoader";
 const ProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/agregarProyecto"),
@@ -66,105 +66,138 @@ const EditLoteModal = React.lazy(() => import("../inmobiliaria/lote/editLote"));
 const EditProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/editProyecto"),
 );
+const FinancingModal = React.lazy(
+  () => import("../inmobiliaria/proyecto/FinancingModal"),
+);
 const IconoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/icono/IconoModal"),
 );
+const EspaciosModal = React.lazy(
+  () => import("../inmobiliaria/proyecto/espacio/EspaciosModal"),
+);
+const Modal360 = React.lazy(() => import("../casa360/Modal360"));
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
-const proyectoImagesCache = new Map();
-const proyectoImagesInflight = new Map();
+const resolveProjectImageUrl = (rawPath) => {
+  if (!rawPath || typeof rawPath !== "string") return null;
+  if (rawPath.startsWith("http")) return rawPath;
+  const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  return withApiBase(`https://api.geohabita.com${normalizedPath}`);
+};
+
+const fetchProjectImages = async (projectId) => {
+  if (!projectId) return [];
+  try {
+    const res = await fetch(
+      withApiBase(
+        `https://api.geohabita.com/api/list_imagen_proyecto/${projectId}`,
+      ),
+    );
+    if (!res.ok) return [];
+    const items = await res.json();
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((item) => resolveProjectImageUrl(item?.imagenproyecto))
+      .filter(Boolean);
+  } catch (error) {
+    console.error("No se pudo resolver la galería del proyecto:", error);
+    return [];
+  }
+};
+
+const hasFinancingConfigValue = (value) => {
+  if (!value) return false;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "{}" || trimmed === "null") return false;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return !!parsed && typeof parsed === "object" && Object.keys(parsed).length > 0;
+    } catch {
+      return true;
+    }
+  }
+  return typeof value === "object" ? Object.keys(value).length > 0 : Boolean(value);
+};
 
 const CardProyecto = ({
   proyecto,
   loteStats,
   onViewLotes,
   onEdit,
+  onFinancing,
+  onSpaces,
   onIcon,
   onDelete,
   onTogglePublic,
   isUpdatingPublic,
   onOpen360
 }) => {
-  const [imagenes, setImagenes] = useState([]);
-  const [index, setIndex] = useState(0);
+  const imageCandidates = useMemo(
+    () => {
+      const candidates = [
+        proyecto.hero_image_resolved,
+        ...(Array.isArray(proyecto.gallery_images) ? proyecto.gallery_images : []),
+        proyecto.hero_image_resolved,
+        proyecto.hero_image,
+        proyecto.imagenproyecto,
+        proyecto.imagen,
+        proyecto.portada,
+      ]
+        .map(resolveProjectImageUrl)
+        .filter(Boolean);
 
-  useEffect(() => {
-    let active = true;
-    const key = proyecto.idproyecto;
-    const cached = proyectoImagesCache.get(key);
-    if (cached) {
-      setImagenes(cached);
-      return undefined;
-    }
-
-    const inflight = proyectoImagesInflight.get(key);
-    const load =
-      inflight ||
-      fetch(
-        withApiBase(
-          `https://api.geohabita.com/api/list_imagen_proyecto/${key}`,
-        ),
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          const normalized = Array.isArray(data) ? data : [];
-          proyectoImagesCache.set(key, normalized);
-          proyectoImagesInflight.delete(key);
-          return normalized;
-        })
-        .catch((err) => {
-          proyectoImagesInflight.delete(key);
-          console.error("Error cargando imÃ¡genes:", err);
-          return [];
-        });
-
-    proyectoImagesInflight.set(key, load);
-    load.then((imgs) => {
-      if (active) setImagenes(imgs);
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [proyecto.idproyecto]);
-  useEffect(() => {
-    if (imagenes.length <= 1) return;
-    const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % imagenes.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [imagenes]);
-  const getImageUrl = () => {
-    if (imagenes.length === 0) return null;
-    const path = imagenes[index].imagenproyecto;
-    if (!path) return null;
-    return path.startsWith("http")
-      ? path
-      : withApiBase(`https://api.geohabita.com${path}`);
-  };
-
-  const currentImg = getImageUrl();
+      return Array.from(new Set(candidates));
+    },
+    [
+      proyecto.hero_image_resolved,
+      proyecto.gallery_images,
+      proyecto.hero_image,
+      proyecto.imagenproyecto,
+      proyecto.imagen,
+      proyecto.portada,
+    ],
+  );
+  const [imageIndex, setImageIndex] = useState(0);
+  const spaceStats = proyecto.space_stats || {};
+  const imageSrc = imageCandidates[imageIndex] || null;
 
   const estadosMap = { 0: "Vendido", 1: "Disponible", 2: "Agotado" };
   const isPublic = proyecto.publico_mapa !== 0;
+  const totalLotes = loteStats?.total ?? 0;
+  const lotesDisponibles = loteStats?.disponible ?? 0;
+  const lotesReservados = loteStats?.reservado ?? 0;
+  const lotesVendidos = loteStats?.vendido ?? 0;
+  const totalContactos = proyecto.total_contactos ?? 0;
+  const isFinancingConfigured = hasFinancingConfigValue(
+    proyecto.financing_config || proyecto.financing_config_full,
+  );
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [proyecto.idproyecto, imageCandidates.length]);
 
   return (
     <div className="proyecto-card">
       <div className="card-image-container">
-        {currentImg ? (
+        {imageSrc ? (
           <img
-            src={currentImg}
+            src={imageSrc}
             alt={proyecto.nombreproyecto}
             className="img-carousel"
+            onError={() => {
+              setImageIndex((prev) =>
+                prev + 1 < imageCandidates.length ? prev + 1 : prev,
+              );
+            }}
           />
         ) : (
           <div className="no-image-placeholder">
             <Globe size={48} opacity={0.2} />
-            <span className="card-loading-text">Cargando imagen...</span>
+            <span className="card-loading-text">Sin imagen de portada</span>
           </div>
         )}
-        <div className="card-gradient-overlay" />
         <div className="estado-badge">
           {estadosMap[proyecto.estado] || "ACTIVO"}
         </div>
@@ -175,35 +208,130 @@ const CardProyecto = ({
           disabled={isUpdatingPublic}
           title={
             isPublic
-              ? "Visible en mapa pÃºblico"
-              : "Oculto del mapa pÃºblico"
+              ? "Visible en mapa público"
+              : "Oculto del mapa público"
           }
         >
-          <span className="public-toggle-dot" />
+          <span className="public-toggle-dot">
+            {!isPublic && <EyeOff size={11} strokeWidth={2.4} />}
+          </span>
           <span className="public-toggle-label">
-            {isUpdatingPublic ? "Guardando..." : isPublic ? "PÃºblico" : "Privado"}
+            {isUpdatingPublic ? "Guardando..." : isPublic ? "Público" : "Incógnito"}
           </span>
         </button>
-        <div className="card-info-content">
-          <h3 className="card-title">{proyecto.nombreproyecto}</h3>
+      </div>
+
+      <div className="card-info-content">
+        <div className="card-info-panel">
+            <div className="card-title-row">
+              <div className="card-title-block">
+                <div className="card-title-kicker">Proyecto publicado en GeoHabita</div>
+                <h3 className="card-title">{proyecto.nombreproyecto}</h3>
+              </div>
+              <div className="card-header-actions">
+              <div className="card-minor-metric card-minor-metric-visits">
+                <span className="card-minor-metric-dot" />
+                <div className="card-minor-metric-copy">
+                  <strong>{proyecto.total_clicks ?? 0}</strong>
+                  <span>Vistas del proyecto</span>
+                </div>
+              </div>
+              <button
+                onClick={() => onDelete && onDelete(proyecto.idproyecto)}
+                className="btn-icon-overlay btn-danger"
+                title="Eliminar"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </div>
+
           <div className="card-location">
-            <MapPin size={14} /> {proyecto.latitud}, {proyecto.longitud}
-          </div>
-          <div className="card-lote-stats">
-            <span className="stat-chip stat-chip-total">
-              {loteStats?.total ?? 0} Total
-            </span>
-            <span className="stat-chip stat-chip-available">
-              {loteStats?.disponible ?? 0} Disp.
-            </span>
-            <span className="stat-chip stat-chip-reserved">
-              {loteStats?.reservado ?? 0} Res.
-            </span>
-            <span className="stat-chip stat-chip-sold">
-              {loteStats?.vendido ?? 0} Vend.
+            <MapPin size={14} />
+            <span>
+              Coordenadas: {proyecto.latitud || "—"}, {proyecto.longitud || "—"}
             </span>
           </div>
+
+          <div className="card-overview-grid">
+            <div className="card-overview-pill">
+              <span className="card-overview-icon">
+                <Layers size={15} />
+              </span>
+              <span className="card-overview-label">Lotes</span>
+              <strong>{totalLotes}</strong>
+            </div>
+            <div className="card-overview-pill card-overview-pill--green">
+              <span className="card-overview-icon">
+                <CheckCircle2 size={15} />
+              </span>
+              <span className="card-overview-label">Disponibles</span>
+              <strong>{lotesDisponibles}</strong>
+            </div>
+            <div className="card-overview-pill card-overview-pill--amber">
+              <span className="card-overview-icon">
+                <ClockFading size={15} />
+              </span>
+              <span className="card-overview-label">Reservados</span>
+              <strong>{lotesReservados}</strong>
+            </div>
+            <div className="card-overview-pill card-overview-pill--red">
+              <span className="card-overview-icon">
+                <TagIcon size={15} />
+              </span>
+              <span className="card-overview-label">Vendidos</span>
+              <strong>{lotesVendidos}</strong>
+            </div>
+            <div className="card-overview-pill card-overview-pill--blue">
+              <span className="card-overview-icon">
+                <MessageCircle size={15} />
+              </span>
+              <span className="card-overview-label">Contactos</span>
+              <strong>{totalContactos}</strong>
+            </div>
+          </div>
+
+          <div className="card-meta-grid">
+            <div className="card-meta-card card-meta-card--space">
+              <span className="card-meta-kicker">Espacios</span>
+              <strong>{spaceStats?.total ?? 0}</strong>
+              <small>
+                {Math.round(Number(spaceStats?.area_total || 0)).toLocaleString("es-PE")} m²
+              </small>
+            </div>
+            <div className="card-meta-card card-meta-card--finance">
+              <span className="card-meta-kicker">Financiamiento</span>
+              <strong>{isFinancingConfigured ? "Activo" : "Pendiente"}</strong>
+              <small>
+                {isFinancingConfigured
+                  ? "Listo para cotizar"
+                  : "Falta configurar reglas"}
+              </small>
+            </div>
+          </div>
+
+          <div className="card-space-strip">
+            {Array.isArray(spaceStats?.top_types) && spaceStats.top_types.length > 0 ? (
+              spaceStats.top_types.map((item, index) => (
+                <span
+                  key={`space-top-${item.nombre}-${item.total}-${index}`}
+                  className="card-space-top-types"
+                >
+                  {item.nombre} · {item.total}
+                </span>
+              ))
+            ) : (
+              <span className="card-space-metric">Sin espacios destacados</span>
+            )}
+          </div>
+
           <div className="card-footer">
+            <div className="card-footer-head">
+              <span className="card-footer-title">Acciones rápidas</span>
+              <span className="card-footer-subtitle">
+                Gestiona proyecto, espacios, financiamiento y tour
+              </span>
+            </div>
             <div className="card-actions-left">
               <button
                 onClick={() => onViewLotes(proyecto.idproyecto)}
@@ -212,7 +340,7 @@ const CardProyecto = ({
                 aria-label="Gestionar inmuebles"
               >
                 <Layers size={16} />
-                <span className="btn-action-text">Gestionar</span>
+                <span className="btn-action-text">Lotes</span>
               </button>
 
               <button
@@ -222,16 +350,36 @@ const CardProyecto = ({
                 aria-label="Editar proyecto"
               >
                 <Edit size={16} />
-                <span className="btn-action-text">Editar</span>
+                <span className="btn-action-text">Proyecto</span>
               </button>
               <button
                 onClick={() => onIcon(proyecto.idproyecto)}
                 className="btn-gestionar-unidades"
-                title="Ãconos"
+                title="Íconos"
                 aria-label="Agregar iconos"
               >
                 <MapPlus size={16} />
-                <span className="btn-action-text">Ãconos</span>
+                <span className="btn-action-text">Íconos</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSpaces(proyecto.idproyecto)}
+                className="btn-gestionar-unidades btn-space"
+                title="Gestionar espacios"
+              >
+                <PinIcon size={16} />
+                <span className="btn-action-text">Espacios</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onFinancing(proyecto.idproyecto)
+                }
+                className="btn-gestionar-unidades btn-financing"
+                title="Configurar financiamiento"
+              >
+                <ChartSplineIcon size={16} />
+                <span className="btn-action-text">Financia</span>
               </button>
 
               <button
@@ -240,18 +388,10 @@ const CardProyecto = ({
                 className="btn-gestionar-unidades"
                 title="360"
               >
-                <MapPlus size={16} />
-                <span className="btn-action-text">360</span>
+                <Globe size={16} />
+                <span className="btn-action-text">Tour 360</span>
               </button>
-
             </div>
-            <button
-              onClick={() => onDelete && onDelete(proyecto.idproyecto)}
-              className="btn-icon-overlay btn-danger"
-              title="Eliminar"
-            >
-              <Trash2 size={16} />
-            </button>
           </div>
         </div>
       </div>
@@ -269,6 +409,7 @@ const PanelInmo = ({ setAppLoading }) => {
   const [lotes, setLotes] = useState([]);
   const [lotesLoading, setLotesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dashboardLoaded, setDashboardLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
@@ -278,6 +419,14 @@ const PanelInmo = ({ setAppLoading }) => {
   const [areaMax, setAreaMax] = useState("");
   const [sortKey, setSortKey] = useState("nombre");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [lotesPage, setLotesPage] = useState(1);
+  const [lotesMeta, setLotesMeta] = useState({
+    page: 1,
+    page_size: 20,
+    total: 0,
+    total_pages: 1,
+  });
+  const [lotesRefreshKey, setLotesRefreshKey] = useState(0);
   const [showRedes, setShowRedes] = useState(false);
   const token = localStorage.getItem("access");
   const nombre = localStorage.getItem("nombre");
@@ -286,8 +435,10 @@ const PanelInmo = ({ setAppLoading }) => {
 
   const [showModal, setShowModal] = useState(false);
   const [showLotes, setShowLotes] = useState(false);
-  const [showModalEditProyecto, setShowModalEditProyecto] = useState(false);
+  const [showModalEditProyecto, setShowModalEditProyecto] = useState(null);
+  const [showFinancingModal, setShowFinancingModal] = useState(null);
   const [showIconoModal, setShowIconoModal] = useState(false);
+  const [showEspaciosModal, setShowEspaciosModal] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [showEditLote, setShowEditLote] = useState(false);
   const [selectedLote, setSelectedLote] = useState(null);
@@ -310,27 +461,27 @@ const PanelInmo = ({ setAppLoading }) => {
     },
     {
       href: "https://www.youtube.com/watch?v=PEvwYZO2BtU",
-      titulo: "Agregar PDF para trazado, despuÃ©s de crear proyecto",
+      titulo: "Agregar PDF para trazado, después de crear proyecto",
       descripcion: "Sube planos en PDF para dibujar lotes correctamente.",
       imagen: `${publicBase}2.jpg`,
     },
     {
       href: "https://www.youtube.com/watch?v=gzZHYnXD_5Q",
       titulo: "Registrar Casa Individual en el Mapa",
-      descripcion: "Agrega propiedades individuales fÃ¡cilmente.",
+      descripcion: "Agrega propiedades individuales fácilmente.",
       imagen: `${publicBase}3.jpg`,
     },
     {
       href: "https://www.youtube.com/watch?v=zOIoX1ZvAM0",
-      titulo: "Agregar lotes, despuÃ©s de crear el proyecto",
-      descripcion: "Aprende a aÃ±adir mÃ¡s lotes cuando tu proyecto ya existe.",
+      titulo: "Agregar lotes, después de crear el proyecto",
+      descripcion: "Aprende a añadir más lotes cuando tu proyecto ya existe.",
       imagen: `${publicBase}4.jpg`,
     },
     {
       href: "https://www.youtube.com/watch?v=JHP9YWTIgJs",
       titulo: "Registro de Proyecto de Departamentos",
       descripcion:
-        "Aprende paso a paso cÃ³mo crear y configurar un proyecto inmobiliario de departamentos dentro de GeoHabita.",
+        "Aprende paso a paso cómo crear y configurar un proyecto inmobiliario de departamentos dentro de GeoHabita.",
       imagen: `${publicBase}5.jpg`,
     },
   ];
@@ -357,92 +508,158 @@ const PanelInmo = ({ setAppLoading }) => {
     });
   };
 
-  const fetchData = async () => {
+  const fetchData = async ({ silent = false } = {}) => {
     if (!token || !idInmo) {
       window.location.href = "/";
       return;
     }
     try {
-      setLoading(true);
-      const [resProy, resClicks] = await Promise.all([
+      if (!silent) {
+        setLoading(true);
+      }
+      const [resOverview, resProjects] = await Promise.all([
         authFetch(
           withApiBase(
-            `https://api.geohabita.com/api/getProyectoInmo/${idInmo}`,
+            `https://api.geohabita.com/api/dashboard_overview_inmobiliaria/${idInmo}/`,
           ),
           {
             headers: { Authorization: `Bearer ${token}` },
           },
         ),
         authFetch(
-          withApiBase(
-            `https://api.geohabita.com/api/dashboard_clicks_inmobiliaria/${idInmo}/`,
-          ),
+          withApiBase(`https://api.geohabita.com/api/getProyectoInmo/${idInmo}`),
           {
             headers: { Authorization: `Bearer ${token}` },
           },
         ),
       ]);
 
-      const proyectosData = resProy.ok ? await resProy.json() : [];
-      const cleanProyectos = Array.isArray(proyectosData) ? proyectosData : [];
-      setProyectos(cleanProyectos);
+      const overview = resOverview.ok ? await resOverview.json() : {};
+      const rawProjects = resProjects.ok ? await resProjects.json() : [];
+      const projectById = new Map(
+        (Array.isArray(rawProjects) ? rawProjects : []).map((project) => [
+          Number(project?.idproyecto),
+          project,
+        ]),
+      );
+      const overviewProjects = Array.isArray(overview?.proyectos)
+        ? overview.proyectos
+        : [];
+      const normalizedProjects = await Promise.all(
+        overviewProjects.map(async (project) => {
+          const fullProject = projectById.get(Number(project?.idproyecto)) || {};
+          const directImage =
+            resolveProjectImageUrl(
+              project.hero_image ||
+                project.imagenproyecto ||
+                project.imagen ||
+                project.portada,
+            ) || null;
+          const galleryImages = await fetchProjectImages(project.idproyecto);
+          return {
+            ...project,
+            financing_config_full: fullProject?.financing_config ?? null,
+            gallery_images: galleryImages,
+            hero_image_resolved: directImage || galleryImages[0] || null,
+          };
+        }),
+      );
 
-      if (resClicks.ok) setClicks(await resClicks.json());
-
-      setResumen({
-        proyectosActivos: cleanProyectos.length,
-        lotesDisponibles: 0,
-        lotesReservados: 0,
-        lotesVendidos: 0,
-      });
-
-      const loadLotes = async () => {
-        setLotesLoading(true);
-        const lotesResponses = await Promise.all(
-          cleanProyectos.map((proy) =>
-            authFetch(
-              withApiBase(
-                `https://api.geohabita.com/api/getLoteProyecto/${proy.idproyecto}`,
-              ),
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              },
-            )
-              .then((res) => (res.ok ? res.json() : []))
-              .catch(() => []),
-          ),
-        );
-        const lotesAcumulados = lotesResponses.flatMap((data) =>
-          Array.isArray(data) ? data : [],
-        );
-        setLotes(lotesAcumulados);
-
-        setResumen({
-          proyectosActivos: cleanProyectos.length,
-          lotesDisponibles: lotesAcumulados.filter(
-            (l) => String(l.vendido) === "0",
-          ).length,
-          lotesReservados: lotesAcumulados.filter(
-            (l) => String(l.vendido) === "2",
-          ).length,
-          lotesVendidos: lotesAcumulados.filter(
-            (l) => String(l.vendido) === "1",
-          ).length,
-        });
-        setLotesLoading(false);
-      };
-
-      await loadLotes();
+      setProyectos(normalizedProjects);
+      setResumen(overview?.resumen || null);
+      setClicks(overview?.clicks || null);
+      setDashboardLoaded(true);
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleDashboardRefresh = (options = {}) => {
+    if (!options?.refreshed) return;
+    fetchData({ silent: true });
+    if (options?.refreshLotes) {
+      setLotesRefreshKey((prev) => prev + 1);
+    }
+  };
+
+  useEffect(() => {
+    setLotesPage(1);
+  }, [searchTerm, statusFilter, projectFilter, priceMin, priceMax, areaMin, areaMax, sortKey]);
+
+  useEffect(() => {
+    if (!token || !idInmo) return;
+
+    const controller = new AbortController();
+    const fetchLotesPage = async () => {
+      try {
+        setLotesLoading(true);
+        const query = new URLSearchParams({
+          page: String(lotesPage),
+          page_size: "20",
+          search: searchTerm,
+          status: statusFilter,
+          project: projectFilter,
+          sort: sortKey,
+          price_min: priceMin,
+          price_max: priceMax,
+          area_min: areaMin,
+          area_max: areaMax,
+        });
+
+        const res = await authFetch(
+          withApiBase(
+            `https://api.geohabita.com/api/dashboard_lotes_inmobiliaria/${idInmo}/?${query.toString()}`,
+          ),
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          },
+        );
+        const data = res.ok ? await res.json() : null;
+        if (!controller.signal.aborted) {
+          setLotes(Array.isArray(data?.items) ? data.items : []);
+          setLotesMeta({
+            page: data?.page || 1,
+            page_size: data?.page_size || 20,
+            total: data?.total || 0,
+            total_pages: data?.total_pages || 1,
+          });
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error(err);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLotesLoading(false);
+        }
+      }
+    };
+
+    fetchLotesPage();
+    return () => controller.abort();
+  }, [
+    token,
+    idInmo,
+    lotesPage,
+    lotesRefreshKey,
+    searchTerm,
+    statusFilter,
+    projectFilter,
+    sortKey,
+    priceMin,
+    priceMax,
+    areaMin,
+    areaMax,
+  ]);
 
   useEffect(() => {
     document.body.classList.add("panel-inmo-body");
@@ -474,7 +691,7 @@ const PanelInmo = ({ setAppLoading }) => {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
       } catch (err) {
-        console.error("Error al cerrar sesiÃ³n:", err);
+        console.error("Error al cerrar sesión:", err);
       } finally {
         localStorage.clear();
         window.location.href = "/";
@@ -504,6 +721,7 @@ const PanelInmo = ({ setAppLoading }) => {
       setLotes((prev) => prev.filter((l) => l.idproyecto !== idproyecto));
       window.alertSuccess?.("Proyecto eliminado âœ…");
       fetchData();
+      setLotesRefreshKey((prev) => prev + 1);
     } catch (err) {
       console.error("Error eliminando proyecto:", err);
       window.alertError?.("Error de red al eliminar proyecto ðŸš«");
@@ -552,7 +770,7 @@ const PanelInmo = ({ setAppLoading }) => {
     }
   };
 
-  const totalLotes = lotes.length;
+  const totalLotes = resumen?.totalLotes || 0;
   const totalContactos = clicks?.total_clicks_contactos || 0;
   const totalInteres = clicks?.total_clicks_proyectos || 0;
   const engagementRate = useMemo(() => {
@@ -568,20 +786,16 @@ const PanelInmo = ({ setAppLoading }) => {
 
   const lotesStatsPorProyecto = useMemo(() => {
     const map = new Map();
-    lotes.forEach((l) => {
-      const id = l.idproyecto;
-      if (!map.has(id)) {
-        map.set(id, { total: 0, disponible: 0, reservado: 0, vendido: 0 });
-      }
-      const stats = map.get(id);
-      stats.total += 1;
-      const v = Number(l.vendido);
-      if (v === 0) stats.disponible += 1;
-      else if (v === 2) stats.reservado += 1;
-      else if (v === 1) stats.vendido += 1;
+    proyectos.forEach((p) => {
+      map.set(p.idproyecto, p.lote_stats || {
+        total: 0,
+        disponible: 0,
+        reservado: 0,
+        vendido: 0,
+      });
     });
     return map;
-  }, [lotes]);
+  }, [proyectos]);
 
   const getEstadoLote = (vendido) => {
     const value = Number(vendido);
@@ -626,6 +840,7 @@ const PanelInmo = ({ setAppLoading }) => {
       );
       if (res.ok) {
         fetchData();
+        setLotesRefreshKey((prev) => prev + 1);
       } else {
         window.alertError?.("No se pudo actualizar el estado âŒ");
       }
@@ -648,47 +863,6 @@ const PanelInmo = ({ setAppLoading }) => {
     { nombre: "Web", icono: <FaGlobe color="#0077b6" /> },
   ];
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
-  const filteredLotes = lotes.filter((l) => {
-    const proyectoNombre = proyectoNombrePorId.get(l.idproyecto) || "";
-    const matchesSearch =
-      !normalizedSearch ||
-      l.nombre?.toLowerCase().includes(normalizedSearch) ||
-      l.descripcion?.toLowerCase().includes(normalizedSearch) ||
-      proyectoNombre.toLowerCase().includes(normalizedSearch);
-    const matchesStatus =
-      statusFilter === "all" || String(l.vendido) === statusFilter;
-    const matchesProject =
-      projectFilter === "all" || String(l.idproyecto) === projectFilter;
-    const priceValue = Number(l.precio ?? 0);
-    const areaValue = Number(l.area_total_m2 ?? 0);
-    const minPrice = priceMin === "" ? null : Number(priceMin);
-    const maxPrice = priceMax === "" ? null : Number(priceMax);
-    const minArea = areaMin === "" ? null : Number(areaMin);
-    const maxArea = areaMax === "" ? null : Number(areaMax);
-    const matchesPrice =
-      (minPrice === null || priceValue >= minPrice) &&
-      (maxPrice === null || priceValue <= maxPrice);
-    const matchesArea =
-      (minArea === null || areaValue >= minArea) &&
-      (maxArea === null || areaValue <= maxArea);
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesProject &&
-      matchesPrice &&
-      matchesArea
-    );
-  });
-  const sortedLotes = [...filteredLotes].sort((a, b) => {
-    if (sortKey === "precio-asc") return Number(a.precio ?? 0) - Number(b.precio ?? 0);
-    if (sortKey === "precio-desc") return Number(b.precio ?? 0) - Number(a.precio ?? 0);
-    if (sortKey === "area-asc") return Number(a.area_total_m2 ?? 0) - Number(b.area_total_m2 ?? 0);
-    if (sortKey === "area-desc") return Number(b.area_total_m2 ?? 0) - Number(a.area_total_m2 ?? 0);
-    if (sortKey === "estado") return Number(a.vendido ?? 0) - Number(b.vendido ?? 0);
-    return String(a.nombre || "").localeCompare(String(b.nombre || ""));
-  });
-
   return (
     <div className="panel-inmo-container">
       {/* HEADER */}
@@ -699,7 +873,7 @@ const PanelInmo = ({ setAppLoading }) => {
           </div>
           <div>
             <h1 className="brand-title">{nombreInmo}</h1>
-            <p className="brand-subtitle">GestiÃ³n Inmobiliaria</p>
+            <p className="brand-subtitle">Gestión Inmobiliaria</p>
           </div>
         </div>
         <div className="header-user">
@@ -727,8 +901,8 @@ const PanelInmo = ({ setAppLoading }) => {
             <p className="dashboard-hero-eyebrow">Panel Comercial</p>
             <h2>Impulsa tus conversiones con una vista clara del negocio</h2>
             <p>
-              Monitorea inventario, interÃ©s y contactos en tiempo real para
-              tomar decisiones mÃ¡s rÃ¡pidas.
+              Monitorea inventario, interés y contactos en tiempo real para
+              tomar decisiones más rápidas.
             </p>
           </div>
           <div className="dashboard-hero-metrics">
@@ -874,7 +1048,7 @@ const PanelInmo = ({ setAppLoading }) => {
             </div>
           </div>
           <div className="stat-box accent-blue">
-            <div className="stat-label">InterÃ©s en Proyectos</div>
+            <div className="stat-label">Interés en Proyectos</div>
             <div className="stat-value stat-value-blue">
               {clicks?.total_clicks_proyectos || 0}
               <ChartSplineIcon size={24} />
@@ -917,7 +1091,7 @@ const PanelInmo = ({ setAppLoading }) => {
           </div>
         </div>
 
-        {/* GALERÃA */}
+        {/* GALERÍA */}
         <section>
           <div className="section-header">
             <h2 className="section-title">Mis Proyectos</h2>
@@ -932,7 +1106,14 @@ const PanelInmo = ({ setAppLoading }) => {
                 proyecto={p}
                 loteStats={lotesStatsPorProyecto.get(p.idproyecto)}
                 onViewLotes={setShowLotes}
-                onEdit={setShowModalEditProyecto}
+                onEdit={(idproyecto) =>
+                  setShowModalEditProyecto({
+                    idproyecto,
+                    initialSection: "info",
+                  })
+                }
+                onFinancing={setShowFinancingModal}
+                onSpaces={setShowEspaciosModal}
                 onIcon={setShowIconoModal}
                 onDelete={setProjectToDelete}
                 onTogglePublic={handleTogglePublicoMapa}
@@ -983,8 +1164,8 @@ const PanelInmo = ({ setAppLoading }) => {
               <option value="nombre">Nombre (A-Z)</option>
               <option value="precio-asc">Precio â†‘</option>
               <option value="precio-desc">Precio â†“</option>
-              <option value="area-asc">Ãrea â†‘</option>
-              <option value="area-desc">Ãrea â†“</option>
+              <option value="area-asc">Área ↑</option>
+              <option value="area-desc">Área ↓</option>
               <option value="estado">Estado</option>
             </select>
             <button
@@ -1034,7 +1215,7 @@ const PanelInmo = ({ setAppLoading }) => {
               </div>
             </div>
             <div className="filter-group">
-              <label className="filter-label">Ãrea (mÂ²)</label>
+              <label className="filter-label">Área (m²)</label>
               <div className="filter-inputs">
                 <input
                   type="number"
@@ -1061,22 +1242,24 @@ const PanelInmo = ({ setAppLoading }) => {
                 <tr>
                   <th>Lote</th>
                   <th>Proyecto</th>
-                  <th>DescripciÃ³n</th>
-                  <th>Ãrea mÂ²</th>
+                  <th>Descripción</th>
+                  <th>Área m²</th>
                   <th>Precio</th>
                   <th>Estado</th>
                   <th className="th-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedLotes.map((lote) => {
+                {lotes.map((lote) => {
                   const estadoMeta = getEstadoLote(lote.vendido);
                   const proyectoNombre =
-                    proyectoNombrePorId.get(lote.idproyecto) || "â€”";
+                    lote.idproyecto__nombreproyecto ||
+                    proyectoNombrePorId.get(lote.idproyecto) ||
+                    "—";
                   const areaValue =
                     lote.area_total_m2 !== undefined && lote.area_total_m2 !== ""
                       ? Number(lote.area_total_m2).toLocaleString()
-                      : "â€”";
+                      : "—";
                   const isNew = isNewLote(lote);
                   return (
                     <tr
@@ -1134,6 +1317,33 @@ const PanelInmo = ({ setAppLoading }) => {
               </tbody>
             </table>
           </div>
+          <div className="table-pagination">
+            <span className="table-pagination-meta">
+              {lotesMeta.total} lotes · página {lotesMeta.page} de {Math.max(1, lotesMeta.total_pages)}
+            </span>
+            <div className="table-pagination-actions">
+              <button
+                type="button"
+                className="btn-page"
+                disabled={lotesMeta.page <= 1}
+                onClick={() => setLotesPage((prev) => Math.max(1, prev - 1))}
+              >
+                Anterior
+              </button>
+              <button
+                type="button"
+                className="btn-page"
+                disabled={lotesMeta.page >= lotesMeta.total_pages}
+                onClick={() =>
+                  setLotesPage((prev) =>
+                    Math.min(lotesMeta.total_pages || 1, prev + 1),
+                  )
+                }
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
         </section>
       </main>
 
@@ -1141,9 +1351,12 @@ const PanelInmo = ({ setAppLoading }) => {
       {showModal && (
         <Suspense fallback={<Loader />}>
           <ProyectoModal
-            onClose={() => {
+            onClose={(options) => {
               setShowModal(false);
-              fetchData();
+              handleDashboardRefresh({
+                refreshed: Boolean(options?.refreshed),
+                refreshLotes: true,
+              });
             }}
             idinmobiliaria={idInmo}
           />
@@ -1156,9 +1369,12 @@ const PanelInmo = ({ setAppLoading }) => {
             proyectoNombre={
               proyectos.find((p) => p.idproyecto === showLotes)?.nombreproyecto
             }
-            onClose={() => {
+            onClose={(options) => {
               setShowLotes(false);
-              // fetchData();
+              handleDashboardRefresh({
+                refreshed: Boolean(options?.refreshed),
+                refreshLotes: true,
+              });
             }}
           />
         </Suspense>
@@ -1166,13 +1382,31 @@ const PanelInmo = ({ setAppLoading }) => {
       {showModalEditProyecto && (
         <Suspense fallback={<Loader />}>
           <EditProyectoModal
-            onClose={() => {
+            onClose={(options) => {
               setShowModalEditProyecto(null);
-              // fetchData();
+              handleDashboardRefresh({
+                refreshed: Boolean(options?.refreshed),
+                refreshLotes: true,
+              });
             }}
             idinmobiliaria={idInmo}
             proyecto={proyectos.find(
-              (p) => p.idproyecto === showModalEditProyecto,
+              (p) => p.idproyecto === showModalEditProyecto?.idproyecto,
+            )}
+          />
+        </Suspense>
+      )}
+      {showFinancingModal && (
+        <Suspense fallback={<Loader />}>
+          <FinancingModal
+            onClose={(options) => {
+              setShowFinancingModal(null);
+              handleDashboardRefresh({
+                refreshed: Boolean(options?.refreshed),
+              });
+            }}
+            proyecto={proyectos.find(
+              (p) => p.idproyecto === showFinancingModal,
             )}
           />
         </Suspense>
@@ -1180,18 +1414,39 @@ const PanelInmo = ({ setAppLoading }) => {
       {showIconoModal && (
         <Suspense fallback={<Loader />}>
           <IconoModal
-            onClose={() => setShowIconoModal(false)}
+            onClose={(options) => {
+              setShowIconoModal(false);
+              handleDashboardRefresh({
+                refreshed: Boolean(options?.refreshed),
+              });
+            }}
             idproyecto={showIconoModal}
+          />
+        </Suspense>
+      )}
+      {showEspaciosModal && (
+        <Suspense fallback={<Loader />}>
+          <EspaciosModal
+            onClose={(options) => {
+              setShowEspaciosModal(false);
+              handleDashboardRefresh({
+                refreshed: Boolean(options?.refreshed),
+              });
+            }}
+            idproyecto={showEspaciosModal}
           />
         </Suspense>
       )}
       {showEditLote && selectedLote && (
         <Suspense fallback={<Loader />}>
           <EditLoteModal
-            onClose={() => {
+            onClose={(options) => {
               setShowEditLote(false);
               setSelectedLote(null);
-              fetchData();
+              handleDashboardRefresh({
+                refreshed: Boolean(options?.refreshed),
+                refreshLotes: true,
+              });
             }}
             idproyecto={selectedLote.idproyecto}
             lote={selectedLote}
@@ -1209,7 +1464,7 @@ const PanelInmo = ({ setAppLoading }) => {
           <div className="confirm-card" role="dialog" aria-modal="true">
             <h3>Eliminar proyecto</h3>
             <p>
-              Esta acciÃ³n eliminarÃ¡ el proyecto y sus datos relacionados. No se
+              Esta acción eliminará el proyecto y sus datos relacionados. No se
               puede deshacer.
             </p>
             <div className="confirm-actions">
@@ -1234,13 +1489,15 @@ const PanelInmo = ({ setAppLoading }) => {
 
       {/* Modal 360 */}
       {showModal360 && (
-        <Modal360
-          idproyecto={selectedProjectId}
-          onClose={() => {
-            setShowModal360(false);
-            setSelectedProjectId(null);
-          }}
-        />
+        <Suspense fallback={<Loader />}>
+          <Modal360
+            idproyecto={selectedProjectId}
+            onClose={() => {
+              setShowModal360(false);
+              setSelectedProjectId(null);
+            }}
+          />
+        </Suspense>
       )}
     </div>
   );

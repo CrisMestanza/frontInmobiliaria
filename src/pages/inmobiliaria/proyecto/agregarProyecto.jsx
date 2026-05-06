@@ -4,6 +4,11 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { GoogleMap, Polygon, Marker } from "@react-google-maps/api";
 import loader from "../../../components/loader";
 import styles from "./addproyect.module.css";
+import FinancingEditor from "./FinancingEditor.jsx";
+import {
+  createDefaultFinancingState,
+  serializeFinancingConfigState,
+} from "./financingConfig.js";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const PROJECT_TYPE_BY_REGISTRATION = {
@@ -35,6 +40,9 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
   const [reliefEnabled, setReliefEnabled] = useState(false);
   const [labelsEnabled, setLabelsEnabled] = useState(true);
+  const [financingState, setFinancingState] = useState(
+    () => createDefaultFinancingState(),
+  );
 
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
@@ -161,6 +169,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   useEffect(() => {
     setShowOptionHelp(true);
   }, []);
+
   // Cargar Google Maps
   useEffect(() => {
     if (window.google?.maps?.Map) {
@@ -357,6 +366,12 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       veredas: form.veredas,
     };
 
+    const serializedFinancing = serializeFinancingConfigState(
+      financingState,
+      normalizedForm.precio,
+      form.moneda || currencySymbol || "S/",
+    );
+
     console.log("Dormitorios normalizado:", normalizedForm.dormitorios);
 
     const formData = new FormData();
@@ -375,6 +390,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
         formData.append(key, normalizedForm[key]);
       }
     });
+    formData.append("financing_config", serializedFinancing);
 
     // 🧪 Debug FINAL (úsalo solo mientras pruebas)
     console.log("📤 FormData enviado:");
@@ -400,7 +416,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
         setTimeout(() => {
           setIsSubmitting(false);
-          onClose();
+          onClose?.({ refreshed: true });
         }, 500);
       } else {
         setIsSubmitting(false);
@@ -841,6 +857,13 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                   </>
                 )}
               </section>
+
+              <FinancingEditor
+                value={financingState}
+                onChange={setFinancingState}
+                currencyOptions={countries.map((c) => c.moneda).filter(Boolean)}
+                fallbackCurrency={form.moneda || currencySymbol || "S/"}
+              />
 
               <section>
                 <h2 className={styles.sectionTitle}>

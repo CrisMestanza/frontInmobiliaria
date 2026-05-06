@@ -1,6 +1,6 @@
 import { withApiBase } from "../../config/api.js";
-import Viewer360Modal from "./Viewer360ModalCasa";
 import React, {
+  Suspense,
   useState,
   useEffect,
   useRef,
@@ -38,25 +38,107 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaQuestionCircle,
+  FaCalculator,
+  FaPiggyBank,
+  FaTint,
+  FaBolt,
+  FaLightbulb,
+  FaDrawPolygon,
+  FaBroadcastTower,
+  FaRoad,
+  FaMapMarkedAlt,
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
 import { FaChevronDown } from "react-icons/fa";
 
+const Viewer360Modal = React.lazy(() => import("./Viewer360ModalCasa"));
+
 gsap.registerPlugin(useGSAP);
 
+const parseFinancingConfig = (value) => {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const formatMoney = (value, currency = "S/") => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return `${currency} 0.00`;
+  return `${currency} ${amount.toLocaleString("es-PE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+const clamp = (value, min, max) =>
+  Math.min(Math.max(Number(value) || 0, min), max);
+
+const getRangeStyle = (value, min, max) => {
+  const safeMin = Number.isFinite(Number(min)) ? Number(min) : 0;
+  const rawMax = Number.isFinite(Number(max)) ? Number(max) : safeMin + 1;
+  const safeMax = rawMax <= safeMin ? safeMin + 1 : rawMax;
+  const current = clamp(value, safeMin, safeMax);
+  const progress = ((current - safeMin) / (safeMax - safeMin)) * 100;
+  return { "--financing-range-progress": `${progress}%` };
+};
+
+const calcPayment = (principal, annualRate, months) => {
+  const safePrincipal = Math.max(Number(principal) || 0, 0);
+  const safeMonths = Math.max(1, Math.round(Number(months) || 1));
+  const monthlyRate = Math.max(0, Number(annualRate) || 0) / 12 / 100;
+  if (!monthlyRate) return safePrincipal / safeMonths;
+  return (
+    (safePrincipal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -safeMonths))
+  );
+};
+
 const projectUtilityFields = [
-  { key: "agua", label: "Agua" },
-  { key: "desague", label: "Desague" },
-  { key: "luz", label: "Luz" },
-  { key: "alumbrado_publico", label: "Alumbrado publico" },
-  { key: "postes_luz", label: "Postes de luz" },
-  { key: "veredas", label: "Veredas" },
+  {
+    key: "agua",
+    label: "Agua",
+    icon: FaTint,
+    accent: "utilityAqua",
+  },
+  {
+    key: "desague",
+    label: "Desagüe",
+    icon: FaDrawPolygon,
+    accent: "utilityCyan",
+  },
+  {
+    key: "luz",
+    label: "Red eléctrica",
+    icon: FaBolt,
+    accent: "utilityGold",
+  },
+  {
+    key: "alumbrado_publico",
+    label: "Alumbrado",
+    icon: FaLightbulb,
+    accent: "utilityAmber",
+  },
+  {
+    key: "postes_luz",
+    label: "Postería",
+    icon: FaBroadcastTower,
+    accent: "utilitySky",
+  },
+  {
+    key: "veredas",
+    label: "Veredas",
+    icon: FaRoad,
+    accent: "utilitySlate",
+  },
 ];
 
 const getUtilityStatus = (value) => {
   if (value === true || value === 1 || value === "1") {
     return {
-      label: "Si tiene",
+      label: "Disponible",
       className: "utilityStatusYes",
       icon: <FaCheckCircle />,
     };
@@ -64,14 +146,14 @@ const getUtilityStatus = (value) => {
 
   if (value === false || value === 0 || value === "0") {
     return {
-      label: "No tiene",
+      label: "No disponible",
       className: "utilityStatusNo",
       icon: <FaTimesCircle />,
     };
   }
 
   return {
-    label: "No detallado",
+    label: "Por confirmar",
     className: "utilityStatusUnknown",
     icon: <FaQuestionCircle />,
   };
@@ -80,7 +162,9 @@ const getUtilityStatus = (value) => {
 const ProyectoSidebar = ({
   inmo,
   proyecto,
+  selectedLote,
   imagenes,
+  espacios = [],
   onClose,
   walkingInfo,
   drivingInfo,
@@ -103,6 +187,7 @@ const ProyectoSidebar = ({
   const [mobileSheetTop, setMobileSheetTop] = useState(null);
   const [isSheetDragging, setIsSheetDragging] = useState(false);
   const sidebarRef = useRef(null);
+  const inmoFooterRef = useRef(null);
   const contentRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
@@ -119,19 +204,16 @@ const ProyectoSidebar = ({
   const previousSheetStateRef = useRef(null);
   const images360CacheRef = useRef(new Map());
   const imagesPending = imagenes === null;
-  const validImages = useMemo(
-    () => {
-      const imageItems = Array.isArray(imagenes) ? imagenes : [];
-      return imageItems.filter((img) => {
-        const src = img?.imagenproyecto;
-        if (typeof src !== "string") return false;
-        const trimmed = src.trim();
-        if (!trimmed) return false;
-        return !trimmed.toLowerCase().includes("no hay imagenes referenciales");
-      });
-    },
-    [imagenes],
-  );
+  const validImages = useMemo(() => {
+    const imageItems = Array.isArray(imagenes) ? imagenes : [];
+    return imageItems.filter((img) => {
+      const src = img?.imagenproyecto;
+      if (typeof src !== "string") return false;
+      const trimmed = src.trim();
+      if (!trimmed) return false;
+      return !trimmed.toLowerCase().includes("no hay imagenes referenciales");
+    });
+  }, [imagenes]);
 
   useEffect(() => {
     setShow360(false);
@@ -176,7 +258,7 @@ const ProyectoSidebar = ({
       setShow360(true);
       return;
     }
-    window.alert("Este proyecto no tiene tour 360 disponible.");
+    window.alert("Este proyecto no cuenta con vista 360° disponible.");
   }, [images360, loadImages360]);
 
   const mensajeWhatsapp = encodeURIComponent(
@@ -243,7 +325,212 @@ const ProyectoSidebar = ({
     [proyecto?.nombreproyecto],
   );
   const isCasaProject = Number(proyecto?.idtipoinmobiliaria) === 2;
+  const financingConfig = useMemo(
+    () => parseFinancingConfig(proyecto?.financing_config),
+    [proyecto?.financing_config],
+  );
+  const selectedLotePrice = Number(selectedLote?.precio || 0);
+  const shouldUseLoteDrivenFinancing = !isCasaProject;
+  const financingTarget = useMemo(() => {
+    if (shouldUseLoteDrivenFinancing) {
+      if (selectedLote && selectedLotePrice > 0) {
+        return {
+          type: "lote",
+          label: selectedLote?.nombre || "Lote seleccionado",
+          price: selectedLotePrice,
+        };
+      }
+      return null;
+    }
+    const projectPrice = Number(proyecto?.precio || 0);
+    if (projectPrice > 0) {
+      return {
+        type: "proyecto",
+        label: proyecto?.nombreproyecto || "Proyecto",
+        price: projectPrice,
+      };
+    }
+    return null;
+  }, [
+    proyecto?.nombreproyecto,
+    proyecto?.precio,
+    selectedLote,
+    selectedLotePrice,
+    shouldUseLoteDrivenFinancing,
+  ]);
+  const financingCurrency =
+    financingConfig?.currency || proyecto?.moneda || "S/";
+  const financingPrice = Number(
+    financingTarget?.price ||
+      financingConfig?.price_reference ||
+      proyecto?.precio ||
+      0,
+  );
+  const financingMinInitial = Math.max(
+    0,
+    Number(
+      financingConfig?.min_initial_amount ??
+        financingConfig?.default_initial_amount ??
+        0,
+    ) || Math.round(financingPrice * 0.1),
+  );
+  const financingMaxInitial = Math.max(
+    financingMinInitial,
+    Math.min(
+      Number(financingConfig?.max_initial_amount || financingPrice || 0) ||
+        financingPrice,
+      financingPrice || Number.MAX_SAFE_INTEGER,
+    ),
+  );
+  const financingMinMonths = Math.max(
+    1,
+    Number(financingConfig?.min_months || 1),
+  );
+  const financingMaxMonths = Math.max(
+    financingMinMonths,
+    Number(financingConfig?.max_months || 60),
+  );
+  const financingDefaultInitial = clamp(
+    financingConfig?.default_initial_amount ?? financingMinInitial,
+    financingMinInitial,
+    financingMaxInitial,
+  );
+  const financingDefaultMonths = clamp(
+    financingConfig?.default_months ?? 36,
+    financingMinMonths,
+    financingMaxMonths,
+  );
+  const [financingInitial, setFinancingInitial] = useState(
+    financingDefaultInitial,
+  );
+  const [financingMonths, setFinancingMonths] = useState(
+    financingDefaultMonths,
+  );
 
+  useEffect(() => {
+    setFinancingInitial(financingDefaultInitial);
+    setFinancingMonths(financingDefaultMonths);
+  }, [financingDefaultInitial, financingDefaultMonths, proyecto?.idproyecto]);
+
+  const financingScenario = useMemo(() => {
+    if (!financingPrice || !financingTarget) return null;
+    const initial = clamp(
+      financingInitial,
+      financingMinInitial,
+      financingMaxInitial,
+    );
+    const months = clamp(
+      financingMonths,
+      financingMinMonths,
+      financingMaxMonths,
+    );
+    const annualRate = Number(financingConfig?.annual_interest_rate || 0);
+    const monthlyAdminFee = Number(financingConfig?.monthly_admin_fee || 0);
+    const insuranceMonthly = Number(financingConfig?.insurance_monthly || 0);
+    const originationFeePct = Number(financingConfig?.origination_fee_pct || 0);
+    const balloonPct = Number(financingConfig?.balloon_payment_pct || 0);
+    const graceMonths = Math.max(0, Number(financingConfig?.grace_months || 0));
+    const financedBase = Math.max(financingPrice - initial, 0);
+    const originationFee = (financingPrice * originationFeePct) / 100;
+    const balloonPayment = (financedBase * balloonPct) / 100;
+    const principalForInstallments = Math.max(
+      financedBase + originationFee - balloonPayment,
+      0,
+    );
+    const baseMonthly = calcPayment(
+      principalForInstallments,
+      annualRate,
+      months,
+    );
+    const monthlyEstimate = baseMonthly + monthlyAdminFee + insuranceMonthly;
+    const totalPaid = initial + monthlyEstimate * months + balloonPayment;
+    const interestEstimate = totalPaid - financingPrice;
+    const upfrontTotal = initial + originationFee;
+    const suggestedIncome = monthlyEstimate * 3;
+
+    return {
+      initial,
+      months,
+      annualRate,
+      monthlyAdminFee,
+      insuranceMonthly,
+      originationFee,
+      balloonPayment,
+      graceMonths,
+      monthlyEstimate,
+      totalPaid,
+      interestEstimate,
+      upfrontTotal,
+      suggestedIncome,
+    };
+  }, [
+    financingConfig,
+    financingPrice,
+    financingInitial,
+    financingMonths,
+    financingMinInitial,
+    financingMaxInitial,
+    financingMinMonths,
+    financingMaxMonths,
+  ]);
+
+  const financingPresets = useMemo(() => {
+    const presets = Array.isArray(financingConfig?.presets)
+      ? financingConfig.presets
+      : [];
+    if (presets.length) return presets;
+    return [
+      {
+        label: "36 meses",
+        months: 36,
+        initial_amount: financingDefaultInitial,
+      },
+      {
+        label: "48 meses",
+        months: 48,
+        initial_amount: financingDefaultInitial,
+      },
+      {
+        label: "60 meses",
+        months: 60,
+        initial_amount: financingDefaultInitial,
+      },
+    ];
+  }, [financingConfig, financingDefaultInitial]);
+  const availableUtilities = useMemo(
+    () =>
+      projectUtilityFields.filter((field) => {
+        const value = proyecto?.[field.key];
+        return value === true || value === 1 || value === "1";
+      }).length,
+    [proyecto],
+  );
+  const visibleSpaces = useMemo(
+    () =>
+      (Array.isArray(espacios) ? espacios : []).filter(
+        (space) => Number(space?.visible_mapa ?? 1) === 1,
+      ),
+    [espacios],
+  );
+  const totalSpaceArea = useMemo(
+    () =>
+      visibleSpaces.reduce((acc, space) => {
+        const area = Number(space?.area_m2);
+        return acc + (Number.isFinite(area) ? area : 0);
+      }, 0),
+    [visibleSpaces],
+  );
+  const topSpaceTypes = useMemo(() => {
+    const counter = new Map();
+    visibleSpaces.forEach((space) => {
+      const key =
+        space?.tipoespacio?.nombre || space?.tipoespacio?.slug || "Espacio";
+      counter.set(key, (counter.get(key) || 0) + 1);
+    });
+    return Array.from(counter.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 4);
+  }, [visibleSpaces]);
   const handleShare = async () => {
     if (!shareUrl) return;
     const title = `GeoHabita · ${proyecto?.nombreproyecto || "Proyecto"}`;
@@ -350,6 +637,13 @@ const ProyectoSidebar = ({
     onClose();
   }, [onClose]);
 
+  const scrollToInmoFooter = useCallback(() => {
+    inmoFooterRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, []);
+
   const registrarClickContacto = async (redSocial) => {
     try {
       await fetch(
@@ -376,11 +670,7 @@ const ProyectoSidebar = ({
   useEffect(() => {
     if (!validImages.length) return undefined;
 
-    const indexesToPreload = new Set([
-      currentImg,
-      prevImgIndex,
-      nextImgIndex,
-    ]);
+    const indexesToPreload = new Set([currentImg, prevImgIndex, nextImgIndex]);
     const preloadVisibleImages = () => {
       indexesToPreload.forEach((index) => {
         const img = validImages[index];
@@ -501,10 +791,30 @@ const ProyectoSidebar = ({
             ease: "back.out(1.9)",
           },
           "-=0.5",
+        )
+        .fromTo(
+          "[data-gsap='utility']",
+          {
+            autoAlpha: 0,
+            y: 24,
+            scale: 0.9,
+            rotateX: -12,
+          },
+          {
+            autoAlpha: 1,
+            y: 0,
+            scale: 1,
+            rotateX: 0,
+            stagger: 0.06,
+            duration: 0.55,
+            ease: "power3.out",
+          },
+          "-=0.35",
         );
-      gsap.to("[data-gsap='metric']", {
-        boxShadow: "0 22px 60px rgba(16, 110, 46, 0.18)",
-        duration: 1.6,
+      gsap.to("[data-gsap='utility-icon']", {
+        y: -3,
+        duration: 1.9,
+        stagger: 0.08,
         repeat: -1,
         yoyo: true,
         ease: "sine.inOut",
@@ -796,9 +1106,7 @@ const ProyectoSidebar = ({
           <div className={styles.imageSection} data-gsap="media">
             {isLoading || imagesPending ? (
               <div className={styles.skeletonImage} />
-            ) : validImages.length === 0 ? (
-              null
-            ) : isMobileView ? (
+            ) : validImages.length === 0 ? null : isMobileView ? (
               <div
                 className={styles.mobileCarouselWrap}
                 onTouchStart={onCarouselTouchStart}
@@ -958,26 +1266,28 @@ const ProyectoSidebar = ({
                     data-gsap="card"
                   >
                     <div className={styles.inmoHeader}>
-                      <div className={styles.inmoIcon}>🏢</div>
+                      <div className={styles.inmoIcon}>
+                        <FaBuilding />
+                      </div>
 
-                      <div>
+                      <div className={styles.inmoIdentity}>
                         <span className={styles.inmoLabel}>
                           Inmobiliaria / Persona
                         </span>
                         <h2 className={styles.inmoName}>
                           {inmo?.nombreinmobiliaria}
                         </h2>
+                        <button
+                          type="button"
+                          className={styles.inmoMicroTag}
+                          onClick={scrollToInmoFooter}
+                        >
+                          Ver más
+                        </button>
                       </div>
                     </div>
-
-                    {inmo?.descripcion && (
-                      <p className={styles.inmoDescription}>
-                        {inmo.descripcion}
-                      </p>
-                    )}
                   </div>
 
-                  <br />
                   {proyecto?.idproyecto && (
                     <button
                       onClick={handleOpen360}
@@ -985,18 +1295,25 @@ const ProyectoSidebar = ({
                       data-gsap="action"
                       disabled={images360Status === "loading"}
                     >
-                      <FaGlobe className={styles.icon360} />
-                      {images360Status === "loading"
-                        ? "Cargando tour..."
-                        : "Ver Tour 360°"}
+                      <span className={styles.btn360Orbit}>
+                        <FaGlobe className={styles.icon360} />
+                      </span>
+                      <span className={styles.btn360Text}>
+                        <small>GeoHabita recomienda</small>
+                        <strong>
+                          {images360Status === "loading"
+                            ? "Cargando tour 360..."
+                            : "Visualizar en 360°"}
+                        </strong>
+                      </span>
+                      <span className={styles.btn360Ping} aria-hidden="true" />
                     </button>
                   )}
-                  <br />
-                  <br />
                   <p className={styles.proyectoP}>Proyecto</p>
-                  <br></br>
                   {proyecto.idtipoinmobiliaria === 2 && (
-                    <span className={styles.legalLabel}>
+                    <span
+                      className={`${styles.legalLabel} ${!proyecto.titulo_propiedad ? styles.legalLabelDanger : ""}`}
+                    >
                       {proyecto.titulo_propiedad
                         ? "✓ Cuenta con titulo"
                         : "• No cuenta con titulo"}
@@ -1287,6 +1604,334 @@ const ProyectoSidebar = ({
                       </div>
                     )}
                   </div>
+
+                  <div className={styles.financingCard} data-gsap="card">
+                    <div className={styles.financingHeader}>
+                      <div>
+                        <span className={styles.financingKicker}>
+                          <FaCalculator /> Geosimulador financiero
+                        </span>
+                        <h3>
+                          {financingTarget
+                            ? `Financiamiento para ${financingTarget.label}`
+                            : "Selecciona un lote"}
+                        </h3>
+                      </div>
+                      <div className={styles.financingMiniMeta}>
+                        <FaPiggyBank />
+                        {financingTarget
+                          ? formatMoney(financingPrice, financingCurrency)
+                          : "Precio al elegir lote"}
+                      </div>
+                    </div>
+
+                    {!shouldUseLoteDrivenFinancing && financingScenario ? (
+                      <>
+                        <div className={styles.financingPrimary}>
+                          <div>
+                            <span>Inicial</span>
+                            <strong>
+                              {formatMoney(
+                                financingScenario.initial,
+                                financingCurrency,
+                              )}
+                            </strong>
+                          </div>
+                          <div>
+                            <span>Meses</span>
+                            <strong>{financingScenario.months}</strong>
+                          </div>
+                          <div>
+                            <span>Cuota estimada</span>
+                            <strong>
+                              {formatMoney(
+                                financingScenario.monthlyEstimate,
+                                financingCurrency,
+                              )}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className={styles.financingAdjustHeader}>
+                          <div>
+                            <span className={styles.financingSectionEyebrow}>
+                              Ajusta tu plan
+                            </span>
+                            <p className={styles.financingSectionNote}>
+                              Usa un plan rápido o personaliza inicial y plazo.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className={styles.financingPresets}>
+                          {financingPresets.map((preset) => (
+                            <button
+                              key={`${preset.months}-${preset.initial_amount}`}
+                              type="button"
+                              className={`${styles.financingPresetBtn} ${Number(preset.months) === financingScenario.months ? styles.financingPresetBtnActive : ""}`}
+                              onClick={() => {
+                                if (preset.initial_amount !== undefined) {
+                                  setFinancingInitial(
+                                    clamp(
+                                      preset.initial_amount,
+                                      financingMinInitial,
+                                      financingMaxInitial,
+                                    ),
+                                  );
+                                }
+                                if (preset.months !== undefined) {
+                                  setFinancingMonths(
+                                    clamp(
+                                      preset.months,
+                                      financingMinMonths,
+                                      financingMaxMonths,
+                                    ),
+                                  );
+                                }
+                              }}
+                            >
+                              <small>Plan rápido</small>
+                              <strong>
+                                {formatMoney(
+                                  calcPayment(
+                                    Math.max(
+                                      financingPrice -
+                                        clamp(
+                                          preset.initial_amount ??
+                                            financingInitial,
+                                          financingMinInitial,
+                                          financingMaxInitial,
+                                        ),
+                                      0,
+                                    ),
+                                    financingScenario.annualRate,
+                                    clamp(
+                                      preset.months ?? financingMonths,
+                                      financingMinMonths,
+                                      financingMaxMonths,
+                                    ),
+                                  ) +
+                                    financingScenario.monthlyAdminFee +
+                                    financingScenario.insuranceMonthly,
+                                  financingCurrency,
+                                )}
+                              </strong>
+                              <span>
+                                {preset.label || `${preset.months} meses`}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className={styles.financingControls}>
+                          <label className={styles.financingField}>
+                            <div className={styles.financingFieldHeader}>
+                              <span className={styles.financingFieldTitle}>
+                                Inicial
+                              </span>
+                              <small className={styles.financingFieldHint}>
+                                Cuánto pagarías al inicio.
+                              </small>
+                            </div>
+                            <div className={styles.financingInputShell}>
+                              <span className={styles.financingInputPrefix}>
+                                {financingCurrency}
+                              </span>
+                              <input
+                                type="number"
+                                min={financingMinInitial}
+                                max={financingMaxInitial}
+                                step="100"
+                                value={financingInitial}
+                                onChange={(e) =>
+                                  setFinancingInitial(
+                                    Number(e.target.value) || 0,
+                                  )
+                                }
+                              />
+                            </div>
+                            <input
+                              type="range"
+                              min={financingMinInitial}
+                              max={financingMaxInitial}
+                              step="100"
+                              value={clamp(
+                                financingInitial,
+                                financingMinInitial,
+                                financingMaxInitial,
+                              )}
+                              onChange={(e) =>
+                                setFinancingInitial(Number(e.target.value) || 0)
+                              }
+                              className={styles.financingRange}
+                              style={getRangeStyle(
+                                financingInitial,
+                                financingMinInitial,
+                                financingMaxInitial,
+                              )}
+                            />
+                            <div className={styles.financingRangeMeta}>
+                              <span>
+                                Min{" "}
+                                {formatMoney(
+                                  financingMinInitial,
+                                  financingCurrency,
+                                )}
+                              </span>
+                              <strong>
+                                {formatMoney(
+                                  clamp(
+                                    financingInitial,
+                                    financingMinInitial,
+                                    financingMaxInitial,
+                                  ),
+                                  financingCurrency,
+                                )}
+                              </strong>
+                              <span>
+                                Max{" "}
+                                {formatMoney(
+                                  financingMaxInitial,
+                                  financingCurrency,
+                                )}
+                              </span>
+                            </div>
+                          </label>
+                          <label className={styles.financingField}>
+                            <div className={styles.financingFieldHeader}>
+                              <span className={styles.financingFieldTitle}>
+                                Meses
+                              </span>
+                              <small className={styles.financingFieldHint}>
+                                Define el plazo total de pago.
+                              </small>
+                            </div>
+                            <div className={styles.financingInputShell}>
+                              <span
+                                className={styles.financingInputPrefixPlain}
+                              >
+                                plazo
+                              </span>
+                              <input
+                                type="number"
+                                min={financingMinMonths}
+                                max={financingMaxMonths}
+                                step="1"
+                                value={financingMonths}
+                                onChange={(e) =>
+                                  setFinancingMonths(
+                                    Number(e.target.value) || 0,
+                                  )
+                                }
+                              />
+                            </div>
+                            <input
+                              type="range"
+                              min={financingMinMonths}
+                              max={financingMaxMonths}
+                              step="1"
+                              value={clamp(
+                                financingMonths,
+                                financingMinMonths,
+                                financingMaxMonths,
+                              )}
+                              onChange={(e) =>
+                                setFinancingMonths(Number(e.target.value) || 0)
+                              }
+                              className={styles.financingRange}
+                              style={getRangeStyle(
+                                financingMonths,
+                                financingMinMonths,
+                                financingMaxMonths,
+                              )}
+                            />
+                            <div className={styles.financingRangeMeta}>
+                              <span>Min {financingMinMonths}</span>
+                              <strong>
+                                {clamp(
+                                  financingMonths,
+                                  financingMinMonths,
+                                  financingMaxMonths,
+                                )}{" "}
+                                meses
+                              </strong>
+                              <span>Max {financingMaxMonths}</span>
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* <div className={styles.financingSparkRow}>
+                          <div className={styles.financingSparkCard}>
+                            <span className={styles.financingSparkIcon}>
+                              <FaPiggyBank />
+                            </span>
+                            <div>
+                              <small>Enganche actual</small>
+                              <strong>
+                                {Math.round(
+                                  (financingScenario.initial /
+                                    Math.max(financingPrice, 1)) *
+                                    100,
+                                )}
+                                %
+                              </strong>
+                            </div>
+                          </div>
+                          <div className={styles.financingSparkCard}>
+                            <span className={styles.financingSparkIcon}>
+                              <FaCalculator />
+                            </span>
+                            <div>
+                              <small>Total estimado</small>
+                              <strong>
+                                {formatMoney(
+                                  financingScenario.totalPaid,
+                                  financingCurrency,
+                                )}
+                              </strong>
+                            </div>
+                          </div>
+                        </div> */}
+
+                        <p className={styles.financingNote}>
+                          Meses permitidos: {financingMinMonths} a{" "}
+                          {financingMaxMonths}
+                          {" · "}
+                          Inicial permitida:{" "}
+                          {formatMoney(
+                            financingMinInitial,
+                            financingCurrency,
+                          )}{" "}
+                          a{" "}
+                          {formatMoney(financingMaxInitial, financingCurrency)}
+                          {" · "}
+                          Tasa anual: {financingScenario.annualRate}% · Ingreso
+                          sugerido:{" "}
+                          {formatMoney(
+                            financingScenario.suggestedIncome,
+                            financingCurrency,
+                          )}
+                        </p>
+                      </>
+                    ) : shouldUseLoteDrivenFinancing ? (
+                      <div className={styles.financingEmptyState}>
+                        <div className={styles.financingEmptyOrb}>
+                          <FaMapMarkedAlt />
+                        </div>
+                        <div>
+                          <strong>
+                            Selecciona un lote para cotizar precio y
+                            financiamiento
+                          </strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className={styles.financingNote}>
+                        La inmobiliaria todavía no configuró este plan.
+                      </p>
+                    )}
+                  </div>
+
                   {proyecto.area_total_m2 > 0 && (
                     <div className={styles.quickGrid}>
                       <div className={styles.qBadge}>
@@ -1329,27 +1974,123 @@ const ProyectoSidebar = ({
                     </p>
                   </div>
 
-                  <div className={styles.utilitiesCard}>
-                    <div className={styles.aboutHeader}>
-                      <h3 className={styles.sectionTitle}>
-                        Servicios del proyecto
-                      </h3>
+                  {visibleSpaces.length > 0 && (
+                    <div className={styles.spacesCard} data-gsap="card">
+                      <div className={styles.spacesHeader}>
+                        <div>
+                          <span className={styles.spacesKicker}>
+                            GeoHabita presenta
+                          </span>
+                          <h3 className={styles.sectionTitle}>
+                            Espacios del proyecto
+                          </h3>
+                        </div>
+                        <div className={styles.spacesStats}>
+                          <strong>{visibleSpaces.length}</strong>
+                          <span>
+                            {visibleSpaces.length === 1
+                              ? "espacio"
+                              : "espacios"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className={styles.spacesSummary}>
+                        <div className={styles.spaceHighlight}>
+                          <FaMapMarkedAlt />
+                          <div>
+                            <strong>
+                              {Math.round(totalSpaceArea).toLocaleString(
+                                "es-PE",
+                              )}{" "}
+                              m²
+                            </strong>
+                            <span>Área total destinada a espacios</span>
+                          </div>
+                        </div>
+                        <div className={styles.spaceTypeChips}>
+                          {topSpaceTypes.map(([label, count], index) => (
+                            <span
+                              key={`space-type-${label}-${count}-${index}`}
+                              className={styles.spaceTypeChip}
+                            >
+                              {label} · {count}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className={styles.spaceListMini}>
+                        {visibleSpaces.slice(0, 5).map((space) => (
+                          <article
+                            key={space.idespacio}
+                            className={styles.spaceMiniCard}
+                          >
+                            <div className={styles.spaceMiniHeader}>
+                              <strong>{space.nombre}</strong>
+                              <span>
+                                {Math.round(Number(space.area_m2) || 0)} m²
+                              </span>
+                            </div>
+                            <small>
+                              {space?.tipoespacio?.nombre || "Espacio"}
+                              {space.destacado ? " · Destacado" : ""}
+                            </small>
+                          </article>
+                        ))}
+                      </div>
                     </div>
+                  )}
+
+                  <div className={styles.utilitiesCard} data-gsap="card">
+                    <div className={styles.utilitiesHero}>
+                      <div className={styles.utilitiesHeroCopy}>
+                        <span className={styles.utilitiesKicker}>
+                          GeoHabita presenta
+                        </span>
+                        <h3 className={styles.utilitiesTitle}>
+                          Servicios del Proyecto
+                        </h3>
+                      </div>
+                      {/* <div className={styles.utilitiesScore}>
+                        <span>Servicios</span>
+                        <strong>{availableUtilities}/6</strong>
+                      </div> */}
+                    </div>
+
                     <div className={styles.utilitiesGrid}>
                       {projectUtilityFields.map((field) => {
                         const status = getUtilityStatus(proyecto?.[field.key]);
+                        const UtilityIcon = field.icon;
                         return (
-                          <div key={field.key} className={styles.utilityItem}>
-                            <span className={styles.utilityName}>
-                              {field.label}
-                            </span>
-                            <span
-                              className={`${styles.utilityStatus} ${styles[status.className]}`}
-                            >
-                              {status.icon}
-                              {status.label}
-                            </span>
-                          </div>
+                          <article
+                            key={field.key}
+                            className={`${styles.utilityPanel} ${styles[field.accent]} ${styles[status.className]}`}
+                            data-gsap="utility"
+                          >
+                            <div className={styles.utilityPanelTop}>
+                              <div className={styles.utilityIdentity}>
+                                <span
+                                  className={styles.utilityOrb}
+                                  data-gsap="utility-icon"
+                                >
+                                  <UtilityIcon />
+                                </span>
+                                <div className={styles.utilityBody}>
+                                  <strong className={styles.utilityTitle}>
+                                    {field.label}
+                                  </strong>
+                                </div>
+                              </div>
+                              <span
+                                className={`${styles.utilityChip} ${styles[status.className]}`}
+                              >
+                                {status.className === "utilityStatusUnknown"
+                                  ? "?"
+                                  : status.icon}
+                              </span>
+                            </div>
+                          </article>
                         );
                       })}
                     </div>
@@ -1417,6 +2158,26 @@ const ProyectoSidebar = ({
                       </div> */}
                     </>
                   )}
+
+                  <div
+                    ref={inmoFooterRef}
+                    className={styles.inmoCardFooter}
+                    data-gsap="card"
+                  >
+                    <div className={styles.inmoFooterIntro}>
+                      <span className={styles.inmoLabel}>
+                        Inmobiliaria / Persona
+                      </span>
+                      <h3 className={styles.inmoFooterName}>
+                        {inmo?.nombreinmobiliaria}
+                      </h3>
+                      {inmo?.descripcion && (
+                        <p className={styles.inmoFooterDescription}>
+                          {inmo.descripcion}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -1488,11 +2249,19 @@ const ProyectoSidebar = ({
         </div>
       )}
       {show360 && (
-        <Viewer360Modal
-          images360={images360}
-          projectName={proyecto?.nombreproyecto || ""}
-          onClose={() => setShow360(false)}
-        />
+        <Suspense
+          fallback={
+            <div className={styles.loadingOverlayInline}>
+              Cargando vista 360...
+            </div>
+          }
+        >
+          <Viewer360Modal
+            images360={images360}
+            projectName={proyecto?.nombreproyecto || ""}
+            onClose={() => setShow360(false)}
+          />
+        </Suspense>
       )}
     </>
   );

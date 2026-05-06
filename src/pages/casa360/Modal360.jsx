@@ -1,9 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Viewer } from "@photo-sphere-viewer/core";
-import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
-import { Vector3 } from "three";
-import "@photo-sphere-viewer/core/index.css";
-import "@photo-sphere-viewer/markers-plugin/index.css";
 import {
   Eye,
   EyeOff,
@@ -20,6 +15,29 @@ import {
 import { authFetch } from "../../config/authFetch.js";
 import { withApiBase } from "../../config/api.js";
 import styles from "./modal360.module.css";
+
+let viewerRuntimePromise = null;
+let viewerRuntimeCache = null;
+
+const loadViewerRuntime = async () => {
+  if (!viewerRuntimePromise) {
+    viewerRuntimePromise = Promise.all([
+      import("@photo-sphere-viewer/core"),
+      import("@photo-sphere-viewer/markers-plugin"),
+      import("three"),
+      import("@photo-sphere-viewer/core/index.css"),
+      import("@photo-sphere-viewer/markers-plugin/index.css"),
+    ]).then(([core, markersPlugin, three]) => {
+      viewerRuntimeCache = {
+        Viewer: core.Viewer,
+        MarkersPlugin: markersPlugin.MarkersPlugin,
+        Vector3: three.Vector3,
+      };
+      return viewerRuntimeCache;
+    });
+  }
+  return viewerRuntimePromise;
+};
 
 const MARKER_SIZE = { width: 34, height: 34 };
 const OVERLAY_VIEWBOX = { width: 1200, height: 780 };
@@ -292,11 +310,11 @@ const remapImageId = (value, imageMap = {}) => {
 
 const projectViewerPointWithCamera = (viewer, viewerPoint, width, height) => {
   const camera = viewer?.renderer?.camera;
-  if (!camera || !width || !height) return null;
+  if (!camera || !width || !height || !viewerRuntimeCache?.Vector3) return null;
 
   const ndcX = (Number(viewerPoint.x) / width) * 2 - 1;
   const ndcY = 1 - (Number(viewerPoint.y) / height) * 2;
-  const direction = new Vector3(ndcX, ndcY, 0.5)
+  const direction = new viewerRuntimeCache.Vector3(ndcX, ndcY, 0.5)
     .unproject(camera)
     .sub(camera.position)
     .normalize();
@@ -359,6 +377,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
   const [selectedImg, setSelectedImg] = useState(null);
   const [coords, setCoords] = useState(null);
   const [viewerReady, setViewerReady] = useState(false);
+  const [viewerRuntimeReady, setViewerRuntimeReady] = useState(false);
   const [batchItems, setBatchItems] = useState([]);
   const [newPointName, setNewPointName] = useState("");
   const [newPointFile, setNewPointFile] = useState(null);
@@ -373,12 +392,30 @@ const Modal360 = ({ idproyecto, onClose }) => {
   const token = localStorage.getItem("access");
   const viewerRef = useRef(null);
   const viewerInstance = useRef(null);
+  const viewerRuntimeRef = useRef(null);
   const overlaySvgRef = useRef(null);
   const batchItemsRef = useRef([]);
   const imagenesRef = useRef([]);
   const anchoredOverlaysRef = useRef({});
   const layoutEditModeRef = useRef(false);
   const overlayVisibleRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    loadViewerRuntime()
+      .then((runtime) => {
+        if (!active) return;
+        viewerRuntimeRef.current = runtime;
+        setViewerRuntimeReady(true);
+      })
+      .catch((error) => {
+        console.error("No se pudo cargar el runtime 360 editor:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const selectedImageId = selectedImg?.id_imagen ? String(selectedImg.id_imagen) : "";
   const selectedOverlayConfig = selectedImageId ? overlayLayouts[selectedImageId] : null;
@@ -408,7 +445,9 @@ const Modal360 = ({ idproyecto, onClose }) => {
     setCoords(null);
     setNewPointName("");
     setNewPointFile(null);
-    const markers = viewerInstance.current?.getPlugin(MarkersPlugin);
+    const markers = viewerInstance.current?.getPlugin(
+      viewerRuntimeRef.current?.MarkersPlugin,
+    );
     removeTempMarker(markers);
   };
 
@@ -416,7 +455,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
     const viewer = viewerInstance.current;
     if (!viewer || !selectedImg) return;
 
-    const markers = viewer.getPlugin(MarkersPlugin);
+    const markers = viewer.getPlugin(viewerRuntimeRef.current?.MarkersPlugin);
     markers.clearMarkers();
 
     const storedAnchoredOverlay = anchoredOverlays[String(selectedImg.id_imagen)] || null;
@@ -955,22 +994,26 @@ const Modal360 = ({ idproyecto, onClose }) => {
   }, [selectedImageId]);
 
   useEffect(() => {
-    if (!selectedImg || !viewerRef.current) return undefined;
+    if (!selectedImg || !viewerRef.current || !viewerRuntimeReady) {
+      return undefined;
+    }
 
     setViewerReady(false);
     resetPointMode();
+    const runtime = viewerRuntimeRef.current || viewerRuntimeCache;
+    if (!runtime) return undefined;
 
-    const viewer = new Viewer({
+    const viewer = new runtime.Viewer({
       container: viewerRef.current,
       panorama: selectedImg.imagen,
-      plugins: [[MarkersPlugin, {}]],
+      plugins: [[runtime.MarkersPlugin, {}]],
       navbar: ["zoom", "move", "caption", "fullscreen"],
       caption: `${selectedImg.nombre} · borrador local`,
       loadingImg: "https://geohabita.com/loading.gif",
     });
 
     viewerInstance.current = viewer;
-    const markers = viewer.getPlugin(MarkersPlugin);
+    const markers = viewer.getPlugin(runtime.MarkersPlugin);
 
     viewer.addEventListener("click", ({ data }) => {
       if (layoutEditModeRef.current && overlayVisibleRef.current) {
@@ -1024,7 +1067,7 @@ const Modal360 = ({ idproyecto, onClose }) => {
       viewer.destroy();
       viewerInstance.current = null;
     };
-  }, [selectedImg, imagenes]);
+  }, [selectedImg, imagenes, viewerRuntimeReady]);
 
   useEffect(() => {
     if (viewerReady) {
