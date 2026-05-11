@@ -47,7 +47,9 @@ export const getSpacePatternKind = (espacio) => {
     kind.includes("parque") ||
     kind.includes("area-verde") ||
     kind.includes("área verde") ||
-    kind.includes("juegos")
+    kind.includes("juegos") ||
+    kind.includes("jardin") ||
+    kind.includes("jardín")
   ) {
     return "green";
   }
@@ -60,7 +62,13 @@ export const getSpacePatternKind = (espacio) => {
     return "lane";
   }
 
-  if (kind.includes("cancha") || kind.includes("losa")) {
+  if (
+    kind.includes("cancha") ||
+    kind.includes("losa") ||
+    kind.includes("sintetica") ||
+    kind.includes("sintética") ||
+    kind.includes("deport")
+  ) {
     return "court";
   }
 
@@ -71,37 +79,50 @@ const getPatternSvg = (kind, color, opacity = 0.58) => {
   const stroke = rgba(color, opacity);
   const softStroke = rgba(color, opacity * 0.72);
   const white = "rgba(255,255,255,0.88)";
+  const whiteSoft = "rgba(255,255,255,0.62)";
+  const darkSoft = "rgba(15,23,42,0.12)";
 
   const variants = {
     green: `
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
-        <path d="M11 5.2c1.8-2.3 4.6-2.8 6.2-.9 1.3 1.6 1.1 4.4-1 6.2-1.9 1.7-4.2 2.6-5.2 5.7-.8-3.2-2.7-4.2-4.6-5.9C4.4 8.7 4 6.2 5.6 4.5c1.5-1.6 3.8-1.4 5.4.7Z" fill="${stroke}" />
-        <path d="M11 6.2v9.2" stroke="${white}" stroke-width="1.2" stroke-linecap="round" opacity=".82" />
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+        <rect width="28" height="28" fill="none"/>
+        <path d="M7 22c1.4-3.1 3.8-5.5 7-7.1 3.3 1.7 5.7 4 7 7.1" fill="none" stroke="${softStroke}" stroke-width="1.4" stroke-linecap="round"/>
+        <path d="M14 5.6c2.1-2.8 5.5-3.4 7.5-1.1 1.7 1.9 1.3 5-1.1 7.1-2.3 1.9-5.1 3-6.4 6.7-1-3.7-3.4-4.9-5.8-6.9-2.4-2-2.9-5.4-1-7.3 1.9-2 4.7-1.7 6.8 1.5Z" fill="${stroke}"/>
+        <path d="M14 7v11.1" stroke="${white}" stroke-width="1.2" stroke-linecap="round" opacity=".9"/>
+        <path d="M10.5 11.3c1.6-.2 2.8-.9 3.5-2M17.3 10.8c-1.2-.1-2.3-.6-3.1-1.5" stroke="${whiteSoft}" stroke-width="1.05" stroke-linecap="round"/>
+        <circle cx="6.2" cy="8.2" r="1" fill="${whiteSoft}"/>
+        <circle cx="21.6" cy="18.8" r="1.1" fill="${whiteSoft}"/>
       </svg>
     `,
     water: `
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="20" viewBox="0 0 24 20">
-        <path d="M2 7.5c2.1 2 3.9 2 6 0s3.9-2 6 0 3.9 2 6 0" fill="none" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round"/>
-        <path d="M2 12.5c2.1 2 3.9 2 6 0s3.9-2 6 0 3.9 2 6 0" fill="none" stroke="${softStroke}" stroke-width="1.8" stroke-linecap="round"/>
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="22" viewBox="0 0 28 22">
+        <path d="M2 7c2.4 2.2 4.5 2.2 6.9 0 2.3-2.2 4.5-2.2 6.8 0 2.4 2.2 4.5 2.2 6.9 0" fill="none" stroke="${stroke}" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M2 12.2c2.4 2.2 4.5 2.2 6.9 0 2.3-2.2 4.5-2.2 6.8 0 2.4 2.2 4.5 2.2 6.9 0" fill="none" stroke="${softStroke}" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M4 17.2c1.8 1.5 3.4 1.5 5.2 0 1.8-1.5 3.4-1.5 5.2 0 1.8 1.5 3.4 1.5 5.2 0 1.8-1.5 3.4-1.5 5.2 0" fill="none" stroke="${whiteSoft}" stroke-width="1.2" stroke-linecap="round"/>
       </svg>
     `,
     lane: `
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-        <path d="M4 19L18.5 4.5" stroke="${softStroke}" stroke-width="2.3" stroke-linecap="round"/>
-        <path d="M13.5 4.5h5v5" fill="none" stroke="${stroke}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26">
+        <path d="M4.5 20.5 20.8 4.8" stroke="${softStroke}" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M10.6 20.8 22 9.6" stroke="${whiteSoft}" stroke-width="1.2" stroke-linecap="round" stroke-dasharray="2.4 3"/>
+        <path d="M15.2 4.8H22v6.8" fill="none" stroke="${stroke}" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `,
     court: `
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-        <rect x="4.2" y="4.2" width="15.6" height="15.6" rx="3" fill="none" stroke="${stroke}" stroke-width="1.7"/>
-        <path d="M12 4.2v15.6" stroke="${softStroke}" stroke-width="1.4"/>
-        <circle cx="12" cy="12" r="2.7" fill="none" stroke="${softStroke}" stroke-width="1.2"/>
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+        <rect x="3.5" y="3.5" width="21" height="21" rx="3.4" fill="${rgba(color, opacity * 0.2)}" stroke="${stroke}" stroke-width="1.7"/>
+        <path d="M5 8.6h18M5 14h18M5 19.4h18" stroke="${rgba(color, opacity * 0.18)}" stroke-width="1.2"/>
+        <path d="M14 3.8v20.4" stroke="${white}" stroke-width="1.35"/>
+        <circle cx="14" cy="14" r="3.1" fill="none" stroke="${white}" stroke-width="1.2"/>
+        <rect x="6.6" y="7.1" width="14.8" height="13.8" rx="1.6" fill="none" stroke="${whiteSoft}" stroke-width="1.05"/>
+        <path d="M8.2 10.1c1.7-.9 3.8-1.4 5.8-1.4M19.8 17.9c-1.7.9-3.8 1.4-5.8 1.4" stroke="${darkSoft}" stroke-width="0.8" stroke-linecap="round"/>
       </svg>
     `,
     civic: `
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
-        <rect x="6.1" y="6.1" width="9.8" height="9.8" rx="2.3" fill="${stroke}" />
-        <path d="M11 4.2v13.6M4.2 11h13.6" stroke="${white}" stroke-width="1.1" opacity=".78" stroke-linecap="round"/>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+        <rect x="5.2" y="5.2" width="13.6" height="13.6" rx="2.6" fill="${stroke}" />
+        <path d="M12 4.4v15.2M4.4 12h15.2" stroke="${white}" stroke-width="1.1" opacity=".78" stroke-linecap="round"/>
+        <path d="M7.2 7.2h9.6v9.6H7.2z" fill="none" stroke="${whiteSoft}" stroke-width=".9" opacity=".9"/>
       </svg>
     `,
   };
@@ -113,9 +134,21 @@ export const getSpacePatternPreviewStyle = (espacio, color) => {
   const kind = getSpacePatternKind(espacio);
   const icon = getPatternSvg(kind, color, 0.7);
   return {
-    backgroundColor: rgba(color, 0.16),
+    backgroundColor:
+      kind === "green"
+        ? rgba(color, 0.18)
+        : kind === "court"
+          ? rgba(color, 0.22)
+          : rgba(color, 0.16),
     backgroundImage: `url("${icon}")`,
-    backgroundSize: kind === "lane" ? "16px 16px" : "18px 18px",
+    backgroundSize:
+      kind === "lane"
+        ? "17px 17px"
+        : kind === "court"
+          ? "22px 22px"
+          : kind === "green"
+            ? "20px 20px"
+            : "18px 18px",
     backgroundRepeat: "repeat",
     backgroundPosition: "center",
     border: `1px solid ${rgba(color, 0.34)}`,
@@ -159,16 +192,16 @@ const buildPatternPoints = (path, kind) => {
   if (!(latSpan > 0) || !(lngSpan > 0)) return [];
 
   const aspect = lngSpan / latSpan;
-  const baseCols = kind === "lane" ? 4 : kind === "court" ? 4 : 5;
+  const baseCols = kind === "lane" ? 5 : kind === "court" ? 3 : kind === "green" ? 4 : 5;
   const cols = clamp(Math.round(baseCols * Math.max(0.8, Math.min(aspect, 1.4))), 3, 6);
-  const rows = clamp(Math.round((latSpan / lngSpan) * cols * 1.6), 2, 5);
+  const rows = clamp(Math.round((latSpan / lngSpan) * cols * (kind === "court" ? 1.2 : 1.6)), 2, 5);
   const stepLng = lngSpan / (cols + 1);
   const stepLat = latSpan / (rows + 1);
   const points = [];
 
   for (let row = 1; row <= rows; row += 1) {
     for (let col = 1; col <= cols; col += 1) {
-      const stagger = row % 2 === 0 ? stepLng * 0.28 : 0;
+      const stagger = kind === "court" ? 0 : row % 2 === 0 ? stepLng * 0.28 : 0;
       const candidate = {
         lat: maxLat - stepLat * row,
         lng: minLng + stepLng * col + stagger,
@@ -183,7 +216,7 @@ const buildPatternPoints = (path, kind) => {
     }
   }
 
-  const maxMarkers = kind === "green" ? 18 : 14;
+  const maxMarkers = kind === "green" ? 16 : kind === "court" ? 8 : 14;
   if (points.length <= maxMarkers) return points;
 
   const step = points.length / maxMarkers;
@@ -207,7 +240,7 @@ const SpacePatternOverlay = ({
   if (!visible || !points.length || !window.google?.maps?.Size) return null;
 
   const size =
-    kind === "lane" ? 15 : kind === "court" ? 16 : kind === "water" ? 16 : 14;
+    kind === "lane" ? 16 : kind === "court" ? 19 : kind === "water" ? 16 : kind === "green" ? 17 : 14;
 
   return (
     <>

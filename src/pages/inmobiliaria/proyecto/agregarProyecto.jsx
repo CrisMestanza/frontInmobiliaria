@@ -404,6 +404,9 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
         {
           method: "POST",
           body: formData,
+          telegramContext: {
+            action: `Intento de registrar proyecto: ${normalizedForm.nombreproyecto || "sin nombre"}`,
+          },
           headers: {
             Authorization: `Bearer ${token}`,
             // ❌ NO pongas Content-Type con FormData

@@ -916,6 +916,10 @@
   max-width: 90%;
   max-height: 85%;
   border-radius: 10px;
+  transform-origin: center center;
+  transition: transform 0.16s ease;
+  will-change: transform;
+  user-select: none;
 }
 
 .fsBadge {
@@ -1269,6 +1273,20 @@
   touch-action: none; /* Previene scroll del fondo en móviles */
 }
 
+.fullscreenStage {
+  width: min(92vw, 1200px);
+  height: min(84vh, 880px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.fullscreenStage:active {
+  cursor: grabbing;
+}
+
 .navArrowFullscreen {
   position: absolute;
   top: 50%;
@@ -1304,6 +1322,133 @@
   color: white;
   font-size: 24px;
   cursor: pointer;
+}
+
+.fsHint {
+  position: absolute;
+  left: 50%;
+  bottom: 60px;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.fsResetBtn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 14px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+.financingBudgetCard {
+  margin-top: 16px;
+  border: 1px solid rgba(56, 210, 100, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.financingBudgetHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.financingBudgetInputShell {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.48);
+  padding: 0 14px;
+}
+
+.financingBudgetInputShell input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+}
+
+.financingBudgetGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.financingBudgetOption {
+  text-align: left;
+  border: 1px solid rgba(56, 210, 100, 0.14);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.36);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.financingBudgetOption small {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.financingBudgetOption strong {
+  color: #38d264;
+  font-size: 15px;
+}
+
+.financingBudgetOption span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.financingBudgetEmpty {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.5;
+}
+
+[data-theme="light"] .financingBudgetCard {
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), transparent 35%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.94));
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .financingBudgetInputShell {
+  background: rgba(248, 250, 252, 0.96);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .financingBudgetInputShell input {
+  color: #0f172a;
+}
+
+[data-theme="light"] .financingBudgetOption {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+[data-theme="light"] .financingBudgetOption small,
+[data-theme="light"] .financingBudgetOption span,
+[data-theme="light"] .financingBudgetEmpty {
+  color: #64748b;
 }
 
 @media (max-width: 768px) {

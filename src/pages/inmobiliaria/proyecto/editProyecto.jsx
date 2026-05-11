@@ -365,6 +365,9 @@ export default function EditProyectoModal({
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
+          telegramContext: {
+            action: `Intento de actualizar proyecto: ${form.nombreproyecto || form.idproyecto || "sin referencia"}`,
+          },
         },
       );
 

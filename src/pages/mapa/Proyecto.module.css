@@ -1999,6 +1999,20 @@
   align-items: center;
 }
 
+.fullscreenStage {
+  width: min(92vw, 1200px);
+  height: min(84vh, 880px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.fullscreenStage:active {
+  cursor: grabbing;
+}
+
 .fsBadge {
   position: absolute;
   bottom: 18px;
@@ -2013,12 +2027,298 @@
   letter-spacing: 0.04em;
 }
 
+.fsHint {
+  position: absolute;
+  left: 50%;
+  bottom: 60px;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.fsResetBtn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 14px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
 
 .fullscreenImg {
   max-width: 90%;
   max-height: 85%;
   border-radius: 15px;
-  margin-left: 23px;
+  margin-left: 0;
+  transform-origin: center center;
+  transition: transform 0.16s ease;
+  will-change: transform;
+  user-select: none;
+}
+
+.financingBudgetCard {
+  margin-top: 16px;
+  border: 1px solid rgba(56, 210, 100, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.financingBudgetHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.financingBudgetInputShell {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.48);
+  padding: 0 14px;
+}
+
+.financingBudgetInputShell input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 15px;
+  outline: none;
+}
+
+.financingBudgetGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.financingBudgetOption {
+  text-align: left;
+  border: 1px solid rgba(56, 210, 100, 0.14);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.36);
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.financingBudgetOption small {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.financingBudgetOption strong {
+  color: #38d264;
+  font-size: 15px;
+}
+
+.financingBudgetOption span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.financingBudgetEmpty {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.5;
+}
+
+.geoCotizadorCard {
+  margin-top: 20px;
+  border-radius: 24px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), transparent 35%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(243, 248, 245, 0.95));
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.geoCotizadorHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.geoCotizadorModeRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.geoCotizadorModeBtn {
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  color: #475569;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.geoCotizadorModeBtnActive {
+  background: linear-gradient(135deg, #0f9f63, #19c37d);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 14px 26px rgba(25, 195, 125, 0.26);
+}
+
+.geoCotizadorMatchGrid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.geoCotizadorMatchCard {
+  text-align: left;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.geoCotizadorMatchCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.08);
+  border-color: rgba(14, 166, 107, 0.26);
+}
+
+.geoCotizadorMatchCardActive {
+  border-color: rgba(14, 166, 107, 0.5);
+  box-shadow: 0 18px 30px rgba(14, 166, 107, 0.16);
+}
+
+.geoCotizadorMatchTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.geoCotizadorMatchTop strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.geoCotizadorMatchTop span {
+  color: #0f9f63;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.geoCotizadorMatchValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f9f63;
+  margin-bottom: 4px;
+}
+
+.geoCotizadorMatchCard p,
+.geoCotizadorHint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+[data-theme="light"] .financingBudgetCard,
+[data-theme="light"] .geoCotizadorCard {
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.08), transparent 35%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.94));
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .financingBudgetInputShell {
+  background: rgba(248, 250, 252, 0.96);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .financingBudgetInputShell input {
+  color: #0f172a;
+}
+
+[data-theme="light"] .financingBudgetOption,
+[data-theme="light"] .geoCotizadorMatchCard {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+[data-theme="light"] .financingBudgetOption small,
+[data-theme="light"] .financingBudgetOption span,
+[data-theme="light"] .financingBudgetEmpty,
+[data-theme="light"] .geoCotizadorHint,
+[data-theme="light"] .geoCotizadorMatchCard p {
+  color: #64748b;
+}
+
+[data-theme="light"] .geoCotizadorModeBtn {
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+}
+
+[data-theme="dark"] .geoCotizadorCard,
+[data-theme="dark"] .financingBudgetCard {
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 32%),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--theme-bg-surface) 88%, #0b1220),
+      color-mix(in srgb, var(--theme-bg-soft) 92%, #020617)
+    );
+  border-color: var(--theme-border-color);
+  box-shadow: 0 20px 48px rgba(2, 6, 23, 0.4);
+}
+
+[data-theme="dark"] .geoCotizadorModeBtn {
+  background: color-mix(in srgb, var(--theme-bg-soft) 92%, #020617);
+  border-color: var(--theme-border-color);
+  color: var(--theme-text-muted);
+}
+
+[data-theme="dark"] .geoCotizadorModeBtnActive {
+  color: #fff;
+}
+
+[data-theme="dark"] .geoCotizadorMatchCard,
+[data-theme="dark"] .financingBudgetOption {
+  background: color-mix(in srgb, var(--theme-bg-surface) 88%, #111827);
+  border-color: var(--theme-border-color);
+}
+
+[data-theme="dark"] .geoCotizadorMatchTop strong {
+  color: var(--theme-text-main);
+}
+
+[data-theme="dark"] .geoCotizadorHint,
+[data-theme="dark"] .geoCotizadorMatchCard p,
+[data-theme="dark"] .financingBudgetEmpty,
+[data-theme="dark"] .financingBudgetOption span,
+[data-theme="dark"] .financingBudgetOption small {
+  color: var(--theme-text-muted);
 }
 
 .scrollHint {

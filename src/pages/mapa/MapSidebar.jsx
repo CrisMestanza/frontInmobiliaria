@@ -39,6 +39,9 @@ import {
   FaPiggyBank,
 } from "react-icons/fa";
 import styles from "./Lote.module.css";
+import AmortizationChart from "../../components/AmortizationChart";
+import { buildInverseFinancingOptions } from "../../components/utils/financing";
+import useImagePanZoom from "../../components/useImagePanZoom";
 const Viewer360Modal = React.lazy(() => import("./Viewer360ModalCasa"));
 
 gsap.registerPlugin(useGSAP);
@@ -181,7 +184,6 @@ const LoteSidebarOverlay = ({
     setActiveIndex(closestIndex);
   };
   const sidebarRef = useRef(null);
-  const touchStartX = useRef(0);
   const sheetTouchStartY = useRef(0);
   const sheetTouchDeltaY = useRef(0);
   const sheetTouchStartTop = useRef(0);
@@ -383,7 +385,7 @@ const LoteSidebarOverlay = ({
     const proyectoId = proyecto?.idproyecto;
     const loteId = lote?.idlote;
     if (!inmoId || !proyectoId || !loteId) return "";
-    return `${window.location.origin}/mapa/${inmoId}?proyecto=${proyectoId}&lote=${loteId}`;
+    return withApiBase(`https://api.geohabita.com/share/lote/${loteId}/`);
   }, [inmo, proyecto, lote]);
 
   const handleShare = async () => {
@@ -455,10 +457,12 @@ const LoteSidebarOverlay = ({
   const [financingMonths, setFinancingMonths] = useState(
     financingDefaultMonths,
   );
+  const [monthlyBudget, setMonthlyBudget] = useState("");
 
   useEffect(() => {
     setFinancingInitial(financingDefaultInitial);
     setFinancingMonths(financingDefaultMonths);
+    setMonthlyBudget("");
   }, [financingDefaultInitial, financingDefaultMonths, lote?.idlote]);
 
   const financingScenario = useMemo(() => {
@@ -538,6 +542,83 @@ const LoteSidebarOverlay = ({
       },
     ];
   }, [financingConfig, financingDefaultInitial]);
+  const inverseFinancingOptions = useMemo(
+    () =>
+      buildInverseFinancingOptions({
+        price: financingPrice,
+        budget: monthlyBudget,
+        annualRate: financingScenario?.annualRate || 0,
+        minInitial: financingMinInitial,
+        maxInitial: financingMaxInitial,
+        minMonths: financingMinMonths,
+        maxMonths: financingMaxMonths,
+        monthlyAdminFee: financingScenario?.monthlyAdminFee || 0,
+        insuranceMonthly: financingScenario?.insuranceMonthly || 0,
+        originationFeePct:
+          Number(financingConfig?.origination_fee_pct || 0),
+        balloonPct: Number(financingConfig?.balloon_payment_pct || 0),
+        currency: financingCurrency,
+      }),
+    [
+      financingConfig,
+      financingCurrency,
+      financingMaxInitial,
+      financingMinInitial,
+      financingMinMonths,
+      financingMaxMonths,
+      financingPrice,
+      financingScenario,
+      monthlyBudget,
+    ],
+  );
+  const inverseBudgetHighlights = useMemo(() => {
+    if (!inverseFinancingOptions.length) return [];
+    const shortest = [...inverseFinancingOptions].sort((a, b) => a.months - b.months)[0];
+    const lowestInitial = [...inverseFinancingOptions].sort((a, b) => a.initial - b.initial)[0];
+    const balanced = inverseFinancingOptions[0];
+    return [
+      {
+        key: "balanced",
+        label: "Ajuste exacto",
+        helper: "Usa casi todo tu presupuesto",
+        option: balanced,
+      },
+      {
+        key: "entry",
+        label: "Menor inicial",
+        helper: "Prioriza entrada baja",
+        option: lowestInitial,
+      },
+      {
+        key: "speed",
+        label: "Menor plazo",
+        helper: "Liquida más rápido",
+        option: shortest,
+      },
+    ].filter(
+      (item, index, list) =>
+        item.option &&
+        list.findIndex(
+          (candidate) =>
+            candidate.option?.initial === item.option.initial &&
+            candidate.option?.months === item.option.months,
+        ) === index,
+    );
+  }, [inverseFinancingOptions]);
+  const showNextFullscreenImage = useCallback(() => {
+    setFullscreenImgIndex((prev) =>
+      prev === validImages.length - 1 ? 0 : prev + 1,
+    );
+  }, [validImages.length]);
+  const showPrevFullscreenImage = useCallback(() => {
+    setFullscreenImgIndex((prev) =>
+      prev === 0 ? validImages.length - 1 : prev - 1,
+    );
+  }, [validImages.length]);
+  const fullscreenPanZoom = useImagePanZoom({
+    onSwipeNext: validImages.length > 1 ? showNextFullscreenImage : undefined,
+    onSwipePrev: validImages.length > 1 ? showPrevFullscreenImage : undefined,
+  });
   const financingWhatsAppHref =
     financingScenario && phoneNumber
       ? `https://wa.me/${phoneNumber.replace(/[^\d]/g, "")}?text=${encodeURIComponent(
@@ -604,6 +685,9 @@ const LoteSidebarOverlay = ({
       setFullscreenImgIndex(validImages.length > 0 ? 0 : null);
     }
   }, [validImages, currentImg, fullscreenImgIndex]);
+  useEffect(() => {
+    fullscreenPanZoom.reset();
+  }, [fullscreenImgIndex, fullscreenPanZoom.reset]);
   useEffect(() => {
     const handleResize = () => {
       setIsMobileView(window.innerWidth <= 768);
@@ -1300,6 +1384,63 @@ const LoteSidebarOverlay = ({
                           </label>
                         </div>
 
+                        <div className={styles.financingBudgetCard}>
+                          <div className={styles.financingBudgetHeader}>
+                            <div>
+                              <span className={styles.financingSectionEyebrow}>
+                                Financiacion inversa
+                              </span>
+                              <p className={styles.financingSectionNote}>
+                                Dinos tu cuota ideal y ajustamos inicial y plazo.
+                              </p>
+                            </div>
+                          </div>
+                          <div className={styles.financingBudgetInputShell}>
+                            <span className={styles.financingInputPrefix}>
+                              {financingCurrency}
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="50"
+                              value={monthlyBudget}
+                              onChange={(e) => setMonthlyBudget(e.target.value)}
+                              placeholder="Tu presupuesto mensual"
+                            />
+                          </div>
+                          {monthlyBudget && inverseBudgetHighlights.length > 0 ? (
+                            <div className={styles.financingBudgetGrid}>
+                              {inverseBudgetHighlights.map((item) => (
+                                <button
+                                  key={`${item.key}-${item.option.months}-${item.option.initial}`}
+                                  type="button"
+                                  className={styles.financingBudgetOption}
+                                  onClick={() => {
+                                    setFinancingInitial(Math.round(item.option.initial));
+                                    setFinancingMonths(item.option.months);
+                                  }}
+                                >
+                                  <small>{item.label}</small>
+                                  <strong>
+                                    {formatMoney(
+                                      item.option.monthlyEstimate,
+                                      financingCurrency,
+                                    )}
+                                  </strong>
+                                  <span>
+                                    Inicial {formatMoney(item.option.initial, financingCurrency)}
+                                  </span>
+                                  <span>{item.option.months} meses · {item.helper}</span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : monthlyBudget ? (
+                            <p className={styles.financingBudgetEmpty}>
+                              No encontramos una combinación dentro de ese presupuesto. Prueba con una cuota mayor o un plazo más largo.
+                            </p>
+                          ) : null}
+                        </div>
+
                         <div className={styles.financingActionRow}>
                           <button
                             type="button"
@@ -1334,6 +1475,13 @@ const LoteSidebarOverlay = ({
                             </span>
                           </a>
                         </div>
+
+                        <AmortizationChart
+                          principal={Math.max(financingPrice - (financingScenario?.initial || 0), 0)}
+                          annualRate={financingScenario?.annualRate || 0}
+                          months={financingScenario?.months || 0}
+                          currency={financingCurrency}
+                        />
 
                         <p className={styles.financingNote}>
                           Meses permitidos: {financingMinMonths} a{" "}
@@ -1500,59 +1648,43 @@ const LoteSidebarOverlay = ({
         <div
           className={styles.fullscreenOverlay}
           onClick={() => setFullscreenImgIndex(null)}
-          // Eventos para Swipe en celular
-          onTouchStart={(e) => {
-            touchStartX.current = e.touches[0].clientX;
-          }}
-          onTouchEnd={(e) => {
-            const touchEndX = e.changedTouches[0].clientX;
-            const diff = touchStartX.current - touchEndX;
-            if (Math.abs(diff) > 50) {
-              // Sensibilidad
-              if (diff > 0) {
-                // Swipe Izquierda -> Siguiente
-                setFullscreenImgIndex((prev) =>
-                  prev === validImages.length - 1 ? 0 : prev + 1,
-                );
-              } else {
-                // Swipe Derecha -> Anterior
-                setFullscreenImgIndex((prev) =>
-                  prev === 0 ? validImages.length - 1 : prev - 1,
-                );
-              }
-            }
-          }}
         >
           {/* Botón Anterior */}
           <button
             className={`${styles.navArrowFullscreen} ${styles.arrowLeft}`}
             onClick={(e) => {
               e.stopPropagation();
-              setFullscreenImgIndex((prev) =>
-                prev === 0 ? validImages.length - 1 : prev - 1,
-              );
+              showPrevFullscreenImage();
             }}
           >
             <FaChevronLeft />
           </button>
 
-          <img
-            src={withApiBase(
-              `https://api.geohabita.com${validImages[fullscreenImgIndex].imagen}`,
-            )}
-            className={styles.fullscreenImg}
-            alt="Zoom"
-            onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen
-          />
+          <div
+            ref={fullscreenPanZoom.stageRef}
+            className={styles.fullscreenStage}
+            onClick={(e) => e.stopPropagation()}
+            {...fullscreenPanZoom.bind}
+          >
+            <img
+              ref={fullscreenPanZoom.imageRef}
+              src={withApiBase(
+                `https://api.geohabita.com${validImages[fullscreenImgIndex].imagen}`,
+              )}
+              className={styles.fullscreenImg}
+              alt="Zoom"
+              style={{
+                transform: `translate3d(${fullscreenPanZoom.offsetX}px, ${fullscreenPanZoom.offsetY}px, 0) scale(${fullscreenPanZoom.scale})`,
+              }}
+            />
+          </div>
 
           {/* Botón Siguiente */}
           <button
             className={`${styles.navArrowFullscreen} ${styles.arrowRight}`}
             onClick={(e) => {
               e.stopPropagation();
-              setFullscreenImgIndex((prev) =>
-                prev === validImages.length - 1 ? 0 : prev + 1,
-              );
+              showNextFullscreenImage();
             }}
           >
             <FaChevronRight />
@@ -1561,6 +1693,21 @@ const LoteSidebarOverlay = ({
           <div className={styles.fsBadge}>
             {fullscreenImgIndex + 1} / {validImages.length}
           </div>
+
+          <div className={styles.fsHint}>
+            Pellizca o usa la rueda para zoom. Arrastra para moverte.
+          </div>
+
+          <button
+            type="button"
+            className={styles.fsResetBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              fullscreenPanZoom.reset();
+            }}
+          >
+            Reset
+          </button>
 
           <button
             className={styles.closeFsBtn}

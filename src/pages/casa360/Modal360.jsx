@@ -1275,6 +1275,9 @@ const Modal360 = ({ idproyecto, onClose }) => {
       const res = await authFetch(buildApiUrl("/api/guardar_tour_360_completo/"), {
         method: "POST",
         body: formData,
+        telegramContext: {
+          action: `Intento de guardar tour 360 del proyecto ${idproyecto}`,
+        },
       });
 
       const data = await res.json().catch(() => ({}));
@@ -1317,6 +1320,9 @@ const Modal360 = ({ idproyecto, onClose }) => {
         await authFetch(buildApiUrl("/api/guardar_tour_360_completo/"), {
           method: "POST",
           body: overlayUpdateForm,
+          telegramContext: {
+            action: `Intento de guardar overlay 2D del tour 360 del proyecto ${idproyecto}`,
+          },
         });
       }
 

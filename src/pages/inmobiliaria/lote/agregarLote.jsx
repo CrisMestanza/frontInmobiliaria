@@ -598,6 +598,9 @@ export default function LoteModal({ onClose, idproyecto }) {
         method: "POST",
         body: formData,
         headers: { Authorization: `Bearer ${token}` },
+        telegramContext: {
+          action: `Intento de registrar lote: ${form.nombre || "sin nombre"} en proyecto ${idproyecto}`,
+        },
       });
 
       if (res.ok) {

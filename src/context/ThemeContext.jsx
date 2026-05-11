@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 
 const THEME_STORAGE_KEY = "geohabita-theme";
 const ThemeContext = createContext(null);
@@ -12,13 +13,50 @@ const getInitialTheme = () => {
     : "light";
 };
 
+const applyTheme = (nextTheme) => {
+  document.documentElement.setAttribute("data-theme", nextTheme);
+  document.body.setAttribute("data-theme", nextTheme);
+  window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+};
+
+const animateThemeTransition = (nextTheme, commitTheme) => {
+  if (
+    typeof document === "undefined" ||
+    typeof window === "undefined" ||
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
+    typeof document.startViewTransition !== "function"
+  ) {
+    commitTheme(nextTheme);
+    return;
+  }
+
+  const transition = document.startViewTransition(() => {
+    flushSync(() => {
+      commitTheme(nextTheme);
+    });
+  });
+
+  transition.ready
+    .then(() => {
+      document.documentElement.animate(
+        { clipPath: ["inset(0 0 100% 0)", "inset(0)"] },
+        {
+          pseudoElement: "::view-transition-new(root)",
+          duration: 600,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        },
+      );
+    })
+    .catch(() => {
+      // Ignore cancelled transitions and keep the theme change.
+    });
+};
+
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(getInitialTheme);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    document.body.setAttribute("data-theme", theme);
-    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    applyTheme(theme);
   }, [theme]);
 
   const value = useMemo(
@@ -26,10 +64,10 @@ export function ThemeProvider({ children }) {
       theme,
       isDark: theme === "dark",
       setTheme,
-      toggleTheme: () =>
-        setTheme((currentTheme) =>
-          currentTheme === "dark" ? "light" : "dark",
-        ),
+      toggleTheme: () => {
+        const nextTheme = theme === "dark" ? "light" : "dark";
+        animateThemeTransition(nextTheme, setTheme);
+      },
     }),
     [theme],
   );

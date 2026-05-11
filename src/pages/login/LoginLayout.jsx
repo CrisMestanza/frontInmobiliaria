@@ -42,6 +42,9 @@ const LoginLayout = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ correo, password }),
+          telegramContext: {
+            action: "Intento de inicio de sesion desde formulario de acceso",
+          },
         },
       );
 

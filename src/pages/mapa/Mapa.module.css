@@ -316,13 +316,23 @@
 }
 
 .anunciaPropiedad {
+  --anuncio-accent: #18c47f;
+  --anuncio-accent-strong: #35e3a0;
+  --anuncio-sun: #ffd768;
+  --anuncio-deep: #149364;
+  --anuncio-deep-strong: #0fb274;
+  --anuncio-surface: color-mix(in srgb, var(--theme-bg-surface) 74%, #ffffff 26%);
+  --anuncio-border: color-mix(in srgb, var(--theme-border-color) 38%, rgba(24, 196, 127, 0.48));
+  --anuncio-glow: rgba(53, 227, 160, 0.34);
   font-size: 14px;
   font-weight: 700;
   width: 250px;
-  height: 40px;
+  height: 44px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #0ea66b, #14c38e);
-  color: #ffffff;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 34%),
+    linear-gradient(135deg, #22b573 0%, var(--anuncio-deep-strong) 34%, var(--anuncio-accent) 68%, var(--anuncio-accent-strong) 100%);
+  color: #f8fffb;
   text-decoration: none;
   cursor: pointer;
   display: inline-flex;
@@ -333,19 +343,63 @@
   gap: 6px;
   transition:
     width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    filter 0.25s ease;
-  box-shadow: 0 6px 16px rgba(20, 195, 142, 0.35);
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s ease,
+    filter 0.28s ease,
+    border-color 0.28s ease;
+  border: 1px solid var(--anuncio-border);
+  box-shadow:
+    0 18px 34px rgba(15, 145, 98, 0.28),
+    0 8px 18px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(53, 227, 160, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   white-space: nowrap;
   will-change: width, transform;
   isolation: isolate;
+  backdrop-filter: blur(12px) saturate(1.06);
 }
 
+.anunciaPropiedad::before,
+.anunciaPropiedad::after,
+.mobileAnunciaPropiedad::before,
+.mobileAnunciaPropiedad::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+}
+
+.anunciaPropiedad::before,
+.mobileAnunciaPropiedad::before {
+  border: 1px solid rgba(110, 231, 183, 0.44);
+  box-shadow: 0 0 26px rgba(53, 227, 160, 0.2);
+  animation: anuncioOuterWave 2.4s ease-out infinite;
+}
+
+.anunciaPropiedad::after,
+.mobileAnunciaPropiedad::after {
+  inset: -10px;
+  border: 1px solid rgba(255, 215, 104, 0.28);
+  box-shadow: 0 0 32px rgba(255, 215, 104, 0.14);
+  animation: anuncioOuterWave 2.4s ease-out 0.9s infinite;
+}
+
+.anuncioContent,
 .anunciaPropiedad .anuncioIconViewport,
 .anunciaPropiedad .anuncioTextViewport {
   position: relative;
   z-index: 2;
+}
+
+.anuncioContent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  animation: anuncioInnerFloat 2.6s ease-in-out infinite;
 }
 
 .anuncioSweep {
@@ -355,47 +409,162 @@
   overflow: hidden;
   pointer-events: none;
   z-index: 1;
-}
-
-.anuncioSweep::before {
-  content: "";
-  position: absolute;
-  inset: -35% -30%;
   background: linear-gradient(
-    115deg,
-    rgba(255, 255, 255, 0) 35%,
-    rgba(255, 255, 255, 0.34) 50%,
-    rgba(255, 255, 255, 0) 65%
+    118deg,
+    rgba(255, 255, 255, 0),
+    rgba(220, 252, 231, 0.16) 20%,
+    rgba(255, 215, 104, 0.26) 34%,
+    rgba(167, 243, 208, 0.26) 50%,
+    rgba(255, 255, 255, 0.08) 61%,
+    transparent
   );
-  transform: translateX(-140%) skewX(-18deg);
-  animation: ctaSweep 3.2s ease-in-out infinite;
+  animation: anuncioSweepRun 2.8s linear infinite;
 }
 
-.anunciaPropiedad::before,
-.anunciaPropiedad::after {
-  content: "";
+.anuncioFxOrbPrimary,
+.anuncioFxOrbSecondary,
+.anuncioFxBeam,
+.anuncioFxOutline,
+.anuncioPulseDot {
   position: absolute;
-  inset: -6px;
-  border-radius: 999px;
   pointer-events: none;
-  z-index: 1;
-  border: 2px solid rgba(20, 195, 142, 0.42);
-  box-shadow: 0 0 0 1px rgba(20, 195, 142, 0.2);
-  opacity: 0;
-  transform: scale(1);
-  animation: seaWavePulse 2.6s linear infinite;
+  z-index: 0;
 }
 
-.anunciaPropiedad::after {
-  animation-delay: 1.3s;
+.anuncioFxOrbPrimary {
+  width: 112px;
+  height: 112px;
+  top: -34px;
+  left: -24px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(167, 243, 208, 0.56) 0%,
+    rgba(53, 227, 160, 0.22) 30%,
+    rgba(53, 227, 160, 0) 72%
+  );
+  filter: blur(14px);
+  opacity: 0.82;
+  animation: anuncioOrbPulse 2.8s ease-in-out infinite;
+}
+
+.anuncioFxOrbSecondary {
+  width: 96px;
+  height: 96px;
+  right: -18px;
+  bottom: -38px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 215, 104, 0.44) 0%,
+    rgba(251, 191, 36, 0.22) 30%,
+    rgba(53, 227, 160, 0.14) 52%,
+    rgba(53, 227, 160, 0) 76%
+  );
+  filter: blur(12px);
+  opacity: 0.72;
+  animation: anuncioOrbPulse 2.8s ease-in-out 0.85s infinite;
+}
+
+.anuncioFxBeam {
+  top: -28px;
+  left: -18%;
+  width: 42%;
+  height: 180%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0),
+    rgba(236, 253, 245, 0.44),
+    rgba(220, 252, 231, 0.18),
+    rgba(255, 255, 255, 0)
+  );
+  mix-blend-mode: soft-light;
+  filter: blur(3px);
+  opacity: 0.52;
+  transform: rotate(12deg);
+  animation: anuncioBeamRush 1.9s ease-in-out infinite;
+}
+
+.anuncioFxOutline {
+  inset: 1px;
+  border-radius: 999px;
+  border: 1px solid rgba(236, 253, 245, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(20, 195, 142, 0.08);
+  opacity: 0.64;
+}
+
+.anuncioFxSkyline {
+  left: 18px;
+  right: 18px;
+  bottom: 4px;
+  height: 14px;
+  opacity: 0.5;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(236, 253, 245, 0.08) 0 3%,
+      transparent 3% 8%,
+      rgba(236, 253, 245, 0.18) 8% 12%,
+      transparent 12% 16%,
+      rgba(236, 253, 245, 0.12) 16% 23%,
+      transparent 23% 28%,
+      rgba(167, 243, 208, 0.2) 28% 31%,
+      transparent 31% 36%,
+      rgba(236, 253, 245, 0.16) 36% 43%,
+      transparent 43% 48%,
+      rgba(236, 253, 245, 0.12) 48% 53%,
+      transparent 53% 60%,
+      rgba(236, 253, 245, 0.18) 60% 65%,
+      transparent 65% 71%,
+      rgba(167, 243, 208, 0.18) 71% 74%,
+      transparent 74% 81%,
+      rgba(236, 253, 245, 0.12) 81% 89%,
+      transparent 89% 100%
+    );
+  clip-path: polygon(
+    0% 100%, 0% 64%, 5% 64%, 5% 52%, 10% 52%, 10% 70%, 16% 70%, 16% 38%,
+    20% 38%, 20% 58%, 28% 58%, 28% 26%, 34% 26%, 34% 72%, 42% 72%, 42% 48%,
+    50% 48%, 50% 18%, 58% 18%, 58% 66%, 66% 66%, 66% 40%, 72% 40%, 72% 58%,
+    79% 58%, 79% 28%, 86% 28%, 86% 68%, 92% 68%, 92% 46%, 100% 46%, 100% 100%
+  );
+  filter:
+    drop-shadow(0 -1px 10px rgba(255, 255, 255, 0.12))
+    drop-shadow(0 -1px 6px rgba(20, 195, 142, 0.12));
+  animation: anuncioSkylineFlicker 2.2s ease-in-out infinite;
+}
+
+.anuncioFxParcels {
+  left: 16px;
+  right: 16px;
+  bottom: 2px;
+  height: 10px;
+  opacity: 0.26;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(236, 253, 245, 0.34) 0 1px,
+      transparent 1px 18px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 215, 104, 0.18) 0 1px,
+      transparent 1px 8px
+  );
+  mask-image: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.9));
+  animation: anuncioParcelsShift 2.4s linear infinite;
 }
 
 .anuncioIconViewport {
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   overflow: hidden;
-  flex: 0 0 16px;
+  flex: 0 0 18px;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .anuncioTextViewport {
@@ -406,6 +575,10 @@
   display: inline-block;
   text-align: center;
   line-height: 24px;
+  color: #f6fffb;
+  text-shadow: 0 2px 14px rgba(8, 113, 74, 0.18);
+  font-weight: 800;
+  letter-spacing: 0.012em;
 }
 
 .anuncioItem {
@@ -426,8 +599,11 @@
 }
 
 .anuncioIconViewport svg {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 8px rgba(8, 113, 74, 0.2));
 }
 
 .anuncioEnter {
@@ -465,15 +641,115 @@
   }
 }
 
+@keyframes anuncioOuterWave {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  18% {
+    opacity: 0.42;
+  }
+  72% {
+    opacity: 0.14;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.09);
+  }
+}
+
+@keyframes anuncioInnerFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes anuncioSweepRun {
+  0% {
+    transform: translateX(-42%) skewX(-12deg);
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateX(56%) skewX(-12deg);
+    opacity: 0.18;
+  }
+}
+
+@keyframes anuncioOrbPulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    filter: blur(14px);
+  }
+  50% {
+    transform: scale(1.16);
+    filter: blur(18px);
+  }
+}
+
+@keyframes anuncioBeamRush {
+  0% {
+    transform: translateX(-22%) rotate(12deg);
+    opacity: 0.14;
+  }
+  35% {
+    opacity: 0.82;
+  }
+  100% {
+    transform: translateX(148%) rotate(12deg);
+    opacity: 0.08;
+  }
+}
+
+@keyframes anuncioSkylineFlicker {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  35% {
+    opacity: 0.82;
+  }
+  55% {
+    opacity: 0.54;
+  }
+  78% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes anuncioParcelsShift {
+  0% {
+    transform: translateX(-8px);
+  }
+  100% {
+    transform: translateX(8px);
+  }
+}
+
 .anunciaPropiedad:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(20, 195, 142, 0.45);
-  filter: brightness(1.05);
+  transform: translateY(-3px) scale(1.012);
+  box-shadow:
+    0 24px 42px rgba(15, 145, 98, 0.34),
+    0 10px 24px rgba(15, 23, 42, 0.14),
+    0 0 0 1px rgba(53, 227, 160, 0.16),
+    0 0 28px var(--anuncio-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-color: rgba(220, 252, 231, 0.56);
+  filter: brightness(1.05) saturate(1.08);
 }
 
 .anunciaPropiedad:active {
   transform: translateY(0);
-  box-shadow: 0 4px 10px rgba(20, 195, 142, 0.3);
+  box-shadow:
+    0 8px 18px rgba(6, 78, 59, 0.18),
+    0 4px 10px rgba(15, 23, 42, 0.1);
 }
 
 .mobileAnunciaPropiedad {
@@ -491,38 +767,6 @@
   }
   100% {
     box-shadow: 0 8px 18px rgba(20, 195, 142, 0.34);
-  }
-}
-
-@keyframes seaWavePulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.55;
-  }
-  55% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: scale(1.55);
-    opacity: 0;
-  }
-}
-
-@keyframes ctaSweep {
-  0% {
-    transform: translateX(-140%) skewX(-18deg);
-    opacity: 0;
-  }
-  18% {
-    opacity: 1;
-  }
-  52% {
-    transform: translateX(140%) skewX(-18deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(140%) skewX(-18deg);
-    opacity: 0;
   }
 }
 
@@ -1839,6 +2083,10 @@
   }
 
   .mobileAnunciaPropiedad {
+    --anuncio-accent: #0ea66b;
+    --anuncio-accent-strong: #14c38e;
+    --anuncio-deep: #064e3b;
+    --anuncio-deep-strong: #0a5e46;
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
@@ -1848,14 +2096,21 @@
     max-width: calc(100vw - 24px);
     padding: 0 12px;
     border-radius: 999px;
-    background: linear-gradient(135deg, #0ea66b, #14c38e);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 34%),
+      linear-gradient(135deg, var(--anuncio-deep) 0%, var(--anuncio-deep-strong) 42%, var(--anuncio-accent) 100%);
     color: #fff;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    box-shadow: 0 10px 24px rgba(20, 195, 142, 0.35);
+    border: 1px solid rgba(220, 252, 231, 0.24);
+    box-shadow:
+      0 18px 34px rgba(6, 78, 59, 0.24),
+      0 8px 18px rgba(15, 23, 42, 0.12),
+      0 0 0 1px rgba(20, 195, 142, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 997;
     font-weight: 700;
     overflow: visible;
@@ -1863,9 +2118,9 @@
       width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
       transform 0.25s ease,
       box-shadow 0.25s ease;
-    animation: anuncioGlow 2.8s ease-in-out infinite;
     will-change: width, transform;
     isolation: isolate;
+    backdrop-filter: blur(10px) saturate(1.1);
   }
 
   .mobileAnunciaPropiedad .anuncioIconViewport,
@@ -1874,31 +2129,26 @@
     z-index: 2;
   }
 
-  .mobileAnunciaPropiedad::before,
-  .mobileAnunciaPropiedad::after {
-    content: "";
-    position: absolute;
-    inset: -1.5px;
-    border-radius: 999px;
-    pointer-events: none;
-    z-index: 1;
-    border: 1px solid rgba(20, 195, 142, 0.28);
-    box-shadow: 0 0 0 1px rgba(20, 195, 142, 0.12);
-    opacity: 0;
-    transform: scale(1);
-    /* animation: seaWavePulse 2.5s linear infinite; */
-  }
-
-  .mobileAnunciaPropiedad::after {
-    animation-delay: 1.5;
-  }
-
   .mobileAnunciaPropiedad .anuncioTextViewport {
     width: auto;
     max-width: none;
     text-align: left;
     height: 24px;
   }
+
+}
+
+[data-theme="dark"] .anunciaPropiedad,
+[data-theme="dark"] .mobileAnunciaPropiedad {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 34%),
+    linear-gradient(135deg, #063829 0%, #0b5d45 46%, #0ea66b 100%);
+  border-color: rgba(110, 231, 183, 0.24);
+  box-shadow:
+    0 18px 36px rgba(2, 6, 23, 0.46),
+    0 10px 24px rgba(6, 78, 59, 0.24),
+    0 0 0 1px rgba(20, 195, 142, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 @media screen and (max-width: 675px) {

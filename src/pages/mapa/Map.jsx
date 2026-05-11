@@ -6,6 +6,8 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 
 import {
   GoogleMap,
@@ -28,9 +30,12 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
+gsap.registerPlugin(useGSAP);
+
 const defaultCenter = { lat: -6.487753, lng: -76.359871 };
 const LIBRARIES = ["places"];
 const GEOLOCATION_ONBOARDING_DONE_KEY = "geoHabitaGeolocationOnboardingDone";
+const ENABLE_PROJECT_CLUSTERING = false;
 
 const RANGOS_PRECIO = [
   { label: "$. 5,000 - 15,000", value: "5000-15000" },
@@ -261,6 +266,8 @@ function MyMap() {
   const mapTypeListenerRef = useRef(null);
   const mapTypeControlRef = useRef(null);
   const headerRef = useRef(null);
+  const anuncioDesktopRef = useRef(null);
+  const anuncioMobileRef = useRef(null);
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const boundsDebounceRef = useRef(null);
@@ -307,32 +314,81 @@ function MyMap() {
       {
         text: "Anuncia tu propiedad",
         icon: (
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2L2 7v15h20V7L12 2zm0 2.18L20 8v12H4V8l8-3.82zM7 13h10v2H7z" />
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M4.5 10.25 12 4.75l7.5 5.5v8.75a.75.75 0 0 1-.75.75H5.25a.75.75 0 0 1-.75-.75v-8.75Z"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M9 14.25h6"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
           </svg>
         ),
       },
       {
         text: "Publica tus proyectos",
         icon: (
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h8v8H3v-8zm10-1h8v9h-8v-9z" />
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M5 18.25V7.75A1.75 1.75 0 0 1 6.75 6h10.5A1.75 1.75 0 0 1 19 7.75v10.5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+            <path
+              d="M8.5 12h7M8.5 15.5h5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
+            <path
+              d="M9.25 3.75v4.5M14.75 3.75v4.5"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
           </svg>
         ),
       },
       {
         text: "Gestiona tus lotes",
         icon: (
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M3 3h8v8H3V3zm10 10h8v8h-8v-8zM3 13h8v8H3v-8zm10-10h8v8h-8V3z" />
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M4.75 6.25h14.5v11.5H4.75z"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M9.5 6.25v11.5M14.5 6.25v11.5M4.75 12h14.5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
           </svg>
         ),
       },
       {
         text: "Administra tus proyectos",
         icon: (
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 2a7 7 0 0 0-7 7v2H3v11h18V11h-2V9a7 7 0 0 0-7-7zm-5 9V9a5 5 0 0 1 10 0v2H7zm2 4h6v2H9v-2z" />
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M6.25 5.75h11.5A1.75 1.75 0 0 1 19.5 7.5v9a1.75 1.75 0 0 1-1.75 1.75H6.25A1.75 1.75 0 0 1 4.5 16.5v-9a1.75 1.75 0 0 1 1.75-1.75Z"
+              stroke="currentColor"
+              strokeWidth="1.75"
+            />
+            <path
+              d="M8.25 9.25h7.5M8.25 12.25h7.5M8.25 15.25h4.25"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            />
           </svg>
         ),
       },
@@ -348,6 +404,400 @@ function MyMap() {
   const anuncioButtonWidthPx = useMemo(
     () => Math.max(184, anuncioTextWidthPx + 42),
     [anuncioTextWidthPx],
+  );
+
+  const renderAnuncioCtaInner = () => (
+    <>
+      <span className={styles.anuncioFxOrbPrimary} aria-hidden="true" />
+      <span className={styles.anuncioFxOrbSecondary} aria-hidden="true" />
+      <span className={styles.anuncioFxBeam} aria-hidden="true" />
+      <span className={styles.anuncioFxOutline} aria-hidden="true" />
+      <span className={styles.anuncioFxSkyline} aria-hidden="true" />
+      <span className={styles.anuncioFxParcels} aria-hidden="true" />
+      <span className={styles.anuncioSweep} aria-hidden="true" />
+      <span className={styles.anuncioContent}>
+        <span className={styles.anuncioIconViewport}>
+          {prevAnuncioIndex !== null && isAnuncioAnimating && (
+            <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+              {anuncioSlides[prevAnuncioIndex].icon}
+            </span>
+          )}
+          <span
+            className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
+          >
+            {anuncioSlides[activeAnuncioIndex].icon}
+          </span>
+        </span>
+        <span
+          className={styles.anuncioTextViewport}
+          style={{ width: `${anuncioTextWidthPx}px` }}
+        >
+          {prevAnuncioIndex !== null && isAnuncioAnimating && (
+            <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
+              {anuncioSlides[prevAnuncioIndex].text}
+            </span>
+          )}
+          <span
+            className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
+          >
+            {anuncioSlides[activeAnuncioIndex].text}
+          </span>
+        </span>
+      </span>
+    </>
+  );
+
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+
+      mm.add(
+        {
+          reduceMotion: "(prefers-reduced-motion: reduce)",
+        },
+        (context) => {
+          const { reduceMotion } = context.conditions;
+          if (reduceMotion) return undefined;
+
+          const targets = [anuncioDesktopRef.current, anuncioMobileRef.current].filter(
+            Boolean,
+          );
+          if (!targets.length) return undefined;
+          const cleanups = [];
+
+          targets.forEach((cta) => {
+            const orbPrimary = cta.querySelector(`.${styles.anuncioFxOrbPrimary}`);
+            const orbSecondary = cta.querySelector(`.${styles.anuncioFxOrbSecondary}`);
+            const beam = cta.querySelector(`.${styles.anuncioFxBeam}`);
+            const outline = cta.querySelector(`.${styles.anuncioFxOutline}`);
+            const skyline = cta.querySelector(`.${styles.anuncioFxSkyline}`);
+            const parcels = cta.querySelector(`.${styles.anuncioFxParcels}`);
+            const content = cta.querySelector(`.${styles.anuncioContent}`);
+            const icon = cta.querySelector(`.${styles.anuncioIconViewport}`);
+            const text = cta.querySelector(`.${styles.anuncioTextViewport}`);
+            gsap.set(cta, {
+              transformPerspective: 900,
+              transformOrigin: "50% 50%",
+            });
+            gsap.set([orbPrimary, orbSecondary, beam, outline, skyline, parcels], {
+              transformOrigin: "50% 50%",
+              willChange: "transform, opacity, filter",
+            });
+
+            const idleTl = gsap.timeline({ repeat: -1, defaults: { ease: "sine.inOut" } });
+
+            idleTl
+              .to(
+                cta,
+                {
+                  y: -5.5,
+                  scale: 1.032,
+                  rotateX: -4.5,
+                  rotateY: 6,
+                  boxShadow:
+                    "0 28px 46px rgba(15, 145, 98, 0.34), 0 12px 26px rgba(15, 23, 42, 0.16), 0 0 30px rgba(53, 227, 160, 0.26)",
+                  duration: 1.6,
+                },
+                0,
+              )
+              .to(
+                content,
+                {
+                  y: -2.5,
+                  duration: 1.45,
+                },
+                0,
+              )
+              .to(
+                orbPrimary,
+                {
+                  xPercent: 20,
+                  yPercent: -24,
+                  scale: 1.24,
+                  opacity: 0.98,
+                  duration: 1.75,
+                },
+                0,
+              )
+              .to(
+                orbSecondary,
+                {
+                  xPercent: -18,
+                  yPercent: 16,
+                  scale: 1.22,
+                  opacity: 0.76,
+                  duration: 1.8,
+                },
+                0.1,
+              )
+              .to(
+                beam,
+                {
+                  xPercent: 184,
+                  rotation: 11,
+                  opacity: 0.96,
+                  duration: 1.55,
+                  ease: "power3.out",
+                },
+                0,
+              )
+              .to(
+                outline,
+                {
+                  scale: 1.024,
+                  opacity: 0.9,
+                  duration: 1.9,
+                },
+                0,
+              )
+              .to(
+                skyline,
+                {
+                  x: 12,
+                  y: -2,
+                  opacity: 0.86,
+                  duration: 1.65,
+                },
+                0,
+              )
+              .to(
+                parcels,
+                {
+                  x: -12,
+                  y: 2,
+                  opacity: 0.72,
+                  duration: 1.65,
+                },
+                0.05,
+              )
+              .to(
+                icon,
+                {
+                  y: -2,
+                  rotate: -7,
+                  scale: 1.14,
+                  duration: 1.2,
+                },
+                0.1,
+              )
+              .to(
+                text,
+                {
+                  x: 3,
+                  letterSpacing: "0.03em",
+                  textShadow: "0 3px 18px rgba(8, 113, 74, 0.28)",
+                  duration: 1.3,
+                },
+                0.1,
+              )
+              .to(
+                cta,
+                {
+                  y: 0,
+                  scale: 1,
+                  rotateX: 0.8,
+                  rotateY: -1.2,
+                  boxShadow:
+                    "0 16px 28px rgba(15, 145, 98, 0.2), 0 6px 14px rgba(15, 23, 42, 0.1), 0 0 16px rgba(53, 227, 160, 0.12)",
+                  duration: 1.45,
+                },
+                ">",
+              )
+              .to(
+                content,
+                {
+                  y: 0,
+                  duration: 1.45,
+                },
+                "<",
+              )
+              .to(
+                orbPrimary,
+                {
+                  xPercent: -18,
+                  yPercent: 16,
+                  scale: 0.92,
+                  opacity: 0.44,
+                  duration: 1.6,
+                },
+                "<",
+              )
+              .to(
+                orbSecondary,
+                {
+                  xPercent: 18,
+                  yPercent: -16,
+                  scale: 0.94,
+                  opacity: 0.3,
+                  duration: 1.6,
+                },
+                "<",
+              )
+              .to(
+                beam,
+                {
+                  xPercent: -154,
+                  rotation: -11,
+                  opacity: 0.12,
+                  duration: 1.55,
+                  ease: "power1.inOut",
+                },
+                "<",
+              )
+              .to(
+                outline,
+                {
+                  scale: 0.978,
+                  opacity: 0.4,
+                  duration: 1.9,
+                },
+                "<",
+              )
+              .to(
+                skyline,
+                {
+                  x: -12,
+                  y: 1.5,
+                  opacity: 0.52,
+                  duration: 1.6,
+                },
+                "<",
+              )
+              .to(
+                parcels,
+                {
+                  x: 14,
+                  y: 0,
+                  opacity: 0.28,
+                  duration: 1.6,
+                },
+                "<",
+              )
+              .to(
+                icon,
+                {
+                  y: 0,
+                  rotate: 5,
+                  scale: 1,
+                  duration: 1.2,
+                },
+                "<",
+              )
+              .to(
+                text,
+                {
+                  x: 0,
+                  letterSpacing: "0em",
+                  textShadow: "0 0 0 rgba(6, 78, 59, 0)",
+                  duration: 1.2,
+                },
+                "<",
+              );
+
+            const burst = gsap.timeline({ paused: true });
+            burst
+              .to(
+                cta,
+                {
+                  scale: 1.075,
+                  rotateX: -12,
+                  rotateY: 16,
+                  y: -5,
+                  duration: 0.34,
+                  ease: "power4.out",
+                },
+                0,
+              )
+              .to(
+                [orbPrimary, orbSecondary],
+                {
+                  scale: 1.62,
+                  opacity: 1,
+                  duration: 0.34,
+                  stagger: 0.03,
+                  ease: "power4.out",
+                },
+                0,
+              )
+              .to(
+                beam,
+                {
+                  xPercent: 220,
+                  opacity: 1,
+                  duration: 0.44,
+                  ease: "power3.out",
+                },
+                0,
+              )
+              .to(
+                outline,
+                {
+                  scale: 1.08,
+                  opacity: 1,
+                  duration: 0.38,
+                  ease: "power3.out",
+                },
+                0,
+              )
+              .to(
+                skyline,
+                {
+                  y: -5,
+                  scaleX: 1.06,
+                  opacity: 1,
+                  duration: 0.34,
+                  ease: "power3.out",
+                },
+                0,
+              )
+              .to(
+                parcels,
+                {
+                  y: 4,
+                  opacity: 0.92,
+                  duration: 0.34,
+                  ease: "power3.out",
+                },
+                0,
+              );
+
+            const resetBurst = () => {
+              gsap.to(cta, {
+                scale: 1,
+                rotateX: 0,
+                rotateY: 0,
+                y: 0,
+                duration: 0.42,
+                ease: "power3.out",
+                overwrite: "auto",
+              });
+            };
+
+            const onEnter = () => burst.restart();
+            const onLeave = () => {
+              burst.pause(0);
+              resetBurst();
+            };
+
+            cta.addEventListener("pointerenter", onEnter);
+            cta.addEventListener("pointerleave", onLeave);
+            cleanups.push(() => {
+              cta.removeEventListener("pointerenter", onEnter);
+              cta.removeEventListener("pointerleave", onLeave);
+              idleTl.kill();
+              burst.kill();
+            });
+          });
+
+          return () => {
+            cleanups.forEach((cleanup) => cleanup());
+          };
+        },
+      );
+
+      return () => mm.revert();
+    },
+    { scope: headerRef },
   );
   const getCacheKey = (prefix, id) => `${prefix}_${id}`;
   const parsePositiveInt = (value) => {
@@ -1111,12 +1561,12 @@ function MyMap() {
           window.google?.maps?.places?.Autocomplete &&
           window.google?.maps?.Map
         ) {
-          console.log("Google Maps API ya está cargada");
+          
           setIsLoaded(true);
           return;
         }
 
-        console.log("Cargando Google Maps API...");
+        
         await loader.load();
 
         // Wait a bit to ensure all libraries are initialized
@@ -1130,7 +1580,7 @@ function MyMap() {
           throw new Error("google.maps.places.Autocomplete no está disponible");
         }
 
-        console.log("Google Maps API cargada correctamente");
+        
         setIsLoaded(true);
       } catch (error) {
         console.error("Error al cargar Google Maps API:", error);
@@ -2510,36 +2960,12 @@ function MyMap() {
         <div className={styles.rightActions}>
           <ThemeSwitch checked={isDark} onChange={toggleTheme} />
           {!isMobileViewport && (
-            <Link to="/inicio" className={styles.anunciaPropiedad}>
-              <span className={styles.anuncioSweep} aria-hidden="true" />
-              <span className={styles.anuncioIconViewport}>
-                {prevAnuncioIndex !== null && isAnuncioAnimating && (
-                  <span
-                    className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
-                  >
-                    {anuncioSlides[prevAnuncioIndex].icon}
-                  </span>
-                )}
-                <span
-                  className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-                >
-                  {anuncioSlides[activeAnuncioIndex].icon}
-                </span>
-              </span>
-              <span className={styles.anuncioTextViewport}>
-                {prevAnuncioIndex !== null && isAnuncioAnimating && (
-                  <span
-                    className={`${styles.anuncioItem} ${styles.anuncioLeave}`}
-                  >
-                    {anuncioSlides[prevAnuncioIndex].text}
-                  </span>
-                )}
-                <span
-                  className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-                >
-                  {anuncioSlides[activeAnuncioIndex].text}
-                </span>
-              </span>
+            <Link
+              ref={anuncioDesktopRef}
+              to="/inicio"
+              className={styles.anunciaPropiedad}
+            >
+              {renderAnuncioCtaInner()}
             </Link>
           )}
         </div>
@@ -2632,7 +3058,7 @@ function MyMap() {
             }
             mapIntroHintTimeoutRef.current = setTimeout(() => {
               setMapIntroHintVisible(false);
-            }, 4000);
+            }, 1800);
             if (pendingShareFocusRef.current) {
               focusMapForShare({
                 map,
@@ -2682,7 +3108,7 @@ function MyMap() {
         >
           {puntos.length === 0 && <Marker position={currentPosition} />}
 
-          {visibleProyectos.length > 0 && (
+          {visibleProyectos.length > 0 && ENABLE_PROJECT_CLUSTERING && (
             <MarkerClusterer
               options={clusterOptions}
             >
@@ -2707,6 +3133,26 @@ function MyMap() {
                 </>
               )}
             </MarkerClusterer>
+          )}
+
+          {visibleProyectos.length > 0 && !ENABLE_PROJECT_CLUSTERING && (
+            <>
+              {visibleProyectos.map((p) => (
+                <Marker
+                  key={p.idproyecto}
+                  position={{
+                    lat: Number(p.latitud),
+                    lng: Number(p.longitud),
+                  }}
+                  icon={{
+                    url: getProjectIconUrl(p),
+                    scaledSize: new window.google.maps.Size(40, 40),
+                  }}
+                  title={p.nombreproyecto}
+                  onClick={() => handleMarkerClick(p)}
+                />
+              ))}
+            </>
           )}
 
           {iconosProyecto.map((ico) => (
@@ -2993,38 +3439,12 @@ function MyMap() {
 
       {!selectedProyecto && !selectedLote && (
         <Link
+          ref={anuncioMobileRef}
           to="/inicio"
           className={styles.mobileAnunciaPropiedad}
           style={{ width: `${anuncioButtonWidthPx}px` }}
         >
-          <span className={styles.anuncioSweep} aria-hidden="true" />
-          <span className={styles.anuncioIconViewport}>
-            {prevAnuncioIndex !== null && isAnuncioAnimating && (
-              <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
-                {anuncioSlides[prevAnuncioIndex].icon}
-              </span>
-            )}
-            <span
-              className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-            >
-              {anuncioSlides[activeAnuncioIndex].icon}
-            </span>
-          </span>
-          <span
-            className={styles.anuncioTextViewport}
-            style={{ width: `${anuncioTextWidthPx}px` }}
-          >
-            {prevAnuncioIndex !== null && isAnuncioAnimating && (
-              <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
-                {anuncioSlides[prevAnuncioIndex].text}
-              </span>
-            )}
-            <span
-              className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-            >
-              {anuncioSlides[activeAnuncioIndex].text}
-            </span>
-          </span>
+          {renderAnuncioCtaInner()}
         </Link>
       )}
 
@@ -3033,6 +3453,7 @@ function MyMap() {
           inmo={selectedProyecto?.inmo}
           proyecto={selectedProyecto}
           selectedLote={selectedLote?.lote || null}
+          lotes={lotesProyectoBase}
           imagenes={imagenesProyecto}
           espacios={espaciosProyecto}
           walkingInfo={walkingInfo}
@@ -3041,6 +3462,7 @@ function MyMap() {
           forceCompactForLote={!!selectedLote}
           isLoading={isProyectoLoading}
           mapRef={mapRef}
+          onSelectLote={(lote) => handleLoteClick(lote)}
           onClose={async () => {
             if (mapRef.current && window.google?.maps) {
               const map = mapRef.current;

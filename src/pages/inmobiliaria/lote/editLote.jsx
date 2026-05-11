@@ -368,6 +368,9 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
           method: "PUT",
           body: formData,
           headers: { Authorization: `Bearer ${token}` },
+          telegramContext: {
+            action: `Intento de actualizar lote: ${form.nombre || lote?.idlote || "sin referencia"}`,
+          },
         }
       );
       if (res.ok) {

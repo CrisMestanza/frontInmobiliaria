@@ -49,6 +49,10 @@ import {
   FaMapMarkedAlt,
 } from "react-icons/fa";
 import styles from "./Proyecto.module.css";
+import AmortizationChart from "../../components/AmortizationChart";
+import { buildInverseFinancingOptions } from "../../components/utils/financing";
+import useImagePanZoom from "../../components/useImagePanZoom";
+
 import { FaChevronDown } from "react-icons/fa";
 
 const Viewer360Modal = React.lazy(() => import("./Viewer360ModalCasa"));
@@ -163,9 +167,11 @@ const ProyectoSidebar = ({
   inmo,
   proyecto,
   selectedLote,
+  lotes = [],
   imagenes,
   espacios = [],
   onClose,
+  onSelectLote,
   walkingInfo,
   drivingInfo,
   mapHeaderOffsetPx = 0,
@@ -189,8 +195,6 @@ const ProyectoSidebar = ({
   const sidebarRef = useRef(null);
   const inmoFooterRef = useRef(null);
   const contentRef = useRef(null);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
   const carouselTouchStartX = useRef(0);
   const carouselTouchEndX = useRef(0);
   const sheetTouchStartY = useRef(0);
@@ -314,7 +318,9 @@ const ProyectoSidebar = ({
       proyecto?.idinmobiliaria_id;
     const proyectoId = proyecto?.idproyecto;
     if (!inmoId || !proyectoId) return "";
-    return `${window.location.origin}/mapa/${inmoId}?proyecto=${proyectoId}`;
+    return withApiBase(
+      `https://api.geohabita.com/share/proyecto/${proyectoId}/`,
+    );
   }, [inmo, proyecto]);
   const projectNameWords = useMemo(
     () =>
@@ -406,10 +412,14 @@ const ProyectoSidebar = ({
   const [financingMonths, setFinancingMonths] = useState(
     financingDefaultMonths,
   );
+  const [geoCotizadorMode, setGeoCotizadorMode] = useState("cash");
+  const [geoCotizadorAmount, setGeoCotizadorAmount] = useState("");
 
   useEffect(() => {
     setFinancingInitial(financingDefaultInitial);
     setFinancingMonths(financingDefaultMonths);
+    setGeoCotizadorAmount("");
+    setGeoCotizadorMode("cash");
   }, [financingDefaultInitial, financingDefaultMonths, proyecto?.idproyecto]);
 
   const financingScenario = useMemo(() => {
@@ -497,6 +507,83 @@ const ProyectoSidebar = ({
       },
     ];
   }, [financingConfig, financingDefaultInitial]);
+  const projectLots = useMemo(
+    () =>
+      (Array.isArray(lotes) ? lotes : []).filter(
+        (lot) =>
+          lot && Number(lot.vendido) === 0 && Number(lot.precio || 0) > 0,
+      ),
+    [lotes],
+  );
+  const geoCotizadorMatches = useMemo(() => {
+    const amount = Number(geoCotizadorAmount || 0);
+    if (!amount || !projectLots.length) return [];
+
+    if (geoCotizadorMode === "cash") {
+      return projectLots
+        .filter((lot) => Number(lot.precio || 0) <= amount)
+        .sort(
+          (a, b) =>
+            Math.abs(amount - Number(a.precio || 0)) -
+            Math.abs(amount - Number(b.precio || 0)),
+        )
+        .slice(0, 8)
+        .map((lot) => ({
+          lote: lot,
+          kind: "cash",
+          label: "Contado",
+          amountLabel: formatMoney(lot.precio, financingCurrency),
+          helper: "Precio total del lote",
+        }));
+    }
+
+    return projectLots
+      .map((lot) => {
+        const options = buildInverseFinancingOptions({
+          price: Number(lot.precio || 0),
+          budget: amount,
+          annualRate: Number(financingConfig?.annual_interest_rate || 0),
+          minInitial: financingMinInitial,
+          maxInitial: Math.min(financingMaxInitial, Number(lot.precio || 0)),
+          minMonths: financingMinMonths,
+          maxMonths: financingMaxMonths,
+          monthlyAdminFee: Number(financingConfig?.monthly_admin_fee || 0),
+          insuranceMonthly: Number(financingConfig?.insurance_monthly || 0),
+          originationFeePct: Number(financingConfig?.origination_fee_pct || 0),
+          balloonPct: Number(financingConfig?.balloon_payment_pct || 0),
+          currency: financingCurrency,
+        });
+        if (!options.length) return null;
+        return {
+          lote: lot,
+          option: options[0],
+          kind: "credit",
+          label: "Credito",
+          amountLabel: formatMoney(
+            options[0].monthlyEstimate,
+            financingCurrency,
+          ),
+          helper: `Inicial ${formatMoney(options[0].initial, financingCurrency)} · ${options[0].months} meses`,
+        };
+      })
+      .filter(Boolean)
+      .sort(
+        (a, b) =>
+          Number(a.option?.gapToBudget || 0) -
+          Number(b.option?.gapToBudget || 0),
+      )
+      .slice(0, 8);
+  }, [
+    financingConfig,
+    financingCurrency,
+    financingMaxInitial,
+    financingMinInitial,
+    financingMinMonths,
+    financingMaxMonths,
+    geoCotizadorAmount,
+    geoCotizadorMode,
+    projectLots,
+  ]);
   const availableUtilities = useMemo(
     () =>
       projectUtilityFields.filter((field) => {
@@ -566,36 +653,22 @@ const ProyectoSidebar = ({
         : currentImg + 1
       : 0;
 
-  const minSwipeDistance = 50;
   const carouselSwipeDistance = 40;
-  const onTouchStart = (e) => {
-    touchStartX.current = e.targetTouches[0].clientX;
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
+  const showNextFullscreenImage = useCallback(() => {
+    setFullscreenImgIndex((prev) =>
+      prev === validImages.length - 1 ? 0 : prev + 1,
+    );
+  }, [validImages.length]);
 
-  const onTouchMove = (e) => {
-    touchEndX.current = e.targetTouches[0].clientX;
-  };
-
-  const onTouchEnd = () => {
-    const distance = touchStartX.current - touchEndX.current;
-    touchStartX.current = 0;
-    touchEndX.current = 0;
-
-    if (Math.abs(distance) < minSwipeDistance) return;
-
-    if (distance > 0) {
-      // 👉 Swipe izquierda (siguiente)
-      setFullscreenImgIndex((prev) =>
-        prev === validImages.length - 1 ? 0 : prev + 1,
-      );
-    } else {
-      // 👈 Swipe derecha (anterior)
-      setFullscreenImgIndex((prev) =>
-        prev === 0 ? validImages.length - 1 : prev - 1,
-      );
-    }
-  };
+  const showPrevFullscreenImage = useCallback(() => {
+    setFullscreenImgIndex((prev) =>
+      prev === 0 ? validImages.length - 1 : prev - 1,
+    );
+  }, [validImages.length]);
+  const fullscreenPanZoom = useImagePanZoom({
+    onSwipeNext: validImages.length > 1 ? showNextFullscreenImage : undefined,
+    onSwipePrev: validImages.length > 1 ? showPrevFullscreenImage : undefined,
+  });
 
   const onCarouselTouchStart = (e) => {
     if (!isMobileView) return;
@@ -661,7 +734,6 @@ const ProyectoSidebar = ({
           }),
         },
       );
-      console.log(`Click registrado en ${redSocial}`);
     } catch (error) {
       console.error("Error registrando click:", error);
     }
@@ -693,6 +765,9 @@ const ProyectoSidebar = ({
     const timer = window.setTimeout(preloadVisibleImages, 120);
     return () => window.clearTimeout(timer);
   }, [validImages, currentImg, prevImgIndex, nextImgIndex]);
+  useEffect(() => {
+    fullscreenPanZoom.reset();
+  }, [fullscreenImgIndex, fullscreenPanZoom.reset]);
 
   useEffect(() => {
     if (currentImg >= validImages.length) {
@@ -1034,10 +1109,6 @@ const ProyectoSidebar = ({
   if (!proyecto) return null;
 
   const overlayActive = false;
-  // console.log("Proyecto:", proyecto);
-  // console.log("Precio:", proyecto.precio);
-  // console.log("Moneda:", proyecto.moneda);
-  // console.log("isMobileView:", isMobileView);
 
   return (
     <>
@@ -1605,6 +1676,109 @@ const ProyectoSidebar = ({
                     )}
                   </div>
 
+                  {shouldUseLoteDrivenFinancing && projectLots.length > 0 && (
+                    <div className={styles.geoCotizadorCard} data-gsap="card">
+                      <div className={styles.geoCotizadorHeader}>
+                        <div>
+                          <span className={styles.financingKicker}>
+                            <FaCalculator /> GeoCotizador
+                          </span>
+                          <h3>
+                            Quieres ver que lote calza con tu presupuesto?
+                          </h3>
+                        </div>
+                        <div className={styles.financingMiniMeta}>
+                          <FaPiggyBank />
+                          {projectLots.length} lotes
+                        </div>
+                      </div>
+
+                      <div className={styles.geoCotizadorModeRow}>
+                        <button
+                          type="button"
+                          className={`${styles.geoCotizadorModeBtn} ${geoCotizadorMode === "cash" ? styles.geoCotizadorModeBtnActive : ""}`}
+                          onClick={() => setGeoCotizadorMode("cash")}
+                        >
+                          Contado
+                        </button>
+                        {/* <button
+                          type="button"
+                          className={`${styles.geoCotizadorModeBtn} ${geoCotizadorMode === "credit" ? styles.geoCotizadorModeBtnActive : ""}`}
+                          onClick={() => setGeoCotizadorMode("credit")}
+                        >
+                          Credito
+                        </button> */}
+                      </div>
+
+                      <div className={styles.financingBudgetInputShell}>
+                        <span className={styles.financingInputPrefix}>
+                          {financingCurrency}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={geoCotizadorAmount}
+                          onChange={(e) =>
+                            setGeoCotizadorAmount(e.target.value)
+                          }
+                          placeholder={
+                            geoCotizadorMode === "cash"
+                              ? "Cual es tu presupuesto?"
+                              : "Cuanto puedes pagar al mes"
+                          }
+                        />
+                      </div>
+
+                      {geoCotizadorAmount && geoCotizadorMatches.length > 0 ? (
+                        <div className={styles.geoCotizadorMatchGrid}>
+                          {geoCotizadorMatches.map((match) => {
+                            const isActive =
+                              Number(selectedLote?.idlote) ===
+                              Number(match.lote.idlote);
+                            return (
+                              <button
+                                key={`${match.kind}-${match.lote.idlote}`}
+                                type="button"
+                                className={`${styles.geoCotizadorMatchCard} ${isActive ? styles.geoCotizadorMatchCardActive : ""}`}
+                                onClick={() => {
+                                  onSelectLote?.(match.lote);
+                                  if (match.option) {
+                                    setFinancingInitial(
+                                      Math.round(match.option.initial),
+                                    );
+                                    setFinancingMonths(match.option.months);
+                                  }
+                                }}
+                              >
+                                <div className={styles.geoCotizadorMatchTop}>
+                                  <strong>
+                                    {match.lote.nombre ||
+                                      `Lote ${match.lote.idlote}`}
+                                  </strong>
+                                  <span>{match.label}</span>
+                                </div>
+                                <div className={styles.geoCotizadorMatchValue}>
+                                  {match.amountLabel}
+                                </div>
+                                <p>{match.helper}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : geoCotizadorAmount ? (
+                        <p className={styles.financingBudgetEmpty}>
+                          No encontramos lotes que encajen con ese presupuesto.
+                        </p>
+                      ) : (
+                        <p className={styles.geoCotizadorHint}>
+                          Elige contado para comparar precios fijos o credito
+                          para estimar la cuota mensual.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className={styles.financingCard} data-gsap="card">
                     <div className={styles.financingHeader}>
                       <div>
@@ -1625,7 +1799,7 @@ const ProyectoSidebar = ({
                       </div>
                     </div>
 
-                    {!shouldUseLoteDrivenFinancing && financingScenario ? (
+                    {financingScenario ? (
                       <>
                         <div className={styles.financingPrimary}>
                           <div>
@@ -1892,6 +2066,16 @@ const ProyectoSidebar = ({
                             </div>
                           </div>
                         </div> */}
+
+                        <AmortizationChart
+                          principal={Math.max(
+                            financingPrice - (financingScenario?.initial || 0),
+                            0,
+                          )}
+                          annualRate={financingScenario?.annualRate || 0}
+                          months={financingScenario?.months || 0}
+                          currency={financingCurrency}
+                        />
 
                         <p className={styles.financingNote}>
                           Meses permitidos: {financingMinMonths} a{" "}
@@ -2190,9 +2374,6 @@ const ProyectoSidebar = ({
           className={styles.fullscreenOverlay}
           mobileSidebar
           onClick={() => setFullscreenImgIndex(null)}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
         >
           {/* Botón Cerrar (opcional, ya que el fondo cierra) */}
           <button
@@ -2212,9 +2393,7 @@ const ProyectoSidebar = ({
                 className={`${styles.navArrowFS} ${styles.prevFS}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setFullscreenImgIndex((prev) =>
-                    prev === 0 ? validImages.length - 1 : prev - 1,
-                  );
+                  showPrevFullscreenImage();
                 }}
               >
                 <FaChevronLeft />
@@ -2224,9 +2403,7 @@ const ProyectoSidebar = ({
                 className={`${styles.navArrowFS} ${styles.nextFS}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setFullscreenImgIndex((prev) =>
-                    prev === validImages.length - 1 ? 0 : prev + 1,
-                  );
+                  showNextFullscreenImage();
                 }}
               >
                 <FaChevronRight />
@@ -2234,18 +2411,43 @@ const ProyectoSidebar = ({
             </>
           )}
 
-          <img
-            src={withApiBase(
-              `https://api.geohabita.com${validImages[fullscreenImgIndex].imagenproyecto}`,
-            )}
-            className={styles.fullscreenImg}
-            alt="Zoom"
-            onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la imagen misma
-          />
+          <div
+            ref={fullscreenPanZoom.stageRef}
+            className={styles.fullscreenStage}
+            onClick={(e) => e.stopPropagation()}
+            {...fullscreenPanZoom.bind}
+          >
+            <img
+              ref={fullscreenPanZoom.imageRef}
+              src={withApiBase(
+                `https://api.geohabita.com${validImages[fullscreenImgIndex].imagenproyecto}`,
+              )}
+              className={styles.fullscreenImg}
+              alt="Zoom"
+              style={{
+                transform: `translate3d(${fullscreenPanZoom.offsetX}px, ${fullscreenPanZoom.offsetY}px, 0) scale(${fullscreenPanZoom.scale})`,
+              }}
+            />
+          </div>
 
           <div className={styles.fsBadge}>
             {fullscreenImgIndex + 1} / {validImages.length}
           </div>
+
+          <div className={styles.fsHint}>
+            Pellizca o usa la rueda para zoom. Arrastra para moverte.
+          </div>
+
+          <button
+            type="button"
+            className={styles.fsResetBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              fullscreenPanZoom.reset();
+            }}
+          >
+            Reset
+          </button>
         </div>
       )}
       {show360 && (
