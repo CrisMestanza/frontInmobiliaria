@@ -158,9 +158,9 @@ const getUtilityStatus = (value) => {
   }
 
   return {
-    label: "No disponible",
-    className: "utilityStatusNo",
-    icon: <FaTimesCircle />,
+    label: "No especificado",
+    className: "utilityStatusUnknown",
+    icon: <FaQuestionCircle />,
   };
 };
 
@@ -1693,6 +1693,8 @@ const ProyectoSidebar = ({
                               </div>
                               <span
                                 className={`${styles.utilityChip} ${styles[status.className]}`}
+                                title={status.label}
+                                aria-label={status.label}
                               >
                                 {status.icon}
                               </span>
