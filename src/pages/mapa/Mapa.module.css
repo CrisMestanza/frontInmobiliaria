@@ -2113,7 +2113,7 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 997;
     font-weight: 700;
-    overflow: visible;
+    overflow: hidden;
     transition:
       width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
       transform 0.25s ease,
@@ -2121,6 +2121,16 @@
     will-change: width, transform;
     isolation: isolate;
     backdrop-filter: blur(10px) saturate(1.1);
+  }
+
+  .mobileAnunciaPropiedad::before,
+  .mobileAnunciaPropiedad::after,
+  .mobileAnunciaPropiedad .anuncioFxOrbPrimary,
+  .mobileAnunciaPropiedad .anuncioFxOrbSecondary,
+  .mobileAnunciaPropiedad .anuncioFxBeam,
+  .mobileAnunciaPropiedad .anuncioFxOutline,
+  .mobileAnunciaPropiedad .anuncioPulseDot {
+    display: none;
   }
 
   .mobileAnunciaPropiedad .anuncioIconViewport,
@@ -2134,6 +2144,23 @@
     max-width: none;
     text-align: left;
     height: 24px;
+  }
+
+  .mobileAnunciaPropiedad::before,
+  .mobileAnunciaPropiedad::after {
+    inset: -2px;
+    opacity: 0.55;
+  }
+
+  .mobileAnunciaPropiedad::after {
+    inset: -4px;
+  }
+
+  .mobileAnunciaPropiedad .anuncioSweep {
+    inset: 1px;
+    border-radius: inherit;
+    opacity: 0.75;
+    filter: saturate(0.9);
   }
 
 }

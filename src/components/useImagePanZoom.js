@@ -15,6 +15,7 @@ export default function useImagePanZoom({
 } = {}) {
   const stageRef = useRef(null);
   const imageRef = useRef(null);
+  const suppressClickRef = useRef(false);
   const gestureRef = useRef({
     isPanning: false,
     startX: 0,
@@ -26,6 +27,7 @@ export default function useImagePanZoom({
     swipeStartX: 0,
     swipeStartY: 0,
     activeMode: null,
+    pointerId: null,
   });
   const [transform, setTransform] = useState({
     scale: MIN_SCALE,
@@ -67,6 +69,7 @@ export default function useImagePanZoom({
 
   const reset = useCallback(() => {
     setTransform({ scale: MIN_SCALE, x: 0, y: 0 });
+    suppressClickRef.current = false;
     gestureRef.current = {
       isPanning: false,
       startX: 0,
@@ -78,10 +81,12 @@ export default function useImagePanZoom({
       swipeStartX: 0,
       swipeStartY: 0,
       activeMode: null,
+      pointerId: null,
     };
   }, []);
 
   const startPan = useCallback((clientX, clientY) => {
+    suppressClickRef.current = false;
     gestureRef.current.isPanning = true;
     gestureRef.current.activeMode = "pan";
     gestureRef.current.startX = clientX;
@@ -89,6 +94,14 @@ export default function useImagePanZoom({
     gestureRef.current.originOffsetX = transform.x;
     gestureRef.current.originOffsetY = transform.y;
   }, [transform.x, transform.y]);
+
+  const endPointerGesture = useCallback(() => {
+    gestureRef.current.isPanning = false;
+    gestureRef.current.pointerId = null;
+    if (gestureRef.current.activeMode === "pan") {
+      gestureRef.current.activeMode = null;
+    }
+  }, []);
 
   const handleWheel = useCallback((event) => {
     event.preventDefault();
@@ -103,6 +116,7 @@ export default function useImagePanZoom({
   }, [applyTransform, maxScale, reset, transform.scale, transform.x, transform.y]);
 
   const handleMouseDown = useCallback((event) => {
+    event.preventDefault();
     event.stopPropagation();
     if (transform.scale <= 1) return;
     startPan(event.clientX, event.clientY);
@@ -113,6 +127,9 @@ export default function useImagePanZoom({
     event.preventDefault();
     const deltaX = event.clientX - gestureRef.current.startX;
     const deltaY = event.clientY - gestureRef.current.startY;
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+      suppressClickRef.current = true;
+    }
     applyTransform(
       transform.scale,
       gestureRef.current.originOffsetX + deltaX,
@@ -120,12 +137,49 @@ export default function useImagePanZoom({
     );
   }, [applyTransform, transform.scale]);
 
-  const endPointerGesture = useCallback(() => {
-    gestureRef.current.isPanning = false;
-    if (gestureRef.current.activeMode === "pan") {
-      gestureRef.current.activeMode = null;
-    }
+  const handlePointerDown = useCallback((event) => {
+    if (event.pointerType === "mouse") return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (transform.scale <= 1 || gestureRef.current.activeMode === "pinch") return;
+    gestureRef.current.pointerId = event.pointerId;
+    startPan(event.clientX, event.clientY);
+  }, [startPan, transform.scale]);
+
+  const handleDragStart = useCallback((event) => {
+    event.preventDefault();
   }, []);
+
+  const handlePointerMove = useCallback((event) => {
+    if (!gestureRef.current.isPanning) return;
+    if (
+      gestureRef.current.pointerId !== null &&
+      event.pointerId !== gestureRef.current.pointerId
+    ) {
+      return;
+    }
+    event.preventDefault();
+    const deltaX = event.clientX - gestureRef.current.startX;
+    const deltaY = event.clientY - gestureRef.current.startY;
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+      suppressClickRef.current = true;
+    }
+    applyTransform(
+      transform.scale,
+      gestureRef.current.originOffsetX + deltaX,
+      gestureRef.current.originOffsetY + deltaY,
+    );
+  }, [applyTransform, transform.scale]);
+
+  const handlePointerUp = useCallback((event) => {
+    if (
+      gestureRef.current.pointerId !== null &&
+      event.pointerId !== gestureRef.current.pointerId
+    ) {
+      return;
+    }
+    endPointerGesture();
+  }, [endPointerGesture]);
 
   const handleTouchStart = useCallback((event) => {
     event.stopPropagation();
@@ -177,6 +231,9 @@ export default function useImagePanZoom({
       const touch = touches[0];
       const deltaX = touch.clientX - gestureRef.current.startX;
       const deltaY = touch.clientY - gestureRef.current.startY;
+      if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+        suppressClickRef.current = true;
+      }
       applyTransform(
         transform.scale,
         gestureRef.current.originOffsetX + deltaX,
@@ -204,6 +261,7 @@ export default function useImagePanZoom({
     gesture.isPanning = false;
     gesture.pinchStartDistance = 0;
     gesture.activeMode = null;
+    gesture.pointerId = null;
   }, [onSwipeNext, onSwipePrev, transform.scale]);
 
   useEffect(() => {
@@ -212,19 +270,42 @@ export default function useImagePanZoom({
     return () => window.removeEventListener("mouseup", handleMouseUp);
   }, [endPointerGesture]);
 
+  useEffect(() => {
+    const stageEl = stageRef.current;
+    if (!stageEl) return undefined;
+    const wheelListener = (event) => {
+      handleWheel(event);
+    };
+    stageEl.addEventListener("wheel", wheelListener, { passive: false });
+    return () => {
+      stageEl.removeEventListener("wheel", wheelListener);
+    };
+  }, [handleWheel]);
+
+  const consumeSuppressedClick = useCallback(() => {
+    if (!suppressClickRef.current) return false;
+    suppressClickRef.current = false;
+    return true;
+  }, []);
+
   return {
     stageRef,
     imageRef,
     scale: transform.scale,
     offsetX: transform.x,
     offsetY: transform.y,
+    consumeSuppressedClick,
     reset,
     bind: {
-      onWheel: handleWheel,
       onMouseDown: handleMouseDown,
       onMouseMove: handleMouseMove,
       onMouseUp: endPointerGesture,
       onMouseLeave: endPointerGesture,
+      onPointerDown: handlePointerDown,
+      onPointerMove: handlePointerMove,
+      onPointerUp: handlePointerUp,
+      onPointerCancel: endPointerGesture,
+      onDragStart: handleDragStart,
       onTouchStart: handleTouchStart,
       onTouchMove: handleTouchMove,
       onTouchEnd: handleTouchEnd,

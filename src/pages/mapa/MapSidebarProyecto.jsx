@@ -1,4 +1,5 @@
 import { withApiBase } from "../../config/api.js";
+import { formatLocalDateForApi, formatLocalTimeForApi } from "../../utils/dateTime.js";
 import React, {
   Suspense,
   useState,
@@ -157,9 +158,9 @@ const getUtilityStatus = (value) => {
   }
 
   return {
-    label: "Por confirmar",
-    className: "utilityStatusUnknown",
-    icon: <FaQuestionCircle />,
+    label: "No disponible",
+    className: "utilityStatusNo",
+    icon: <FaTimesCircle />,
   };
 };
 
@@ -584,40 +585,6 @@ const ProyectoSidebar = ({
     geoCotizadorMode,
     projectLots,
   ]);
-  const availableUtilities = useMemo(
-    () =>
-      projectUtilityFields.filter((field) => {
-        const value = proyecto?.[field.key];
-        return value === true || value === 1 || value === "1";
-      }).length,
-    [proyecto],
-  );
-  const visibleSpaces = useMemo(
-    () =>
-      (Array.isArray(espacios) ? espacios : []).filter(
-        (space) => Number(space?.visible_mapa ?? 1) === 1,
-      ),
-    [espacios],
-  );
-  const totalSpaceArea = useMemo(
-    () =>
-      visibleSpaces.reduce((acc, space) => {
-        const area = Number(space?.area_m2);
-        return acc + (Number.isFinite(area) ? area : 0);
-      }, 0),
-    [visibleSpaces],
-  );
-  const topSpaceTypes = useMemo(() => {
-    const counter = new Map();
-    visibleSpaces.forEach((space) => {
-      const key =
-        space?.tipoespacio?.nombre || space?.tipoespacio?.slug || "Espacio";
-      counter.set(key, (counter.get(key) || 0) + 1);
-    });
-    return Array.from(counter.entries())
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 4);
-  }, [visibleSpaces]);
   const handleShare = async () => {
     if (!shareUrl) return;
     const title = `GeoHabita · ${proyecto?.nombreproyecto || "Proyecto"}`;
@@ -710,6 +677,11 @@ const ProyectoSidebar = ({
     onClose();
   }, [onClose]);
 
+  const closeFullscreen = useCallback(() => {
+    setFullscreenImgIndex(null);
+    fullscreenPanZoom.reset();
+  }, [fullscreenPanZoom]);
+
   const scrollToInmoFooter = useCallback(() => {
     inmoFooterRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -728,8 +700,8 @@ const ProyectoSidebar = ({
           },
           body: JSON.stringify({
             idproyecto: proyecto.idproyecto,
-            dia: new Date().toISOString().split("T")[0], // YYYY-MM-DD
-            hora: new Date().toLocaleTimeString(), // HH:MM:SS
+            dia: formatLocalDateForApi(),
+            hora: formatLocalTimeForApi(),
             redSocial: redSocial,
           }),
         },
@@ -782,10 +754,17 @@ const ProyectoSidebar = ({
   }, [validImages, currentImg, fullscreenImgIndex]);
 
   useEffect(() => {
-    const esc = (e) => e.key === "Escape" && cerrarSidebar();
+    const esc = (e) => {
+      if (e.key !== "Escape") return;
+      if (fullscreenImgIndex !== null) {
+        closeFullscreen();
+        return;
+      }
+      cerrarSidebar();
+    };
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
-  }, [cerrarSidebar]);
+  }, [cerrarSidebar, closeFullscreen, fullscreenImgIndex]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -1676,6 +1655,54 @@ const ProyectoSidebar = ({
                     )}
                   </div>
 
+                  <div className={styles.utilitiesCard} data-gsap="card">
+                    <div className={styles.utilitiesHero}>
+                      <div className={styles.utilitiesHeroCopy}>
+                        <span className={styles.utilitiesKicker}>
+                          GeoHabita presenta
+                        </span>
+                        <h3 className={styles.utilitiesTitle}>
+                          Servicios del Proyecto
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className={styles.utilitiesGrid}>
+                      {projectUtilityFields.map((field) => {
+                        const status = getUtilityStatus(proyecto?.[field.key]);
+                        const UtilityIcon = field.icon;
+                        return (
+                          <article
+                            key={field.key}
+                            className={`${styles.utilityPanel} ${styles[field.accent]} ${styles[status.className]}`}
+                            data-gsap="utility"
+                          >
+                            <div className={styles.utilityPanelTop}>
+                              <div className={styles.utilityIdentity}>
+                                <span
+                                  className={styles.utilityOrb}
+                                  data-gsap="utility-icon"
+                                >
+                                  <UtilityIcon />
+                                </span>
+                                <div className={styles.utilityBody}>
+                                  <strong className={styles.utilityTitle}>
+                                    {field.label}
+                                  </strong>
+                                </div>
+                              </div>
+                              <span
+                                className={`${styles.utilityChip} ${styles[status.className]}`}
+                              >
+                                {status.icon}
+                              </span>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {shouldUseLoteDrivenFinancing && projectLots.length > 0 && (
                     <div className={styles.geoCotizadorCard} data-gsap="card">
                       <div className={styles.geoCotizadorHeader}>
@@ -2158,128 +2185,6 @@ const ProyectoSidebar = ({
                     </p>
                   </div>
 
-                  {visibleSpaces.length > 0 && (
-                    <div className={styles.spacesCard} data-gsap="card">
-                      <div className={styles.spacesHeader}>
-                        <div>
-                          <span className={styles.spacesKicker}>
-                            GeoHabita presenta
-                          </span>
-                          <h3 className={styles.sectionTitle}>
-                            Espacios del proyecto
-                          </h3>
-                        </div>
-                        <div className={styles.spacesStats}>
-                          <strong>{visibleSpaces.length}</strong>
-                          <span>
-                            {visibleSpaces.length === 1
-                              ? "espacio"
-                              : "espacios"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className={styles.spacesSummary}>
-                        <div className={styles.spaceHighlight}>
-                          <FaMapMarkedAlt />
-                          <div>
-                            <strong>
-                              {Math.round(totalSpaceArea).toLocaleString(
-                                "es-PE",
-                              )}{" "}
-                              m²
-                            </strong>
-                            <span>Área total destinada a espacios</span>
-                          </div>
-                        </div>
-                        <div className={styles.spaceTypeChips}>
-                          {topSpaceTypes.map(([label, count], index) => (
-                            <span
-                              key={`space-type-${label}-${count}-${index}`}
-                              className={styles.spaceTypeChip}
-                            >
-                              {label} · {count}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className={styles.spaceListMini}>
-                        {visibleSpaces.slice(0, 5).map((space) => (
-                          <article
-                            key={space.idespacio}
-                            className={styles.spaceMiniCard}
-                          >
-                            <div className={styles.spaceMiniHeader}>
-                              <strong>{space.nombre}</strong>
-                              <span>
-                                {Math.round(Number(space.area_m2) || 0)} m²
-                              </span>
-                            </div>
-                            <small>
-                              {space?.tipoespacio?.nombre || "Espacio"}
-                              {space.destacado ? " · Destacado" : ""}
-                            </small>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={styles.utilitiesCard} data-gsap="card">
-                    <div className={styles.utilitiesHero}>
-                      <div className={styles.utilitiesHeroCopy}>
-                        <span className={styles.utilitiesKicker}>
-                          GeoHabita presenta
-                        </span>
-                        <h3 className={styles.utilitiesTitle}>
-                          Servicios del Proyecto
-                        </h3>
-                      </div>
-                      {/* <div className={styles.utilitiesScore}>
-                        <span>Servicios</span>
-                        <strong>{availableUtilities}/6</strong>
-                      </div> */}
-                    </div>
-
-                    <div className={styles.utilitiesGrid}>
-                      {projectUtilityFields.map((field) => {
-                        const status = getUtilityStatus(proyecto?.[field.key]);
-                        const UtilityIcon = field.icon;
-                        return (
-                          <article
-                            key={field.key}
-                            className={`${styles.utilityPanel} ${styles[field.accent]} ${styles[status.className]}`}
-                            data-gsap="utility"
-                          >
-                            <div className={styles.utilityPanelTop}>
-                              <div className={styles.utilityIdentity}>
-                                <span
-                                  className={styles.utilityOrb}
-                                  data-gsap="utility-icon"
-                                >
-                                  <UtilityIcon />
-                                </span>
-                                <div className={styles.utilityBody}>
-                                  <strong className={styles.utilityTitle}>
-                                    {field.label}
-                                  </strong>
-                                </div>
-                              </div>
-                              <span
-                                className={`${styles.utilityChip} ${styles[status.className]}`}
-                              >
-                                {status.className === "utilityStatusUnknown"
-                                  ? "?"
-                                  : status.icon}
-                              </span>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </div>
-
                   {proyecto.idtipoinmobiliaria === 2 && (
                     <>
                       <h3 className={styles.sectionTitle}>Características</h3>
@@ -2372,16 +2277,20 @@ const ProyectoSidebar = ({
       {fullscreenImgIndex !== null && validImages.length > 0 && (
         <div
           className={styles.fullscreenOverlay}
-          mobileSidebar
-          onClick={() => setFullscreenImgIndex(null)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeFullscreen();
+            }
+          }}
         >
-          {/* Botón Cerrar (opcional, ya que el fondo cierra) */}
           <button
-            className={styles.closeBtn}
+            type="button"
+            className={styles.closeFsBtn}
             onClick={(e) => {
               e.stopPropagation();
-              setFullscreenImgIndex(null);
+              closeFullscreen();
             }}
+            aria-label="Cerrar visor"
           >
             ✕
           </button>
@@ -2414,7 +2323,13 @@ const ProyectoSidebar = ({
           <div
             ref={fullscreenPanZoom.stageRef}
             className={styles.fullscreenStage}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (fullscreenPanZoom.consumeSuppressedClick()) {
+                e.preventDefault();
+                return;
+              }
+            }}
             {...fullscreenPanZoom.bind}
           >
             <img
@@ -2424,6 +2339,9 @@ const ProyectoSidebar = ({
               )}
               className={styles.fullscreenImg}
               alt="Zoom"
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              onClick={(e) => e.stopPropagation()}
               style={{
                 transform: `translate3d(${fullscreenPanZoom.offsetX}px, ${fullscreenPanZoom.offsetY}px, 0) scale(${fullscreenPanZoom.scale})`,
               }}

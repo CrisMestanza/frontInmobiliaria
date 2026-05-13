@@ -1458,13 +1458,23 @@ const Viewer360Modal = ({
     const cached = projectLotesCacheRef.current.get(key);
     if (cached) return cached;
 
-    const urls = [
-      `/api/getLoteProyecto/${key}`,
-      `/api/listPuntosLoteProyecto/${key}/`,
-    ];
+    const urls = [`/api/listPuntosLoteProyecto/${key}/`];
+
+    const token = localStorage.getItem("access");
+    if (token) {
+      urls.push(`/api/getLoteProyecto/${key}`);
+    }
 
     for (const url of urls) {
-      const res = await fetch(buildApiUrl(url));
+      const init =
+        url.includes("/api/getLoteProyecto/") && token
+          ? {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          : undefined;
+      const res = await fetch(buildApiUrl(url), init);
       if (!res.ok) continue;
       const data = await res.json().catch(() => []);
       const lotes = Array.isArray(data) ? data : [];

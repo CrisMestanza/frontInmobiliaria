@@ -1,4 +1,5 @@
 import { withApiBase } from "../../config/api.js";
+import { formatLocalDateForApi, formatLocalTimeForApi } from "../../utils/dateTime.js";
 import React, {
   useState,
   useEffect,
@@ -2640,8 +2641,8 @@ function MyMap() {
         inmo: null,
       });
 
-      const fecha = new Date().toISOString().split("T")[0];
-      const hora = new Date().toLocaleTimeString("en-GB", { hour12: false });
+      const fecha = formatLocalDateForApi();
+      const hora = formatLocalTimeForApi();
 
       const clickPayload = JSON.stringify({
         idproyecto: proyecto.idproyecto,
@@ -2874,7 +2875,7 @@ function MyMap() {
         {/* Logo a la izquierda fuera de la barra central */}
         <Link to="/" className={styles.logoContainer} aria-label="Ir a inicio">
           <img
-            src="/habitasinfondo.png"
+            src={isDark ? "/geohabitalight.png" : "/geohabita.png"}
             alt="GeoHabita Logo"
             className={styles.logo}
           />

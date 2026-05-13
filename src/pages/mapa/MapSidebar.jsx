@@ -1,4 +1,5 @@
 import { withApiBase } from "../../config/api.js";
+import { formatLocalDateForApi, formatLocalTimeForApi } from "../../utils/dateTime.js";
 import React, {
   Suspense,
   useState,
@@ -365,8 +366,8 @@ const LoteSidebarOverlay = ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             idproyecto: proyecto?.idproyecto ?? null,
-            dia: new Date().toISOString().split("T")[0],
-            hora: new Date().toLocaleTimeString(),
+            dia: formatLocalDateForApi(),
+            hora: formatLocalTimeForApi(),
             redSocial,
           }),
         },
@@ -619,6 +620,10 @@ const LoteSidebarOverlay = ({
     onSwipeNext: validImages.length > 1 ? showNextFullscreenImage : undefined,
     onSwipePrev: validImages.length > 1 ? showPrevFullscreenImage : undefined,
   });
+  const closeFullscreen = useCallback(() => {
+    setFullscreenImgIndex(null);
+    fullscreenPanZoom.reset();
+  }, [fullscreenPanZoom]);
   const financingWhatsAppHref =
     financingScenario && phoneNumber
       ? `https://wa.me/${phoneNumber.replace(/[^\d]/g, "")}?text=${encodeURIComponent(
@@ -661,10 +666,17 @@ const LoteSidebarOverlay = ({
   }, []);
 
   useEffect(() => {
-    const esc = (e) => e.key === "Escape" && cerrarSidebar();
+    const esc = (e) => {
+      if (e.key !== "Escape") return;
+      if (fullscreenImgIndex !== null) {
+        closeFullscreen();
+        return;
+      }
+      cerrarSidebar();
+    };
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
-  }, [cerrarSidebar]);
+  }, [cerrarSidebar, closeFullscreen, fullscreenImgIndex]);
 
   useEffect(() => {
     if (validImages.length === 0) return;
@@ -938,7 +950,7 @@ const LoteSidebarOverlay = ({
                     <div className={styles.inmoHeader}>
                       <div className={styles.inmoIcon}>🏢</div>
 
-                      <div>
+                      <div className={styles.inmoIdentity}>
                         <span className={styles.inmoLabel}>
                           Inmobiliaria / Persona
                         </span>
@@ -978,19 +990,20 @@ const LoteSidebarOverlay = ({
                   </p>
 
                   <div className={styles.priceContainer} data-gsap="card">
-                    <div style={{ display: "block", marginRight: "3px" }}>
+                    <div className={styles.priceSummary}>
                       <img
                         src={lote.bandera}
                         alt=""
                         className={styles.flagIcon}
                       />
-                      <span className={styles.labelSmall}>
-                        {" "}
-                        Precio del Lote:
-                      </span>
-                      <span className={styles.priceValue}>
-                        {lote.moneda} {lote.precio}
-                      </span>
+                      <div className={styles.priceCopy}>
+                        <span className={styles.labelSmall}>
+                          Precio del Lote
+                        </span>
+                        <span className={styles.priceValue}>
+                          {formatMoney(lote.precio, lote.moneda)}
+                        </span>
+                      </div>
                     </div>
 
                     <div className={styles.pantallaCelul}>
@@ -1384,6 +1397,41 @@ const LoteSidebarOverlay = ({
                           </label>
                         </div>
 
+                        <div className={styles.financingActionRow}>
+                          <button
+                            type="button"
+                            className={styles.financingPayBtn}
+                          >
+                            <span className={styles.financingPayCopy}>
+                              <small>Precio a pagar</small>
+                              <strong>
+                                {formatMoney(
+                                  financingScenario.monthlyEstimate,
+                                  financingCurrency,
+                                )}
+                              </strong>
+                              <span>Cuota estimada mensual</span>
+                            </span>
+                          </button>
+
+                          <a
+                            href={financingWhatsAppHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`${styles.financingWhatsAppBtn} ${!financingWhatsAppHref ? styles.financingWhatsAppBtnDisabled : ""}`}
+                            aria-disabled={!financingWhatsAppHref}
+                            onClick={(e) => {
+                              if (!financingWhatsAppHref) e.preventDefault();
+                            }}
+                          >
+                            <FaWhatsapp />
+                            <span className={styles.financingWhatsAppCopy}>
+                              <small>Enviar Financiamiento</small>
+                              <strong>Lo quiero</strong>
+                            </span>
+                          </a>
+                        </div>
+
                         <div className={styles.financingBudgetCard}>
                           <div className={styles.financingBudgetHeader}>
                             <div>
@@ -1439,41 +1487,6 @@ const LoteSidebarOverlay = ({
                               No encontramos una combinación dentro de ese presupuesto. Prueba con una cuota mayor o un plazo más largo.
                             </p>
                           ) : null}
-                        </div>
-
-                        <div className={styles.financingActionRow}>
-                          <button
-                            type="button"
-                            className={styles.financingPayBtn}
-                          >
-                            <span className={styles.financingPayCopy}>
-                              <small>Precio a pagar</small>
-                              <strong>
-                                {formatMoney(
-                                  financingScenario.monthlyEstimate,
-                                  financingCurrency,
-                                )}
-                              </strong>
-                              <span>Cuota estimada mensual</span>
-                            </span>
-                          </button>
-
-                          <a
-                            href={financingWhatsAppHref}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`${styles.financingWhatsAppBtn} ${!financingWhatsAppHref ? styles.financingWhatsAppBtnDisabled : ""}`}
-                            aria-disabled={!financingWhatsAppHref}
-                            onClick={(e) => {
-                              if (!financingWhatsAppHref) e.preventDefault();
-                            }}
-                          >
-                            <FaWhatsapp />
-                            <span className={styles.financingWhatsAppCopy}>
-                              <small>Enviar Financiamiento</small>
-                              <strong>Lo quiero</strong>
-                            </span>
-                          </a>
                         </div>
 
                         <AmortizationChart
@@ -1612,19 +1625,29 @@ const LoteSidebarOverlay = ({
                     </a>
                   </div>
 
-                  <div className={styles.aboutCard} id="lote-inmo-detalle">
-                    <span className={styles.aboutBadge}>Inmobiliaria</span>
-                    <h3 className={styles.sectionTitle}>Sobre quien publica</h3>
-                    {inmo?.descripcion ? (
-                      <p className={styles.inmoDescription}>
-                        {inmo.descripcion}
-                      </p>
-                    ) : (
-                      <p className={styles.inmoDescription}>
-                        Información comercial del proyecto y atención directa
-                        con la inmobiliaria.
-                      </p>
-                    )}
+                  <div
+                    id="lote-inmo-detalle"
+                    className={styles.inmoCardFooter}
+                    data-gsap="card"
+                  >
+                    <div className={styles.inmoFooterIntro}>
+                      <span className={styles.inmoLabel}>
+                        Inmobiliaria / Persona
+                      </span>
+                      <h3 className={styles.inmoFooterName}>
+                        {inmo?.nombreinmobiliaria}
+                      </h3>
+                      {inmo?.descripcion ? (
+                        <p className={styles.inmoFooterDescription}>
+                          {inmo.descripcion}
+                        </p>
+                      ) : (
+                        <p className={styles.inmoFooterDescription}>
+                          Información comercial del proyecto y atención directa
+                          con la inmobiliaria.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </>
@@ -1647,8 +1670,24 @@ const LoteSidebarOverlay = ({
       {fullscreenImgIndex !== null && validImages.length > 0 && (
         <div
           className={styles.fullscreenOverlay}
-          onClick={() => setFullscreenImgIndex(null)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeFullscreen();
+            }
+          }}
         >
+          <button
+            type="button"
+            className={styles.closeFsBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeFullscreen();
+            }}
+            aria-label="Cerrar visor"
+          >
+            ✕
+          </button>
+
           {/* Botón Anterior */}
           <button
             className={`${styles.navArrowFullscreen} ${styles.arrowLeft}`}
@@ -1663,7 +1702,13 @@ const LoteSidebarOverlay = ({
           <div
             ref={fullscreenPanZoom.stageRef}
             className={styles.fullscreenStage}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (fullscreenPanZoom.consumeSuppressedClick()) {
+                e.preventDefault();
+                return;
+              }
+            }}
             {...fullscreenPanZoom.bind}
           >
             <img
@@ -1673,6 +1718,9 @@ const LoteSidebarOverlay = ({
               )}
               className={styles.fullscreenImg}
               alt="Zoom"
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              onClick={(e) => e.stopPropagation()}
               style={{
                 transform: `translate3d(${fullscreenPanZoom.offsetX}px, ${fullscreenPanZoom.offsetY}px, 0) scale(${fullscreenPanZoom.scale})`,
               }}
@@ -1709,16 +1757,6 @@ const LoteSidebarOverlay = ({
             Reset
           </button>
 
-          <button
-            className={styles.closeFsBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              setFullscreenImgIndex(null);
-            }}
-            aria-label="Cerrar visor"
-          >
-            ✕
-          </button>
         </div>
       )}
     </>
