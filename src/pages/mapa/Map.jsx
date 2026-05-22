@@ -1760,7 +1760,7 @@ function MyMap() {
     }
     setShareResolveStatus("pending");
 
-    openSharedSelection(sharedProyectoId, sharedLoteId);
+    void openSharedSelection(sharedProyectoId, sharedLoteId);
   }, [inmoId, sharedProyectoId, sharedLoteId]);
 
   useEffect(() => {
@@ -2287,148 +2287,162 @@ function MyMap() {
     setIsProyectoLoading(!!proyectoIdRaw || !!loteIdRaw);
     setIsLoteLoading(!!loteIdRaw);
 
-    const resolved = await resolveShareTarget(
-      proyectoIdRaw,
-      loteIdRaw,
-      controller.signal,
-    );
-    if (controller.signal.aborted) return;
+    let resolved;
+    let proyectoId;
+    let loteId;
 
-    let proyectoId = resolved.proyectoId;
-    const loteId = resolved.loteId;
-
-    if (loteId) {
-      const loteDetalle = await loadLoteDetalleShareWithRetry(
-        loteId,
+    try {
+      resolved = await resolveShareTarget(
+        proyectoIdRaw,
+        loteIdRaw,
         controller.signal,
       );
       if (controller.signal.aborted) return;
 
-      const quickProyecto = loteDetalle?.proyecto ?? null;
-      const quickInmo = loteDetalle?.inmobiliaria ?? null;
-      const quickLote = normalizeLoteDetalle(loteDetalle?.lote ?? null);
-      const bundledProjectImages = normalizeProyectoImagenes(
-        loteDetalle?.imagenes_proyecto || [],
-      );
-      const bundledLoteImages = normalizeLoteImagenes(
-        loteDetalle?.imagenes_lote || [],
-      );
+      proyectoId = resolved.proyectoId;
+      loteId = resolved.loteId;
 
-      if (!proyectoId && quickProyecto?.idproyecto) {
-        proyectoId = Number(quickProyecto.idproyecto);
-      }
+      if (loteId) {
+        const loteDetalle = await loadLoteDetalleShareWithRetry(
+          loteId,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
 
-      if (
-        inmoId &&
-        quickInmo?.idinmobiliaria &&
-        String(inmoId) !== String(quickInmo.idinmobiliaria)
-      ) {
-        console.warn("Link compartido no coincide con la inmobiliaria actual.");
-        setShareResolveStatus("failed");
+        const quickProyecto = loteDetalle?.proyecto ?? null;
+        const quickInmo = loteDetalle?.inmobiliaria ?? null;
+        const quickLote = normalizeLoteDetalle(loteDetalle?.lote ?? null);
+        const bundledProjectImages = normalizeProyectoImagenes(
+          loteDetalle?.imagenes_proyecto || [],
+        );
+        const bundledLoteImages = normalizeLoteImagenes(
+          loteDetalle?.imagenes_lote || [],
+        );
+
+        if (!proyectoId && quickProyecto?.idproyecto) {
+          proyectoId = Number(quickProyecto.idproyecto);
+        }
+
+        if (
+          inmoId &&
+          quickInmo?.idinmobiliaria &&
+          String(inmoId) !== String(quickInmo.idinmobiliaria)
+        ) {
+          console.warn("Link compartido no coincide con la inmobiliaria actual.");
+          setShareResolveStatus("failed");
+          setIsProyectoLoading(false);
+          setIsLoteLoading(false);
+          return;
+        }
+
+        if (quickProyecto) {
+          setselectedProyecto({
+            ...quickProyecto,
+            inmo: quickInmo,
+          });
+          if (bundledProjectImages.length) {
+            setImagenesProyecto(bundledProjectImages);
+            setCached(
+              "projectImages",
+              quickProyecto.idproyecto,
+              "project_images",
+              bundledProjectImages,
+            );
+          }
+        }
+        if (quickLote) {
+          setSelectedLote({
+            lote: quickLote,
+            inmo: quickInmo,
+          });
+          setLotesProyectoBase([quickLote]);
+          setLotesProyecto([quickLote]);
+          if (bundledLoteImages.length) {
+            setImagenesLote(bundledLoteImages);
+            setCached("loteImages", quickLote.idlote, "lote_images", bundledLoteImages);
+          }
+          setIsLoteLoading(false);
+          if (mapRef.current) {
+            focusMapForShare({
+              map: mapRef.current,
+              proyectoDetalle: quickProyecto,
+              dataPuntos: [],
+              loteTarget: quickLote,
+            });
+            pendingShareFocusRef.current = null;
+          } else {
+            pendingShareFocusRef.current = {
+              proyectoDetalle: quickProyecto,
+              dataPuntos: [],
+              loteTarget: quickLote,
+            };
+          }
+        }
+      } else if (proyectoId) {
+        const proyectoShare = await loadProyectoShareWithRetry(
+          proyectoId,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+
+        const quickProyecto = proyectoShare?.proyecto ?? null;
+        const quickInmo = proyectoShare?.inmobiliaria ?? null;
+        const quickPuntos = normalizePuntosWithOrder(proyectoShare?.puntos || []);
+        const bundledProjectImages = normalizeProyectoImagenes(
+          proyectoShare?.imagenes_proyecto || [],
+        );
+
+        if (
+          inmoId &&
+          quickInmo?.idinmobiliaria &&
+          String(inmoId) !== String(quickInmo.idinmobiliaria)
+        ) {
+          console.warn("Proyecto compartido no pertenece a esta inmobiliaria.");
+          setShareResolveStatus("failed");
+          return;
+        }
+
+        if (quickProyecto) {
+          setselectedProyecto({
+            ...quickProyecto,
+            inmo: quickInmo,
+          });
+          if (bundledProjectImages.length) {
+            setImagenesProyecto(bundledProjectImages);
+            setCached(
+              "projectImages",
+              quickProyecto.idproyecto,
+              "project_images",
+              bundledProjectImages,
+            );
+          }
+        }
+        setPuntos(quickPuntos);
         setIsProyectoLoading(false);
-        setIsLoteLoading(false);
-        return;
-      }
-
-      if (quickProyecto) {
-        setselectedProyecto({
-          ...quickProyecto,
-          inmo: quickInmo,
-        });
-        if (bundledProjectImages.length) {
-          setImagenesProyecto(bundledProjectImages);
-          setCached(
-            "projectImages",
-            quickProyecto.idproyecto,
-            "project_images",
-            bundledProjectImages,
-          );
-        }
-      }
-      if (quickLote) {
-        setSelectedLote({
-          lote: quickLote,
-          inmo: quickInmo,
-        });
-        setLotesProyectoBase([quickLote]);
-        setLotesProyecto([quickLote]);
-        if (bundledLoteImages.length) {
-          setImagenesLote(bundledLoteImages);
-          setCached("loteImages", quickLote.idlote, "lote_images", bundledLoteImages);
-        }
-        setIsLoteLoading(false);
         if (mapRef.current) {
           focusMapForShare({
             map: mapRef.current,
             proyectoDetalle: quickProyecto,
-            dataPuntos: [],
-            loteTarget: quickLote,
+            dataPuntos: quickPuntos,
+            loteTarget: null,
           });
           pendingShareFocusRef.current = null;
         } else {
           pendingShareFocusRef.current = {
             proyectoDetalle: quickProyecto,
-            dataPuntos: [],
-            loteTarget: quickLote,
+            dataPuntos: quickPuntos,
+            loteTarget: null,
           };
         }
       }
-    } else if (proyectoId) {
-      const proyectoShare = await loadProyectoShareWithRetry(
-        proyectoId,
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-
-      const quickProyecto = proyectoShare?.proyecto ?? null;
-      const quickInmo = proyectoShare?.inmobiliaria ?? null;
-      const quickPuntos = normalizePuntosWithOrder(proyectoShare?.puntos || []);
-      const bundledProjectImages = normalizeProyectoImagenes(
-        proyectoShare?.imagenes_proyecto || [],
-      );
-
-      if (
-        inmoId &&
-        quickInmo?.idinmobiliaria &&
-        String(inmoId) !== String(quickInmo.idinmobiliaria)
-      ) {
-        console.warn("Proyecto compartido no pertenece a esta inmobiliaria.");
-        setShareResolveStatus("failed");
-        return;
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("Error resolviendo link compartido:", err);
       }
-
-      if (quickProyecto) {
-        setselectedProyecto({
-          ...quickProyecto,
-          inmo: quickInmo,
-        });
-        if (bundledProjectImages.length) {
-          setImagenesProyecto(bundledProjectImages);
-          setCached(
-            "projectImages",
-            quickProyecto.idproyecto,
-            "project_images",
-            bundledProjectImages,
-          );
-        }
-      }
-      setPuntos(quickPuntos);
+      setShareResolveStatus("failed");
       setIsProyectoLoading(false);
-      if (mapRef.current) {
-        focusMapForShare({
-          map: mapRef.current,
-          proyectoDetalle: quickProyecto,
-          dataPuntos: quickPuntos,
-          loteTarget: null,
-        });
-        pendingShareFocusRef.current = null;
-      } else {
-        pendingShareFocusRef.current = {
-          proyectoDetalle: quickProyecto,
-          dataPuntos: quickPuntos,
-          loteTarget: null,
-        };
-      }
+      setIsLoteLoading(false);
+      return;
     }
 
     if (!proyectoId) {
@@ -2456,13 +2470,13 @@ function MyMap() {
       setWalkingInfo(null);
       setDrivingInfo(null);
       setSelectedLote(null);
-        setLotesProyecto([]);
-        setLotesProyectoBase([]);
-        setPuntos([]);
-        setIconosProyecto([]);
-        setEspaciosProyecto([]);
-        setSelectedSpace(null);
-        setHoveredSpace(null);
+      setLotesProyecto([]);
+      setLotesProyectoBase([]);
+      setPuntos([]);
+      setIconosProyecto([]);
+      setEspaciosProyecto([]);
+      setSelectedSpace(null);
+      setHoveredSpace(null);
       setFiltroBotActivo(false);
       setSelectedTipo("");
       setSelectedRango("");
@@ -2532,7 +2546,6 @@ function MyMap() {
       }
 
       setPuntos(dataPuntos);
-
       setLotesProyectoBase(lotesConPuntos);
       setLotesProyecto(lotesConPuntos);
       setIconosProyecto(dataIconos);

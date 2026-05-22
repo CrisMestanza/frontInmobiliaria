@@ -3,6 +3,16 @@ import { authFetch } from "../../../config/authFetch.js";
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager, Marker } from "@react-google-maps/api";
+import {
+  area as turfArea,
+  difference as turfDifference,
+  featureCollection,
+  intersect as turfIntersect,
+  kinks as turfKinks,
+  polygon as turfPolygon,
+  union as turfUnion,
+  unkinkPolygon as turfUnkinkPolygon,
+} from "@turf/turf";
 import styles from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 import * as pdfjsLib from "pdfjs-dist";
@@ -15,6 +25,7 @@ import {
   Ruler,
   RotateCw,
   Save,
+  Scissors,
   Trash2,
   X,
 } from "lucide-react";
@@ -62,6 +73,189 @@ const normalizePolygonCoords = (coords) => {
   return ordered.map((p) => ({ lat: p.lat, lng: p.lng }));
 };
 
+const dataUrlToBlob = async (dataUrl) => {
+  const response = await fetch(dataUrl);
+  return await response.blob();
+};
+
+const getNextTempLoteId = (items) =>
+  (items || []).reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+
+const getCoordsBounds = (coords) => {
+  const valid = normalizePolygonCoords(coords);
+  if (!valid.length) return null;
+
+  return valid.reduce(
+    (acc, point) => ({
+      minLat: Math.min(acc.minLat, point.lat),
+      maxLat: Math.max(acc.maxLat, point.lat),
+      minLng: Math.min(acc.minLng, point.lng),
+      maxLng: Math.max(acc.maxLng, point.lng),
+    }),
+    {
+      minLat: valid[0].lat,
+      maxLat: valid[0].lat,
+      minLng: valid[0].lng,
+      maxLng: valid[0].lng,
+    },
+  );
+};
+
+const toClosedRing = (coords) => {
+  const normalized = normalizePolygonCoords(coords).map((point) => [point.lng, point.lat]);
+  if (normalized.length < 3) return [];
+  const [firstLng, firstLat] = normalized[0];
+  const [lastLng, lastLat] = normalized[normalized.length - 1];
+  if (Math.abs(firstLng - lastLng) > 1e-10 || Math.abs(firstLat - lastLat) > 1e-10) {
+    normalized.push([firstLng, firstLat]);
+  }
+  return normalized;
+};
+
+const ringToCoords = (ring) =>
+  (ring || [])
+    .slice(0, -1)
+    .map(([lng, lat]) => ({ lat, lng }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+
+const clipPolygonAgainstHalfPlane = (coords, axis, threshold, keepLess) => {
+  const input = normalizePolygonCoords(coords);
+  if (input.length < 3) return [];
+
+  const inside = (point) =>
+    keepLess ? point[axis] <= threshold + 1e-10 : point[axis] >= threshold - 1e-10;
+
+  const intersection = (start, end) => {
+    const delta = end[axis] - start[axis];
+    if (Math.abs(delta) < 1e-12) {
+      return { lat: start.lat, lng: start.lng };
+    }
+    const t = (threshold - start[axis]) / delta;
+    return {
+      lat: start.lat + (end.lat - start.lat) * t,
+      lng: start.lng + (end.lng - start.lng) * t,
+    };
+  };
+
+  const output = [];
+  for (let i = 0; i < input.length; i += 1) {
+    const current = input[i];
+    const previous = input[(i + input.length - 1) % input.length];
+    const currentInside = inside(current);
+    const previousInside = inside(previous);
+
+    if (currentInside) {
+      if (!previousInside) {
+        output.push(intersection(previous, current));
+      }
+      output.push(current);
+    } else if (previousInside) {
+      output.push(intersection(previous, current));
+    }
+  }
+
+  return normalizePolygonCoords(output);
+};
+
+const splitPolygonByAxis = (coords, axis) => {
+  const bounds = getCoordsBounds(coords);
+  if (!bounds) return null;
+
+  const threshold =
+    axis === "lng"
+      ? (bounds.minLng + bounds.maxLng) / 2
+      : (bounds.minLat + bounds.maxLat) / 2;
+
+  const first = clipPolygonAgainstHalfPlane(coords, axis, threshold, true);
+  const second = clipPolygonAgainstHalfPlane(coords, axis, threshold, false);
+
+  if (first.length < 3 || second.length < 3) {
+    return null;
+  }
+
+  return [first, second];
+};
+
+const polygonFromCoords = (coords) => {
+  const ring = toClosedRing(coords);
+  return ring.length >= 4 ? turfPolygon([ring]) : null;
+};
+
+const largestPolygonCoordsFromUnion = (feature) => {
+  if (!feature?.geometry) return null;
+  if (feature.geometry.type === "Polygon") {
+    return normalizePolygonCoords(ringToCoords(feature.geometry.coordinates[0]));
+  }
+  if (feature.geometry.type !== "MultiPolygon") return null;
+
+  const candidates = feature.geometry.coordinates
+    .map((polygonCoords) => normalizePolygonCoords(ringToCoords(polygonCoords[0])))
+    .filter((coords) => coords.length >= 3);
+
+  if (!candidates.length) return null;
+
+  return candidates.sort((a, b) => {
+    const featureA = polygonFromCoords(a);
+    const featureB = polygonFromCoords(b);
+    return turfArea(featureB) - turfArea(featureA);
+  })[0];
+};
+
+const getLargestFeatureFromCollection = (featureCollectionInput) => {
+  const features = Array.isArray(featureCollectionInput?.features)
+    ? featureCollectionInput.features.filter((feature) => feature?.geometry)
+    : [];
+  if (!features.length) return null;
+
+  return features.sort((a, b) => turfArea(b) - turfArea(a))[0];
+};
+
+const polygonHasSelfIntersection = (coords) => {
+  const polygonFeature = polygonFromCoords(coords);
+  if (!polygonFeature) return false;
+  try {
+    return (turfKinks(polygonFeature)?.features?.length || 0) > 0;
+  } catch {
+    return false;
+  }
+};
+
+const normalizeSelfIntersectingCoords = (coords) => {
+  const polygonFeature = polygonFromCoords(coords);
+  if (!polygonFeature) return null;
+
+  if (!polygonHasSelfIntersection(coords)) {
+    return normalizePolygonCoords(coords);
+  }
+
+  try {
+    const unkinked = turfUnkinkPolygon(polygonFeature);
+    const largest = getLargestFeatureFromCollection(unkinked);
+    if (!largest?.geometry) return null;
+    if (largest.geometry.type === "Polygon") {
+      return normalizePolygonCoords(ringToCoords(largest.geometry.coordinates[0]));
+    }
+    if (largest.geometry.type === "MultiPolygon") {
+      return largestPolygonCoordsFromUnion(largest);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const getDataUrlDimensions = (dataUrl) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      reject(new Error("No se pudo leer el tamaño de la imagen del PDF."));
+    };
+    img.src = dataUrl;
+  });
+
 export default function LoteModal({ onClose, idproyecto }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapCenter, setMapCenter] = useState(null);
@@ -90,11 +284,17 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [overlayBounds, setOverlayBounds] = useState(null);
   const [pdfRotation, setPdfRotation] = useState(0);
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
+  const [isExtractingLotes, setIsExtractingLotes] = useState(false);
+  const [extractionSummary, setExtractionSummary] = useState("");
+  const [selectedLoteIds, setSelectedLoteIds] = useState([]);
+  const [reviewModeEnabled, setReviewModeEnabled] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState("");
   const overlayRef = useRef(null);
   const drawingManagerRef = useRef(null);
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
   const esCasa = formValues[selectedLote]?.tipo_inmueble === 2;
   const polygonRefs = useRef({});
+  const nextGeneratedLoteIdRef = useRef(1);
 
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
@@ -734,6 +934,155 @@ export default function LoteModal({ onClose, idproyecto }) {
     }
   };
 
+  const recalculateLote = useCallback((lote) => {
+    const coords =
+      normalizeSelfIntersectingCoords(lote.coords) ||
+      normalizePolygonCoords(lote.coords);
+    return {
+      ...lote,
+      coords,
+      center: getPolygonCenter(coords),
+      area_total_m2:
+        lote.area_total_m2 !== undefined && lote.area_total_m2 !== ""
+          ? lote.area_total_m2
+          : calculatePolygonArea(coords),
+    };
+  }, []);
+
+  const syncSelectionWithLotes = useCallback((nextLotes, nextSelected = null) => {
+    const validIds = new Set(nextLotes.map((item) => item.id));
+    setSelectedLoteIds((prev) => {
+      const filtered = prev.filter((id) => validIds.has(id));
+      if (nextSelected !== null) {
+        return nextSelected.filter((id) => validIds.has(id));
+      }
+      return filtered;
+    });
+    setSelectedLote((prev) => {
+      if (nextSelected?.length) return nextSelected[0];
+      return validIds.has(prev) ? prev : nextLotes[0]?.id ?? null;
+    });
+  }, []);
+
+  const sanitizeGeneratedLotesGeometry = useCallback((items) => {
+    const overlapToleranceArea = 0.05;
+    const sanitized = [];
+    let trimmedOverlaps = 0;
+    let fixedSelfIntersections = 0;
+    let droppedInvalid = 0;
+
+    items.forEach((item) => {
+      const normalizedCoords =
+        normalizeSelfIntersectingCoords(item.coords) ||
+        normalizePolygonCoords(item.coords);
+      if (!normalizedCoords || normalizedCoords.length < 3) {
+        droppedInvalid += 1;
+        return;
+      }
+
+      if (polygonHasSelfIntersection(item.coords)) {
+        fixedSelfIntersections += 1;
+      }
+
+      let currentFeature = polygonFromCoords(normalizedCoords);
+      if (!currentFeature) {
+        droppedInvalid += 1;
+        return;
+      }
+
+      for (const accepted of sanitized) {
+        if (!currentFeature) break;
+
+        const acceptedFeature = polygonFromCoords(accepted.coords);
+        if (!acceptedFeature) continue;
+
+        try {
+          const overlap = turfIntersect(featureCollection([currentFeature, acceptedFeature]));
+          const overlapArea = overlap ? turfArea(overlap) : 0;
+          if (overlapArea <= overlapToleranceArea) {
+            continue;
+          }
+
+          const diff = turfDifference(featureCollection([currentFeature, acceptedFeature]));
+          if (!diff?.geometry) {
+            currentFeature = null;
+            trimmedOverlaps += 1;
+            break;
+          }
+
+          const nextCoords = largestPolygonCoordsFromUnion(diff);
+          if (!nextCoords || nextCoords.length < 3) {
+            currentFeature = null;
+            trimmedOverlaps += 1;
+            break;
+          }
+
+          currentFeature = polygonFromCoords(nextCoords);
+          trimmedOverlaps += 1;
+        } catch (error) {
+          console.warn("No se pudo recortar solape entre lotes:", error);
+        }
+      }
+
+      if (!currentFeature?.geometry) {
+        droppedInvalid += 1;
+        return;
+      }
+
+      const finalCoords = largestPolygonCoordsFromUnion(currentFeature);
+      if (!finalCoords || finalCoords.length < 3) {
+        droppedInvalid += 1;
+        return;
+      }
+
+      sanitized.push({
+        ...item,
+        coords: finalCoords,
+      });
+    });
+
+    return {
+      items: sanitized,
+      stats: {
+        trimmedOverlaps,
+        fixedSelfIntersections,
+        droppedInvalid,
+      },
+    };
+  }, []);
+
+  const updateGeneratedLotes = useCallback((updater, selectionOverride = null) => {
+    setGeneratedLotes((prev) => {
+      const nextRaw = typeof updater === "function" ? updater(prev) : updater;
+      const { items: sanitizedItems, stats } = sanitizeGeneratedLotesGeometry(nextRaw);
+      const next = sanitizedItems.map(recalculateLote);
+      nextGeneratedLoteIdRef.current = getNextTempLoteId(next);
+      if (stats.trimmedOverlaps || stats.fixedSelfIntersections || stats.droppedInvalid) {
+        setReviewSummary(
+          `Geometría ajustada: ${stats.trimmedOverlaps} solape(s) recortado(s), ${stats.fixedSelfIntersections} lote(s) reparado(s), ${stats.droppedInvalid} descartado(s).`,
+        );
+      }
+      queueMicrotask(() => syncSelectionWithLotes(next, selectionOverride));
+      return next;
+    });
+  }, [recalculateLote, sanitizeGeneratedLotesGeometry, syncSelectionWithLotes]);
+
+  const isLoteSelected = useCallback(
+    (loteId) => selectedLoteIds.includes(loteId),
+    [selectedLoteIds],
+  );
+
+  const toggleLoteSelection = useCallback((loteId, forceMultiSelect = false) => {
+    setSelectedLoteIds((prev) => {
+      if (reviewModeEnabled || forceMultiSelect) {
+        return prev.includes(loteId)
+          ? prev.filter((id) => id !== loteId)
+          : [...prev, loteId];
+      }
+      return [loteId];
+    });
+  }, [reviewModeEnabled]);
+
   /**
    * 🔥 GENERA CUADRÍCULA ALINEADA A LOS LADOS DEL POLÍGONO
    */
@@ -889,13 +1238,14 @@ export default function LoteModal({ onClose, idproyecto }) {
       gridParams.cols,
       rotationDeg,
     );
-    setGeneratedLotes(grid);
+    updateGeneratedLotes(grid);
   }, [
     basePolygonCoords,
     gridParams.rows,
     gridParams.cols,
     rotationDeg,
     generateGridFromPolygon,
+    updateGeneratedLotes,
   ]);
 
   useEffect(() => {
@@ -933,7 +1283,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   useEffect(() => {
     if (!generatedLotes.length) return;
-    setGeneratedLotes((prev) => {
+    updateGeneratedLotes((prev) => {
       const items = prev.map((item) => ({ ...item }));
       const grouped = new Map();
       items.forEach((item) => {
@@ -982,7 +1332,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       });
       return items;
     });
-  }, [rowNumbering, manzanaLabel, useRowPrice]);
+  }, [rowNumbering, manzanaLabel, useRowPrice, updateGeneratedLotes]);
 
   // Sincronización de formulario ocurre al seleccionar el lote,
   // evitando loops de renderizado.
@@ -1094,8 +1444,320 @@ export default function LoteModal({ onClose, idproyecto }) {
     setGridParams((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectLote = (lote) => {
+  const isPointInsideProject = useCallback(
+    (point) => {
+      if (!googleRef.current || !proyectoCoords?.length) return true;
+      const projectPolygon = new googleRef.current.maps.Polygon({
+        paths: proyectoCoords,
+      });
+      return googleRef.current.maps.geometry.poly.containsLocation(
+        new googleRef.current.maps.LatLng(point.lat, point.lng),
+        projectPolygon,
+      );
+    },
+    [proyectoCoords],
+  );
+
+  const isPolygonMostlyInsideProject = useCallback(
+    (coords) => {
+      if (!Array.isArray(coords) || coords.length < 3) return false;
+      const insideCount = coords.filter((point) => isPointInsideProject(point)).length;
+      return insideCount >= Math.max(2, Math.ceil(coords.length * 0.6));
+    },
+    [isPointInsideProject],
+  );
+
+  const imagePointToMapLatLng = useCallback(
+    (point, imageWidth, imageHeight) => {
+      if (!overlayBounds || !imageWidth || !imageHeight) return null;
+
+      const centerLat = (overlayBounds.north + overlayBounds.south) / 2;
+      const centerLng = (overlayBounds.east + overlayBounds.west) / 2;
+      const latSpan = overlayBounds.north - overlayBounds.south;
+      const lngSpan = overlayBounds.east - overlayBounds.west;
+
+      const normalizedX = point.x / imageWidth - 0.5;
+      const normalizedY = point.y / imageHeight - 0.5;
+
+      const vectorScreen = {
+        x: normalizedX * lngSpan,
+        y: normalizedY * latSpan,
+      };
+
+      const angleRad = (Number(pdfRotation) * Math.PI) / 180;
+      const cosA = Math.cos(angleRad);
+      const sinA = Math.sin(angleRad);
+
+      const rotatedX = vectorScreen.x * cosA - vectorScreen.y * sinA;
+      const rotatedY = vectorScreen.x * sinA + vectorScreen.y * cosA;
+
+      return {
+        lat: centerLat - rotatedY,
+        lng: centerLng + rotatedX,
+      };
+    },
+    [overlayBounds, pdfRotation],
+  );
+
+  const mapLatLngToImagePoint = useCallback(
+    (point, imageWidth, imageHeight) => {
+      if (!overlayBounds || !imageWidth || !imageHeight) return null;
+
+      const centerLat = (overlayBounds.north + overlayBounds.south) / 2;
+      const centerLng = (overlayBounds.east + overlayBounds.west) / 2;
+      const latSpan = overlayBounds.north - overlayBounds.south;
+      const lngSpan = overlayBounds.east - overlayBounds.west;
+      if (!latSpan || !lngSpan) return null;
+
+      const rotatedX = point.lng - centerLng;
+      const rotatedY = centerLat - point.lat;
+
+      const angleRad = (Number(pdfRotation) * Math.PI) / 180;
+      const cosA = Math.cos(angleRad);
+      const sinA = Math.sin(angleRad);
+
+      const vectorX = rotatedX * cosA + rotatedY * sinA;
+      const vectorY = -rotatedX * sinA + rotatedY * cosA;
+
+      const normalizedX = vectorX / lngSpan;
+      const normalizedY = vectorY / latSpan;
+
+      return {
+        x: Math.round((normalizedX + 0.5) * imageWidth),
+        y: Math.round((normalizedY + 0.5) * imageHeight),
+      };
+    },
+    [overlayBounds, pdfRotation],
+  );
+
+  const buildDetectedRowMeta = useCallback((items) => {
+    if (!items.length) return { items: [], rowCount: 0, maxCols: 0 };
+
+    const heights = items
+      .map((item) => {
+        const lats = item.coords.map((point) => point.lat);
+        return Math.max(...lats) - Math.min(...lats);
+      })
+      .filter((value) => Number.isFinite(value) && value > 0);
+
+    const averageHeight =
+      heights.length > 0
+        ? heights.reduce((sum, value) => sum + value, 0) / heights.length
+        : 0.00004;
+    const rowThreshold = Math.max(averageHeight * 0.7, 0.00002);
+
+    const sorted = [...items].sort((a, b) => {
+      const latDiff = (b.center?.lat ?? 0) - (a.center?.lat ?? 0);
+      if (Math.abs(latDiff) > rowThreshold) return latDiff;
+      return (a.center?.lng ?? 0) - (b.center?.lng ?? 0);
+    });
+
+    const rows = [];
+    sorted.forEach((item) => {
+      const row = rows.find(
+        (candidate) => Math.abs(candidate.anchorLat - (item.center?.lat ?? 0)) <= rowThreshold,
+      );
+      if (row) {
+        row.items.push(item);
+        row.anchorLat =
+          row.items.reduce((sum, current) => sum + (current.center?.lat ?? 0), 0) /
+          row.items.length;
+      } else {
+        rows.push({
+          anchorLat: item.center?.lat ?? 0,
+          items: [item],
+        });
+      }
+    });
+
+    const normalizedRows = rows
+      .sort((a, b) => b.anchorLat - a.anchorLat)
+      .map((row) =>
+        row.items.sort((a, b) => (a.center?.lng ?? 0) - (b.center?.lng ?? 0)),
+      );
+
+    const withRows = normalizedRows.flatMap((rowItems, rowIndex) =>
+      rowItems.map((item, colIndex) => ({
+        ...item,
+        row: rowIndex,
+        col: colIndex,
+      })),
+    );
+
+    return {
+      items: withRows,
+      rowCount: normalizedRows.length,
+      maxCols: normalizedRows.reduce(
+        (max, rowItems) => Math.max(max, rowItems.length),
+        0,
+      ),
+    };
+  }, []);
+
+  const handleExtractLotes = useCallback(async () => {
+    if (!pdfImage || !overlayBounds) {
+      alert("Primero carga y acomoda el PDF del proyecto.");
+      return;
+    }
+
+    try {
+      setIsExtractingLotes(true);
+      setExtractionSummary("");
+
+      const overlayBlob = await dataUrlToBlob(pdfImage);
+      const originalPdfBlob = await loadPdfFromIndexedDB(idproyecto);
+      const { width: imageWidth, height: imageHeight } =
+        await getDataUrlDimensions(pdfImage);
+      const formData = new FormData();
+      formData.append("idproyecto", String(idproyecto));
+      formData.append("overlay_image", overlayBlob, `proyecto-${idproyecto}-overlay.png`);
+      if (originalPdfBlob) {
+        formData.append("overlay_pdf", originalPdfBlob, `proyecto-${idproyecto}.pdf`);
+        formData.append("image_width", String(imageWidth));
+        formData.append("image_height", String(imageHeight));
+      }
+      const projectPolygonImage = proyectoCoords
+        .map((point) => mapLatLngToImagePoint(point, imageWidth, imageHeight))
+        .filter(Boolean);
+      if (projectPolygonImage.length >= 3) {
+        formData.append("project_polygon", JSON.stringify(projectPolygonImage));
+      }
+
+      const response = await authFetch(
+        withApiBase("https://api.geohabita.com/api/extractLotesFromOverlay/"),
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo extraer lotes del plano.");
+      }
+      const roiApplied = Boolean(payload?.debug?.roi_applied);
+      const detectedPolygons = Array.isArray(payload?.polygons) ? payload.polygons : [];
+
+      const extractedItems = detectedPolygons
+        .map((polygon, index) => {
+          const coords = normalizePolygonCoords(
+            (polygon.points || [])
+              .map((point) => imagePointToMapLatLng(point, imageWidth, imageHeight))
+              .filter(Boolean),
+          );
+          const center = getPolygonCenter(coords);
+          const mostlyInside = isPolygonMostlyInsideProject(coords);
+          if (
+            !center ||
+            coords.length < 3 ||
+            (!roiApplied && !mostlyInside)
+          ) {
+            return null;
+          }
+
+          return {
+            id: index + 1,
+            nombre:
+              polygon.nombre_sugerido ||
+              (polygon.lot_number ? `Lote ${polygon.lot_number}` : `Lote ${index + 1}`),
+            precio: 0,
+            descripcion: "",
+            area_total_m2: "",
+            vendido: 0,
+            coords,
+            center,
+            confidence: polygon.confidence,
+            lot_number: polygon.lot_number || null,
+            manzana_label: polygon.manzana_label || null,
+            nombre_sugerido: polygon.nombre_sugerido || null,
+            nombreDetectado: Boolean(polygon.nombre_sugerido || polygon.lot_number),
+          };
+        })
+        .filter(Boolean);
+
+      if (!extractedItems.length) {
+        const debugMessage = payload?.debug
+          ? ` Debug: ${JSON.stringify(payload.debug)}`
+          : "";
+        throw new Error(
+          `No se detectaron lotes válidos dentro del polígono del proyecto.${debugMessage}`,
+        );
+      }
+
+      const rowMeta = buildDetectedRowMeta(extractedItems);
+      const generated = rowMeta.items.map((item, index) => ({
+        ...item,
+        id: index + 1,
+        nombre:
+          item.nombre_sugerido ||
+          item.nombre ||
+          (item.lot_number ? `Lote ${item.lot_number}` : `Lote ${index + 1}`),
+      }));
+
+      setBasePolygonCoords(null);
+      setGeneratedLotes(generated);
+      nextGeneratedLoteIdRef.current = getNextTempLoteId(generated);
+      setSelectedLote(generated[0]?.id ?? null);
+      setSelectedLoteIds(generated[0] ? [generated[0].id] : []);
+      setFormValues({});
+      manualOverridesRef.current = generated.reduce((acc, lote) => {
+        if (lote.nombreDetectado) {
+          acc[lote.id] = {
+            ...(acc[lote.id] || {}),
+            nombreManual: true,
+          };
+        }
+        return acc;
+      }, {});
+      setReviewSummary("");
+      const extractedRows = Math.max(1, rowMeta.rowCount);
+      const extractedCols = Math.max(1, rowMeta.maxCols);
+      const defaultRowNumbering = [];
+      let counter = 1;
+      for (let rowIndex = 0; rowIndex < extractedRows; rowIndex += 1) {
+        const rowStart = counter;
+        const rowEnd = counter + Math.max(0, extractedCols - 1);
+        defaultRowNumbering.push({ start: rowStart, end: rowEnd });
+        counter = rowEnd + 1;
+      }
+      setRowNumbering(defaultRowNumbering);
+      setGridParams({
+        rows: extractedRows,
+        cols: extractedCols,
+      });
+      const labelsDebug = payload?.debug?.text_debug || {};
+      setExtractionSummary(
+        `Detectados ${generated.length} lotes desde el PDF calibrado. Etiquetas: ${labelsDebug.lot_labels_matched || 0} lotes, ${labelsDebug.manzana_labels_matched || 0} manzanas.`,
+      );
+    } catch (error) {
+      console.error("Error extrayendo lotes:", error);
+      setExtractionSummary(error.message || "No se pudo extraer lotes.");
+      alert(error.message || "No se pudo extraer lotes.");
+    } finally {
+      setIsExtractingLotes(false);
+    }
+  }, [
+    pdfImage,
+    overlayBounds,
+    idproyecto,
+    token,
+    proyectoCoords,
+    imagePointToMapLatLng,
+    mapLatLngToImagePoint,
+    isPointInsideProject,
+    isPolygonMostlyInsideProject,
+    buildDetectedRowMeta,
+  ]);
+
+  const handleSelectLote = (lote, nativeEvent = null) => {
     setSelectedLote(lote.id);
+    const multiSelectRequested = Boolean(
+      nativeEvent?.ctrlKey || nativeEvent?.metaKey || nativeEvent?.shiftKey,
+    );
+    toggleLoteSelection(lote.id, multiSelectRequested);
 
     const initialForm = formValues[lote.id] || {
       tipo_inmueble: lote.tipo_inmueble ?? 1,
@@ -1126,6 +1788,116 @@ export default function LoteModal({ onClose, idproyecto }) {
       ...prev,
       [lote.id]: initialForm,
     }));
+  };
+
+  const handleDeleteSelectedLotes = () => {
+    if (!selectedLoteIds.length) return;
+
+    const selectedIds = new Set(selectedLoteIds);
+    updateGeneratedLotes(
+      (prev) => prev.filter((lote) => !selectedIds.has(lote.id)),
+      [],
+    );
+    setFormValues((prev) => {
+      const next = { ...prev };
+      selectedLoteIds.forEach((id) => {
+        delete next[id];
+      });
+      return next;
+    });
+    setReviewSummary(`Se eliminaron ${selectedLoteIds.length} lotes de la revisión.`);
+  };
+
+  const handleMergeSelectedLotes = () => {
+    if (selectedLoteIds.length !== 2) {
+      alert("Selecciona exactamente 2 lotes para unir.");
+      return;
+    }
+
+    const [firstId, secondId] = selectedLoteIds;
+    const first = generatedLotes.find((item) => item.id === firstId);
+    const second = generatedLotes.find((item) => item.id === secondId);
+    if (!first || !second) return;
+
+    try {
+      const features = [polygonFromCoords(first.coords), polygonFromCoords(second.coords)].filter(Boolean);
+      if (features.length !== 2) {
+        throw new Error("Los lotes seleccionados no tienen una geometría válida para unir.");
+      }
+      const mergedFeature = turfUnion(
+        featureCollection(features),
+      );
+      const mergedCoords = largestPolygonCoordsFromUnion(mergedFeature);
+      if (!mergedCoords || mergedCoords.length < 3) {
+        throw new Error("No se pudo construir un polígono unido válido.");
+      }
+
+      const mergedLote = recalculateLote({
+        ...first,
+        coords: mergedCoords,
+      });
+
+      updateGeneratedLotes(
+        (prev) =>
+          prev
+            .filter((item) => item.id !== secondId)
+            .map((item) => (item.id === firstId ? mergedLote : item)),
+        [firstId],
+      );
+      setFormValues((prev) => {
+        const next = { ...prev };
+        delete next[secondId];
+        return next;
+      });
+      setReviewSummary(`Se unieron los lotes ${firstId} y ${secondId}.`);
+    } catch (error) {
+      console.error("Error uniendo lotes:", error);
+      alert(error.message || "No se pudieron unir esos lotes.");
+    }
+  };
+
+  const handleSplitSelectedLote = (axis) => {
+    if (selectedLoteIds.length !== 1) {
+      alert("Selecciona un solo lote para dividir.");
+      return;
+    }
+
+    const loteId = selectedLoteIds[0];
+    const lote = generatedLotes.find((item) => item.id === loteId);
+    if (!lote) return;
+
+    const pieces = splitPolygonByAxis(lote.coords, axis);
+    if (!pieces) {
+      alert("No se pudo dividir ese lote con este eje. Ajusta los vértices o prueba el otro corte.");
+      return;
+    }
+
+    const newId = nextGeneratedLoteIdRef.current;
+    const firstPiece = recalculateLote({
+      ...lote,
+      coords: pieces[0],
+    });
+    const secondPiece = recalculateLote({
+      ...lote,
+      id: newId,
+      nombre: `${lote.nombre} B`,
+      coords: pieces[1],
+    });
+
+    updateGeneratedLotes(
+      (prev) =>
+        prev.flatMap((item) => {
+          if (item.id !== loteId) return [item];
+          return [
+            { ...firstPiece, nombre: lote.nombre },
+            secondPiece,
+          ];
+        }),
+      [loteId, newId],
+    );
+    setReviewSummary(
+      `Se dividió el lote ${loteId} con un corte ${axis === "lng" ? "vertical" : "horizontal"}.`,
+    );
   };
 
   const handleFormChange = (e) => {
@@ -1336,9 +2108,10 @@ export default function LoteModal({ onClose, idproyecto }) {
         bandera: data.bandera,
         titulo_propiedad: data.titulo_propiedad,
 
-        puntos: lote.coords.map(p => ({
+        puntos: lote.coords.map((p, pointIndex) => ({
           latitud: p.lat,
           longitud: p.lng,
+          orden: pointIndex + 1,
         }))
 
       };
@@ -1409,8 +2182,10 @@ export default function LoteModal({ onClose, idproyecto }) {
     setBasePolygonCoords(null);
     setGeneratedLotes([]);
     setSelectedLote(null);
+    setSelectedLoteIds([]);
     setRotationDeg(0);
     setDetectedAngle(0);
+    setReviewSummary("");
     if (drawnPolygonRef.current) {
       drawnPolygonRef.current.setMap(null);
       drawnPolygonRef.current = null;
@@ -1506,8 +2281,19 @@ export default function LoteModal({ onClose, idproyecto }) {
                 <div className={styles.controlActions}>
                   <button
                     className={`${styles.submitBtn} ${styles.btnWithIcon}`}
+                    onClick={handleExtractLotes}
+                    disabled={!pdfImage || !overlayBounds || isExtractingLotes}
+                    type="button"
+                  >
+                    <ImageIcon size={16} className={styles.inlineIcon} />
+                    {isExtractingLotes ? "Extrayendo..." : "Extraer lotes"}
+                  </button>
+
+                  <button
+                    className={`${styles.submitBtn} ${styles.btnWithIcon}`}
                     onClick={handleRegenerateGrid}
                     disabled={!basePolygonCoords}
+                    type="button"
                   >
                     <RotateCw size={16} className={styles.inlineIcon} />
                     Regenerar
@@ -1516,6 +2302,7 @@ export default function LoteModal({ onClose, idproyecto }) {
                   <button
                     className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.dangerBtn}`}
                     onClick={handleClearPolygon}
+                    type="button"
                   >
                     <Trash2 size={16} className={styles.inlineIcon} />
                     Limpiar
@@ -1541,10 +2328,121 @@ export default function LoteModal({ onClose, idproyecto }) {
                         Ángulo detectado: {detectedAngle.toFixed(1)}° | Ajuste aplicado:{" "}
                         {rotationDeg}°
                       </span>
+                      {extractionSummary && (
+                        <span className={`${styles.inlineRow} ${styles.hintMeta}`}>
+                          <Info size={14} className={styles.inlineIcon} />
+                          {extractionSummary}
+                        </span>
+                      )}
                     </div>
+                  )}
+                  {!basePolygonCoords && extractionSummary && (
+                    <span className={`${styles.inlineRow} ${styles.hintMeta}`}>
+                      <Info size={14} className={styles.inlineIcon} />
+                      {extractionSummary}
+                    </span>
                   )}
                 </div>
               </section>
+
+              {generatedLotes.length > 0 && (
+                <section className={styles.sectionCard}>
+                  <h2 className={styles.sectionTitle}>
+                    <span className="material-icons-outlined">handyman</span>
+                    Revisión rápida
+                  </h2>
+
+                  <div className={styles.reviewToolbar}>
+                    <button
+                      type="button"
+                      className={`${styles.submitBtn} ${styles.btnWithIcon} ${reviewModeEnabled ? styles.secondaryBtn : ""}`}
+                      onClick={() => setReviewModeEnabled((prev) => !prev)}
+                    >
+                      {reviewModeEnabled ? "Modo selección activo" : "Activar selección múltiple"}
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.secondaryBtn}`}
+                      onClick={() => {
+                        setSelectedLoteIds([]);
+                        setReviewSummary("Selección limpiada.");
+                      }}
+                    >
+                      Limpiar selección
+                    </button>
+                  </div>
+
+                  <div className={styles.reviewInfoCard}>
+                    <strong>{selectedLoteIds.length} lote(s) seleccionado(s)</strong>
+                    <span>
+                      Haz clic en el mapa para seleccionar. Con `Ctrl`, `Cmd` o `Shift` también puedes sumar lotes aunque el modo múltiple esté apagado.
+                    </span>
+                    <span>
+                      Si activas `selección múltiple`, cada clic agrega o quita lotes. Los seleccionados quedan editables para mover vértices.
+                    </span>
+                    <span>
+                      `Dividir vertical` y `Dividir horizontal` hacen un corte limpio al centro del lote seleccionado.
+                    </span>
+                    {reviewSummary && <span>{reviewSummary}</span>}
+                  </div>
+
+                  <div className={styles.reviewSelectionGrid}>
+                    {generatedLotes.map((lote) => (
+                      <button
+                        key={`pick-${lote.id}`}
+                        type="button"
+                        className={`${styles.reviewChip} ${isLoteSelected(lote.id) ? styles.reviewChipActive : ""}`}
+                        onClick={() => {
+                          setSelectedLote(lote.id);
+                          toggleLoteSelection(lote.id, true);
+                        }}
+                      >
+                        {formValues[lote.id]?.nombreManual
+                          ? formValues[lote.id]?.nombre || `Lote ${lote.id}`
+                          : lote.nombre || `Lote ${lote.id}`}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className={styles.reviewToolbar}>
+                    <button
+                      type="button"
+                      className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.dangerBtn}`}
+                      onClick={handleDeleteSelectedLotes}
+                      disabled={!selectedLoteIds.length}
+                    >
+                      <Trash2 size={16} className={styles.inlineIcon} />
+                      Eliminar seleccionados
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.secondaryBtn}`}
+                      onClick={handleMergeSelectedLotes}
+                      disabled={selectedLoteIds.length !== 2}
+                    >
+                      Unir 2 lotes
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.secondaryBtn}`}
+                      onClick={() => handleSplitSelectedLote("lng")}
+                      disabled={selectedLoteIds.length !== 1}
+                    >
+                      <Scissors size={16} className={styles.inlineIcon} />
+                      Dividir vertical
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.submitBtn} ${styles.btnWithIcon} ${styles.secondaryBtn}`}
+                      onClick={() => handleSplitSelectedLote("lat")}
+                      disabled={selectedLoteIds.length !== 1}
+                    >
+                      <Scissors size={16} className={styles.inlineIcon} />
+                      Dividir horizontal
+                    </button>
+                  </div>
+                </section>
+              )}
 
               {generatedLotes.length > 0 && (
                 <section className={styles.sectionCard}>
@@ -1994,8 +2892,8 @@ export default function LoteModal({ onClose, idproyecto }) {
                     <Polygon
                       key={lote.id}
                       paths={lote.coords}
-                      editable
-                      draggable
+                      editable={isLoteSelected(lote.id)}
+                      draggable={isLoteSelected(lote.id)}
                       onLoad={(poly) => {
                         polygonRefs.current[lote.id] = poly;
                       }}
@@ -2011,17 +2909,25 @@ export default function LoteModal({ onClose, idproyecto }) {
                             lng: p.lng(),
                           }));
 
-                        setGeneratedLotes((prev) =>
+                        updateGeneratedLotes((prev) =>
                           prev.map((l) => (l.id === lote.id ? { ...l, coords } : l)),
                         );
                       }}
-                      onClick={() => handleSelectLote(lote)}
+                      onClick={(event) => handleSelectLote(lote, event?.domEvent)}
                       options={{
-                        strokeColor: selectedLote === lote.id ? "#ff0000" : "#008000",
-                        strokeWeight: 2,
-                        fillColor: selectedLote === lote.id ? "#ff8080" : "#00ff00",
-                        fillOpacity: 0.5,
-                        zIndex: 10,
+                        strokeColor: isLoteSelected(lote.id)
+                          ? "#dc2626"
+                          : selectedLote === lote.id
+                            ? "#2563eb"
+                            : "#008000",
+                        strokeWeight: isLoteSelected(lote.id) ? 3 : 2,
+                        fillColor: isLoteSelected(lote.id)
+                          ? "#fca5a5"
+                          : selectedLote === lote.id
+                            ? "#93c5fd"
+                            : "#00ff00",
+                        fillOpacity: isLoteSelected(lote.id) ? 0.6 : 0.45,
+                        zIndex: isLoteSelected(lote.id) ? 12 : 10,
                       }}
                     />
                   ))}

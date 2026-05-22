@@ -76,3 +76,10 @@ Thumbs.db
 # Optional
 # =========================
 pnpm-lock.yaml
+
+.deepseek
+.deepseek
+.deepseek/
+deepseek/
+/deepseek/
+

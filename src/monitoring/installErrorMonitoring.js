@@ -7,6 +7,13 @@ import {
 
 let installed = false;
 
+function isAbortLikeError(value) {
+  if (!value) return false;
+  if (value?.name === "AbortError") return true;
+  if (value?.code === "ERR_CANCELED") return true;
+  return typeof value?.message === "string" && value.message.includes("aborted");
+}
+
 function normalizeUrl(input) {
   if (typeof input === "string") return input;
   if (input instanceof URL) return input.toString();
@@ -144,6 +151,10 @@ function installRuntimeHandlers() {
   });
 
   window.addEventListener("unhandledrejection", (event) => {
+    if (isAbortLikeError(event.reason)) {
+      return;
+    }
+
     const reason =
       event.reason instanceof Error
         ? event.reason
