@@ -1,12 +1,19 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 // components/editLote.jsx
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import style from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 
-export default function EditLote({ onClose, idproyecto, lote, visible }) {
+export default function EditLote({
+  onClose,
+  idproyecto,
+  lote,
+  visible,
+  embedded = false,
+}) {
   const [form, setForm] = useState({
     idtipoinmobiliaria: 0,
     nombre: "",
@@ -198,7 +205,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
   }, [idproyecto, token, lote?.idlote]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible && !embedded) return;
     initMap();
     return () => {
       // cleanup básico al desmontar
@@ -214,7 +221,7 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
       pathListenersRef.current = [];
       mapInstance.current = null;
     };
-  }, [initMap, visible]);
+  }, [initMap, visible, embedded]);
 
   // 3) Dibujar/actualizar polígono del lote cuando tengamos puntos y mapa listo
   useEffect(() => {
@@ -374,25 +381,61 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
         }
       );
       if (res.ok) {
-        alert("Lote actualizado ✅");
+        if (window.alertSuccess) window.alertSuccess("Lote actualizado.");
+        else alert("Lote actualizado.");
         onClose?.({ refreshed: true });
       } else {
-        const errBody = await res.text().catch(() => null);
-        console.error("update error:", res.status, errBody);
-        alert("Error al actualizar ❌");
+        const message = await getResponseErrorMessage(
+          res,
+          "No se pudo actualizar el lote. Revisa los datos ingresados.",
+        );
+        console.error("update error:", res.status, message);
+        if (window.alertError) window.alertError(message);
+        else alert(message);
       }
     } catch (err) {
       console.error("Error:", err);
-      alert("Error de red al actualizar");
+      const message =
+        err?.message || "No se pudo conectar con el servidor para actualizar el lote.";
+      if (window.alertError) window.alertError(message);
+      else alert(message);
     }
   };
+
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "flex",
+        overflow: "visible",
+      }
+    : { display: visible ? "flex" : "none" };
+
+  const contentStyle = embedded
+    ? {
+        width: "100%",
+        maxWidth: "none",
+        minHeight: "auto",
+        height: "auto",
+        maxHeight: "none",
+        borderRadius: "24px",
+        boxShadow: "none",
+        overflow: "visible",
+        border: "1px solid rgba(148, 163, 184, 0.16)",
+      }
+    : undefined;
 
   return (
     <div
       className={style.modalOverlay}
-      style={{ display: visible ? "flex" : "none" }}
+      style={overlayStyle}
     >
-      <div className={style.modalContent}>
+      <div className={style.modalContent} style={contentStyle}>
         <div className={style.header}>
           <div>
             <h1 className={style.title}>Editar Lote</h1>
@@ -400,9 +443,11 @@ export default function EditLote({ onClose, idproyecto, lote, visible }) {
               Actualiza datos, ubicación y recursos del lote seleccionado.
             </p>
           </div>
-          <button className={style.closeBtn} onClick={onClose}>
-            ✖
-          </button>
+            {!embedded && (
+              <button className={style.closeBtn} onClick={onClose}>
+                ✖
+              </button>
+            )}
         </div>
 
         <form className={style.formBody} onSubmit={handleSubmit}>

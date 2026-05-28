@@ -258,12 +258,22 @@ const getAvailableLoteTone = (variant = 0) =>
         stroke: darkenHexColor("#37b24d", 0.34),
       };
 
+const TEXTURE_STROKE_VARIANTS = {
+  hatch:   { strokeDasharray: "6 3",  strokeWidth: "2.8px" },
+  dots:    { strokeDasharray: "2 6",  strokeWidth: "2.8px" },
+  cross:   { strokeDasharray: "10 4", strokeWidth: "2.8px" },
+  solid:   {},
+  outline: { strokeWidth: "2.5px" },
+};
+
 const getLoteSvgStyle = ({
   status,
   isSelected,
   overlayOpacity,
   loteColor,
   availableVariant = 0,
+  textureMode = "solid",
+  showShadow = true,
 }) => {
   const availableTone =
     status.key === "available" ? getAvailableLoteTone(availableVariant) : null;
@@ -273,48 +283,72 @@ const getLoteSvgStyle = ({
       : loteColor || status.fill;
   const derivedStroke =
     darkenHexColor(baseFill, 0.34) || availableTone?.stroke || status.stroke;
+
+  const textureMod = TEXTURE_STROKE_VARIANTS[textureMode] ?? {};
+  const shadowFilter = showShadow
+    ? "drop-shadow(0px 4px 10px rgba(0,0,0,0.55)) drop-shadow(0px 1px 3px rgba(0,0,0,0.4))"
+    : undefined;
+  const textureFillOpacity = textureMode !== "solid" && textureMode !== "outline" ? "0.55" : null;
+
+  if (textureMode === "outline") {
+    return {
+      fill: "none",
+      fillOpacity: "0",
+      stroke: "rgba(255,255,255,0.9)",
+      strokeWidth: "2.5px",
+      strokeLinejoin: "round",
+      strokeOpacity: "1",
+      ...(shadowFilter ? { filter: shadowFilter } : {}),
+    };
+  }
+
   if (isSelected) {
-      return {
-        fill: "#22d3ee",
-        fillOpacity: "0.88",
-        stroke: "#0f766e",
-        strokeWidth: "3.5px",
-        strokeLinejoin: "round",
-        strokeOpacity: "1",
-      };
+    return {
+      fill: "url(#gh-viewer-hatch-selected)",
+      fillOpacity: "0.92",
+      stroke: "#0f766e",
+      strokeWidth: "3.5px",
+      strokeLinejoin: "round",
+      strokeOpacity: "1",
+      ...(shadowFilter ? { filter: shadowFilter } : {}),
+    };
   }
 
   if (status.key === "sold") {
     return {
       fill: baseFill,
-      fillOpacity: "0.76",
+      fillOpacity: textureFillOpacity ?? "0.76",
       stroke: derivedStroke,
-      strokeWidth: "2.4px",
+      strokeWidth: textureMod.strokeWidth ?? "2.4px",
       strokeLinejoin: "round",
       strokeOpacity: "0.94",
-      strokeDasharray: "8 5",
+      strokeDasharray: textureMod.strokeDasharray ?? "8 5",
+      ...(shadowFilter ? { filter: shadowFilter } : {}),
     };
   }
 
   if (status.key === "reserved") {
     return {
       fill: baseFill,
-      fillOpacity: "0.78",
+      fillOpacity: textureFillOpacity ?? "0.78",
       stroke: derivedStroke,
-      strokeWidth: "2.5px",
+      strokeWidth: textureMod.strokeWidth ?? "2.5px",
       strokeLinejoin: "round",
       strokeOpacity: "0.98",
-      strokeDasharray: "14 6",
+      strokeDasharray: textureMod.strokeDasharray ?? "14 6",
+      ...(shadowFilter ? { filter: shadowFilter } : {}),
     };
   }
 
   return {
     fill: baseFill,
-    fillOpacity: String(Math.min(Number(overlayOpacity ?? 0.82), 0.82)),
+    fillOpacity: textureFillOpacity ?? String(Math.min(Number(overlayOpacity ?? 0.82), 0.82)),
     stroke: derivedStroke,
-    strokeWidth: "2.2px",
+    strokeWidth: textureMod.strokeWidth ?? "2.2px",
     strokeLinejoin: "round",
     strokeOpacity: "0.95",
+    ...(textureMod.strokeDasharray ? { strokeDasharray: textureMod.strokeDasharray } : {}),
+    ...(shadowFilter ? { filter: shadowFilter } : {}),
   };
 };
 
@@ -648,6 +682,8 @@ const buildAnchoredOverlayFromLayout = (
     visible: layout.visible !== false,
     lotOpacity: layout.lotOpacity ?? 0.82,
     showProjectOutline: layout.showProjectOutline !== false,
+    textureMode: layout.textureMode ?? "solid",
+    showShadow: layout.showShadow !== false,
     projectPolygon: projectPolygon.length >= 3 ? projectPolygon : [],
     projectPolygonPixels:
       projectPolygonPixels.length >= 3 ? projectPolygonPixels : [],
@@ -739,6 +775,8 @@ const buildAnchoredOverlayFromScreenOverlay = (
     visible: true,
     lotOpacity: overlay.lotOpacity ?? layout?.lotOpacity ?? 0.82,
     showProjectOutline: overlay.showProjectOutline !== false,
+    textureMode: overlay.textureMode ?? layout?.textureMode ?? "solid",
+    showShadow: overlay.showShadow !== false,
     projectPolygon: projectPolygon.length >= 3 ? projectPolygon : [],
     projectPolygonPixels:
       projectPolygonPixels.length >= 3 ? projectPolygonPixels : [],
@@ -1085,6 +1123,8 @@ const Viewer360Modal = ({
   const lotLabelsZoomTimerRef = useRef(null);
   const lotLabelsZoomingRef = useRef(false);
   const travelTimerRef = useRef(null);
+  const hotspotsCacheRef = useRef(new Map());
+  const hotspotsAbortRef = useRef(null);
   const loteInfoCacheRef = useRef(new Map());
   const loteInfoAbortRef = useRef(null);
   const projectLotesCacheRef = useRef(new Map());
@@ -1776,6 +1816,7 @@ const Viewer360Modal = ({
 
   useEffect(
     () => () => {
+      hotspotsAbortRef.current?.abort();
       loteInfoAbortRef.current?.abort();
     },
     [],
@@ -1787,10 +1828,23 @@ const Viewer360Modal = ({
       return undefined;
     }
 
+    const cacheKey = String(currentImageId);
+    const cachedHotspots = hotspotsCacheRef.current.get(cacheKey);
+    if (cachedHotspots) {
+      setHotspots(cachedHotspots);
+      setHotspotsLoading(false);
+      return undefined;
+    }
+
     let active = true;
+    hotspotsAbortRef.current?.abort();
+    const controller = new AbortController();
+    hotspotsAbortRef.current = controller;
     setHotspotsLoading(true);
 
-    fetch(buildApiUrl(`/api/get_hotspots_por_imagen/${currentImageId}/`))
+    fetch(buildApiUrl(`/api/get_hotspots_por_imagen/${currentImageId}/`), {
+      signal: controller.signal,
+    })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (!active) return;
@@ -1805,10 +1859,12 @@ const Viewer360Modal = ({
                 : null,
             }))
           : [];
+        hotspotsCacheRef.current.set(cacheKey, normalized);
         setHotspots(normalized);
       })
       .catch((error) => {
         if (!active) return;
+        if (error?.name === "AbortError") return;
         console.warn("No se pudieron cargar hotspots 360:", error);
         setHotspots([]);
       })
@@ -1818,6 +1874,7 @@ const Viewer360Modal = ({
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [currentImageId]);
 
@@ -1939,7 +1996,7 @@ const Viewer360Modal = ({
       containerHeight,
     );
 
-    setComputedOverlay(fallbackOverlay || screenOverlayAsAnchored);
+    setComputedOverlay(screenOverlayAsAnchored || fallbackOverlay);
   }, [
     viewerReady,
     currentAnchoredOverlay,
@@ -1956,6 +2013,9 @@ const Viewer360Modal = ({
     markers.clearMarkers();
 
     if (overlayToRender?.visible) {
+      const overlayTextureMode = overlayToRender.textureMode ?? "solid";
+      const overlayShowShadow = overlayToRender.showShadow !== false;
+
       const hasProjectSpherical = isValidPolygonPixels(
         overlayToRender.projectPolygon,
       );
@@ -1976,6 +2036,9 @@ const Viewer360Modal = ({
             stroke: "#14532d",
             strokeWidth: "12px",
             strokeLinejoin: "round",
+            ...(overlayShowShadow
+              ? { filter: "drop-shadow(0px 4px 10px rgba(0,0,0,0.5))" }
+              : {}),
           },
           zIndex: 5,
         });
@@ -2013,9 +2076,11 @@ const Viewer360Modal = ({
           svgStyle: getLoteSvgStyle({
             status,
             isSelected,
-            overlayOpacity: overlayToRender.lotOpacity,
+            overlayOpacity: lote.lotOpacity ?? overlayToRender.lotOpacity,
             loteColor: lote.color,
             availableVariant,
+            textureMode: overlayTextureMode,
+            showShadow: overlayShowShadow,
           }),
           zIndex: isSelected ? 9 : 6,
         });

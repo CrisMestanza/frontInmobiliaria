@@ -1,15 +1,43 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 // components/LoteModal.jsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
-import style from "../agregarInmo.module.css";
+import style from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { loadPdfFromIndexedDB } from "../../../components/utils/indexedDB";
 
-export default function LoteModal({ onClose, idproyecto }) {
+const DEFAULT_MAP_CENTER = { lat: -6.4882, lng: -76.365629 };
+
+const hasGoogleMapConstructor = () =>
+  typeof window !== "undefined" &&
+  typeof window.google?.maps?.Map === "function";
+
+const loadGoogleMapsApi = async () => {
+  if (hasGoogleMapConstructor()) return window.google;
+
+  await loader.importLibrary("maps");
+  await Promise.all([
+    loader.importLibrary("drawing"),
+    loader.importLibrary("geometry"),
+    loader.importLibrary("places"),
+  ]);
+
+  if (!hasGoogleMapConstructor()) {
+    await loader.load();
+  }
+
+  if (!hasGoogleMapConstructor()) {
+    throw new Error("Google Maps API no expuso google.maps.Map.");
+  }
+
+  return window.google;
+};
+
+export default function LoteModal({ onClose, idproyecto, embedded = false }) {
   const [form, setForm] = useState({
     idtipoinmobiliaria: 0,
     nombre: "",
@@ -56,6 +84,7 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
   const overlayRef = useRef(null);
   const proyectoCoordsRef = useRef([]);
+  const fileInputRef = useRef(null);
 
   const pruneDuplicateDrawingControls = useCallback(() => {
     const mapDiv = mapRef.current?.getDiv?.();
@@ -181,10 +210,19 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   //  cargar Google Maps desde loader.js
   useEffect(() => {
-    loader.load().then((googleInstance) => {
-      setIsLoaded(true);
-      googleRef.current = googleInstance;
-    });
+    let active = true;
+    loadGoogleMapsApi()
+      .then((googleInstance) => {
+        if (!active) return;
+        setIsLoaded(true);
+        googleRef.current = googleInstance;
+      })
+      .catch((error) => {
+        console.error("Error cargando Google Maps:", error);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -367,15 +405,18 @@ export default function LoteModal({ onClose, idproyecto }) {
           lng: parseFloat(p.longitud),
         }));
 
-      if (!orderedProyecto.length) return;
+      if (!orderedProyecto.length) {
+        setMapCenter(DEFAULT_MAP_CENTER);
+        setProyectoCoords([]);
+      } else {
+        // centro del mapa tomando el primer punto del proyecto
+        setMapCenter(orderedProyecto[0]);
 
-      // centro del mapa tomando el primer punto del proyecto
-      setMapCenter(orderedProyecto[0]);
-
-      if (orderedProyecto.length > 2) {
-        orderedProyecto.push(orderedProyecto[0]); // cerrar polígono
+        if (orderedProyecto.length > 2) {
+          orderedProyecto.push(orderedProyecto[0]); // cerrar polígono
+        }
+        setProyectoCoords(orderedProyecto);
       }
-      setProyectoCoords(orderedProyecto);
 
       // 🔹 Lotes ya registrados (puede venir vacío en proyecto nuevo)
       const resProyecto = await authFetch(
@@ -400,6 +441,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       setLotesCoords(lotesData);
     } catch (err) {
       console.error("Error cargando proyecto/lotes:", err);
+      setMapCenter((prev) => prev || DEFAULT_MAP_CENTER);
     }
   }, [idproyecto, token]);
 
@@ -604,422 +646,478 @@ export default function LoteModal({ onClose, idproyecto }) {
       });
 
       if (res.ok) {
-        alert("Lote registrado ✅");
+        if (window.alertSuccess) window.alertSuccess("Lote registrado.");
+        else alert("Lote registrado.");
         onClose();
       } else {
-        const data = await res.json();
-        console.error(data);
-        alert("Error al registrar ❌");
+        const message = await getResponseErrorMessage(
+          res,
+          "No se pudo registrar el lote. Revisa los datos ingresados.",
+        );
+        console.error(message);
+        if (window.alertError) window.alertError(message);
+        else alert(message);
       }
     } catch (err) {
       console.error(err);
-      alert("Error de red 🚫");
+      const message =
+        err?.message || "No se pudo conectar con el servidor para registrar el lote.";
+      if (window.alertError) window.alertError(message);
+      else alert(message);
     }
   };
 
-  if (!isLoaded || !mapCenter) return <div>Cargando mapa...</div>;
+  const effectiveMapCenter = mapCenter || DEFAULT_MAP_CENTER;
+
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+  const contentStyle = embedded
+    ? {
+        width: "100%",
+        maxWidth: "none",
+        minHeight: "auto",
+        height: "auto",
+        maxHeight: "none",
+        borderRadius: "24px",
+        boxShadow: "none",
+        overflow: "visible",
+        border: "1px solid rgba(148, 163, 184, 0.16)",
+      }
+    : undefined;
 
   return (
-    <div className={style.modalOverlay}>
-      <div className={style.modalContent}>
-        <button className={style.closeBtn} onClick={onClose}>
-          ✖
-        </button>
-        <form className={style.formContainer} onSubmit={handleSubmit}>
-          <h2 style={{ color: "var(--theme-text-main)" }}>Registrar Lote</h2>
+    <div className={style.modalOverlay} style={overlayStyle}>
+      <div className={style.modalContent} style={contentStyle}>
+        {!embedded && (
+          <button className={style.closeBtn} onClick={onClose}>
+            ✖
+          </button>
+        )}
+        <div className={style.header}>
+          <div>
+            <h1 className={style.title}>Registrar lote manual</h1>
+            <p className={style.subtitle}>
+              Crea un lote individual dentro del proyecto, define su polígono y carga su ficha comercial sin salir del dashboard.
+            </p>
+          </div>
+        </div>
 
-          {/* 📍 Google Map */}
-          <div className={style.mapContainerWrap}>
-          <GoogleMap
-            mapContainerStyle={{
-              width: "100%",
-              height: "300px",
-              marginBottom: "1rem",
-            }}
-            zoom={16}
-            center={mapCenter}
-            options={{ gestureHandling: "greedy", mapTypeControl: false }}
-            onLoad={(map) => {
-              mapRef.current = map;
-              applyMapType(map);
-              pruneDuplicateDrawingControls();
-            }}
-          >
-            {/* polígono proyecto */}
-            {proyectoCoords.length > 0 && (
-              <Polygon
-                paths={proyectoCoords}
-                options={{
-                  strokeColor: "#0000FF",
-                  strokeWeight: 2,
-                  fillColor: "#0000FF",
-                  fillOpacity: 0.15,
-                }}
-              />
-            )}
+        <form className={style.formBody} onSubmit={handleSubmit}>
+          <div className={style.gridContainer}>
+            <div className={style.leftColumn}>
+              <section className={style.sectionCard}>
+                <h2 className={style.sectionTitle}>
+                  <span className="material-icons-outlined">inventory_2</span>
+                  Detalles del lote
+                </h2>
 
-            {/* lotes existentes */}
-            {lotesCoords.map((lote, i) => (
-              <Polygon
-                key={i}
-                paths={lote.coords}
-                options={{
-                  strokeColor: "#333333",
-                  strokeWeight: 1,
-                  fillColor: getColorLote(lote.vendido),
-                  fillOpacity: 0.45,
-                }}
-              />
-            ))}
+                <div className={style.inputGroup}>
+                  <label>Tipo</label>
+                  <select
+                    name="idtipoinmobiliaria"
+                    value={form.idtipoinmobiliaria}
+                    onChange={handleTipoChange}
+                    className={style.select}
+                    required
+                  >
+                    {tipos.map((t) => (
+                      <option key={t.idtipoinmobiliaria} value={t.idtipoinmobiliaria}>
+                        {t.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* dibujar nuevos lotes */}
-            <DrawingManager
-              onLoad={(dm) => {
-                if (drawingManagerRef.current && drawingManagerRef.current !== dm) {
-                  drawingManagerRef.current.setMap(null);
-                }
-                drawingManagerRef.current = dm;
-                setTimeout(pruneDuplicateDrawingControls, 0);
-              }}
-              onUnmount={(dm) => {
-                dm?.setMap(null);
-                drawingManagerRef.current = null;
-              }}
-              onPolygonComplete={onPolygonComplete}
-              options={{
-                drawingControl: true,
-                drawingControlOptions: {
-                  drawingModes: ["polygon"],
-                },
-                polygonOptions: {
-                  editable: true,
-                  draggable: true,
-                },
-              }}
-            />
-          </GoogleMap>
-          <div className={style.mapTypeControlWrap}>
-            <div className={style.mapTypeTabs} aria-label="Tipo de mapa">
-              <button
-                type="button"
-                className={`${style.mapTypeBtn} ${baseMapStyle === "roadmap" ? style.mapTypeBtnActive : ""}`}
-                onClick={() => {
-                  setBaseMapStyle("roadmap");
-                  applyMapType(mapRef.current);
-                }}
-                aria-pressed={baseMapStyle === "roadmap"}
-              >
-                Mapa
-              </button>
-              <button
-                type="button"
-                className={`${style.mapTypeBtn} ${baseMapStyle === "satellite" ? style.mapTypeBtnActive : ""}`}
-                onClick={() => {
-                  setBaseMapStyle("satellite");
-                  applyMapType(mapRef.current);
-                }}
-                aria-pressed={baseMapStyle === "satellite"}
-              >
-                Satelite
-              </button>
-            </div>
-            <div className={style.mapTypeSubMenu}>
-              <span className={style.mapTypeSubLabel}>
-                {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
-              </span>
-              <div className={style.mapTypeSubRow}>
-                {baseMapStyle === "satellite" ? (
-                  <>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setLabelsEnabled(true);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={labelsEnabled}
+                <div className={style.inputGroup}>
+                  <label>Nombre</label>
+                  <input
+                    name="nombre"
+                    value={form.nombre}
+                    onChange={handleChange}
+                    className={style.input}
+                    required
+                  />
+                </div>
+
+                <div className={style.inputGroup}>
+                  <label>Precio</label>
+                  <input
+                    name="precio"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.precio}
+                    onChange={handleChange}
+                    className={style.input}
+                    required
+                  />
+                </div>
+
+                <div className={style.inputGroup}>
+                  <label>Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    value={form.descripcion}
+                    onChange={handleChange}
+                    className={style.textarea}
+                    rows="3"
+                  />
+                </div>
+
+                <div className={style.compactGrid}>
+                  <div className={style.compactField}>
+                    <label>Área total (m²)</label>
+                    <input
+                      name="area_total_m2"
+                      value={form.area_total_m2}
+                      onChange={handleChange}
+                      className={style.input}
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Ancho (m)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      name="ancho"
+                      value={form.ancho}
+                      onChange={handleChange}
+                      className={style.input}
+                      required
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Largo (m)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      name="largo"
+                      value={form.largo}
+                      onChange={handleChange}
+                      className={style.input}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className={style.compactGrid}>
+                  <div className={style.compactField}>
+                    <label>Latitud</label>
+                    <input
+                      name="latitud"
+                      value={form.latitud}
+                      readOnly
+                      className={style.input}
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Longitud</label>
+                    <input
+                      name="longitud"
+                      value={form.longitud}
+                      readOnly
+                      className={style.input}
+                    />
+                  </div>
+                  <div className={style.compactField}>
+                    <label>Título de propiedad</label>
+                    <select
+                      name="titulo_propiedad"
+                      value={form.titulo_propiedad}
+                      onChange={handleChange}
+                      className={style.select}
                     >
-                      On
-                    </button>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${!labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setLabelsEnabled(false);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={!labelsEnabled}
-                    >
-                      Off
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setReliefEnabled(true);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={reliefEnabled}
-                    >
-                      On
-                    </button>
-                    <button
-                      type="button"
-                      className={`${style.mapTypeSubBtn} ${!reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
-                      onClick={() => {
-                        setReliefEnabled(false);
-                        applyMapType(mapRef.current);
-                      }}
-                      aria-pressed={!reliefEnabled}
-                    >
-                      Off
-                    </button>
-                  </>
+                      <option value="1">Sí</option>
+                      <option value="0">No</option>
+                    </select>
+                  </div>
+                </div>
+
+                {isCasa && (
+                  <div className={style.compactGrid}>
+                    <div className={style.compactField}>
+                      <label>Dormitorios</label>
+                      <input name="dormitorios" type="number" min="0" value={form.dormitorios} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Baños</label>
+                      <input name="banos" type="number" min="0" value={form.banos} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Cuartos</label>
+                      <input name="cuartos" type="number" min="0" value={form.cuartos} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Cochera</label>
+                      <input name="cochera" type="number" min="0" value={form.cochera} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Cocina</label>
+                      <input name="cocina" type="number" min="0" value={form.cocina} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Sala</label>
+                      <input name="sala" type="number" min="0" value={form.sala} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Patio</label>
+                      <input name="patio" type="number" min="0" value={form.patio} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Jardín</label>
+                      <input name="jardin" type="number" min="0" value={form.jardin} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Terraza</label>
+                      <input name="terraza" type="number" min="0" value={form.terraza} onChange={handleChange} className={style.input} />
+                    </div>
+                    <div className={style.compactField}>
+                      <label>Azotea</label>
+                      <input name="azotea" type="number" min="0" value={form.azotea} onChange={handleChange} className={style.input} />
+                    </div>
+                  </div>
                 )}
-              </div>
-            </div>
-          </div>
-          </div>
+              </section>
 
-          {/* formulario */}
-          <label><strong>¿Añadirá casa o lote?:</strong></label>
-          <select
-            name="idtipoinmobiliaria"
-            value={form.idtipoinmobiliaria}
-            onChange={handleTipoChange}
-            className={style.input}
-            required
-          >
-            {tipos.map((t) => (
-              <option key={t.idtipoinmobiliaria} value={t.idtipoinmobiliaria}>
-                {t.nombre}
-              </option>
-            ))}
-          </select>
+              <section className={style.sectionCard}>
+                <h2 className={style.sectionTitle}>
+                  <span className="material-icons-outlined">collections</span>
+                  Imágenes
+                </h2>
 
-          <label>Nombre:</label>
-          <input
-            name="nombre"
-            value={form.nombre}
-            onChange={handleChange}
-            className={`${style.input} ${style.wideInput}`}
-          />
+                <div className={style.imageUploadContainer}>
+                  {form.imagenes.length > 0 ? (
+                    <div className={style.mainImageWrapper}>
+                      <div className={style.mainImagePreview}>
+                        <img src={form.imagenes[0].preview} alt="Principal" />
+                        <button type="button" className={style.removeMainImage} onClick={() => removeImagen(0)}>
+                          <span className="material-icons-outlined">close</span>
+                        </button>
+                      </div>
+                      <p className={style.imageCounter}>Fotos - {form.imagenes.length}/10</p>
+                    </div>
+                  ) : null}
 
-          <label>Precio en dolares:</label>
-          <input
-            name="precio"
-            type="number"
-            step="0.01"
-            min="0"
-            value={form.precio}
-            onChange={handleChange}
-            className={`${style.input} ${style.wideInput}`}
-            required
-          />
+                  <div className={style.uploadSection}>
+                    <div className={style.uploadBox} onClick={() => fileInputRef.current?.click()}>
+                      <span className="material-icons-outlined">add_photo_alternate</span>
+                      <p>Agregar foto</p>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        multiple
+                        accept="image/*"
+                        onChange={handleImagenesChange}
+                        hidden
+                      />
+                    </div>
 
-          <label>Latitud:</label>
-          <input
-            name="latitud"
-            value={form.latitud}
-            readOnly
-            className={style.input}
-            
-          />
+                    {form.imagenes.length > 1 && (
+                      <div className={style.thumbnailGrid}>
+                        {form.imagenes.slice(1).map((img, i) => (
+                          <div key={i + 1} className={style.thumbnailItem}>
+                            <img src={img.preview} alt={`Foto ${i + 2}`} />
+                            <button type="button" onClick={() => removeImagen(i + 1)} className={style.removeThumbnail}>
+                              <span className="material-icons-outlined">close</span>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
 
-          <label>Longitud:</label>
-          <input
-            name="longitud"
-            value={form.longitud}
-            readOnly
-            className={style.input}
-          />
-
-          <label>Descripción:</label>
-          <textarea
-            name="descripcion"
-            value={form.descripcion}
-            onChange={handleChange}
-            className={style.input}
-          ></textarea>
-
-          <label>Área total (m²):</label>
-          <textarea
-            name="area_total_m2"
-            value={form.area_total_m2}
-            onChange={handleChange}
-            className={style.input}
-          />
-
-          <label>Cuenta con título de propiedad:</label>
-          <select
-            name="titulo_propiedad"
-            value={form.titulo_propiedad}
-            onChange={handleChange}
-            className={style.input}
-            required
-          >
-            <option value="">Seleccione una opción</option>
-            <option value="1">Sí</option>
-            <option value="0">No</option>
-          </select>
-
-          <label>Ancho:</label>
-          <input
-            type="number"
-            step="any"
-            min="0"
-            name="ancho"
-            value={form.ancho}
-            onChange={handleChange}
-            className={style.input}
-            required
-          />
-
-          <label>Largo:</label>
-          <input
-            type="number"
-            step="any"
-            min="0"
-            name="largo"
-            value={form.largo}
-            onChange={handleChange}
-            className={style.input}
-            required
-          />
-
-          {isCasa && (
-            <>
-              <label>Dormitorios:</label>
-              <input
-                type="number"
-                min="0"
-                name="dormitorios"
-                value={form.dormitorios}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Baños:</label>
-              <input
-                type="number"
-                min="0"
-                name="banos"
-                value={form.banos}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Cuartos:</label>
-              <input
-                type="number"
-                min="0"
-                name="cuartos"
-                value={form.cuartos}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Cochera:</label>
-              <input
-                type="number"
-                min="0"
-                name="cochera"
-                value={form.cochera}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Cocina:</label>
-              <input
-                type="number"
-                min="0"
-                name="cocina"
-                value={form.cocina}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Sala:</label>
-              <input
-                type="number"
-                min="0"
-                name="sala"
-                value={form.sala}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Patio:</label>
-              <input
-                type="number"
-                min="0"
-                name="patio"
-                value={form.patio}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Jardín:</label>
-              <input
-                type="number"
-                min="0"
-                name="jardin"
-                value={form.jardin}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Terraza:</label>
-              <input
-                type="number"
-                min="0"
-                name="terraza"
-                value={form.terraza}
-                onChange={handleChange}
-                className={style.input}
-              />
-
-              <label>Azotea:</label>
-              <input
-                type="number"
-                min="0"
-                name="azotea"
-                value={form.azotea}
-                onChange={handleChange}
-                className={style.input}
-              />
-            </>
-          )}
-
-
-          <h3>Imágenes</h3>
-          <input
-            type="file"
-            multiple
-            onChange={handleImagenesChange}
-            className={style.input}
-          />
-          <div className={style.previewContainer}>
-            {form.imagenes.map((img, i) => (
-              <div key={i} className={style.previewItem}>
-                <img src={img.preview} alt={`preview-${i}`} />
-                <button
-                  type="button"
-                  className={style.removeBtn}
-                  onClick={() => removeImagen(i)}
-                >
-                  ❌
+              <div className={style.actionRow}>
+                <button type="button" className={style.cancelBtn} onClick={onClose}>
+                  Cancelar
+                </button>
+                <button type="submit" className={style.submitBtn}>
+                  Guardar lote
+                  <span className="material-icons-outlined">arrow_forward</span>
                 </button>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <button type="submit" className={style.submitBtn}>
-            Enviar
-          </button>
+            <div className={style.rightColumn}>
+              <h2 className={style.sectionTitle}>
+                <span className="material-icons-outlined">map</span> Ubicación y polígono
+              </h2>
+
+              <div className={style.mapWrapper}>
+                <p className={style.mapHint}>
+                  Usa la herramienta de polígono para dibujar el nuevo lote dentro del proyecto. El sistema valida que no se salga del perímetro.
+                </p>
+                <div className={style.mapContainerWrap}>
+                  {isLoaded ? (
+                    <GoogleMap
+                      mapContainerClassName={style.googleMap}
+                      zoom={16}
+                      center={effectiveMapCenter}
+                      options={{ gestureHandling: "greedy", mapTypeControl: false }}
+                      onLoad={(map) => {
+                        mapRef.current = map;
+                        applyMapType(map);
+                        pruneDuplicateDrawingControls();
+                      }}
+                    >
+                      {proyectoCoords.length > 0 && (
+                        <Polygon
+                          paths={proyectoCoords}
+                          options={{
+                            strokeColor: "#1d4ed8",
+                            strokeWeight: 2,
+                            fillColor: "#1d4ed8",
+                            fillOpacity: 0.12,
+                          }}
+                        />
+                      )}
+
+                      {lotesCoords.map((lote, i) => (
+                        <Polygon
+                          key={i}
+                          paths={lote.coords}
+                          options={{
+                            strokeColor: "#334155",
+                            strokeWeight: 1,
+                            fillColor: getColorLote(lote.vendido),
+                            fillOpacity: 0.35,
+                          }}
+                        />
+                      ))}
+
+                      <DrawingManager
+                        onLoad={(dm) => {
+                          if (drawingManagerRef.current && drawingManagerRef.current !== dm) {
+                            drawingManagerRef.current.setMap(null);
+                          }
+                          drawingManagerRef.current = dm;
+                          setTimeout(pruneDuplicateDrawingControls, 0);
+                        }}
+                        onUnmount={(dm) => {
+                          dm?.setMap(null);
+                          drawingManagerRef.current = null;
+                        }}
+                        onPolygonComplete={onPolygonComplete}
+                        options={{
+                          drawingControl: true,
+                          drawingControlOptions: {
+                            drawingModes: ["polygon"],
+                          },
+                          polygonOptions: {
+                            editable: true,
+                            draggable: true,
+                          },
+                        }}
+                      />
+                    </GoogleMap>
+                  ) : (
+                    <div className={style.mapLoadingState}>Cargando mapa...</div>
+                  )}
+                  {isLoaded && (
+                  <div className={style.mapTypeControlWrap}>
+                    <div className={style.mapTypeTabs} aria-label="Tipo de mapa">
+                      <button
+                        type="button"
+                        className={`${style.mapTypeBtn} ${baseMapStyle === "roadmap" ? style.mapTypeBtnActive : ""}`}
+                        onClick={() => {
+                          setBaseMapStyle("roadmap");
+                          applyMapType(mapRef.current);
+                        }}
+                        aria-pressed={baseMapStyle === "roadmap"}
+                      >
+                        Mapa
+                      </button>
+                      <button
+                        type="button"
+                        className={`${style.mapTypeBtn} ${baseMapStyle === "satellite" ? style.mapTypeBtnActive : ""}`}
+                        onClick={() => {
+                          setBaseMapStyle("satellite");
+                          applyMapType(mapRef.current);
+                        }}
+                        aria-pressed={baseMapStyle === "satellite"}
+                      >
+                        Satélite
+                      </button>
+                    </div>
+                    <div className={style.mapTypeSubMenu}>
+                      <span className={style.mapTypeSubLabel}>
+                        {baseMapStyle === "satellite" ? "Etiquetas" : "Relieve"}
+                      </span>
+                      <div className={style.mapTypeSubRow}>
+                        {baseMapStyle === "satellite" ? (
+                          <>
+                            <button
+                              type="button"
+                              className={`${style.mapTypeSubBtn} ${labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                              onClick={() => {
+                                setLabelsEnabled(true);
+                                applyMapType(mapRef.current);
+                              }}
+                              aria-pressed={labelsEnabled}
+                            >
+                              On
+                            </button>
+                            <button
+                              type="button"
+                              className={`${style.mapTypeSubBtn} ${!labelsEnabled ? style.mapTypeSubBtnActive : ""}`}
+                              onClick={() => {
+                                setLabelsEnabled(false);
+                                applyMapType(mapRef.current);
+                              }}
+                              aria-pressed={!labelsEnabled}
+                            >
+                              Off
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className={`${style.mapTypeSubBtn} ${reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                              onClick={() => {
+                                setReliefEnabled(true);
+                                applyMapType(mapRef.current);
+                              }}
+                              aria-pressed={reliefEnabled}
+                            >
+                              On
+                            </button>
+                            <button
+                              type="button"
+                              className={`${style.mapTypeSubBtn} ${!reliefEnabled ? style.mapTypeSubBtnActive : ""}`}
+                              onClick={() => {
+                                setReliefEnabled(false);
+                                applyMapType(mapRef.current);
+                              }}
+                              aria-pressed={!reliefEnabled}
+                            >
+                              Off
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </form>
       </div>
     </div>

@@ -1,4 +1,4 @@
-﻿import { withApiBase } from "../../config/api.js";
+import { withApiBase } from "../../config/api.js";
 import { authFetch } from "../../config/authFetch.js";
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import "./PanelInmo.css";
@@ -56,7 +56,6 @@ import {
 } from "lucide-react";
 import { FaWhatsapp, FaFacebook, FaGlobe } from "react-icons/fa";
 
-import Loader from "../../components/Loading";
 import GeoHabitaLoader from "../../components/GeoHabitaLoader";
 const ProyectoModal = React.lazy(
   () => import("../inmobiliaria/proyecto/agregarProyecto"),
@@ -854,7 +853,6 @@ const PanelInmo = ({ setAppLoading }) => {
     setAppLoading(loading);
   }, [loading, setAppLoading]);
 
-  // if (loading) return <Loader />;
   if (loading && !setAppLoading) return <GeoHabitaLoader autoHide={false} />;
 
   const redes = [
@@ -1349,7 +1347,7 @@ const PanelInmo = ({ setAppLoading }) => {
 
       {/* MODALES ORIGINALES */}
       {showModal && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <ProyectoModal
             onClose={(options) => {
               setShowModal(false);
@@ -1363,7 +1361,7 @@ const PanelInmo = ({ setAppLoading }) => {
         </Suspense>
       )}
       {showLotes && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <LotesModal
             idproyecto={showLotes}
             proyectoNombre={
@@ -1380,7 +1378,7 @@ const PanelInmo = ({ setAppLoading }) => {
         </Suspense>
       )}
       {showModalEditProyecto && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <EditProyectoModal
             onClose={(options) => {
               setShowModalEditProyecto(null);
@@ -1397,7 +1395,7 @@ const PanelInmo = ({ setAppLoading }) => {
         </Suspense>
       )}
       {showFinancingModal && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <FinancingModal
             onClose={(options) => {
               setShowFinancingModal(null);
@@ -1412,7 +1410,7 @@ const PanelInmo = ({ setAppLoading }) => {
         </Suspense>
       )}
       {showIconoModal && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <IconoModal
             onClose={(options) => {
               setShowIconoModal(false);
@@ -1425,7 +1423,7 @@ const PanelInmo = ({ setAppLoading }) => {
         </Suspense>
       )}
       {showEspaciosModal && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <EspaciosModal
             onClose={(options) => {
               setShowEspaciosModal(false);
@@ -1438,7 +1436,7 @@ const PanelInmo = ({ setAppLoading }) => {
         </Suspense>
       )}
       {showEditLote && selectedLote && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <EditLoteModal
             onClose={(options) => {
               setShowEditLote(false);
@@ -1489,7 +1487,7 @@ const PanelInmo = ({ setAppLoading }) => {
 
       {/* Modal 360 */}
       {showModal360 && (
-        <Suspense fallback={<Loader />}>
+        <Suspense fallback={null}>
           <Modal360
             idproyecto={selectedProjectId}
             onClose={() => {

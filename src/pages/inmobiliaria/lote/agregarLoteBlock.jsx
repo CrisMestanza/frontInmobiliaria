@@ -1,5 +1,6 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { GoogleMap, Polygon, DrawingManager, Marker } from "@react-google-maps/api";
@@ -256,7 +257,7 @@ const getDataUrlDimensions = (dataUrl) =>
     img.src = dataUrl;
   });
 
-export default function LoteModal({ onClose, idproyecto }) {
+export default function LoteModal({ onClose, idproyecto, embedded = false }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapCenter, setMapCenter] = useState(null);
   const [proyectoCoords, setProyectoCoords] = useState([]);
@@ -286,6 +287,14 @@ export default function LoteModal({ onClose, idproyecto }) {
   const [overlayOpacity, setOverlayOpacity] = useState(0.6);
   const [isExtractingLotes, setIsExtractingLotes] = useState(false);
   const [extractionSummary, setExtractionSummary] = useState("");
+  const [showDetectionModal, setShowDetectionModal] = useState(false);
+  const [detectionProgress, setDetectionProgress] = useState(0);
+  const [detectionStatus, setDetectionStatus] = useState("Listo para iniciar");
+  const [detectionEta, setDetectionEta] = useState("00:00");
+  const [detectionAccepted, setDetectionAccepted] = useState(false);
+  const detectionIntervalRef = useRef(null);
+  const detectionStartedAtRef = useRef(0);
+  const detectionProgressRef = useRef(0);
   const [selectedLoteIds, setSelectedLoteIds] = useState([]);
   const [reviewModeEnabled, setReviewModeEnabled] = useState(false);
   const [reviewSummary, setReviewSummary] = useState("");
@@ -1072,6 +1081,74 @@ export default function LoteModal({ onClose, idproyecto }) {
     [selectedLoteIds],
   );
 
+  const clearDetectionInterval = useCallback(() => {
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+  }, []);
+
+  const startDetectionAnimation = useCallback(() => {
+    clearDetectionInterval();
+    detectionStartedAtRef.current = Date.now();
+    detectionProgressRef.current = 4;
+    setDetectionProgress(4);
+    setDetectionStatus("Preparando extracción...");
+    setDetectionEta("00:00");
+    detectionIntervalRef.current = setInterval(() => {
+      const elapsedMs = Date.now() - detectionStartedAtRef.current;
+      const current = detectionProgressRef.current;
+      const next = current < 88 ? Math.min(88, current + (current < 30 ? 11 : current < 60 ? 7 : 3)) : current;
+      detectionProgressRef.current = next;
+      setDetectionProgress(next);
+      setDetectionStatus((current) => {
+        if (elapsedMs < 1200) return "Validando PDF...";
+        if (elapsedMs < 2400) return "Analizando contraste...";
+        if (elapsedMs < 4200) return "Detectando lotes...";
+        return "Afinando resultados...";
+      });
+      const progress = Math.max(4, Math.min(88, next));
+      const estimatedTotal = Math.max(2200, Math.round((elapsedMs / progress) * 100));
+      const remaining = Math.max(0, estimatedTotal - elapsedMs);
+      const mins = String(Math.floor(remaining / 60000)).padStart(2, "0");
+      const secs = String(Math.floor((remaining % 60000) / 1000)).padStart(2, "0");
+      setDetectionEta(`${mins}:${secs}`);
+    }, 320);
+  }, [clearDetectionInterval, detectionProgress]);
+
+  const stopDetectionAnimation = useCallback(() => {
+    clearDetectionInterval();
+    detectionProgressRef.current = 0;
+    setDetectionEta("00:00");
+    setDetectionStatus("Listo");
+  }, [clearDetectionInterval]);
+
+  const handleOpenDetectionModal = () => {
+    if (!pdfImage || !overlayBounds) {
+      alert("Primero carga y acomoda el PDF del proyecto.");
+      return;
+    }
+    setDetectionAccepted(false);
+    setShowDetectionModal(true);
+  };
+
+  const handleConfirmDetection = async () => {
+    setDetectionAccepted(true);
+    startDetectionAnimation();
+    try {
+      await handleExtractLotes();
+      setDetectionProgress(100);
+      setDetectionStatus("Extracción finalizada");
+    } finally {
+      window.setTimeout(() => {
+        stopDetectionAnimation();
+        setDetectionProgress(0);
+        setDetectionAccepted(false);
+        setShowDetectionModal(false);
+      }, 450);
+    }
+  };
+
   const toggleLoteSelection = useCallback((loteId, forceMultiSelect = false) => {
     setSelectedLoteIds((prev) => {
       if (reviewModeEnabled || forceMultiSelect) {
@@ -1634,10 +1711,12 @@ export default function LoteModal({ onClose, idproyecto }) {
         },
       );
 
-      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.error || "No se pudo extraer lotes del plano.");
+        throw new Error(
+          await getResponseErrorMessage(response, "No se pudo extraer lotes del plano."),
+        );
       }
+      const payload = await response.json().catch(() => ({}));
       const roiApplied = Boolean(payload?.debug?.roi_applied);
       const detectedPolygons = Array.isArray(payload?.polygons) ? payload.polygons : [];
 
@@ -1660,9 +1739,7 @@ export default function LoteModal({ onClose, idproyecto }) {
 
           return {
             id: index + 1,
-            nombre:
-              polygon.nombre_sugerido ||
-              (polygon.lot_number ? `Lote ${polygon.lot_number}` : `Lote ${index + 1}`),
+            nombre: `Lote ${index + 1}`,
             precio: 0,
             descripcion: "",
             area_total_m2: "",
@@ -1670,10 +1747,6 @@ export default function LoteModal({ onClose, idproyecto }) {
             coords,
             center,
             confidence: polygon.confidence,
-            lot_number: polygon.lot_number || null,
-            manzana_label: polygon.manzana_label || null,
-            nombre_sugerido: polygon.nombre_sugerido || null,
-            nombreDetectado: Boolean(polygon.nombre_sugerido || polygon.lot_number),
           };
         })
         .filter(Boolean);
@@ -1691,10 +1764,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       const generated = rowMeta.items.map((item, index) => ({
         ...item,
         id: index + 1,
-        nombre:
-          item.nombre_sugerido ||
-          item.nombre ||
-          (item.lot_number ? `Lote ${item.lot_number}` : `Lote ${index + 1}`),
+        nombre: `Lote ${index + 1}`,
       }));
 
       setBasePolygonCoords(null);
@@ -1703,15 +1773,7 @@ export default function LoteModal({ onClose, idproyecto }) {
       setSelectedLote(generated[0]?.id ?? null);
       setSelectedLoteIds(generated[0] ? [generated[0].id] : []);
       setFormValues({});
-      manualOverridesRef.current = generated.reduce((acc, lote) => {
-        if (lote.nombreDetectado) {
-          acc[lote.id] = {
-            ...(acc[lote.id] || {}),
-            nombreManual: true,
-          };
-        }
-        return acc;
-      }, {});
+      manualOverridesRef.current = {};
       setReviewSummary("");
       const extractedRows = Math.max(1, rowMeta.rowCount);
       const extractedCols = Math.max(1, rowMeta.maxCols);
@@ -1728,9 +1790,8 @@ export default function LoteModal({ onClose, idproyecto }) {
         rows: extractedRows,
         cols: extractedCols,
       });
-      const labelsDebug = payload?.debug?.text_debug || {};
       setExtractionSummary(
-        `Detectados ${generated.length} lotes desde el PDF calibrado. Etiquetas: ${labelsDebug.lot_labels_matched || 0} lotes, ${labelsDebug.manzana_labels_matched || 0} manzanas.`,
+        `Detectados ${generated.length} lotes desde el PDF calibrado.`,
       );
     } catch (error) {
       console.error("Error extrayendo lotes:", error);
@@ -2149,13 +2210,20 @@ export default function LoteModal({ onClose, idproyecto }) {
         },
       );
 
-      if (!res.ok) throw new Error("Error en registro masivo");
+      if (!res.ok) {
+        throw new Error(
+          await getResponseErrorMessage(
+            res,
+            "No se pudieron registrar los inmuebles seleccionados.",
+          ),
+        );
+      }
 
-      setRegisterMessage("Registro con éxito.");
+      setRegisterMessage("Registro con exito.");
       onClose();
     } catch (error) {
       console.error(error);
-      setRegisterMessage("Error al registrar los inmuebles");
+      setRegisterMessage(error?.message || "Error al registrar los inmuebles");
 
     } finally {
       setIsRegistering(false);
@@ -2198,9 +2266,102 @@ export default function LoteModal({ onClose, idproyecto }) {
 
 
 
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+  const contentStyle = embedded
+    ? {
+        width: "100%",
+        maxWidth: "none",
+        minHeight: "auto",
+        height: "auto",
+        maxHeight: "none",
+        borderRadius: "24px",
+        boxShadow: "none",
+        overflow: "visible",
+        border: "1px solid rgba(148, 163, 184, 0.16)",
+      }
+    : undefined;
+
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
+    <div className={styles.modalOverlay} style={overlayStyle}>
+      {showDetectionModal && (
+        <div
+          className={styles.extractionModalOverlay}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowDetectionModal(false);
+            }
+          }}
+        >
+          <div className={styles.extractionModal}>
+            <div className={styles.extractionModalHeader}>
+              <div className={styles.extractionLogoWrap}>
+                <img src="/geohabita.png" alt="GeoHabita" className={styles.extractionLogo} />
+              </div>
+              <div>
+                <span className={styles.extractionEyebrow}>Detección Inteligente</span>
+                <h2>Extraer lotes desde PDF</h2>
+                <p>
+                  Esta herramienta no es 100% precisa. Recomendamos usar un PDF con poco color, lotes claramente visibles y sin transparencias que oculten los bordes.
+                </p>
+              </div>
+            </div>
+
+            {!detectionAccepted ? (
+              <>
+                <div className={styles.extractionTips}>
+                  <strong>Antes de continuar</strong>
+                  <ul>
+                    <li>Usa el PDF más limpio posible, con contraste alto.</li>
+                    <li>Evita fondos cargados o marcas que confundan bordes.</li>
+                    <li>Si el plano tiene muchas capas, la detección puede requerir ajuste manual.</li>
+                    <li>Verifica que el proyecto tenga un PDF vinculado y bien calibrado.</li>
+                  </ul>
+                </div>
+                <div className={styles.extractionActions}>
+                  <button type="button" className={styles.secondaryBtn} onClick={() => setShowDetectionModal(false)}>
+                    Cancelar
+                  </button>
+                  <button type="button" className={styles.submitBtn} onClick={handleConfirmDetection}>
+                    Aceptar y detectar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className={styles.extractionProgressPanel}>
+                <div className={styles.extractionProgressTop}>
+                  <div>
+                    <strong>{detectionStatus}</strong>
+                    <span>Tiempo estimado: {detectionEta}</span>
+                  </div>
+                  <span className={styles.extractionProgressPct}>{detectionProgress}%</span>
+                </div>
+                <div className={styles.extractionProgressBar}>
+                  <div className={styles.extractionProgressFill} style={{ width: `${detectionProgress}%` }} />
+                </div>
+                <div className={styles.extractionProgressNotes}>
+                  <span>GeoHabita</span>
+                  <span>Escaneando bordes</span>
+                  <span>Validando polígonos</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      <div className={styles.modalContent} style={contentStyle}>
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>Generar Lotes</h1>
@@ -2208,9 +2369,11 @@ export default function LoteModal({ onClose, idproyecto }) {
               Alinea lotes al polígono del proyecto y registra en un solo paso.
             </p>
           </div>
-          <button type="button" className={styles.closeBtn} onClick={onClose}>
-            <span className="material-icons-outlined">close</span>
-          </button>
+            {!embedded && (
+              <button type="button" className={styles.closeBtn} onClick={onClose}>
+                <span className="material-icons-outlined">close</span>
+              </button>
+            )}
         </div>
 
         <div className={styles.formBody}>
@@ -2278,17 +2441,26 @@ export default function LoteModal({ onClose, idproyecto }) {
                   </div>
                 </div>
 
-                <div className={styles.controlActions}>
+                <section className={styles.intelligenceCard}>
+                  <div>
+                    <span className={styles.intelligenceEyebrow}>Detección Inteligente</span>
+                    <h3>Extraer lotes automáticamente desde el PDF</h3>
+                    <p>
+                      Esta herramienta acelera la generación, pero requiere un PDF limpio y lotes bien contrastados para funcionar mejor.
+                    </p>
+                  </div>
                   <button
                     className={`${styles.submitBtn} ${styles.btnWithIcon}`}
-                    onClick={handleExtractLotes}
+                    onClick={handleOpenDetectionModal}
                     disabled={!pdfImage || !overlayBounds || isExtractingLotes}
                     type="button"
                   >
                     <ImageIcon size={16} className={styles.inlineIcon} />
                     {isExtractingLotes ? "Extrayendo..." : "Extraer lotes"}
                   </button>
+                </section>
 
+                <div className={styles.controlActions}>
                   <button
                     className={`${styles.submitBtn} ${styles.btnWithIcon}`}
                     onClick={handleRegenerateGrid}

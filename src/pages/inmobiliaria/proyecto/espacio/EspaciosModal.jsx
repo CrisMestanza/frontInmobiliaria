@@ -1,5 +1,6 @@
 import { withApiBase } from "../../../../config/api.js";
 import { authFetch } from "../../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../../utils/apiErrors.js";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleMap, Marker, Polygon, useJsApiLoader } from "@react-google-maps/api";
 import { X, MapPinned, Save, Trash2, Undo2, Plus, Shapes } from "lucide-react";
@@ -87,7 +88,7 @@ const getSpacePolygonStyle = (space, isActive = false) => {
   };
 };
 
-export default function EspaciosModal({ onClose, idproyecto }) {
+export default function EspaciosModal({ onClose, idproyecto, embedded = false }) {
   const token = localStorage.getItem("access");
   const googleRef = useRef(null);
   const mapRef = useRef(null);
@@ -241,12 +242,16 @@ export default function EspaciosModal({ onClose, idproyecto }) {
   }, [idproyecto]);
 
   useEffect(() => {
-    document.body.style.overflow = "hidden";
+    if (!embedded) {
+      document.body.style.overflow = "hidden";
+    }
     return () => {
-      document.body.style.overflow = "auto";
+      if (!embedded) {
+        document.body.style.overflow = "auto";
+      }
       clearPolygonListeners();
     };
-  }, [clearPolygonListeners]);
+  }, [clearPolygonListeners, embedded]);
 
   useEffect(() => {
     if (!mapsReady) return;
@@ -288,6 +293,8 @@ export default function EspaciosModal({ onClose, idproyecto }) {
         ? `Llevas ${drawPointCount} punto${drawPointCount === 1 ? "" : "s"}. Necesitas al menos 3 para cerrar el espacio.`
         : `Polígono listo con ${drawPointCount} puntos. Puedes ajustar los vértices o guardar.`
     : "Activa Dibujar para empezar a trazar el espacio sobre el mapa.";
+  const visibleSpacesCount = spaces.filter((space) => Number(space.visible_mapa) === 1).length;
+  const featuredSpacesCount = spaces.filter((space) => Number(space.destacado) === 1).length;
 
   const handleSave = async () => {
     if (!form.idtipoespacio || !form.nombre.trim() || form.puntos.length < 3) {
@@ -325,9 +332,12 @@ export default function EspaciosModal({ onClose, idproyecto }) {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        console.error("Error guardando espacio:", error);
-        window.alertError?.("No se pudo guardar el espacio.");
+        const message = await getResponseErrorMessage(
+          res,
+          "No se pudo guardar el espacio. Revisa los datos ingresados.",
+        );
+        console.error("Error guardando espacio:", message);
+        window.alertError?.(message);
         return;
       }
       window.alertSuccess?.("Espacio guardado.");
@@ -355,7 +365,8 @@ export default function EspaciosModal({ onClose, idproyecto }) {
         },
       );
       if (!res.ok) {
-        window.alertError?.("No se pudo eliminar el espacio.");
+        const message = await getResponseErrorMessage(res, "No se pudo eliminar el espacio.");
+        window.alertError?.(message);
         return;
       }
       window.alertSuccess?.("Espacio eliminado.");
@@ -368,62 +379,114 @@ export default function EspaciosModal({ onClose, idproyecto }) {
     }
   };
 
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+  const contentStyle = embedded
+    ? {
+        width: "100%",
+        height: "auto",
+        minHeight: "auto",
+        maxHeight: "none",
+        borderRadius: "24px",
+        boxShadow: "none",
+        overflow: "visible",
+        border: "1px solid rgba(148, 163, 184, 0.16)",
+      }
+    : undefined;
+
   if (loadError) {
-    return <div className={styles.modalOverlay}>Error cargando mapa.</div>;
+    return <div className={styles.modalOverlay} style={overlayStyle}>Error cargando mapa.</div>;
   }
 
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
-        <button
-          className={styles.closeBtn}
-          onClick={() => onClose?.({ refreshed: hasChanges })}
-        >
-          <X size={18} />
-        </button>
+    <div className={styles.modalOverlay} style={overlayStyle}>
+      <div className={styles.modalContent} style={contentStyle}>
+        {!embedded && (
+          <button
+            className={styles.closeBtn}
+            onClick={() => onClose?.({ refreshed: hasChanges })}
+          >
+            <X size={18} />
+          </button>
+        )}
         <div className={styles.header}>
           <div>
             <h2>Espacios del Proyecto</h2>
             <p>Traza parques, colegios, áreas verdes y demás espacios del masterplan.</p>
           </div>
         </div>
+        <div className={styles.summaryGrid}>
+          <article className={styles.summaryCard}>
+            <span>Espacios</span>
+            <strong>{spaces.length}</strong>
+            <small>registrados</small>
+          </article>
+          <article className={styles.summaryCard}>
+            <span>Visibles</span>
+            <strong>{visibleSpacesCount}</strong>
+            <small>en mapa público</small>
+          </article>
+          <article className={styles.summaryCard}>
+            <span>Destacados</span>
+            <strong>{featuredSpacesCount}</strong>
+            <small>con prioridad visual</small>
+          </article>
+          <article className={styles.summaryCard}>
+            <span>Dibujo</span>
+            <strong>{drawPointCount}</strong>
+            <small>puntos activos</small>
+          </article>
+        </div>
         <div className={styles.layout}>
           <aside className={styles.sidebar}>
-            <div className={styles.sectionHead}>
-              <Shapes size={16} />
-              <strong>Espacios existentes</strong>
-            </div>
-            <div className={styles.spaceList}>
-              {spaces.map((space) => (
-                <button
-                  type="button"
-                  key={space.idespacio}
-                  className={`${styles.spaceItem} ${form.idespacio === space.idespacio ? styles.spaceItemActive : ""}`}
-                  onClick={() => handleSelectSpace(space)}
-                >
-                  <span
-                    className={styles.spaceSwatch}
-                    style={{ background: getSpaceColor(space) }}
-                  />
-                  <div className={styles.spaceMeta}>
-                    <strong>{space.nombre}</strong>
-                    <small>
-                      {space.tipoespacio?.nombre || "Espacio"} · {space.area_m2 || 0} m²
-                    </small>
-                  </div>
-                </button>
-              ))}
-              {!spaces.length && !loading && (
-                <p className={styles.emptyState}>Aún no hay espacios registrados.</p>
+            <div className={styles.sidebarCard}>
+              <div className={styles.sectionHead}>
+                <Shapes size={16} />
+                <strong>Espacios existentes</strong>
+              </div>
+              <div className={styles.spaceList}>
+                {spaces.map((space) => (
+                  <button
+                    type="button"
+                    key={space.idespacio}
+                    className={`${styles.spaceItem} ${form.idespacio === space.idespacio ? styles.spaceItemActive : ""}`}
+                    onClick={() => handleSelectSpace(space)}
+                  >
+                    <span
+                      className={styles.spaceSwatch}
+                      style={{ background: getSpaceColor(space) }}
+                    />
+                    <div className={styles.spaceMeta}>
+                      <strong>{space.nombre}</strong>
+                      <small>
+                        {space.tipoespacio?.nombre || "Espacio"} · {space.area_m2 || 0} m²
+                      </small>
+                    </div>
+                  </button>
+                ))}
+                {!spaces.length && !loading && (
+                  <p className={styles.emptyState}>Aún no hay espacios registrados.</p>
+                )}
+              </div>
+              {!!spaces.length && (
+                <p className={styles.spaceHint}>
+                  {visibleSpacesCount} visibles en mapa · {spaces.length} registrados
+                </p>
               )}
             </div>
-            {!!spaces.length && (
-              <p className={styles.spaceHint}>
-                {spaces.filter((space) => Number(space.visible_mapa) === 1).length} visibles
-                en mapa · {spaces.length} registrados
-              </p>
-            )}
-            <div className={styles.formSection}>
+            <div className={`${styles.sidebarCard} ${styles.formSection}`}>
               <div className={styles.sectionHead}>
                 <MapPinned size={16} />
                 <strong>{form.idespacio ? "Editar espacio" : "Nuevo espacio"}</strong>
@@ -558,7 +621,8 @@ export default function EspaciosModal({ onClose, idproyecto }) {
             </div>
           </aside>
 
-          <div className={styles.mapWrap}>
+          <div className={styles.mapPanel}>
+            <div className={styles.mapWrap}>
             {mapsReady ? (
               <GoogleMap
                 mapContainerClassName={styles.map}
@@ -660,6 +724,7 @@ export default function EspaciosModal({ onClose, idproyecto }) {
                 {mapsReady ? "Cargando proyecto..." : "Cargando mapa..."}
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

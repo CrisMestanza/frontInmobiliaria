@@ -45,17 +45,18 @@ const PrivateRoute = ({ children }) => {
     checkAuth();
   }, []);
 
-  if (isAuth === null) return <GeoHabitaLoader autoHide={false} />;
-  if (!isAuth) return <Navigate to="/" />;
+  if (isAuth === false) return <Navigate to="/" />;
 
   const renderedChildren = React.isValidElement(children)
     ? React.cloneElement(children, { setAppLoading })
     : children;
 
+  const showLoader = isAuth === null || appLoading;
+
   return (
     <>
-      {appLoading && <GeoHabitaLoader autoHide={false} />}
-      {renderedChildren}
+      {showLoader && <GeoHabitaLoader autoHide={false} />}
+      {isAuth === true ? renderedChildren : null}
     </>
   );
 };

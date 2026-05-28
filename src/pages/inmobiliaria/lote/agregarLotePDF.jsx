@@ -56,7 +56,7 @@ const normalizePolygonCoords = (coords) => {
   return ordered.map((p) => ({ lat: p.lat, lng: p.lng }));
 };
 
-export default function LoteModal({ onClose, idproyecto }) {
+export default function LoteModal({ onClose, idproyecto, embedded = false }) {
   const token = localStorage.getItem("access");
   const [isLoaded, setIsLoaded] = useState(false);
   const [mapCenter, setMapCenter] = useState(null);
@@ -279,11 +279,15 @@ export default function LoteModal({ onClose, idproyecto }) {
   };
 
   useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
+    if (!embedded) {
       document.body.style.overflow = "hidden";
+    }
+    return () => {
+      if (!embedded) {
+        document.body.style.overflow = "auto";
+      }
     };
-  }, []);
+  }, [embedded]);
 
   const fetchProyecto = useCallback(async () => {
     try {
@@ -1053,9 +1057,36 @@ export default function LoteModal({ onClose, idproyecto }) {
 
   if (!isLoaded || !mapCenter) return <div>Cargando mapa...</div>;
 
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+    const containerStyle = embedded
+      ? {
+          width: "100%",
+          maxWidth: "none",
+          minHeight: "auto",
+          maxHeight: "none",
+          borderRadius: "24px",
+          boxShadow: "none",
+          overflow: "visible",
+          border: "1px solid rgba(148, 163, 184, 0.16)",
+        }
+      : undefined;
+
   return (
-    <div className={style.modalOverlay}>
-      <div className={style.modalContainer}>
+    <div className={style.modalOverlay} style={overlayStyle}>
+      <div className={style.modalContainer} style={containerStyle}>
         <div className={style.container}>
           {/* HEADER */}
           <header className={style.header}>

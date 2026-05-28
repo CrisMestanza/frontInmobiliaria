@@ -1,4 +1,5 @@
 import { withApiBase } from "../../config/api.js";
+import { parseBackendError } from "../../utils/apiErrors.js";
 // src/components/Registro/Summary.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -16,20 +17,7 @@ const Summary = ({ onBack, formData }) => {
   const navigate = useNavigate();
 
   const parseError = (data) => {
-    if (!data) return "No se pudo completar el registro.";
-    if (typeof data.message === "string") return data.message;
-    const firstKey = Object.keys(data)[0];
-    if (!firstKey) return "No se pudo completar el registro.";
-    const value = data[firstKey];
-    if (typeof value === "string") return value;
-    if (Array.isArray(value) && value.length) return value[0];
-    if (value && typeof value === "object") {
-      const nestedKey = Object.keys(value)[0];
-      const nestedValue = value[nestedKey];
-      if (Array.isArray(nestedValue) && nestedValue.length) return nestedValue[0];
-      if (typeof nestedValue === "string") return nestedValue;
-    }
-    return "No se pudo completar el registro.";
+    return parseBackendError(data, "No se pudo completar el registro.");
   };
 
   const handleSubmit = async (e) => {

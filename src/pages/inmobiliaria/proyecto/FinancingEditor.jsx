@@ -66,7 +66,9 @@ export default function FinancingEditor({
   currencyOptions = [],
   fallbackCurrency = "S/",
 }) {
-  const [showPresets, setShowPresets] = React.useState(false);
+  const presets = (value.presets || []).slice(0, 3);
+  const financingEnabled = value.enabled !== false;
+
   const handleFieldChange = (name, rawValue) => {
     const nextValue =
       name === "enabled"
@@ -101,6 +103,37 @@ export default function FinancingEditor({
     }));
   };
 
+  const handleToggleEnabled = () => {
+    onChange((prev) => ({
+      ...prev,
+      enabled: !(prev.enabled !== false),
+    }));
+  };
+
+  const handleAddPreset = () => {
+    onChange((prev) => {
+      const nextPresets = [...(prev.presets || [])];
+      if (nextPresets.length >= 3) return prev;
+      nextPresets.push({
+        label: "",
+        months: "",
+        initial_amount: "",
+      });
+      return {
+        ...prev,
+        enabled: true,
+        presets: nextPresets,
+      };
+    });
+  };
+
+  const handleRemovePreset = (index) => {
+    onChange((prev) => ({
+      ...prev,
+      presets: (prev.presets || []).filter((_, presetIndex) => presetIndex !== index),
+    }));
+  };
+
   return (
     <section>
       <h2 className={styles.sectionTitle}>
@@ -109,6 +142,35 @@ export default function FinancingEditor({
       </h2>
 
       <div className={styles.sectionCard}>
+        <div className={styles.financingToggleCard}>
+          <div>
+            <strong>Mostrar financiamiento en este proyecto</strong>
+            <span>
+              Puedes dejar el módulo sin financiamiento ni planes rápidos. Si lo activas, defines límites y hasta 3 escenarios comerciales.
+            </span>
+          </div>
+          <button
+            type="button"
+            className={`${styles.utilitySwitch} ${financingEnabled ? styles.utilitySwitchActive : ""}`}
+            onClick={handleToggleEnabled}
+            aria-pressed={financingEnabled}
+          >
+            <span className={styles.utilitySwitchCopy}>
+              <strong>{financingEnabled ? "Activado" : "Desactivado"}</strong>
+              <small>{financingEnabled ? "El cliente verá simulación y presets si existen." : "No se mostrará financiamiento."}</small>
+            </span>
+            <span className={`${styles.switchTrack} ${financingEnabled ? styles.switchTrackActive : ""}`}>
+              <span className={styles.switchThumb} />
+            </span>
+          </button>
+        </div>
+
+        {!financingEnabled ? (
+          <div className={styles.financingPresetEmpty}>
+            El proyecto se guardará sin financiamiento visible. Puedes activarlo después cuando realmente quieras usar simulación o planes rápidos.
+          </div>
+        ) : (
+          <>
         <div className={styles.controlGrid}>
           <div className={styles.controlField}>
             <label>Moneda</label>
@@ -167,22 +229,42 @@ export default function FinancingEditor({
             <div>
               <label>Planes rápidos</label>
               <small className={styles.financingFieldHint}>
-                Sirven para dejar 3 escenarios comerciales listos y mostrarlos como atajos al cliente.
+                Puedes usar de 0 a 3 planes. Si no agregas ninguno, el proyecto seguirá teniendo financiamiento general sin atajos visibles.
               </small>
             </div>
+            <span className={styles.financingPresetHeaderMeta}>
+              {presets.length}/3 planes
+            </span>
+          </div>
+
+          <div className={styles.financingPresetActions}>
             <button
               type="button"
-              className={styles.financingPresetToggle}
-              onClick={() => setShowPresets((prev) => !prev)}
+              className={styles.secondaryBtn}
+              onClick={handleAddPreset}
+              disabled={presets.length >= 3}
             >
-              {showPresets ? "Ocultar" : "Editar"}
+              Agregar plan
             </button>
           </div>
 
-          {showPresets && (
+          {presets.length > 0 ? (
             <div className={styles.financingPresetGrid}>
-              {(value.presets || []).slice(0, 3).map((preset, index) => (
+              {presets.map((preset, index) => (
                 <div key={`preset-${index}`} className={styles.financingPresetCard}>
+                  <div className={styles.financingPresetCardHead}>
+                    <span className={styles.financingPresetTag}>Plan {index + 1}</span>
+                    <div className={styles.financingPresetCardTitleRow}>
+                      <strong>{preset.label || `Escenario ${index + 1}`}</strong>
+                      <button
+                        type="button"
+                        className={styles.secondaryBtn}
+                        onClick={() => handleRemovePreset(index)}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
                   <div className={styles.compactField}>
                     <label htmlFor={`preset-label-${index}`}>Etiqueta</label>
                     <input
@@ -230,6 +312,10 @@ export default function FinancingEditor({
                 </div>
               ))}
             </div>
+          ) : (
+            <div className={styles.financingPresetEmpty}>
+              Este proyecto no tiene planes rápidos configurados. Puedes guardarlo sin ellos o agregar presets desde la configuración base.
+            </div>
           )}
         </div>
 
@@ -247,6 +333,8 @@ export default function FinancingEditor({
             Usa este campo para dejar claro cómo debe entenderse la propuesta comercial.
           </small>
         </div>
+          </>
+        )}
       </div>
     </section>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { withApiBase } from "../../config/api.js";
+import { getResponseErrorMessage } from "../../utils/apiErrors.js";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -477,17 +478,11 @@ export default function GeoHabitaRecovery() {
       body: JSON.stringify(payload),
     });
 
-    let data = {};
-    try {
-      data = await res.json();
-    } catch {
-      data = {};
-    }
-
     if (!res.ok) {
-      throw new Error(data?.message || "No se pudo completar la solicitud.");
+      throw new Error(await getResponseErrorMessage(res, "No se pudo completar la solicitud."));
     }
 
+    const data = await res.json().catch(() => ({}));
     return data;
   };
 

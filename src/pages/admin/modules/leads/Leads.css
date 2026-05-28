@@ -1,0 +1,25 @@
+.leads-page { max-width: 1000px; margin: 0 auto; }
+.leads-header { margin-bottom: 1.2rem; }
+.leads-header h2 { font-size: 1.25rem; font-weight: 800; margin: 0; }
+.leads-header p { color: var(--theme-text-muted); font-size: 0.82rem; margin: 0.25rem 0 0; }
+
+.leads-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; margin-bottom: 1.5rem; }
+.leads-summary-card { display: flex; align-items: center; gap: 12px; padding: 1.2rem; border-radius: 14px; background: var(--theme-bg-surface-raised); border: 1px solid var(--theme-border-color); box-shadow: var(--theme-shadow-sm); }
+.leads-summary-card strong { font-size: 1.5rem; font-weight: 800; display: block; }
+.leads-summary-card span { font-size: 0.75rem; color: var(--theme-text-muted); text-transform: uppercase; font-weight: 600; }
+.leads-summary--total { border-left: 4px solid #10b981; }
+
+.leads-section { margin-bottom: 1.5rem; }
+.leads-section h3 { font-size: 0.95rem; font-weight: 800; margin-bottom: 0.8rem; }
+.leads-empty-msg { color: var(--theme-text-muted); font-size: 0.85rem; }
+
+.leads-project-list { display: flex; flex-direction: column; gap: 8px; }
+.leads-project-row { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; border-radius: 10px; background: var(--theme-bg-surface-raised); border: 1px solid var(--theme-border-color); }
+.leads-project-info { min-width: 180px; }
+.leads-project-info strong { display: block; font-size: 0.85rem; }
+.leads-project-info span { font-size: 0.72rem; color: var(--theme-text-muted); }
+.leads-project-bar { flex: 1; height: 8px; background: var(--theme-bg-soft); border-radius: 999px; overflow: hidden; }
+.leads-project-bar-fill { height: 100%; background: #10b981; border-radius: 999px; transition: width 0.5s; }
+
+.leads-notice { padding: 1rem; border-radius: 12px; background: color-mix(in srgb, var(--theme-info) 12%, var(--theme-bg-surface)); border: 1px solid color-mix(in srgb, var(--theme-info) 24%, var(--theme-border-color)); font-size: 0.82rem; color: var(--theme-info); line-height: 1.5; }
+.leads-notice strong { font-weight: 800; }

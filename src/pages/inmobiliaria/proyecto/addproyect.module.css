@@ -1,9 +1,9 @@
 :root {
   --primari: #1e40af;
-  --bg-light: var(--theme-bg-soft);
-  --text-main: var(--theme-text-main);
-  --text-muted: var(--theme-text-muted);
-  --border-color: var(--theme-border-color);
+  --bg-light: var(--theme-bg-soft, #f1f5f9);
+  --text-main: var(--theme-text-main, #0f172a);
+  --text-muted: var(--theme-text-muted, #64748b);
+  --border-color: var(--theme-border-color, rgba(148, 163, 184, 0.28));
 }
 
 .helpHeaderWrap {
@@ -73,7 +73,7 @@
   margin: 0;
   font-size: 0.74rem;
   line-height: 1.45;
-  color: #56cdf5;
+  color: var(--text-muted);
 }
 
 .helpBubble p + p {
@@ -81,7 +81,7 @@
 }
 
 .helpBubble p strong {
-  color: #6d95eb;
+  color: var(--text-main);
 }
 
 .helpBubbleClose {
@@ -116,6 +116,34 @@
   .helpBubble {
     width: min(320px, 96vw);
   }
+
+  .extractionModal {
+    border-radius: 20px;
+    padding: 1rem;
+  }
+
+  .extractionModalHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .extractionLogoWrap {
+    width: 72px;
+    height: 72px;
+  }
+
+  .extractionLogo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .extractionProgressTop {
+    flex-direction: column;
+  }
+
+  .extractionProgressPct {
+    min-width: 0;
+    text-align: left;
+  }
 }
 
 /* Para el modal de subiendo proyecto */
@@ -141,7 +169,7 @@
 
 .spinner {
   font-size: 48px;
-  color: #1e40af;
+  color: var(--theme-primary);
   animation: spin 1s linear infinite;
 }
 
@@ -169,6 +197,272 @@
   justify-content: center;
   padding: 1.125rem; /* 1.5rem * 0.75 */
   z-index: 1000;
+}
+
+.extractionModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.extractionModal {
+  width: min(860px, 100%);
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--primari) 18%, var(--border-color));
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 245, 249, 0.92));
+  box-shadow: 0 42px 84px -38px rgba(15, 23, 42, 0.56);
+  padding: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.extractionModalHeader {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.extractionLogoWrap {
+  width: 88px;
+  height: 88px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.84));
+  border: 1px solid color-mix(in srgb, var(--primari) 18%, var(--border-color));
+}
+
+.extractionLogo {
+  width: 74px;
+  height: 74px;
+  object-fit: contain;
+}
+
+.extractionEyebrow {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #0f766e;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.extractionModalHeader h2 {
+  margin: 0.4rem 0 0;
+  color: var(--text-main);
+  font-size: 1.4rem;
+}
+
+.extractionModalHeader p {
+  margin: 0.45rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.extractionTips {
+  border-radius: 22px;
+  padding: 1rem 1.05rem;
+  border: 1px solid color-mix(in srgb, #0f766e 16%, var(--border-color));
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.extractionTips strong {
+  display: block;
+  margin-bottom: 0.6rem;
+  color: var(--text-main);
+}
+
+.extractionTips ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.extractionTips li + li {
+  margin-top: 0.3rem;
+}
+
+.extractionActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.extractionProgressPanel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem 0.95rem 1rem;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--primari) 14%, var(--border-color));
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.extractionProgressTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.extractionProgressTop strong {
+  display: block;
+  color: var(--text-main);
+  font-size: 0.98rem;
+}
+
+.extractionProgressTop span {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.extractionProgressPct {
+  min-width: 64px;
+  text-align: right;
+  color: #0f766e;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.extractionProgressBar {
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.extractionProgressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0f766e, #10b981, #60a5fa);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.28);
+  transition: width 0.25s ease;
+}
+
+.extractionProgressNotes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.extractionProgressNotes span {
+  min-height: 30px;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.08);
+  color: #0f766e;
+  font-size: 0.74rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+}
+
+:global(.dark) .helpBubble,
+:global(.dark) .loadingModal,
+:global(.dark) .modalContent,
+:global(.dark) .header,
+:global(.dark) .sectionCard,
+:global(.dark) .utilitySwitch,
+:global(.dark) .input,
+:global(.dark) .select,
+:global(.dark) .textarea,
+:global(.dark) .hintBox,
+:global(.dark) .reviewInfoCard,
+:global(.dark) .reviewChip,
+:global(.dark) .financingToggleCard,
+:global(.dark) .financingPresetCard,
+:global(.dark) .financingIntroCard,
+:global(.dark) .financingIntroPill,
+:global(.dark) .financingPresetEmpty,
+:global(.dark) .intelligenceCard {
+  background-color: var(--theme-bg-surface, #111827);
+  color: var(--theme-text-main, #e5edf7);
+  border-color: var(--theme-border-color, rgba(100, 116, 139, 0.36));
+}
+
+:global(.dark) .sectionCard,
+:global(.dark) .financingToggleCard,
+:global(.dark) .financingPresetCard,
+:global(.dark) .financingIntroCard,
+:global(.dark) .intelligenceCard {
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(17, 24, 39, 0.76));
+}
+
+:global(.dark) .input,
+:global(.dark) .select,
+:global(.dark) .textarea,
+:global(.dark) .reviewChip,
+:global(.dark) .utilitySwitch {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+:global(.dark) .helpBubble::before {
+  background: var(--theme-bg-surface, #111827);
+  border-color: var(--theme-border-color, rgba(100, 116, 139, 0.36));
+}
+
+:global(.dark) .formAlert {
+  background: rgba(127, 29, 29, 0.18);
+  border-color: rgba(248, 113, 113, 0.26);
+  color: #fecaca;
+}
+
+:global(.dark) .reviewChipActive {
+  border-color: rgba(96, 165, 250, 0.46);
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+}
+
+:global(.dark) .financingPresetTag,
+:global(.dark) .financingPresetHeaderMeta,
+:global(.dark) .intelligenceEyebrow,
+:global(.dark) .extractionEyebrow {
+  color: #99f6e4;
+  background: rgba(20, 184, 166, 0.12);
+}
+
+:global(.dark) .extractionModal {
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.9));
+}
+
+:global(.dark) .extractionModalHeader h2,
+:global(.dark) .extractionTips strong,
+:global(.dark) .extractionProgressTop strong {
+  color: #e2e8f0;
+}
+
+:global(.dark) .extractionModalHeader p,
+:global(.dark) .extractionTips,
+:global(.dark) .extractionProgressTop span {
+  color: #94a3b8;
+}
+
+:global(.dark) .extractionTips,
+:global(.dark) .extractionProgressPanel,
+:global(.dark) .extractionLogoWrap {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(71, 85, 105, 0.3);
 }
 
 .modalContent {
@@ -209,6 +503,12 @@
   margin-top: 0.125rem;
 }
 
+.draftNotice {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: #0f766e;
+}
+
 .closeBtn {
   background: transparent;
   border: none;
@@ -230,6 +530,27 @@
   flex: 1;
   overflow-y: auto;
   padding: 0.8rem 1rem 1rem;
+}
+
+.formAlert {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(239, 68, 68, 0.22);
+  background: linear-gradient(180deg, rgba(254, 242, 242, 0.98), rgba(255, 255, 255, 0.96));
+  display: grid;
+  gap: 0.28rem;
+  color: #991b1b;
+}
+
+.formAlert strong,
+.formAlert span {
+  display: block;
+}
+
+.formAlert span {
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .gridContainer {
@@ -319,6 +640,176 @@
   margin-bottom: 0.3rem; /* 0.4rem * 0.75 */
 }
 
+.labelWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.labelWithIcon svg {
+  color: var(--primari);
+}
+
+.fieldSurface {
+  position: relative;
+}
+
+.fieldIcon {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  color: var(--primari);
+  pointer-events: none;
+}
+
+.fieldControl {
+  position: relative;
+}
+
+.inputWithIcon {
+  padding-left: 2.35rem;
+}
+
+.fieldCounter {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.fieldCounterError {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.utilitySwitchGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.utilitySwitch {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.78rem 0.85rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border-color);
+  background: var(--theme-bg-surface);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  text-align: left;
+}
+
+.utilitySwitch:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primari) 40%, var(--border-color));
+  box-shadow: 0 14px 28px -24px rgba(15, 23, 42, 0.42);
+}
+
+.utilitySwitchActive {
+  border-color: rgba(16, 185, 129, 0.32);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(14, 165, 233, 0.08));
+}
+
+.utilitySwitchIcon {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primari);
+  background: color-mix(in srgb, var(--primari) 10%, var(--theme-bg-surface));
+}
+
+.utilitySwitchCopy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+
+.utilitySwitchCopy strong {
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.utilitySwitchCopy small {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.switchTrack {
+  width: 38px;
+  min-width: 38px;
+  height: 22px;
+  padding: 2px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.18s ease;
+}
+
+.switchTrackActive {
+  background: #10b981;
+}
+
+.switchThumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.24);
+  transition: transform 0.18s ease;
+}
+
+.switchTrackActive .switchThumb {
+  transform: translateX(16px);
+}
+
+.priceFieldRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.flagWrap {
+  margin-top: 1.95rem;
+}
+
+.priceInputRow,
+.inlineFieldWithIcon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currencyInline {
+  position: absolute;
+  left: 2.35rem;
+  z-index: 2;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.priceInputRow .input {
+  padding-left: 4rem;
+}
+
+.inlineFieldIcon {
+  position: absolute;
+  left: 12px;
+  z-index: 2;
+  color: var(--primari);
+  pointer-events: none;
+}
+
 .input,
 .select,
 .textarea {
@@ -358,6 +849,12 @@
   outline: none;
   border-color: var(--primari);
   box-shadow: 0 0 0 2.25px rgba(30, 64, 175, 0.1); /* 3px * 0.75 */
+}
+
+.inputError,
+.inputError:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2.25px rgba(220, 38, 38, 0.14);
 }
 
 .compactGrid {
@@ -415,6 +912,19 @@
   }
 }
 
+@media (max-width: 1024px) {
+  .financingPresetGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .intelligenceCard,
+  .financingToggleCard,
+  .financingPresetHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 .sectionCard {
   background: var(--theme-bg-soft);
   border: 1px solid var(--border-color);
@@ -464,6 +974,48 @@
   gap: 0.6rem;
   flex-wrap: wrap;
   margin-bottom: 0.65rem;
+}
+
+.intelligenceCard {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  margin-bottom: 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--primari) 14%, var(--border-color));
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 245, 249, 0.86));
+}
+
+.intelligenceEyebrow {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #0f766e;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.intelligenceCard h3 {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 0.92rem;
+}
+
+.intelligenceCard p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+  font-size: 0.78rem;
+  max-width: 700px;
 }
 
 .hintBox {
@@ -554,8 +1106,38 @@
 
 .financingPresetGrid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.65rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.financingToggleCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  margin-bottom: 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--primari) 12%, var(--border-color));
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 249, 0.84));
+}
+
+.financingToggleCard strong,
+.financingToggleCard span {
+  display: block;
+}
+
+.financingToggleCard strong {
+  color: var(--text-main);
+}
+
+.financingToggleCard span {
+  margin-top: 0.25rem;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--text-muted);
 }
 
 .financingPresetHeader {
@@ -566,27 +1148,74 @@
   margin-bottom: 0.55rem;
 }
 
-.financingPresetToggle {
-  border: 1px solid var(--border-color);
+.financingPresetHeaderMeta {
+  border: 1px solid color-mix(in srgb, var(--primari) 16%, var(--border-color));
   background: color-mix(in srgb, var(--primari) 10%, var(--theme-bg-surface));
   color: var(--text-main);
   min-height: 34px;
   padding: 0.35rem 0.8rem;
   border-radius: 999px;
+  font-size: 0.72rem;
   font-weight: 700;
-  cursor: pointer;
 }
 
-.financingPresetToggle:hover {
-  background: color-mix(in srgb, var(--primari) 18%, var(--theme-bg-surface));
+.financingPresetActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.65rem;
 }
 
 .financingPresetCard {
-  border: 1px solid var(--border-color);
-  border-radius: 0.7rem;
-  padding: 0.75rem;
-  background: var(--theme-bg-surface);
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.04);
+  border: 1px solid color-mix(in srgb, var(--primari) 12%, var(--border-color));
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(241, 245, 249, 0.84));
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.05);
+}
+
+.financingPresetCardHead {
+  display: grid;
+  gap: 0.26rem;
+  margin-bottom: 0.7rem;
+}
+
+.financingPresetCardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.financingPresetCardHead strong {
+  font-size: 0.86rem;
+  color: var(--text-main);
+}
+
+.financingPresetTag {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.financingPresetEmpty {
+  border: 1px dashed color-mix(in srgb, var(--primari) 18%, var(--border-color));
+  border-radius: 0.9rem;
+  padding: 0.9rem 1rem;
+  background: color-mix(in srgb, var(--theme-bg-soft) 78%, var(--theme-bg-surface));
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 .financingModalContent {
@@ -947,6 +1576,14 @@
 
 /* Responsive para imágenes */
 @media (max-width: 768px) {
+  .utilitySwitchGrid,
+  .compactGrid,
+  .compactGridTwo,
+  .controlGrid,
+  .financingIntroGrid {
+    grid-template-columns: 1fr;
+  }
+
   .imageUploadContainer {
     flex-direction: column;
   }
@@ -1014,11 +1651,27 @@
 
 .mapWrapper {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
   flex: 1;
   min-height: 300px;
   border-radius: 0.563rem; /* 0.75rem * 0.75 */
   overflow: hidden;
   border: 1px solid var(--border-color);
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.08), transparent 34%),
+    var(--theme-bg-surface);
+}
+
+.mapContainerWrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 260px;
+  width: 100%;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  isolation: isolate;
 }
 
 .mapTypeControlWrap {
@@ -1123,12 +1776,28 @@
 .googleMap {
   width: 100%;
   height: 100%;
+  min-height: 260px;
+}
+
+.mapLoadingState {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  color: var(--text-muted);
+  font-weight: 800;
+  text-align: center;
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.12), transparent 34%),
+    linear-gradient(180deg, var(--theme-bg-surface), var(--theme-bg-soft));
 }
 
 /* Contenedor del input de búsqueda */
 .searchWrapper {
   position: absolute;
-  top: 1rem;
+  top: 3.85rem;
   left: 0.75rem; /* 1rem * 0.75 */
   right: auto;
   width: min(320px, calc(100% - 1.5rem));
@@ -1137,9 +1806,10 @@
 
 /* Input de búsqueda */
 .mapSearchInput {
+  width: 100%;
   padding: 9px 12px;
   padding-left: 33px;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--border-color);
   border-radius: 6px;
   font-size: 0.8rem;
   font-family:
@@ -1150,15 +1820,15 @@
   background-repeat: no-repeat;
   background-position: 9px center;
   background-size: 15px;
-  box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
   box-sizing: border-box;
 }
 
 .mapSearchInput:focus {
   outline: none;
-  border-color: #1e40af;
-  box-shadow: 0 0 0 2.25px rgba(30, 64, 175, 0.1);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2.25px var(--theme-primary-soft);
 }
 
 .mapSearchInput::placeholder {
@@ -1183,7 +1853,7 @@ gmp-place-autocomplete input {
   width: 100% !important;
   padding: 9px 12px !important;
   padding-left: 33px !important;
-  border: 1.5px solid #e5e7eb !important;
+  border: 1.5px solid var(--border-color) !important;
   border-radius: 6px !important;
   font-size: 10.5px !important;
   font-family:
@@ -1194,15 +1864,15 @@ gmp-place-autocomplete input {
   background-repeat: no-repeat !important;
   background-position: 9px center !important;
   background-size: 15px !important;
-  box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: var(--shadow-sm) !important;
   transition: all 0.2s !important;
   box-sizing: border-box !important;
 }
 
 gmp-place-autocomplete input:focus {
   outline: none !important;
-  border-color: #1e40af !important;
-  box-shadow: 0 0 0 2.25px rgba(30, 64, 175, 0.1) !important;
+  border-color: var(--theme-primary) !important;
+  box-shadow: 0 0 0 2.25px var(--theme-primary-soft) !important;
 }
 
 gmp-place-autocomplete input::placeholder {
@@ -1241,22 +1911,22 @@ gmp-place-autocomplete input::placeholder {
   gap: 4.5px; /* 6px * 0.75 */
   padding: 6px 12px;
   background: var(--theme-bg-surface);
-  border: 1.5px solid #e5e7eb; /* 2px * 0.75 */
+  border: 1.5px solid var(--border-color); /* 2px * 0.75 */
   border-radius: 6px; /* 8px * 0.75 */
   font-size: 0.78rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-main);
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.1); /* 2px * 0.75, 4px * 0.75 */
+  box-shadow: var(--shadow-sm); /* 2px * 0.75, 4px * 0.75 */
   white-space: nowrap;
 }
 
 .mapBtn:hover:not(:disabled) {
   background: var(--theme-bg-soft);
-  border-color: #1e40af;
-  color: #1e40af;
-  box-shadow: 0 3px 4.5px rgba(0, 0, 0, 0.15); /* 4px * 0.75, 6px * 0.75 */
+  border-color: var(--theme-primary);
+  color: var(--theme-primary-hover);
+  box-shadow: 0 12px 24px -20px color-mix(in srgb, var(--theme-primary) 55%, #000); /* 4px * 0.75, 6px * 0.75 */
 }
 
 .mapBtn:active:not(:disabled) {
@@ -1275,26 +1945,28 @@ gmp-place-autocomplete input::placeholder {
 }
 
 .mapBtnActive {
-  background: #1e40af;
-  color: white;
-  border-color: #1e40af;
+  background: var(--theme-primary);
+  color: var(--theme-primary-contrast);
+  border-color: var(--theme-primary);
 }
 
 .mapBtnActive:hover {
-  background: #1e3a8a;
-  border-color: #1e3a8a;
-  color: white;
+  background: var(--theme-primary-hover);
+  border-color: var(--theme-primary-hover);
+  color: var(--theme-primary-contrast);
 }
 
 /* Mejorar el hint del mapa */
 .mapHint {
-  margin-top: 7px;
+  position: relative;
+  z-index: 6;
+  margin: 0;
   padding: 8px;
   background: color-mix(in srgb, var(--primari) 10%, var(--theme-bg-surface));
-  border-left: 3px solid #1e40af;
+  border-left: 3px solid var(--theme-primary);
   border-radius: 3px;
   font-size: 0.75rem;
-  color: #1e40af;
+  color: var(--theme-primary-hover);
   line-height: 1.5;
 }
 
@@ -1347,6 +2019,13 @@ gmp-place-autocomplete input::placeholder {
   transform: scale(0.98);
 }
 
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #94a3b8;
+  box-shadow: none;
+}
+
 .submitBtn .material-icons-outlined {
   font-size: 1.125rem; /* 1.5rem * 0.75 */
 }
@@ -1360,6 +2039,10 @@ gmp-place-autocomplete input::placeholder {
 
 /* Responsive para los controles del mapa */
 @media (max-width: 768px) {
+  .utilitySwitchGrid {
+    grid-template-columns: 1fr;
+  }
+
   .mapControls {
     top: 58px;
     right: 8px;
@@ -1367,8 +2050,12 @@ gmp-place-autocomplete input::placeholder {
   }
 
   .searchWrapper {
-    top: 0.75rem;
-    width: calc(100% - 1.5rem);
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    margin: 0;
+    z-index: 2;
   }
 
   .modalContent {
@@ -1406,6 +2093,12 @@ gmp-place-autocomplete input::placeholder {
     min-height: 300px;
   }
 
+  .mapContainerWrap,
+  .googleMap,
+  .mapLoadingState {
+    min-height: 300px;
+  }
+
   .footer {
     flex-direction: column-reverse;
     align-items: stretch;
@@ -1439,6 +2132,12 @@ gmp-place-autocomplete input::placeholder {
   }
 
   .mapWrapper {
+    min-height: 280px;
+  }
+
+  .mapContainerWrap,
+  .googleMap,
+  .mapLoadingState {
     min-height: 280px;
   }
 }

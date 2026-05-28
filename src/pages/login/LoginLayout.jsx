@@ -1,4 +1,5 @@
 import { withApiBase } from "../../config/api.js";
+import { parseBackendError } from "../../utils/apiErrors.js";
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./Login.css";
@@ -11,17 +12,7 @@ const LoginLayout = () => {
   const registrationNotice = location?.state?.registrationNotice || "";
 
   const parseErrorMessage = (data) => {
-    if (!data) return "Credenciales incorrectas";
-    if (typeof data.detail === "string") return data.detail;
-    if (typeof data.error === "string") return data.error;
-    if (Array.isArray(data.non_field_errors) && data.non_field_errors.length) {
-      return data.non_field_errors[0];
-    }
-    const firstKey = Object.keys(data)[0];
-    if (firstKey && Array.isArray(data[firstKey]) && data[firstKey].length) {
-      return data[firstKey][0];
-    }
-    return "Credenciales incorrectas";
+    return parseBackendError(data, "Credenciales incorrectas o cuenta pendiente de activacion.");
   };
 
   const handleSubmit = async (e) => {
@@ -48,7 +39,7 @@ const LoginLayout = () => {
         },
       );
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         localStorage.setItem("access", data.access);
         localStorage.setItem("refresh", data.refresh);

@@ -1,5 +1,6 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 import React, { useMemo, useState } from "react";
 import styles from "./addproyect.module.css";
 import FinancingEditor from "./FinancingEditor.jsx";
@@ -10,7 +11,7 @@ import {
 
 const token = localStorage.getItem("access");
 
-export default function FinancingModal({ onClose, proyecto }) {
+export default function FinancingModal({ onClose, proyecto, embedded = false }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const financingBaseState = useMemo(
     () =>
@@ -56,25 +57,62 @@ export default function FinancingModal({ onClose, proyecto }) {
       );
 
       if (!res.ok) {
-        const error = await res.json().catch(() => ({}));
-        console.error("Error guardando financiamiento:", error);
-        alert("No se pudo guardar la lógica de financiamiento.");
+        const message = await getResponseErrorMessage(
+          res,
+          "No se pudo guardar la configuracion de financiamiento.",
+        );
+        console.error("Error guardando financiamiento:", message);
+        if (window.alertError) window.alertError(message);
+        else alert(message);
         return;
       }
 
-      alert("Financiamiento actualizado con éxito");
+      if (window.alertSuccess) window.alertSuccess("Financiamiento actualizado con exito");
+      else alert("Financiamiento actualizado con exito");
       onClose?.({ refreshed: true });
     } catch (error) {
       console.error("Error de red guardando financiamiento:", error);
-      alert("Error de red al guardar financiamiento.");
+      const message =
+        error?.message ||
+        "No se pudo conectar con el servidor para guardar el financiamiento.";
+      if (window.alertError) window.alertError(message);
+      else alert(message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+  const contentStyle = embedded
+    ? {
+        width: "100%",
+        maxWidth: "none",
+        height: "auto",
+        maxHeight: "none",
+        minHeight: "auto",
+        borderRadius: "24px",
+        boxShadow: "none",
+        overflow: "visible",
+        border: "1px solid rgba(148, 163, 184, 0.16)",
+      }
+    : undefined;
+
   return (
-    <div className={styles.modalOverlay}>
-      <div className={`${styles.modalContent} ${styles.financingModalContent}`}>
+    <div className={styles.modalOverlay} style={overlayStyle}>
+      <div className={`${styles.modalContent} ${styles.financingModalContent}`} style={contentStyle}>
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>Configurar financiamiento</h1>
@@ -82,9 +120,11 @@ export default function FinancingModal({ onClose, proyecto }) {
               Define solo las reglas comerciales del proyecto, sin mapa ni edición general.
             </p>
           </div>
-          <button type="button" className={styles.closeBtn} onClick={onClose}>
-            <span className="material-icons-outlined">close</span>
-          </button>
+          {!embedded && (
+            <button type="button" className={styles.closeBtn} onClick={onClose}>
+              <span className="material-icons-outlined">close</span>
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className={styles.formBody}>

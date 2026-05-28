@@ -44,10 +44,11 @@ export default function ProyectosList() {
           flexGrow: 1,
           padding: "40px",
           overflowY: "auto",
-          background: "#fff",
+          background: "var(--theme-bg-main)",
+          color: "var(--theme-text-main)",
         }}
       >
-        <h1 style={{ color: "black", textAlign: "center" }}>
+        <h1 style={{ color: "var(--theme-text-main)", textAlign: "center" }}>
           Gestión de Inmobiliaria
         </h1>
 
@@ -74,8 +75,8 @@ export default function ProyectosList() {
             marginTop: "20px",
           }}
         >
-          <thead style={{ color: "black", alignContent: "center" }}>
-            <tr style={{ background: "#0077b6", color: "#fff" }}>
+          <thead style={{ color: "var(--theme-text-main)", alignContent: "center" }}>
+            <tr style={{ background: "var(--theme-primary)", color: "var(--theme-primary-contrast)" }}>
               <th className={style.tableStyle} style={{ padding: "10px" }}>
                 Nombre Proyecto
               </th>
@@ -100,12 +101,12 @@ export default function ProyectosList() {
             {proyectos.map((proyecto) => (
               <tr
                 key={proyecto.idproyecto}
-                style={{ borderBottom: "1px solid #ccc" }}
+                style={{ borderBottom: "1px solid var(--theme-border-color)" }}
               >
                 <td
                   style={{
                     padding: "10px",
-                    color: "black",
+                    color: "var(--theme-text-main)",
                     textAlign: "center",
                   }}
                 >
@@ -114,7 +115,7 @@ export default function ProyectosList() {
                 <td
                   style={{
                     padding: "10px",
-                    color: "black",
+                    color: "var(--theme-text-main)",
                     textAlign: "center",
                   }}
                 >
@@ -123,7 +124,7 @@ export default function ProyectosList() {
                 <td
                   style={{
                     padding: "10px",
-                    color: "black",
+                    color: "var(--theme-text-main)",
                     textAlign: "center",
                   }}
                 >
@@ -132,13 +133,13 @@ export default function ProyectosList() {
                 <td
                   style={{
                     padding: "10px",
-                    color: "black",
+                    color: "var(--theme-text-main)",
                     textAlign: "center",
                   }}
                 >
                   {proyecto.longitud}
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   <button
                     onClick={() => verLotes(proyecto.idproyecto)}
                     className={style.addBtn}
@@ -149,7 +150,7 @@ export default function ProyectosList() {
                 <td
                   style={{
                     padding: "10px",
-                    color: "black",
+                    color: "var(--theme-text-main)",
                     textAlign: "center",
                   }}
                 >

@@ -1,5 +1,6 @@
 import { withApiBase } from "../../../../config/api.js";
 import { authFetch } from "../../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../../utils/apiErrors.js";
 // components/IconoModal.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X } from "lucide-react";
@@ -43,7 +44,26 @@ const normalizePolygonCoords = (coords = []) => {
     .map((p) => ({ lat: p.lat, lng: p.lng }));
 };
 
-export default function IconoModal({ onClose, idproyecto }) {
+const getIconKey = (icono, fallback) => {
+  const id =
+    icono?.idiconoproyecto ??
+    icono?.idicono ??
+    icono?.idiconos ??
+    icono?.icono_detalle?.idicono ??
+    icono?.icono_detalle?.idiconos;
+  const lat = Number.parseFloat(icono?.latitud);
+  const lng = Number.parseFloat(icono?.longitud);
+
+  return [
+    icono?.saved ? "saved" : "draft",
+    id ?? "icon",
+    Number.isFinite(lat) ? lat.toFixed(6) : "lat",
+    Number.isFinite(lng) ? lng.toFixed(6) : "lng",
+    fallback,
+  ].join("-");
+};
+
+export default function IconoModal({ onClose, idproyecto, embedded = false }) {
   const mapRef = useRef(null);
   const proyectoPolygonRef = useRef(null);
   const lotesPolygonsRef = useRef([]);
@@ -53,6 +73,7 @@ export default function IconoModal({ onClose, idproyecto }) {
   const [iconosMapa, setIconosMapa] = useState([]);
   const [draggedIcono, setDraggedIcono] = useState(null);
   const [iconosLoading, setIconosLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const token = localStorage.getItem("access");
   const iconQueryBustRef = useRef(Date.now());
 
@@ -375,6 +396,7 @@ export default function IconoModal({ onClose, idproyecto }) {
   }, []);
 
   const handleGuardar = async () => {
+    setSaving(true);
     const payload = iconosMapa
       .filter((icono) => !icono.saved)
       .map((icono) => ({
@@ -395,22 +417,37 @@ export default function IconoModal({ onClose, idproyecto }) {
           )
       );
 
-    if (payload.length) {
-      await authFetch(
-        withApiBase("https://api.geohabita.com/api/add_iconos_proyecto/"),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+    try {
+      if (payload.length) {
+        const response = await authFetch(
+          withApiBase("https://api.geohabita.com/api/add_iconos_proyecto/"),
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
           },
-          body: JSON.stringify(payload),
-        },
-      );
-    }
+        );
+        if (!response.ok) {
+          throw new Error(
+            await getResponseErrorMessage(response, "No se pudieron guardar los iconos."),
+          );
+        }
+      }
 
-    alert("Íconos guardados.");
-    onClose?.({ refreshed: true });
+      if (window.alertSuccess) window.alertSuccess("Iconos guardados.");
+      else alert("Iconos guardados.");
+      onClose?.({ refreshed: true });
+    } catch (error) {
+      console.error(error);
+      const message = error?.message || "Ocurrio un error al guardar los iconos.";
+      if (window.alertError) window.alertError(message);
+      else alert(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeleteIcono = async (idiconoproyecto, marker) => {
@@ -438,92 +475,166 @@ export default function IconoModal({ onClose, idproyecto }) {
       console.error("Error eliminando ícono:", error);
     }
   };
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+  const contentStyle = embedded
+    ? {
+        width: "100%",
+        maxWidth: "none",
+        minHeight: "auto",
+        maxHeight: "none",
+        borderRadius: "24px",
+        boxShadow: "none",
+        overflow: "visible",
+        border: "1px solid rgba(148, 163, 184, 0.16)",
+      }
+    : undefined;
+
   return (
-    <div className={style.modalOverlay}>
-      <div className={style.modalContent}>
-        <button className={style.closeBtn} onClick={onClose}>
-          <X size={16} />
-        </button>
-        <h2 className={style.iconModalTitle}>Arrastra los Íconos a tu Proyecto</h2>
-        {iconosLoading && (
-          <p className={style.iconLoading}>Cargando proyecto en el mapa...</p>
+    <div className={style.modalOverlay} style={overlayStyle}>
+      <div className={`${style.modalContent} ${style.iconModalContent}`} style={contentStyle}>
+        {!embedded && (
+          <button className={style.closeBtn} onClick={onClose}>
+            <X size={16} />
+          </button>
         )}
-        <div className={style.iconPalette}>
-          {iconosDisponibles.map((ico) => (
-            <img
-              key={ico.idicono}
-              src={withApiBase(`https://api.geohabita.com${ico.imagen}`)}
-              alt={ico.nombre}
-              title={ico.nombre}
-              draggable
-              onDragStart={() => setDraggedIcono(ico)}
-              className={style.iconPaletteItem}
-            />
-          ))}
+        <div className={style.iconHero}>
+          <div>
+            <h2 className={style.iconModalTitle}>Íconos del proyecto</h2>
+            <p className={style.iconHeroText}>
+              Arrastra los íconos al mapa para ubicarlos dentro del proyecto y usa clic derecho para eliminarlos.
+            </p>
+          </div>
+          {iconosLoading ? (
+            <p className={style.iconLoading}>Cargando proyecto en el mapa...</p>
+          ) : (
+            <div className={style.iconHeroStats}>
+              <span>{iconosDisponibles.length} disponibles</span>
+              <span>{iconosMapa.length} en proyecto</span>
+              <span>{iconosMapa.filter((ico) => !ico.saved).length} pendientes</span>
+            </div>
+          )}
         </div>
-        {/* Lista de íconos ya registrados */}
-        <div className={style.iconSection}>
-          <h3 className={style.iconSectionTitle}>
-            Íconos registrados en este proyecto:
-          </h3>
-          <div className={style.iconRegisteredList}>
-            {iconosMapa.map((ico, idx) => {
-              const iconoDetalle =
-                ico.icono_detalle ||
-                iconosDisponibles.find(
-                  (i) =>
-                    i.idicono === ico.idicono ||
-                    i.idicono === ico.idiconos,
-                );
 
-              if (!iconoDetalle?.imagen) return null;
-
-              return (
-                <div key={idx} className={style.iconRegisteredItemWrap}>
+        <div className={style.iconWorkspace}>
+          <section className={style.iconSectionCard}>
+            <h3 className={style.iconSectionTitle}>Paleta disponible</h3>
+            <p className={style.iconSectionHelp}>Selecciona y arrastra los íconos que quieras ubicar dentro del proyecto.</p>
+            <div className={style.iconPalette}>
+              {iconosDisponibles.map((ico, idx) => (
+                <button
+                  key={getIconKey(ico, idx)}
+                  type="button"
+                  className={style.iconPaletteButton}
+                  title={ico.nombre}
+                  draggable
+                  onDragStart={() => setDraggedIcono(ico)}
+                >
                   <img
-                    src={withApiBase(
-                      `https://api.geohabita.com${iconoDetalle.imagen}`,
-                    )}
-                    alt={iconoDetalle.nombre}
-                    title={iconoDetalle.nombre}
-                    className={style.iconRegisteredItem}
+                    src={withApiBase(`https://api.geohabita.com${ico.imagen}`)}
+                    alt={ico.nombre}
+                    className={style.iconPaletteItem}
                   />
-                  {!ico.saved && (
-                    <span className={style.iconDraftBadge}>Nuevo</span>
-                  )}
-                  <button
-                    type="button"
-                    className={style.iconRemoveBtn}
-                    onClick={() => {
-                      if (ico.saved) {
-                        handleDeleteIcono(ico.idiconoproyecto, ico.marker);
-                      } else {
-                        ico.marker?.setMap(null);
-                        setIconosMapa((prev) => prev.filter((i) => i !== ico));
-                      }
-                    }}
-                    title="Eliminar ícono"
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })}
-            {!iconosMapa.length && (
-              <p className={style.iconEmpty}>No hay íconos aún</p>
-            )}
+                  <span>{ico.nombre}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className={style.iconSectionCard}>
+            <div className={style.iconRegisteredHead}>
+              <div>
+                <h3 className={style.iconSectionTitle}>
+                  Íconos registrados
+                </h3>
+                <p className={style.iconSectionHelp}>Revisa lo ya colocado y elimina lo que no corresponda antes de guardar.</p>
+              </div>
+              <button className={style.submitBtn} onClick={handleGuardar} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar íconos"}
+              </button>
+            </div>
+            <div className={style.iconRegisteredList}>
+              {iconosMapa.map((ico, idx) => {
+                const iconoDetalle =
+                  ico.icono_detalle ||
+                  iconosDisponibles.find(
+                    (i) =>
+                      i.idicono === ico.idicono ||
+                      i.idicono === ico.idiconos,
+                  );
+
+                if (!iconoDetalle?.imagen) return null;
+
+                return (
+                  <div key={getIconKey(ico, idx)} className={style.iconRegisteredCard}>
+                    <div className={style.iconRegisteredItemWrap}>
+                      <img
+                        src={withApiBase(
+                          `https://api.geohabita.com${iconoDetalle.imagen}`,
+                        )}
+                        alt={iconoDetalle.nombre}
+                        title={iconoDetalle.nombre}
+                        className={style.iconRegisteredItem}
+                      />
+                      {!ico.saved && (
+                        <span className={style.iconDraftBadge}>Nuevo</span>
+                      )}
+                    </div>
+                    <div className={style.iconRegisteredMeta}>
+                      <strong>{iconoDetalle.nombre}</strong>
+                      <span>{ico.saved ? "Guardado" : "Pendiente por guardar"}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={style.iconRemoveBtn}
+                      onClick={() => {
+                        if (ico.saved) {
+                          handleDeleteIcono(ico.idiconoproyecto, ico.marker);
+                        } else {
+                          ico.marker?.setMap(null);
+                          setIconosMapa((prev) => prev.filter((i) => i !== ico));
+                        }
+                      }}
+                      title="Eliminar ícono"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
+              {!iconosMapa.length && (
+                <p className={style.iconEmpty}>No hay íconos aún</p>
+              )}
+            </div>
+          </section>
+
+          <div className={style.iconMapPanel}>
+            <div className={style.iconMapTopbar}>
+              <div>
+                <strong>Mapa del proyecto</strong>
+                <span>Suelta aquí los íconos para registrarlos sobre el masterplan.</span>
+              </div>
+              <span className={style.iconMapBadge}>Arrastra y suelta aquí</span>
+            </div>
+            <div
+              ref={mapRef}
+              className={style.iconMap}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+            />
           </div>
         </div>
-
-        <div
-          ref={mapRef}
-          className={style.iconMap}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-        />
-        <button className={style.submitBtn} onClick={handleGuardar}>
-          Guardar Íconos
-        </button>
       </div>
     </div>
   );

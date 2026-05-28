@@ -87,10 +87,11 @@ export default function Principal() {
           flexGrow: 1,
           padding: "40px",
           overflowY: "auto",
-          background: "#fff",
+          background: "var(--theme-bg-main)",
+          color: "var(--theme-text-main)",
         }}
       >
-        <h1 style={{ color: "black", textAlign: "center" }}>
+        <h1 style={{ color: "var(--theme-text-main)", textAlign: "center" }}>
           Gestión de Inmobiliaria
         </h1>
         <button onClick={() => setShowModal(true)} className={style.addBtn}>
@@ -105,7 +106,7 @@ export default function Principal() {
           }}
         >
           <thead>
-            <tr style={{ background: "#0077b6", color: "#fff" }}>
+            <tr style={{ background: "var(--theme-primary)", color: "var(--theme-primary-contrast)" }}>
               <th className={style.tableStyle}>N°</th>
               <th className={style.tableStyle}>Nombre</th>
               <th className={style.tableStyle}>Facebook</th>
@@ -122,47 +123,47 @@ export default function Principal() {
             {inmobiliarias.map((item, index) => (
               <tr
                 key={item.idinmobiliaria}
-                style={{ borderBottom: "1px solid #ccc" }}
+                style={{ borderBottom: "1px solid var(--theme-border-color)" }}
               >
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   {index + 1}
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   {item.nombreinmobiliaria}
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   <a
                     href={item.facebook}
-                    style={{ color: "black" }}
+                    style={{ color: "var(--theme-primary)" }}
                     target="_blank"
                     rel="noreferrer"
                   >
                     {item.facebook}
                   </a>
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   {item.whatsapp}
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   <a
                     href={item.pagina}
-                    style={{ color: "black" }}
+                    style={{ color: "var(--theme-primary)" }}
                     target="_blank"
                     rel="noreferrer"
                   >
                     {item.pagina}
                   </a>
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   {item.latitud}
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   {item.longitud}
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   {item.descripcion}
                 </td>
-                <td style={{ textAlign: "center", color: "black" }}>
+                <td style={{ textAlign: "center", color: "var(--theme-text-main)" }}>
                   <button
                     onClick={() => verInmo(item.idinmobiliaria)}
                     className={style.addBtn}

@@ -1,0 +1,369 @@
+.lots-selector-page {
+  display: grid;
+  gap: 18px;
+}
+
+.lots-selector-hero {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.16), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(240, 253, 250, 0.96), rgba(248, 250, 252, 0.92));
+  border: 1px solid rgba(16, 185, 129, 0.16);
+  box-shadow: 0 18px 34px -26px rgba(6, 95, 70, 0.22);
+}
+
+.dark .lots-selector-hero {
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(14, 165, 233, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 24, 39, 0.9));
+  border-color: rgba(16, 185, 129, 0.14);
+  box-shadow: 0 18px 36px -28px rgba(0, 0, 0, 0.44);
+}
+
+.lots-selector-copy {
+  display: grid;
+  gap: 8px;
+  max-width: 760px;
+}
+
+.lots-selector-eyebrow {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.dark .lots-selector-eyebrow {
+  color: #5eead4;
+}
+
+.lots-selector-title {
+  margin: 0;
+  font-size: 1.7rem;
+  letter-spacing: 0;
+}
+
+.lots-selector-text {
+  margin: 0;
+  max-width: 720px;
+  color: #6b7280;
+}
+
+.dark .lots-selector-text {
+  color: #9ca3af;
+}
+
+.lots-selector-search {
+  position: relative;
+  width: min(320px, 100%);
+  flex: 0 0 auto;
+}
+
+.lots-selector-searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #0f766e;
+}
+
+.dark .lots-selector-searchIcon {
+  color: #5eead4;
+}
+
+.lots-selector-searchInput {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px 0 42px;
+  border-radius: 16px;
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  color: #111827;
+}
+
+.dark .lots-selector-searchInput {
+  background: rgba(17, 24, 39, 0.76);
+  color: #f9fafb;
+  border-color: rgba(45, 212, 191, 0.14);
+}
+
+.lots-selector-searchInput:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.42);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+}
+
+.lots-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.lots-project-card {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border-radius: 24px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 18px 32px -28px rgba(15, 23, 42, 0.34);
+  min-width: 0;
+}
+
+.dark .lots-project-card {
+  background: rgba(15, 23, 42, 0.76);
+  border-color: rgba(71, 85, 105, 0.28);
+}
+
+.lots-project-media {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(14, 165, 233, 0.12));
+  aspect-ratio: 16 / 9;
+  min-height: 168px;
+}
+
+.lots-project-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lots-project-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(15, 118, 110, 0.78);
+}
+
+.dark .lots-project-fallback {
+  color: rgba(94, 234, 212, 0.74);
+}
+
+.lots-project-body {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.lots-project-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lots-project-head > div {
+  min-width: 0;
+}
+
+.lots-project-head h3 {
+  overflow-wrap: anywhere;
+}
+
+.lots-project-head h3 {
+  margin: 4px 0 0;
+  font-size: 1.04rem;
+}
+
+.lots-project-kicker {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.lots-project-badge {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lots-project-badge.is-active {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.lots-project-badge.is-inactive {
+  color: #991b1b;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.lots-project-description {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  min-height: 64px;
+}
+
+.dark .lots-project-description {
+  color: #9ca3af;
+}
+
+.lots-project-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lots-project-metrics div {
+  padding: 10px 8px;
+  border-radius: 16px;
+  background: rgba(255, 247, 237, 0.7);
+  display: grid;
+  gap: 4px;
+  text-align: center;
+}
+
+.dark .lots-project-metrics div {
+  background: rgba(30, 41, 59, 0.74);
+}
+
+.lots-project-metrics strong {
+  font-size: 0.98rem;
+}
+
+.lots-project-metrics span {
+  font-size: 0.67rem;
+  color: #6b7280;
+}
+
+.dark .lots-project-metrics span {
+  color: #94a3b8;
+}
+
+.lots-project-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.lots-project-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(236, 253, 245, 0.82);
+  color: #0f766e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lots-project-btn:hover {
+  background: rgba(220, 252, 231, 0.96);
+}
+
+.dark .lots-project-btn {
+  color: #99f6e4;
+  border-color: rgba(45, 212, 191, 0.18);
+  background: rgba(20, 184, 166, 0.1);
+}
+
+.dark .lots-project-btn:hover {
+  background: rgba(20, 184, 166, 0.16);
+}
+
+.lots-project-btn-primary {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #0f766e, #10b981);
+}
+
+.lots-project-btn-primary:hover {
+  background: linear-gradient(135deg, #115e59, #0f766e);
+}
+
+.dark .lots-project-btn-primary,
+.dark .lots-project-btn-primary:hover {
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f766e, #10b981);
+}
+
+.lots-selector-empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 28px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.dark .lots-selector-empty {
+  background: rgba(15, 23, 42, 0.74);
+  border-color: rgba(71, 85, 105, 0.28);
+}
+
+.lots-selector-empty h3,
+.lots-selector-empty p {
+  margin: 0;
+}
+
+.lots-selector-empty p {
+  color: #6b7280;
+}
+
+.dark .lots-selector-empty p {
+  color: #94a3b8;
+}
+
+@media (max-width: 860px) {
+  .lots-selector-hero {
+    grid-template-columns: 1fr;
+    display: grid;
+    align-items: start;
+  }
+
+  .lots-selector-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .lots-project-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lots-project-card {
+    border-radius: 18px;
+  }
+
+  .lots-project-head {
+    flex-direction: column;
+  }
+
+  .lots-project-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lots-project-actions {
+    flex-direction: column;
+  }
+
+  .lots-project-btn {
+    width: 100%;
+  }
+}

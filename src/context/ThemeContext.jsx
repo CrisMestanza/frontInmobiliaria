@@ -16,6 +16,8 @@ const getInitialTheme = () => {
 const applyTheme = (nextTheme) => {
   document.documentElement.setAttribute("data-theme", nextTheme);
   document.body.setAttribute("data-theme", nextTheme);
+  document.documentElement.classList.toggle("dark", nextTheme === "dark");
+  document.body.classList.toggle("dark", nextTheme === "dark");
   window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
 };
 

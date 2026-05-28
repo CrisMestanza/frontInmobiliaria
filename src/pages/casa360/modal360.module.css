@@ -1,8 +1,8 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(3, 8, 12, 0.86);
-  backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,15 +11,26 @@
 }
 
 .modalContent360 {
-  width: min(1440px, 100%);
+  width: min(1680px, 100%);
   max-height: calc(100vh - 36px);
-  background: linear-gradient(180deg, #101619 0%, #0a0f12 100%);
-  border: 1px solid rgba(73, 196, 125, 0.18);
-  border-radius: 24px;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.08), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.08), transparent 32%),
+    linear-gradient(180deg, #f8fafc 0%, #eef4f1 100%);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 28px;
+  box-shadow: 0 34px 90px -40px rgba(15, 23, 42, 0.34);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.modalContent360Embedded {
+  width: 100%;
+  max-height: none;
+  min-height: 76vh;
+  border-radius: 30px;
+  box-shadow: 0 26px 60px -42px rgba(15, 23, 42, 0.26);
 }
 
 .modalHeader {
@@ -28,17 +39,17 @@
   align-items: flex-start;
   gap: 16px;
   padding: 24px 28px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   background:
     radial-gradient(circle at top right, rgba(34, 197, 94, 0.14), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent);
 }
 
 .modalHeader h2 {
   margin: 0;
-  color: #f4fbf6;
+  color: #0f172a;
   font-size: 1.35rem;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
 }
 
 .modalHeader h2 span {
@@ -53,7 +64,7 @@
 
 .headerText {
   margin: 8px 0 0;
-  color: #9cb0a3;
+  color: #64748b;
   font-size: 0.92rem;
 }
 
@@ -64,9 +75,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: #d7e8db;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.76);
+  color: #334155;
   cursor: pointer;
   transition: 0.2s ease;
 }
@@ -78,33 +89,37 @@
 }
 
 .modalBody {
-  padding: 18px;
+  padding: 20px;
   overflow: auto;
 }
 
 .workspace {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) 320px;
+  grid-template-columns: 320px minmax(0, 1fr) 340px;
   gap: 18px;
   min-height: 72vh;
 }
 
 .sidebar,
 .connectionPanel {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #0f172a;
   border-radius: 20px;
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 18px;
   min-height: 0;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
 }
 
 .viewerSection {
   min-width: 0;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #0f172a;
   border-radius: 22px;
   padding: 18px;
   display: flex;
@@ -124,7 +139,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #dff5e5;
+  color: #0f172a;
 }
 
 .sectionTitleRow h3,
@@ -143,9 +158,9 @@
   gap: 8px;
   min-height: 110px;
   border-radius: 16px;
-  border: 1px dashed rgba(74, 222, 128, 0.35);
-  background: linear-gradient(180deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.02));
-  color: #e9fff0;
+  border: 1px dashed rgba(16, 185, 129, 0.28);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.08), rgba(255, 255, 255, 0.82));
+  color: #0f172a;
   cursor: pointer;
   padding: 16px;
   transition: 0.2s ease;
@@ -194,7 +209,7 @@
 .galleryItem,
 .destinationItem {
   cursor: pointer;
-  color: #effbf3;
+  color: #0f172a;
   text-align: left;
   transition: 0.2s ease;
 }
@@ -230,13 +245,13 @@
 
 .galleryMeta strong,
 .destinationItem span {
-  color: #effbf3;
+  color: #0f172a;
 }
 
 .galleryMeta span,
 .helperText,
 .emptyState {
-  color: #94ab9a;
+  color: #64748b;
   font-size: 0.88rem;
 }
 
@@ -255,9 +270,9 @@
 
 .helperBox {
   border-radius: 14px;
-  border: 1px solid rgba(74, 222, 128, 0.16);
-  background: rgba(34, 197, 94, 0.08);
-  color: #cfe8d6;
+  border: 1px solid rgba(16, 185, 129, 0.16);
+  background: rgba(16, 185, 129, 0.08);
+  color: #0f172a;
   font-size: 0.88rem;
   line-height: 1.45;
   padding: 12px 14px;
@@ -269,9 +284,9 @@
 }
 
 .inputName {
-  background: rgba(7, 13, 16, 0.92);
-  color: #f2fff5;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 12px;
   padding: 11px 13px;
   outline: none;
@@ -293,7 +308,7 @@
 .btnDel {
   border: none;
   background: transparent;
-  color: #94ab9a;
+  color: #64748b;
   padding: 8px;
 }
 
@@ -303,9 +318,9 @@
 }
 
 .btnCancel {
-  background: rgba(255, 255, 255, 0.04);
-  color: #d4e3d7;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.84);
+  color: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.16);
   padding: 11px 15px;
 }
 
@@ -342,19 +357,19 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  color: #cfe4d4;
+  color: #334155;
 }
 
 .viewerToolbar h3 {
   margin: 6px 0 0;
   font-size: 1.15rem;
-  color: #f3fff6;
+  color: #0f172a;
 }
 
 .viewerToolbar p {
   margin: 0;
   max-width: 320px;
-  color: #9ab1a0;
+  color: #64748b;
   font-size: 0.9rem;
 }
 
@@ -374,16 +389,20 @@
 .viewerFrame {
   position: relative;
   flex: 1;
-  min-height: 620px;
+  min-height: 700px;
   border-radius: 20px;
   overflow: hidden;
   background: #061015;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  isolation: isolate;
+  contain: layout paint;
 }
 
 .viewerCanvas {
   width: 100%;
   height: 100%;
+  color-scheme: normal;
+  filter: none !important;
 }
 
 .projectOverlayLayer {
@@ -391,6 +410,10 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 
 .projectOverlayEditing {
@@ -404,6 +427,8 @@
   width: min(62vw, 760px);
   max-width: calc(100% - 36px);
   transform-origin: top left;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
   cursor: default;
   user-select: none;
 }
@@ -448,6 +473,7 @@
   height: auto;
   overflow: visible;
   filter: drop-shadow(0 16px 35px rgba(0, 0, 0, 0.32));
+  shape-rendering: geometricPrecision;
 }
 
 .overlayProjectGlow {
@@ -489,16 +515,106 @@
   inset: 0;
   z-index: 2;
   min-height: 0;
-  background: rgba(6, 16, 21, 0.7);
-  color: #d8f5df;
+  background: rgba(248, 250, 252, 0.76);
+  color: #0f172a;
 }
 
 .viewerPlaceholder {
   flex: 1;
-  min-height: 620px;
+  min-height: 700px;
   flex-direction: column;
   gap: 12px;
-  color: #c8ddd0;
+  color: #475569;
+}
+
+:global(.dark) .modalOverlay {
+  background: rgba(2, 6, 23, 0.64);
+}
+
+:global(.dark) .modalContent360 {
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.08), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.08), transparent 32%),
+    linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  border-color: rgba(71, 85, 105, 0.34);
+  box-shadow: 0 34px 90px -40px rgba(0, 0, 0, 0.52);
+}
+
+:global(.dark) .modalHeader {
+  border-bottom-color: rgba(71, 85, 105, 0.3);
+  background:
+    radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+}
+
+:global(.dark) .modalHeader h2,
+:global(.dark) .sectionTitleRow,
+:global(.dark) .galleryItem,
+:global(.dark) .destinationItem,
+:global(.dark) .galleryMeta strong,
+:global(.dark) .destinationItem span,
+:global(.dark) .viewerToolbar h3,
+:global(.dark) .helperBox,
+:global(.dark) .btnCancel,
+:global(.dark) .inputName {
+  color: #ecfdf5;
+}
+
+:global(.dark) .headerText,
+:global(.dark) .galleryMeta span,
+:global(.dark) .helperText,
+:global(.dark) .emptyState,
+:global(.dark) .viewerToolbar p {
+  color: #94a3b8;
+}
+
+:global(.dark) .closeButton,
+:global(.dark) .sidebar,
+:global(.dark) .connectionPanel,
+:global(.dark) .viewerSection,
+:global(.dark) .inputName,
+:global(.dark) .btnCancel {
+  border-color: rgba(71, 85, 105, 0.3);
+}
+
+:global(.dark) .closeButton,
+:global(.dark) .btnCancel,
+:global(.dark) .inputName,
+:global(.dark) .sidebar,
+:global(.dark) .connectionPanel,
+:global(.dark) .viewerSection {
+  background: rgba(15, 23, 42, 0.76);
+}
+
+:global(.dark) .btnAddFiles,
+:global(.dark) .inlineUpload,
+:global(.dark) .galleryItem,
+:global(.dark) .destinationItem,
+:global(.dark) .overlayStats span,
+:global(.dark) .rangeControl,
+:global(.dark) .toggleButton {
+  border-color: rgba(71, 85, 105, 0.34);
+  background: rgba(30, 41, 59, 0.64);
+}
+
+:global(.dark) .overlayStats span,
+:global(.dark) .rangeControl,
+:global(.dark) .toggleButton {
+  color: #dceee0;
+}
+
+:global(.dark) .numberInput {
+  background: rgba(255, 255, 255, 0.06);
+  color: #4ade80;
+}
+
+:global(.dark) .viewerLoading {
+  background: rgba(15, 23, 42, 0.72);
+  color: #e5edf7;
+}
+
+:global(.dark) .viewerPlaceholder {
+  color: #94a3b8;
 }
 
 .pointInfo {
@@ -525,14 +641,14 @@
 .overlayStats span,
 .rangeControl,
 .toggleButton {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(248, 250, 252, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 14px;
 }
 
 .overlayStats span {
   padding: 10px 12px;
-  color: #dff5e6;
+  color: #0f172a;
   font-size: 0.84rem;
 }
 
@@ -542,7 +658,7 @@
   gap: 10px;
   align-items: center;
   padding: 12px 14px;
-  color: #dceee0;
+  color: #0f172a;
 }
 
 .rangeControl span,
@@ -553,6 +669,30 @@
 .rangeControl input[type="range"] {
   width: 100%;
   accent-color: #4ade80;
+}
+
+.numberInput {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 8px;
+  color: #047857;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 4px 2px;
+  outline: none;
+  appearance: textfield;
+}
+
+.numberInput::-webkit-inner-spin-button,
+.numberInput::-webkit-outer-spin-button {
+  appearance: none;
+}
+
+.numberInput:focus {
+  border-color: rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.08);
 }
 
 .toggleRow {
@@ -566,7 +706,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #def7e4;
+  color: #0f172a;
   padding: 11px 12px;
   cursor: pointer;
   transition: 0.2s ease;
@@ -596,16 +736,25 @@
 .modalBody::-webkit-scrollbar,
 .galleryList::-webkit-scrollbar,
 .destinationsList::-webkit-scrollbar,
-.itemsList::-webkit-scrollbar {
-  width: 8px;
+.itemsList::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar,
+.connectionPanel::-webkit-scrollbar {
+  width: 5px;
 }
 
 .modalBody::-webkit-scrollbar-thumb,
 .galleryList::-webkit-scrollbar-thumb,
 .destinationsList::-webkit-scrollbar-thumb,
-.itemsList::-webkit-scrollbar-thumb {
+.itemsList::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb,
+.connectionPanel::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.14);
   border-radius: 999px;
+}
+
+.connectionPanel::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 @media (max-width: 1180px) {
@@ -634,8 +783,24 @@
     padding: 12px;
   }
 
+  .modalHeader {
+    padding: 18px 16px;
+    flex-direction: column;
+  }
+
+  .closeButton {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .sidebar,
+  .connectionPanel {
+    max-height: none;
   }
 
   .viewerFrame,
@@ -664,4 +829,173 @@
   .rangeControl {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Sección relieve/textura ────────────────────────────── */
+.reliefSection {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.reliefSectionTitle {
+  margin: 0 0 10px;
+  color: #047857;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.textureSelectorRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.textureBtn {
+  padding: 7px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(248, 250, 252, 0.88);
+  color: #334155;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  text-align: center;
+}
+
+.textureBtn:hover {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #047857;
+}
+
+.textureBtnActive {
+  background: rgba(21, 128, 61, 0.28);
+  border-color: rgba(34, 197, 94, 0.52);
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* ── Controles de posición X/Y compactos ────────────────── */
+.positionPair {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(248, 250, 252, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+}
+
+.positionPairLabel {
+  font-size: 0.84rem;
+  color: #0f172a;
+}
+
+.positionPairCols {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.positionPairItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.positionPairItem > span {
+  font-size: 0.76rem;
+  color: #047857;
+  font-weight: 600;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.arrowBtn {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 6px;
+  color: #4ade80;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.arrowBtn:hover {
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+/* ── Panel edición por bloque ───────────────────────────── */
+.blockEditPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  background: rgba(250, 204, 21, 0.06);
+  border: 1px solid rgba(250, 204, 21, 0.2);
+  border-radius: 12px;
+}
+
+.blockEditCount {
+  margin: 0;
+  color: #92400e;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+:global(.dark) .reliefSection {
+  border-top-color: rgba(255, 255, 255, 0.07);
+}
+
+:global(.dark) .reliefSectionTitle,
+:global(.dark) .positionPairItem > span {
+  color: #6b9b7a;
+}
+
+:global(.dark) .textureBtn,
+:global(.dark) .positionPair {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+:global(.dark) .textureBtn {
+  color: #94ab9a;
+}
+
+:global(.dark) .textureBtn:hover {
+  color: #d1fae5;
+}
+
+:global(.dark) .textureBtnActive {
+  background: rgba(21, 128, 61, 0.28);
+  border-color: rgba(34, 197, 94, 0.52);
+  color: #4ade80;
+}
+
+:global(.dark) .positionPairLabel {
+  color: #dceee0;
+}
+
+:global(.dark) .arrowBtn {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:global(.dark) .blockEditCount {
+  color: #fde68a;
 }

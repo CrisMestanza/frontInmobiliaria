@@ -1,14 +1,33 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { GoogleMap, Polygon, Marker } from "@react-google-maps/api";
+import {
+  BadgeDollarSign,
+  Bath,
+  BedDouble,
+  Building2,
+  CarFront,
+  ChefHat,
+  ClipboardList,
+  Droplets,
+  Fence,
+  FileText,
+  Globe2,
+  Home,
+  Landmark,
+  Lightbulb,
+  Route,
+  Ruler,
+  Sofa,
+  Trees,
+  UtilityPole,
+  Waves,
+  Zap,
+} from "lucide-react";
 import loader from "../../../components/loader";
 import styles from "./addproyect.module.css";
-import FinancingEditor from "./FinancingEditor.jsx";
-import {
-  createDefaultFinancingState,
-  serializeFinancingConfigState,
-} from "./financingConfig.js";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const PROJECT_TYPE_BY_REGISTRATION = {
@@ -17,15 +36,56 @@ const PROJECT_TYPE_BY_REGISTRATION = {
   casa_unica: 2,
 };
 const utilityFields = [
-  { name: "agua", label: "Agua" },
-  { name: "desague", label: "Desague" },
-  { name: "luz", label: "Luz" },
-  { name: "alumbrado_publico", label: "Alumbrado publico" },
-  { name: "postes_luz", label: "Postes de luz" },
-  { name: "veredas", label: "Veredas" },
+  { name: "agua", label: "Agua", icon: Droplets },
+  { name: "desague", label: "Desague", icon: Waves },
+  { name: "luz", label: "Luz", icon: Zap },
+  { name: "alumbrado_publico", label: "Alumbrado publico", icon: Lightbulb },
+  { name: "postes_luz", label: "Postes de luz", icon: UtilityPole },
+  { name: "veredas", label: "Veredas", icon: Route },
 ];
 
-export default function ProyectoModal({ onClose, idinmobiliaria }) {
+const houseFieldIcons = {
+  area_total_m2: Ruler,
+  ancho: Ruler,
+  largo: Ruler,
+  dormitorios: BedDouble,
+  banos: Bath,
+  cuartos: Building2,
+  cochera: CarFront,
+  cocina: ChefHat,
+  sala: Sofa,
+  patio: Fence,
+  jardin: Trees,
+  terraza: Home,
+  azotea: Home,
+};
+
+const PROJECT_NAME_MAX = 50;
+const PROJECT_DESCRIPTION_MAX = 2500;
+const PROJECT_DRAFT_STORAGE_KEY = "geohabita.project.create.draft";
+
+function FieldShell({ label, icon: Icon, counter, children }) {
+  return (
+    <div className={styles.inputGroup}>
+      <label>{label}</label>
+      <div className={styles.fieldSurface}>
+        {Icon ? (
+          <span className={styles.fieldIcon}>
+            <Icon size={16} />
+          </span>
+        ) : null}
+        <div className={styles.fieldControl}>{children}</div>
+      </div>
+      {counter ? <div className={styles.fieldCounter}>{counter}</div> : null}
+    </div>
+  );
+}
+
+export default function ProyectoModal({
+  onClose,
+  idinmobiliaria,
+  embedded = false,
+}) {
   const token = localStorage.getItem("access");
   const [isLoaded, setIsLoaded] = useState(
     () => typeof window !== "undefined" && !!window.google?.maps?.Map,
@@ -36,18 +96,16 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [showOptionHelp, setShowOptionHelp] = useState(true);
   const [baseMapStyle, setBaseMapStyle] = useState("roadmap");
   const [reliefEnabled, setReliefEnabled] = useState(false);
   const [labelsEnabled, setLabelsEnabled] = useState(true);
-  const [financingState, setFinancingState] = useState(
-    () => createDefaultFinancingState(),
-  );
 
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [currencySymbol, setCurrencySymbol] = useState("");
-
+  const draftHydratedRef = useRef(false);
 
   const [form, setForm] = useState({
     tipo_registro: "",
@@ -87,12 +145,18 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   });
 
   const isCasa = parseInt(form.idtipoinmobiliaria, 10) === 2;
+  const projectNameLength = form.nombreproyecto.length;
+  const projectDescriptionLength = form.descripcion.length;
+  const isProjectNameOverLimit = projectNameLength > PROJECT_NAME_MAX;
+  const isProjectDescriptionOverLimit =
+    projectDescriptionLength > PROJECT_DESCRIPTION_MAX;
+  const hasProjectTextLimitError =
+    isProjectNameOverLimit || isProjectDescriptionOverLimit;
   const casaDimensionFields = [
     { name: "area_total_m2", label: "Area total", step: "0.01" },
     { name: "ancho", label: "Ancho", step: "0.01", required: true },
     { name: "largo", label: "Largo", step: "0.01", required: true },
   ];
-
 
   const casaAmbienteFields = [
     { name: "dormitorios", label: "Dormitorios" },
@@ -140,7 +204,9 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       .then((res) => res.json())
       .then((data) => {
         const formatted = data.map((c) => {
-          const currencyKey = c.currencies ? Object.keys(c.currencies)[0] : null;
+          const currencyKey = c.currencies
+            ? Object.keys(c.currencies)[0]
+            : null;
 
           return {
             pais: c.name.common,
@@ -155,6 +221,47 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       .catch((err) => console.error(err));
   }, []);
 
+  useEffect(() => {
+    if (draftHydratedRef.current || typeof window === "undefined") return;
+    draftHydratedRef.current = true;
+    try {
+      const rawDraft = window.localStorage.getItem(PROJECT_DRAFT_STORAGE_KEY);
+      if (!rawDraft) return;
+      const parsed = JSON.parse(rawDraft);
+      if (!parsed || typeof parsed !== "object") return;
+      setForm((prev) => ({
+        ...prev,
+        ...parsed,
+        idinmobiliaria,
+        imagenes: [],
+      }));
+      if (parsed.tipo_registro) {
+        setShowOptionHelp(false);
+      }
+    } catch (error) {
+      console.error("No se pudo restaurar el borrador del proyecto:", error);
+    }
+  }, [idinmobiliaria]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !draftHydratedRef.current) return;
+    window.localStorage.setItem(
+      PROJECT_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        ...form,
+        idinmobiliaria,
+        imagenes: [],
+      }),
+    );
+  }, [form, idinmobiliaria]);
+
+  useEffect(() => {
+    if (!countries.length || !form.pais) return;
+    const country = countries.find((item) => item.pais === form.pais);
+    if (!country) return;
+    setSelectedCountry(country);
+    setCurrencySymbol(form.moneda || country.moneda || "");
+  }, [countries, form.moneda, form.pais]);
 
   useEffect(() => {
     const mappedType = PROJECT_TYPE_BY_REGISTRATION[form.tipo_registro];
@@ -297,6 +404,7 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     const { name, value } = e.target;
     const normalizedValue =
       typeof value === "string" ? value.replace(",", ".") : value;
+    setSubmitError("");
     if (name === "tipo_registro") {
       setForm((prev) => ({
         ...prev,
@@ -314,7 +422,16 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
     }));
   };
 
+  const toggleUtility = (name) => {
+    setSubmitError("");
+    setForm((prev) => ({
+      ...prev,
+      [name]: prev[name] === "1" ? "0" : "1",
+    }));
+  };
+
   const handleImagenesChange = (e) => {
+    setSubmitError("");
     const files = Array.from(e.target.files).map((file) => ({
       file,
       preview: URL.createObjectURL(file),
@@ -331,6 +448,14 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError("");
+
+    if (hasProjectTextLimitError) {
+      alert(
+        `El nombre del proyecto soporta hasta ${PROJECT_NAME_MAX} caracteres y la descripción hasta ${PROJECT_DESCRIPTION_MAX}.`,
+      );
+      return;
+    }
 
     // Validación del polígono
     if (form.puntos.length < 3) {
@@ -366,12 +491,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       veredas: form.veredas,
     };
 
-    const serializedFinancing = serializeFinancingConfigState(
-      financingState,
-      normalizedForm.precio,
-      form.moneda || currencySymbol || "S/",
-    );
-
     console.log("Dormitorios normalizado:", normalizedForm.dormitorios);
 
     const formData = new FormData();
@@ -390,8 +509,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
         formData.append(key, normalizedForm[key]);
       }
     });
-    formData.append("financing_config", serializedFinancing);
-
     // 🧪 Debug FINAL (úsalo solo mientras pruebas)
     console.log("📤 FormData enviado:");
     for (let pair of formData.entries()) {
@@ -415,6 +532,9 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
       );
 
       if (res.ok) {
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(PROJECT_DRAFT_STORAGE_KEY);
+        }
         setSuccess(true);
 
         setTimeout(() => {
@@ -422,13 +542,20 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
           onClose?.({ refreshed: true });
         }, 500);
       } else {
+        const errorMessage = await getResponseErrorMessage(
+          res,
+          "No se pudo registrar el proyecto. Revisa los datos ingresados.",
+        );
         setIsSubmitting(false);
-        alert("⚠️ Error en registro");
+        setSubmitError(errorMessage);
       }
     } catch (error) {
       console.error(error);
       setIsSubmitting(false);
-      alert("🚫 Error de red");
+      setSubmitError(
+        error?.message ||
+          "Ocurrió un error de red. Conservamos tu borrador para que no pierdas el avance.",
+      );
     }
   };
 
@@ -438,18 +565,45 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
   const mapControlOptions =
     typeof window !== "undefined" && window.google?.maps
       ? {
-        mapTypeControlOptions: {
-          style: window.google.maps.MapTypeControlStyle.DEFAULT,
-          position: window.google.maps.ControlPosition.LEFT_BOTTOM,
-        },
-        fullscreenControlOptions: {
-          position: window.google.maps.ControlPosition.RIGHT_TOP,
-        },
-      }
+          mapTypeControlOptions: {
+            style: window.google.maps.MapTypeControlStyle.DEFAULT,
+            position: window.google.maps.ControlPosition.LEFT_BOTTOM,
+          },
+          fullscreenControlOptions: {
+            position: window.google.maps.ControlPosition.RIGHT_TOP,
+          },
+        }
       : {};
 
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+  const contentStyle = embedded
+    ? {
+        maxWidth: "none",
+        height: "auto",
+        maxHeight: "none",
+        minHeight: "auto",
+        borderRadius: "24px",
+        border: "1px solid var(--theme-border-color)",
+        boxShadow: "none",
+        overflow: "visible",
+      }
+    : undefined;
+
   return (
-    <div className={styles.modalOverlay}>
+    <div className={styles.modalOverlay} style={overlayStyle}>
       {isSubmitting && (
         <div className={styles.loadingOverlay}>
           <div className={styles.loadingModal}>
@@ -473,20 +627,31 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
           </div>
         </div>
       )}
-      <div className={styles.modalContent}>
+      <div className={styles.modalContent} style={contentStyle}>
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>Registrar Proyecto Inmobiliario</h1>
             <p className={styles.subtitle}>
               Completa la información detallada para publicar tu nuevo proyecto.
             </p>
+            <p className={styles.draftNotice}>
+              El formulario guarda un borrador local mientras avanzas. Si recargas, recuperas la información escrita y el trazado; las imágenes se vuelven a seleccionar.
+            </p>
           </div>
-          <button type="button" className={styles.closeBtn} onClick={onClose}>
-            <span className="material-icons-outlined">close</span>
-          </button>
+          {!embedded && (
+            <button type="button" className={styles.closeBtn} onClick={onClose}>
+              <span className="material-icons-outlined">close</span>
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className={styles.formBody}>
+          {submitError ? (
+            <div className={styles.formAlert} role="alert">
+              <strong>No se pudo guardar el proyecto.</strong>
+              <span>{submitError}</span>
+            </div>
+          ) : null}
           <div className={styles.gridContainer}>
             <div className={styles.leftColumn}>
               <section>
@@ -537,7 +702,12 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                 </h2>
 
                 <div className={styles.inputGroup}>
-                  <label>Tipo de registro</label>
+                  <label>
+                    <span className={styles.labelWithIcon}>
+                      <ClipboardList size={14} />
+                      <span>Tipo de registro</span>
+                    </span>
+                  </label>
                   <select
                     name="tipo_registro"
                     value={form.tipo_registro}
@@ -557,7 +727,12 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
                 {form.tipo_registro === "proyecto" && (
                   <div className={styles.inputGroup}>
-                    <label>Tipo de proyecto</label>
+                    <label>
+                      <span className={styles.labelWithIcon}>
+                        <Building2 size={14} />
+                        <span>Tipo de proyecto</span>
+                      </span>
+                    </label>
                     <select
                       name="idtipoinmobiliaria"
                       value={form.idtipoinmobiliaria}
@@ -592,82 +767,137 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                 )}
 
                 <div className={styles.inputGroup}>
-                  <label>Servicios disponibles</label>
-                  <div className={styles.compactGrid}>
-                    {utilityFields.map((field) => (
-                      <div key={field.name} className={styles.compactField}>
-                        <label htmlFor={field.name}>{field.label}</label>
-                        <select
-                          id={field.name}
-                          name={field.name}
-                          value={form[field.name]}
-                          onChange={handleChange}
-                          className={styles.select}
+                  <label>
+                    <span className={styles.labelWithIcon}>
+                      <Lightbulb size={14} />
+                      <span>Servicios disponibles</span>
+                    </span>
+                  </label>
+                  <div className={styles.utilitySwitchGrid}>
+                    {utilityFields.map((field) => {
+                      const Icon = field.icon;
+                      const enabled = form[field.name] === "1";
+                      return (
+                        <button
+                          key={field.name}
+                          type="button"
+                          className={`${styles.utilitySwitch} ${enabled ? styles.utilitySwitchActive : ""}`}
+                          onClick={() => toggleUtility(field.name)}
+                          aria-pressed={enabled}
                         >
-                          <option value="">Seleccione...</option>
-                          <option value="1">Sí</option>
-                          <option value="0">No</option>
-                        </select>
-                      </div>
-                    ))}
+                          <span className={styles.utilitySwitchIcon}>
+                            <Icon size={16} />
+                          </span>
+                          <span className={styles.utilitySwitchCopy}>
+                            <strong>{field.label}</strong>
+                            <small>
+                              {enabled ? "Disponible" : "No disponible"}
+                            </small>
+                          </span>
+                          <span
+                            className={`${styles.switchTrack} ${enabled ? styles.switchTrackActive : ""}`}
+                          >
+                            <span className={styles.switchThumb} />
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className={styles.inputGroup}>
-                  <label>Nombre</label>
+
+                <FieldShell
+                  label={
+                    <span className={styles.labelWithIcon}>
+                      <Building2 size={14} />
+                      <span>Nombre</span>
+                    </span>
+                  }
+                  counter={
+                    <span
+                      className={
+                        isProjectNameOverLimit
+                          ? styles.fieldCounterError
+                          : undefined
+                      }
+                    >
+                      {projectNameLength}/{PROJECT_NAME_MAX}
+                    </span>
+                  }
+                >
                   <input
                     name="nombreproyecto"
                     value={form.nombreproyecto}
                     onChange={handleChange}
-                    className={`${styles.input} ${styles.primaryCompactInput}`}
+                    className={`${styles.input} ${styles.primaryCompactInput} ${isProjectNameOverLimit ? styles.inputError : ""}`}
                     required
                   />
-                </div>
+                </FieldShell>
 
-                <div className={styles.inputGroup}>
-                  <label>Descripción</label>
+                <FieldShell
+                  label={
+                    <span className={styles.labelWithIcon}>
+                      <FileText size={14} />
+                      <span>Descripción</span>
+                    </span>
+                  }
+                  counter={
+                    <span
+                      className={
+                        isProjectDescriptionOverLimit
+                          ? styles.fieldCounterError
+                          : undefined
+                      }
+                    >
+                      {projectDescriptionLength}/{PROJECT_DESCRIPTION_MAX}
+                    </span>
+                  }
+                >
                   <textarea
                     name="descripcion"
                     value={form.descripcion}
                     onChange={handleChange}
-                    className={`${styles.textarea} ${styles.primaryCompactTextarea}`}
+                    className={`${styles.textarea} ${styles.primaryCompactTextarea} ${isProjectDescriptionOverLimit ? styles.inputError : ""}`}
                     rows="2"
                     required
                   />
-                </div>
+                </FieldShell>
 
                 {isLoteUnico && (
                   <>
-                    <div className={styles.inputGroup}>
-                      <label>¿Cuenta con título de propiedad?</label>
+                    <FieldShell
+                      label="¿Cuenta con título de propiedad?"
+                      icon={Landmark}
+                    >
                       <select
                         name="titulo_propiedad"
                         value={form.titulo_propiedad}
                         onChange={handleChange}
-                        className={styles.select}
+                        className={`${styles.select} ${styles.inputWithIcon}`}
                       >
                         <option value={0}>No</option>
                         <option value={1}>Sí</option>
                       </select>
-                    </div>
+                    </FieldShell>
 
-                    <div className={styles.inputGroup}>
-                      <label>País y moneda a agregar</label>
+                    <FieldShell label="País y moneda a agregar" icon={Globe2}>
                       <select
                         value={form.pais}
                         onChange={(e) => {
-                          const country = countries.find(c => c.pais === e.target.value);
+                          const country = countries.find(
+                            (c) => c.pais === e.target.value,
+                          );
 
-                          setForm(prev => ({
+                          setForm((prev) => ({
                             ...prev,
                             pais: country.pais,
                             bandera: country.bandera,
-                            moneda: country.moneda
+                            moneda: country.moneda,
                           }));
 
                           setSelectedCountry(country);
                           setCurrencySymbol(country.moneda);
                         }}
-                        className={styles.select}
+                        className={`${styles.select} ${styles.inputWithIcon}`}
                       >
                         <option value="">Seleccione país</option>
                         {countries.map((c, i) => (
@@ -676,22 +906,22 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                           </option>
                         ))}
                       </select>
-                    </div>
-                    
-                    <div style={{display:"flex"}}>
+                    </FieldShell>
 
+                    <div className={styles.priceFieldRow}>
                       {selectedCountry && (
-                        <div style={{ marginTop: "5px" }}>
-                          <img src={selectedCountry.bandera} width="30" alt="bandera" />
+                        <div className={styles.flagWrap}>
+                          <img
+                            src={selectedCountry.bandera}
+                            width="30"
+                            alt="bandera"
+                          />
                         </div>
                       )}
 
-                      <div className={styles.inputGroup}>
-
-                        {/* <label>Precio</label> */}
-
-                        <div style={{ display: "flex", alignItems: "center" }}>
-                          <span style={{ marginRight: "6px", fontWeight: "bold" }}>
+                      <FieldShell label="Precio" icon={BadgeDollarSign}>
+                        <div className={styles.priceInputRow}>
+                          <span className={styles.currencyInline}>
                             {currencySymbol}
                           </span>
 
@@ -701,48 +931,56 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                             name="precio"
                             value={form.precio}
                             onChange={handleChange}
-                            className={styles.input}
+                            className={`${styles.input} ${styles.inputWithIcon}`}
                           />
                         </div>
-                      </div>
-
+                      </FieldShell>
                     </div>
 
                     <div className={styles.compactGrid}>
                       <div className={styles.compactField}>
                         <label>Área total (m²)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          name="area_total_m2"
-                          value={form.area_total_m2}
-                          onChange={handleChange}
-                          className={styles.input}
-                        />
+                        <div className={styles.inlineFieldWithIcon}>
+                          <Ruler size={15} className={styles.inlineFieldIcon} />
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="area_total_m2"
+                            value={form.area_total_m2}
+                            onChange={handleChange}
+                            className={`${styles.input} ${styles.inputWithIcon}`}
+                          />
+                        </div>
                       </div>
 
                       <div className={styles.compactField}>
                         <label>Ancho</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          name="ancho"
-                          value={form.ancho}
-                          onChange={handleChange}
-                          className={styles.input}
-                        />
+                        <div className={styles.inlineFieldWithIcon}>
+                          <Ruler size={15} className={styles.inlineFieldIcon} />
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="ancho"
+                            value={form.ancho}
+                            onChange={handleChange}
+                            className={`${styles.input} ${styles.inputWithIcon}`}
+                          />
+                        </div>
                       </div>
 
                       <div className={styles.compactField}>
                         <label>Largo</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          name="largo"
-                          value={form.largo}
-                          onChange={handleChange}
-                          className={styles.input}
-                        />
+                        <div className={styles.inlineFieldWithIcon}>
+                          <Ruler size={15} className={styles.inlineFieldIcon} />
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="largo"
+                            value={form.largo}
+                            onChange={handleChange}
+                            className={`${styles.input} ${styles.inputWithIcon}`}
+                          />
+                        </div>
                       </div>
                     </div>
                   </>
@@ -750,38 +988,41 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
 
                 {isCasa && (
                   <>
-                    <div className={styles.inputGroup}>
-                      <label>¿Cuenta con título de propiedad?</label>
+                    <FieldShell
+                      label="¿Cuenta con título de propiedad?"
+                      icon={Home}
+                    >
                       <select
                         name="titulo_propiedad"
                         value={form.titulo_propiedad}
                         onChange={handleChange}
-                        className={styles.select}
+                        className={`${styles.select} ${styles.inputWithIcon}`}
                         required
                       >
                         <option value={0}>No</option>
                         <option value={1}>Sí</option>
                       </select>
-                    </div>
+                    </FieldShell>
 
-                     <div className={styles.inputGroup}>
-                      <label>País y moneda a agregar</label>
+                    <FieldShell label="País y moneda a agregar" icon={Globe2}>
                       <select
                         value={form.pais}
                         onChange={(e) => {
-                          const country = countries.find(c => c.pais === e.target.value);
+                          const country = countries.find(
+                            (c) => c.pais === e.target.value,
+                          );
 
-                          setForm(prev => ({
+                          setForm((prev) => ({
                             ...prev,
                             pais: country.pais,
                             bandera: country.bandera,
-                            moneda: country.moneda
+                            moneda: country.moneda,
                           }));
 
                           setSelectedCountry(country);
                           setCurrencySymbol(country.moneda);
                         }}
-                        className={styles.select}
+                        className={`${styles.select} ${styles.inputWithIcon}`}
                       >
                         <option value="">Seleccione país</option>
                         {countries.map((c, i) => (
@@ -790,22 +1031,22 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                           </option>
                         ))}
                       </select>
-                    </div>
-                    
-                    <div style={{display:"flex"}}>
+                    </FieldShell>
 
+                    <div className={styles.priceFieldRow}>
                       {selectedCountry && (
-                        <div style={{ marginTop: "5px" }}>
-                          <img src={selectedCountry.bandera} width="30" alt="bandera" />
+                        <div className={styles.flagWrap}>
+                          <img
+                            src={selectedCountry.bandera}
+                            width="30"
+                            alt="bandera"
+                          />
                         </div>
                       )}
 
-                      <div className={styles.inputGroup}>
-
-                        {/* <label>Precio</label> */}
-
-                        <div style={{ display: "flex", alignItems: "center" }}>
-                          <span style={{ marginRight: "6px", fontWeight: "bold" }}>
+                      <FieldShell label="Precio" icon={BadgeDollarSign}>
+                        <div className={styles.priceInputRow}>
+                          <span className={styles.currencyInline}>
                             {currencySymbol}
                           </span>
 
@@ -815,28 +1056,36 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                             name="precio"
                             value={form.precio}
                             onChange={handleChange}
-                            className={styles.input}
+                            className={`${styles.input} ${styles.inputWithIcon}`}
                           />
                         </div>
-                      </div>
-
+                      </FieldShell>
                     </div>
 
                     <div className={styles.compactGrid}>
                       {casaDimensionFields.map((field) => (
                         <div key={field.name} className={styles.compactField}>
                           <label htmlFor={field.name}>{field.label}</label>
-                          <input
-                            id={field.name}
-                            type="number"
-                            min="0"
-                            step={field.step}
-                            name={field.name}
-                            value={form[field.name]}
-                            onChange={handleChange}
-                            className={`${styles.input} ${styles.compactInput}`}
-                            required={field.required}
-                          />
+                          <div className={styles.inlineFieldWithIcon}>
+                            {React.createElement(
+                              houseFieldIcons[field.name] || Ruler,
+                              {
+                                size: 15,
+                                className: styles.inlineFieldIcon,
+                              },
+                            )}
+                            <input
+                              id={field.name}
+                              type="number"
+                              min="0"
+                              step={field.step}
+                              name={field.name}
+                              value={form[field.name]}
+                              onChange={handleChange}
+                              className={`${styles.input} ${styles.compactInput} ${styles.inputWithIcon}`}
+                              required={field.required}
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -845,28 +1094,30 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                       {casaAmbienteFields.map((field) => (
                         <div key={field.name} className={styles.compactField}>
                           <label htmlFor={field.name}>{field.label}</label>
-                          <input
-                            id={field.name}
-                            type="number"
-                            min="0"
-                            name={field.name}
-                            value={form[field.name]}
-                            onChange={handleChange}
-                            className={`${styles.input} ${styles.compactInput}`}
-                          />
+                          <div className={styles.inlineFieldWithIcon}>
+                            {React.createElement(
+                              houseFieldIcons[field.name] || Building2,
+                              {
+                                size: 15,
+                                className: styles.inlineFieldIcon,
+                              },
+                            )}
+                            <input
+                              id={field.name}
+                              type="number"
+                              min="0"
+                              name={field.name}
+                              value={form[field.name]}
+                              onChange={handleChange}
+                              className={`${styles.input} ${styles.compactInput} ${styles.inputWithIcon}`}
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
                   </>
                 )}
               </section>
-
-              <FinancingEditor
-                value={financingState}
-                onChange={setFinancingState}
-                currencyOptions={countries.map((c) => c.moneda).filter(Boolean)}
-                fallbackCurrency={form.moneda || currencySymbol || "S/"}
-              />
 
               <section>
                 <h2 className={styles.sectionTitle}>
@@ -944,6 +1195,19 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
               </h2>
 
               <div className={styles.mapWrapper}>
+                <p className={styles.mapHint}>
+                  {isDrawing ? (
+                    `Haz clic en el mapa para añadir vértices (${form.puntos.length} puntos). Usa 'Deshacer' para eliminar el último punto.`
+                  ) : (
+                    <>
+                      Presiona el botón{" "}
+                      <span className="material-icons-outlined">
+                        edit_location_alt
+                      </span>{" "}
+                      para trazar el polígono del proyecto
+                    </>
+                  )}
+                </p>
                 <div className={styles.searchWrapper}>
                   <input
                     id="autocomplete-input"
@@ -1121,19 +1385,6 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
                   </div>
                 </div>
               </div>
-              <p className={styles.mapHint}>
-                {isDrawing ? (
-                  `Haz clic en el mapa para añadir vértices (${form.puntos.length} puntos). Usa 'Deshacer' para eliminar el último punto.`
-                ) : (
-                  <>
-                    Presiona el botón{" "}
-                    <span className="material-icons-outlined">
-                      edit_location_alt
-                    </span>{" "}
-                    para trazar el polígono del proyecto
-                  </>
-                )}
-              </p>
             </div>
           </div>
 
@@ -1145,7 +1396,11 @@ export default function ProyectoModal({ onClose, idinmobiliaria }) {
             >
               Cancelar
             </button>
-            <button type="submit" className={styles.submitBtn}>
+            <button
+              type="submit"
+              className={styles.submitBtn}
+              disabled={isSubmitting || hasProjectTextLimitError}
+            >
               Guardar Proyecto{" "}
               <span className="material-icons-outlined">arrow_forward</span>
             </button>

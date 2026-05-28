@@ -1225,6 +1225,7 @@ function MyMap() {
 
   const isSidebarOpen = !!(selectedProyecto || selectedLote);
   const shouldShrinkMapForSidebar = isDesktopSidebarViewport && isSidebarOpen;
+  const canRenderSharedSidebar = !hasShareParams || shareResolveStatus === "resolved";
 
   useEffect(() => {
     const map = mapRef.current;
@@ -3462,7 +3463,7 @@ function MyMap() {
         </Link>
       )}
 
-      {selectedProyecto && (
+      {selectedProyecto && canRenderSharedSidebar && (
         <ProyectoSidebar
           inmo={selectedProyecto?.inmo}
           proyecto={selectedProyecto}
@@ -3505,7 +3506,7 @@ function MyMap() {
         />
       )}
 
-      {selectedLote && (
+      {selectedLote && canRenderSharedSidebar && (
         <MapSidebar
           lote={selectedLote.lote}
           inmo={selectedLote.inmo}

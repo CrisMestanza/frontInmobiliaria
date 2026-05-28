@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { withApiBase } from "../../config/api.js";
+import { getResponseErrorMessage } from "../../utils/apiErrors.js";
 
 export default function ActivateAccount() {
   const [searchParams] = useSearchParams();
@@ -30,12 +31,12 @@ export default function ActivateAccount() {
             body: JSON.stringify({ uid, token }),
           },
         );
-        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          setMessage(data?.message || "No se pudo activar la cuenta.");
+          setMessage(await getResponseErrorMessage(res, "No se pudo activar la cuenta."));
           setLoading(false);
           return;
         }
+        const data = await res.json().catch(() => ({}));
         setOk(true);
         setMessage(data?.message || "Cuenta activada correctamente.");
       } catch (_error) {
@@ -49,8 +50,8 @@ export default function ActivateAccount() {
   }, [searchParams]);
 
   return (
-    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "24px" }}>
-      <div style={{ width: "100%", maxWidth: "520px", border: "1px solid #d1d5db", borderRadius: "12px", padding: "24px", background: "#fff" }}>
+    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "24px", background: "var(--theme-bg-main)", color: "var(--theme-text-main)" }}>
+      <div style={{ width: "100%", maxWidth: "520px", border: "1px solid var(--theme-border-color)", borderRadius: "12px", padding: "24px", background: "var(--theme-bg-surface-raised)", boxShadow: "var(--theme-shadow-md)" }}>
         <h1 style={{ marginTop: 0 }}>Activación de cuenta</h1>
         <p>{loading ? "Procesando..." : message}</p>
         {!loading && !ok ? (
@@ -68,11 +69,17 @@ export default function ActivateAccount() {
                     body: JSON.stringify({ correo: correo.trim() }),
                   },
                 );
+                if (!res.ok) {
+                  setMessage(
+                    await getResponseErrorMessage(
+                      res,
+                      "No se pudo reenviar el correo de activacion.",
+                    ),
+                  );
+                  return;
+                }
                 const data = await res.json().catch(() => ({}));
-                setMessage(
-                  data?.message ||
-                    "Si el correo está pendiente de activación, enviaremos un nuevo enlace.",
-                );
+                setMessage(data?.message || "Si el correo esta pendiente de activacion, enviaremos un nuevo enlace.");
               } catch (_error) {
                 setMessage("No se pudo reenviar el correo de activación.");
               } finally {
@@ -89,12 +96,12 @@ export default function ActivateAccount() {
               onChange={(e) => setCorreo(e.target.value)}
               placeholder="tu_correo@dominio.com"
               required
-              style={{ padding: "10px", borderRadius: "8px", border: "1px solid #d1d5db" }}
+              style={{ padding: "10px", borderRadius: "8px", border: "1px solid var(--theme-border-color)", background: "var(--theme-bg-soft)", color: "var(--theme-text-main)" }}
             />
             <button
               type="submit"
               disabled={resendLoading}
-              style={{ padding: "10px 14px", borderRadius: "8px", border: "none", background: "#17a16e", color: "#fff", cursor: "pointer" }}
+              style={{ padding: "10px 14px", borderRadius: "8px", border: "none", background: "var(--theme-primary)", color: "var(--theme-primary-contrast)", cursor: "pointer" }}
             >
               {resendLoading ? "Enviando..." : "Reenviar enlace"}
             </button>

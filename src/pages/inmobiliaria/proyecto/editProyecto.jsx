@@ -1,19 +1,22 @@
 import { withApiBase } from "../../../config/api.js";
 import { authFetch } from "../../../config/authFetch.js";
+import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GoogleMap, Marker, Polygon } from "@react-google-maps/api";
 import loader from "../../../components/loader";
+import { Droplets, Lightbulb, Route, UtilityPole, Waves, Zap } from "lucide-react";
+import { resolveProjectImageUrl } from "../../../services/adminService.js";
 import styles from "./addproyect.module.css";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const token = localStorage.getItem("access");
 const utilityFields = [
-  { name: "agua", label: "Agua" },
-  { name: "desague", label: "Desague" },
-  { name: "luz", label: "Luz" },
-  { name: "alumbrado_publico", label: "Alumbrado publico" },
-  { name: "postes_luz", label: "Postes de luz" },
-  { name: "veredas", label: "Veredas" },
+  { name: "agua", label: "Agua", icon: Droplets },
+  { name: "desague", label: "Desague", icon: Waves },
+  { name: "luz", label: "Luz", icon: Zap },
+  { name: "alumbrado_publico", label: "Alumbrado publico", icon: Lightbulb },
+  { name: "postes_luz", label: "Postes de luz", icon: UtilityPole },
+  { name: "veredas", label: "Veredas", icon: Route },
 ];
 
 const normalizeUtilityValue = (value) => {
@@ -32,6 +35,7 @@ export default function EditProyectoModal({
   onClose,
   proyecto,
   idinmobiliaria,
+  embedded = false,
 }) {
   const [isLoaded, setIsLoaded] = useState(() =>
     typeof window !== "undefined" && !!window.google?.maps?.Map,
@@ -188,7 +192,9 @@ export default function EditProyectoModal({
   }, [proyectoId, idinmobiliaria, proyecto]);
 
   useEffect(() => {
-    document.body.style.overflow = "hidden";
+    if (!embedded) {
+      document.body.style.overflow = "hidden";
+    }
     if (window.google?.maps?.Map) {
       setIsLoaded(true);
     } else {
@@ -201,10 +207,12 @@ export default function EditProyectoModal({
         });
     }
     return () => {
-      document.body.style.overflow = "auto";
+      if (!embedded) {
+        document.body.style.overflow = "auto";
+      }
       clearPolygonListeners();
     };
-  }, []);
+  }, [embedded]);
 
   useEffect(() => {
     if (!isLoaded || !window.google) return;
@@ -256,6 +264,13 @@ export default function EditProyectoModal({
       puntos: latestPuntos,
       latitud: latestPuntos[0]?.latitud || prev.latitud,
       longitud: latestPuntos[0]?.longitud || prev.longitud,
+    }));
+  };
+
+  const toggleUtility = (name) => {
+    setForm((prev) => ({
+      ...prev,
+      [name]: prev[name] === "1" ? "0" : "1",
     }));
   };
 
@@ -372,16 +387,25 @@ export default function EditProyectoModal({
       );
 
       if (res.ok) {
-        alert("Proyecto actualizado con éxito");
+        if (window.alertSuccess) window.alertSuccess("Proyecto actualizado con exito");
+        else alert("Proyecto actualizado con exito");
         onClose?.({ refreshed: true });
       } else {
-        const err = await res.json().catch(() => ({}));
-        console.error("Error actualizando proyecto:", err);
-        alert("Error al actualizar proyecto");
+        const message = await getResponseErrorMessage(
+          res,
+          "No se pudo actualizar el proyecto. Revisa los datos ingresados.",
+        );
+        console.error("Error actualizando proyecto:", message);
+        if (window.alertError) window.alertError(message);
+        else alert(message);
       }
     } catch (err) {
       console.error(err);
-      alert("Error de red");
+      const message =
+        err?.message ||
+        "No se pudo conectar con el servidor. Revisa tu conexion e intenta nuevamente.";
+      if (window.alertError) window.alertError(message);
+      else alert(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -397,9 +421,36 @@ export default function EditProyectoModal({
         ? { lat: Number(form.latitud), lng: Number(form.longitud) }
         : defaultCenter;
 
+  const overlayStyle = embedded
+    ? {
+        position: "relative",
+        inset: "auto",
+        background: "transparent",
+        backdropFilter: "none",
+        padding: 0,
+        zIndex: "auto",
+        alignItems: "stretch",
+        display: "block",
+        overflow: "visible",
+      }
+    : undefined;
+
+  const contentStyle = embedded
+    ? {
+        maxWidth: "none",
+        height: "auto",
+        maxHeight: "none",
+        minHeight: "auto",
+        borderRadius: "24px",
+        border: "1px solid var(--theme-border-color)",
+        boxShadow: "none",
+        overflow: "visible",
+      }
+    : undefined;
+
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
+    <div className={styles.modalOverlay} style={overlayStyle}>
+      <div className={styles.modalContent} style={contentStyle}>
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>Editar Proyecto Inmobiliario</h1>
@@ -407,9 +458,11 @@ export default function EditProyectoModal({
               Actualiza datos del proyecto, imágenes y área del polígono.
             </p>
           </div>
-          <button type="button" className={styles.closeBtn} onClick={onClose}>
-            <span className="material-icons-outlined">close</span>
-          </button>
+          {!embedded && (
+            <button type="button" className={styles.closeBtn} onClick={onClose}>
+              <span className="material-icons-outlined">close</span>
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className={styles.formBody}>
@@ -445,24 +498,39 @@ export default function EditProyectoModal({
                 </div>
 
                 <div className={styles.inputGroup}>
-                  <label>Servicios disponibles</label>
-                  <div className={styles.compactGrid}>
-                    {utilityFields.map((field) => (
-                      <div key={field.name} className={styles.compactField}>
-                        <label htmlFor={`edit-${field.name}`}>{field.label}</label>
-                        <select
-                          id={`edit-${field.name}`}
-                          name={field.name}
-                          value={form[field.name]}
-                          onChange={handleChange}
-                          className={styles.select}
+                  <label>
+                    <span className={styles.labelWithIcon}>
+                      <Lightbulb size={14} />
+                      <span>Servicios disponibles</span>
+                    </span>
+                  </label>
+                  <div className={styles.utilitySwitchGrid}>
+                    {utilityFields.map((field) => {
+                      const Icon = field.icon;
+                      const enabled = form[field.name] === "1";
+                      return (
+                        <button
+                          key={field.name}
+                          type="button"
+                          className={`${styles.utilitySwitch} ${enabled ? styles.utilitySwitchActive : ""}`}
+                          onClick={() => toggleUtility(field.name)}
+                          aria-pressed={enabled}
                         >
-                          <option value="">Seleccione...</option>
-                          <option value="1">Sí</option>
-                          <option value="0">No</option>
-                        </select>
-                      </div>
-                    ))}
+                          <span className={styles.utilitySwitchIcon}>
+                            <Icon size={16} />
+                          </span>
+                          <span className={styles.utilitySwitchCopy}>
+                            <strong>{field.label}</strong>
+                            <small>{enabled ? "Disponible" : "No disponible"}</small>
+                          </span>
+                          <span
+                            className={`${styles.switchTrack} ${enabled ? styles.switchTrackActive : ""}`}
+                          >
+                            <span className={styles.switchThumb} />
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </section>
@@ -479,8 +547,8 @@ export default function EditProyectoModal({
                 ) : (
                   <div className={styles.existingImagesGrid}>
                     {visibleExistingImages.map((img, i) => {
-                      const src = withApiBase(
-                        `https://api.geohabita.com${img.imagenproyecto || img.imagen || ""}`,
+                      const src = resolveProjectImageUrl(
+                        img.imagenproyecto || img.imagen || img.url || img.image || "",
                       );
                       const key = img.idimagenesp || img.idimagenproyecto || img.idimagen || img.id || i;
                       return (
