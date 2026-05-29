@@ -598,11 +598,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const storedAnchoredOverlay = anchoredOverlays[String(selectedImg.id_imagen)] || null;
     const anchoredPreview =
       !layoutEditModeRef.current && selectedOverlayConfig?.visible
-        ? storedAnchoredOverlay ||
-          buildAnchoredOverlaySnapshot(selectedImg.id_imagen, selectedOverlayConfig)
+        ? buildAnchoredOverlaySnapshot(selectedImg.id_imagen, selectedOverlayConfig) || storedAnchoredOverlay
         : storedAnchoredOverlay;
 
-    if (anchoredPreview?.visible) {
+    if (anchoredPreview?.visible && !layoutEditModeRef.current) {
       if (
         anchoredPreview.showProjectOutline !== false &&
         ((Array.isArray(anchoredPreview.projectPolygon) &&
@@ -610,10 +609,13 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           (Array.isArray(anchoredPreview.projectPolygonPixels) &&
             anchoredPreview.projectPolygonPixels.length >= 3))
       ) {
+        const hasProjectSpherical = Array.isArray(anchoredPreview.projectPolygon) &&
+          anchoredPreview.projectPolygon.length >= 3;
+        const hasProjectPixels = Array.isArray(anchoredPreview.projectPolygonPixels) &&
+          anchoredPreview.projectPolygonPixels.length >= 3;
         markers.addMarker({
           id: `overlay-project-${selectedImg.id_imagen}`,
-          ...(Array.isArray(anchoredPreview.projectPolygon) &&
-          anchoredPreview.projectPolygon.length >= 3
+          ...(hasProjectSpherical
             ? { polygon: anchoredPreview.projectPolygon }
             : { polygonPixels: anchoredPreview.projectPolygonPixels }),
           svgStyle: {
@@ -955,7 +957,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const currentConfig = selectedOverlayConfigRef.current || selectedOverlayConfig;
     if (!currentConfig?.visible) return null;
     captureCurrentLayoutRuntime();
-    return snapshotOverlayForImage(selectedImageId, currentConfig);
+    return snapshotOverlayForImage(selectedImageId);
   };
 
   const handleSelectImage = (img) => {
@@ -1392,9 +1394,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         canResolveImageIdOnSave(conexion.destinoId),
     );
     const skippedConnections = conexiones.length - resolvableConnections.length;
+    stopOverlayDrag();
+    persistCurrentOverlayPosition();
     const currentConfig = selectedOverlayConfigRef.current || selectedOverlayConfig;
     const currentLayoutRuntime = captureCurrentLayoutRuntime();
-    const currentSnapshot = snapshotOverlayForImage(selectedImageId, currentConfig);
+    const currentSnapshot = snapshotOverlayForImage(selectedImageId);
     const runtimeByImage = {
       ...(selectedImageId && currentLayoutRuntime
         ? {
@@ -1489,8 +1493,16 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       const savedImagesByDraft = new Map(
         (data.imagenes || []).map((img) => [img.draft_id, img]),
       );
+      // Strip SVG-only fields before saving — viewer only needs points, not pre-built path strings
+      const geometryForPayload = projectGeometry
+        ? {
+            projectPoints: projectGeometry.projectPoints,
+            lotes: (projectGeometry.lotes || []).map(({ path: _path, ...rest }) => rest),
+          }
+        : null;
+
       const resolvedOverlayPayload = {
-        geometry: projectGeometry,
+        geometry: geometryForPayload,
         clearMissingOverlays: true,
         layouts: serializedLayouts.map((layout) => ({
           ...layout,
@@ -1511,13 +1523,17 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           JSON.stringify(resolvedOverlayPayload),
         );
 
-        await authFetch(buildApiUrl("/api/guardar_tour_360_completo/"), {
+        const overlayRes = await authFetch(buildApiUrl("/api/guardar_tour_360_completo/"), {
           method: "POST",
           body: overlayUpdateForm,
           telegramContext: {
             action: `Intento de guardar overlay 2D del tour 360 del proyecto ${idproyecto}`,
           },
         });
+        if (!overlayRes.ok) {
+          const overlayErr = await getResponseErrorMessage(overlayRes, "No se pudo guardar el overlay 2D.");
+          throw new Error(overlayErr);
+        }
       }
 
       setImagenes((prev) =>
@@ -1660,9 +1676,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const updateGroupEdit = (patch) => {
     const next = { ...groupEditRef.current, ...patch };
     groupEditRef.current = next;
-    React.startTransition(() => {
-      setGroupEdit(next);
-    });
+    setGroupEdit(next);
   };
 
   const commitGroupEdit = () => {
@@ -1861,21 +1875,28 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
               const loteId = String(getLoteId(lote) ?? index);
               const override = renderOverlayConfig.lotOverrides?.[loteId] ?? {};
               if (override.visible === false || selectedLotIds.has(loteId)) return null;
-              // Lotes confirmados se renderizan en su propio card frozen (fuera del CSS transform del card activo)
-              if (override?.committedCardTransform) return null;
-              const effectiveLotOpacity = override.opacity ?? renderOverlayConfig.lotOpacity;
+              // Lotes confirmados se renderizan en su propio card frozen (fuera del CSS transform del card activo).
+              // Usar selectedOverlayConfig (no deferred) para evitar el flash de posición base durante el render
+              // de transición al confirmar.
+              const currentOverride = selectedOverlayConfig?.lotOverrides?.[loteId];
+              const isCommitted = !!(override?.committedCardTransform || currentOverride?.committedCardTransform);
+              const committedPts = isCommitted ? ((currentOverride || override)?.committedPoints ?? []) : null;
+              if (isCommitted && !committedPts?.length) return null;
+              const effectiveLotOpacity = (currentOverride || override)?.opacity ?? renderOverlayConfig.lotOpacity;
 
-              let lotPath      = lote.path;
+              let lotPath      = isCommitted ? buildSvgPath(committedPts) : lote.path;
               let lotTransform = undefined;
-              if (override?.committedPoints?.length) {
-                lotPath = buildSvgPath(override.committedPoints);
-              } else {
-                const svgDx    = Number(override.svgDx) || 0;
-                const svgDy    = Number(override.svgDy) || 0;
-                const svgScale = Number(override.svgScale) || 1;
-                if (svgDx !== 0 || svgDy !== 0 || svgScale !== 1) {
-                  const { cx, cy } = getLotCentroid(lote.points || []);
-                  lotTransform = `translate(${svgDx}, ${svgDy}) translate(${cx}, ${cy}) scale(${svgScale}) translate(${-cx}, ${-cy})`;
+              if (!isCommitted) {
+                if (override?.committedPoints?.length) {
+                  lotPath = buildSvgPath(override.committedPoints);
+                } else {
+                  const svgDx    = Number(override.svgDx) || 0;
+                  const svgDy    = Number(override.svgDy) || 0;
+                  const svgScale = Number(override.svgScale) || 1;
+                  if (svgDx !== 0 || svgDy !== 0 || svgScale !== 1) {
+                    const { cx, cy } = getLotCentroid(lote.points || []);
+                    lotTransform = `translate(${svgDx}, ${svgDy}) translate(${cx}, ${cy}) scale(${svgScale}) translate(${-cx}, ${-cy})`;
+                  }
                 }
               }
 
@@ -1948,7 +1969,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
 
   const renderCommittedOverlay = () => {
     if (!layoutEditMode || !selectedOverlayConfig?.visible || !projectGeometry) return null;
-    const { textureMode = "solid" } = selectedOverlayConfig;
+
+    // Usar el mismo config que renderImportedOverlay para que ambos cards compartan siempre
+    // el mismo transform visual — evita el desplazamiento cuando deferredOverlayConfig diverge.
+    const renderCfg = deferredOverlayConfig || selectedOverlayConfig;
+    const { textureMode = "solid" } = renderCfg;
 
     const committedLots = projectGeometry.lotes.flatMap((lote, idx) => {
       const loteId   = String(getLoteId(lote) ?? idx);
@@ -1960,23 +1985,25 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     });
     if (!committedLots.length) return null;
 
+    // Leer el offset real del SVG dentro del card activo — elimina cualquier diferencia de altura
+    // entre el header activo y el spacer invisible.
+    const svgTopInCard = overlaySvgRef.current?.offsetTop ?? 0;
+
+    const {
+      x, y, scale, rotation,
+      tiltX = 0, tiltY = 0, perspectiveDepth = 900,
+    } = renderCfg;
+    const layerPerspective = (perspectiveDepth > 0 && (tiltX !== 0 || tiltY !== 0))
+      ? perspectiveDepth : undefined;
+    const tilt = (tiltX !== 0 || tiltY !== 0)
+      ? `rotateX(${tiltX}deg) rotateY(${tiltY}deg) ` : "";
+    const frozenTransform = `translate(${x}px, ${y}px) ${tilt}scale(${scale}) rotate(${rotation}deg)`;
+
     return (
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 15 }}>
         {committedLots.map(({ lote, loteId, override }) => {
-          const {
-            x, y, scale, rotation,
-            tiltX = 0, tiltY = 0, perspectiveDepth = 900,
-          } = override.committedCardTransform;
-
-          // Mismo cálculo que renderImportedOverlay: perspective como propiedad CSS del padre
-          const layerPerspective = (perspectiveDepth > 0 && (tiltX !== 0 || tiltY !== 0))
-            ? perspectiveDepth : undefined;
-          const tilt = (tiltX !== 0 || tiltY !== 0)
-            ? `rotateX(${tiltX}deg) rotateY(${tiltY}deg) ` : "";
-          const frozenTransform = `translate(${x}px, ${y}px) ${tilt}scale(${scale}) rotate(${rotation}deg)`;
-
           const lotPath    = buildSvgPath(override.committedPoints);
-          const lotOpacity = override.opacity ?? selectedOverlayConfig.lotOpacity;
+          const lotOpacity = override.opacity ?? renderCfg.lotOpacity;
           const fill       = textureMode === "solid" ? lote.color
             : textureMode === "outline" ? "none"
             : `url(#gh-fco-${loteId}-${textureMode})`;
@@ -1993,14 +2020,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 className={styles.projectOverlayCard}
                 style={{ transform: frozenTransform, pointerEvents: "none" }}
               >
-                {/* Espaciador invisible — replica altura exacta del header del card principal para que el SVG quede en la misma posición Y */}
-                <div className={styles.projectOverlayHeader} style={{ visibility: "hidden", pointerEvents: "none" }} aria-hidden="true">
-                  <span className={styles.overlayTitleBadge}>Trazos 2D</span>
-                  <span className={styles.overlayEditHint}>Arrastra para ubicar</span>
-                </div>
                 <svg
                   viewBox={`0 0 ${OVERLAY_VIEWBOX.width} ${OVERLAY_VIEWBOX.height}`}
                   className={styles.projectOverlaySvg}
+                  style={svgTopInCard > 0 ? { marginTop: svgTopInCard } : undefined}
                 >
                   {textureMode !== "solid" && (
                     <defs>
@@ -2228,7 +2251,6 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     {!viewerReady && <div className={styles.viewerLoading}>Cargando visor...</div>}
                     <div ref={viewerRef} className={styles.viewerCanvas} />
                     {renderImportedOverlay()}
-                    {renderCommittedOverlay()}
                   </div>
                 </>
               ) : (
