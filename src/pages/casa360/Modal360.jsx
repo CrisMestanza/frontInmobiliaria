@@ -60,6 +60,18 @@ const DEFAULT_LAYOUT_CONFIG = {
   lotOverrides: {},
 };
 
+const DEFAULT_ALIGNMENT_STATE = {
+  active: false,
+  step: "plan",
+  pairs: [],
+  pendingPlanPoint: null,
+  result: null,
+  error: null,
+};
+
+const REQUIRED_AFFINE_POINTS = 3;
+const SNAP_THRESHOLD_PX = 28;
+
 const buildApiUrl = (path) => withApiBase(`https://api.geohabita.com${path}`);
 
 const normalizeImageUrl = (url) => {
@@ -326,6 +338,194 @@ const getLotCentroid = (points = []) => {
   return { cx, cy };
 };
 
+const getAlignmentQuality = (averageError) => {
+  if (!Number.isFinite(averageError)) return { label: "Sin medicion", tone: "neutral" };
+  if (averageError < 5) return { label: "Excelente", tone: "good" };
+  if (averageError <= 15) return { label: "Aceptable", tone: "warn" };
+  return { label: "Revisar", tone: "bad" };
+};
+
+const createAlignmentSnapCandidates = (geometry) => {
+  if (!geometry) return [];
+  const candidates = [];
+
+  (geometry.projectPoints || []).forEach((point, index) => {
+    candidates.push({
+      x: point.x,
+      y: point.y,
+      type: "project-vertex",
+      label: `Vertice proyecto ${index + 1}`,
+      priority: 1,
+    });
+  });
+
+  (geometry.lotes || []).forEach((lote, loteIndex) => {
+    const loteName = lote.nombre || `Lote ${loteIndex + 1}`;
+    (lote.points || []).forEach((point, pointIndex) => {
+      candidates.push({
+        x: point.x,
+        y: point.y,
+        type: "lot-vertex",
+        label: `${loteName} vertice ${pointIndex + 1}`,
+        priority: 0,
+      });
+    });
+
+    if ((lote.points || []).length >= 3) {
+      const centroid = getLotCentroid(lote.points);
+      candidates.push({
+        x: centroid.cx,
+        y: centroid.cy,
+        type: "lot-centroid",
+        label: `${loteName} centroide`,
+        priority: 2,
+      });
+    }
+  });
+
+  return candidates;
+};
+
+const getSvgPointFromClient = (svgEl, clientX, clientY) => {
+  if (!svgEl?.createSVGPoint) return null;
+  const matrix = svgEl.getScreenCTM?.();
+  if (!matrix) return null;
+  const point = svgEl.createSVGPoint();
+  point.x = clientX;
+  point.y = clientY;
+  const svgPoint = point.matrixTransform(matrix.inverse());
+  return { x: svgPoint.x, y: svgPoint.y };
+};
+
+const chooseSnapCandidate = (svgEl, svgPoint, clientX, clientY, candidates) => {
+  if (!svgEl || !svgPoint || !candidates?.length) {
+    return { ...svgPoint, label: "Punto libre", snapped: false, type: "free" };
+  }
+
+  const matrix = svgEl.getScreenCTM?.();
+  if (!matrix) {
+    return { ...svgPoint, label: "Punto libre", snapped: false, type: "free" };
+  }
+
+  let best = null;
+  candidates.forEach((candidate) => {
+    const candidateSvgPoint = svgEl.createSVGPoint();
+    candidateSvgPoint.x = candidate.x;
+    candidateSvgPoint.y = candidate.y;
+    const screenPoint = candidateSvgPoint.matrixTransform(matrix);
+    const distance = Math.hypot(screenPoint.x - clientX, screenPoint.y - clientY);
+    if (
+      !best ||
+      distance < best.distance ||
+      (distance === best.distance && candidate.priority < best.priority)
+    ) {
+      best = { ...candidate, distance };
+    }
+  });
+
+  if (best && best.distance <= SNAP_THRESHOLD_PX) {
+    return { ...best, snapped: true };
+  }
+
+  return { ...svgPoint, label: "Punto libre", snapped: false, type: "free" };
+};
+
+const solveLinear3 = (matrix, values) => {
+  const a = matrix.map((row, index) => [...row, values[index]]);
+
+  for (let col = 0; col < 3; col += 1) {
+    let pivot = col;
+    for (let row = col + 1; row < 3; row += 1) {
+      if (Math.abs(a[row][col]) > Math.abs(a[pivot][col])) pivot = row;
+    }
+
+    if (Math.abs(a[pivot][col]) < 1e-8) return null;
+    if (pivot !== col) [a[col], a[pivot]] = [a[pivot], a[col]];
+
+    const pivotValue = a[col][col];
+    for (let j = col; j < 4; j += 1) a[col][j] /= pivotValue;
+
+    for (let row = 0; row < 3; row += 1) {
+      if (row === col) continue;
+      const factor = a[row][col];
+      for (let j = col; j < 4; j += 1) {
+        a[row][j] -= factor * a[col][j];
+      }
+    }
+  }
+
+  return [a[0][3], a[1][3], a[2][3]];
+};
+
+const applyAffineMatrix = (matrix, point) => {
+  if (!Array.isArray(matrix) || matrix.length !== 6) return point;
+  const [a, b, c, d, e, f] = matrix.map(Number);
+  return {
+    x: a * point.x + c * point.y + e,
+    y: b * point.x + d * point.y + f,
+  };
+};
+
+const computeAffineAlignment = (pairs) => {
+  if (!Array.isArray(pairs) || pairs.length < REQUIRED_AFFINE_POINTS) {
+    return null;
+  }
+
+  const usablePairs = pairs.slice(0, REQUIRED_AFFINE_POINTS);
+  const sourceMatrix = usablePairs.map((pair) => [
+    Number(pair.sourceLayout?.x),
+    Number(pair.sourceLayout?.y),
+    1,
+  ]);
+  const targetX = usablePairs.map((pair) => Number(pair.targetViewer?.x));
+  const targetY = usablePairs.map((pair) => Number(pair.targetViewer?.y));
+
+  if (
+    sourceMatrix.flat().some((value) => !Number.isFinite(value)) ||
+    targetX.some((value) => !Number.isFinite(value)) ||
+    targetY.some((value) => !Number.isFinite(value))
+  ) {
+    return null;
+  }
+
+  const xCoefficients = solveLinear3(sourceMatrix, targetX);
+  const yCoefficients = solveLinear3(sourceMatrix, targetY);
+  if (!xCoefficients || !yCoefficients) return null;
+
+  const matrix = [
+    xCoefficients[0],
+    yCoefficients[0],
+    xCoefficients[1],
+    yCoefficients[1],
+    xCoefficients[2],
+    yCoefficients[2],
+  ];
+
+  const residuals = usablePairs.map((pair, index) => {
+    const projected = applyAffineMatrix(matrix, pair.sourceLayout);
+    const error = Math.hypot(
+      projected.x - pair.targetViewer.x,
+      projected.y - pair.targetViewer.y,
+    );
+    return {
+      index: index + 1,
+      error,
+      sourceLabel: pair.source?.label || `Punto ${index + 1}`,
+    };
+  });
+
+  const averageError = residuals.reduce((sum, item) => sum + item.error, 0) / residuals.length;
+  const maxError = Math.max(...residuals.map((item) => item.error));
+
+  return {
+    matrix,
+    residuals,
+    averageError,
+    maxError,
+    quality: getAlignmentQuality(averageError),
+  };
+};
+
 const applyLotSvgTransform = (points, override) => {
   if (override?.committedPoints?.length) return override.committedPoints;
   const dx = Number(override?.svgDx) || 0;
@@ -378,6 +578,31 @@ const DEFAULT_GROUP_EDIT = {
   tiltX: 0, tiltY: 0, perspectiveDepth: 900,
 };
 
+const getAffineCssMatrix = (config) => {
+  const matrix = config?.affineMatrix;
+  if (!Array.isArray(matrix) || matrix.length !== 6) return "";
+  const values = matrix.map((value) => Number(value));
+  if (values.some((value) => !Number.isFinite(value))) return "";
+  return `matrix(${values.map((value) => Number(value.toFixed(6))).join(", ")})`;
+};
+
+const buildOverlayCssTransform = (config = {}) => {
+  const {
+    x = 0,
+    y = 0,
+    scale = 1,
+    rotation = 0,
+    tiltX = 0,
+    tiltY = 0,
+  } = config;
+  const affine = getAffineCssMatrix(config);
+  const tilt = (tiltX !== 0 || tiltY !== 0)
+    ? `rotateX(${tiltX}deg) rotateY(${tiltY}deg) `
+    : "";
+  const manual = `translate(${x}px, ${y}px) ${tilt}scale(${scale}) rotate(${rotation}deg)`;
+  return affine ? `${manual} ${affine}` : manual;
+};
+
 // perspectiveOrigin: centro del div con la propiedad CSS `perspective` (por defecto el viewer).
 // CSS coloca el vanishing point en (50%, 50%) del elemento padre — si no se pasa, se asume (0,0)
 // lo que produce un shift cuando hay tilt.
@@ -393,9 +618,10 @@ const transformOverlayPoint = (point, config, baseScaleX, baseScaleY, perspectiv
   // Step 1 – 2D rotation (rotateZ) around transform-origin top-left
   const lx = point.x * baseScaleX;
   const ly = point.y * baseScaleY;
+  const affinePoint = applyAffineMatrix(config?.affineMatrix, { x: lx, y: ly });
   const cosZ = Math.cos(rz), sinZ = Math.sin(rz);
-  let x = lx * cosZ - ly * sinZ;
-  let y = lx * sinZ + ly * cosZ;
+  let x = affinePoint.x * cosZ - affinePoint.y * sinZ;
+  let y = affinePoint.x * sinZ + affinePoint.y * cosZ;
   let z = 0;
 
   // Step 2 – uniform scale
@@ -528,6 +754,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const [selectedLotIds, setSelectedLotIds] = useState(new Set());
   const [groupEdit, setGroupEdit] = useState(DEFAULT_GROUP_EDIT);
   const [groupDragState, setGroupDragState] = useState(null);
+  const [alignmentMode, setAlignmentMode] = useState(DEFAULT_ALIGNMENT_STATE);
+  const [advancedMode, setAdvancedMode] = useState(false);
   const groupEditRef = useRef(DEFAULT_GROUP_EDIT);
   const selectedLotIdsRef = useRef(new Set());
   const groupEditBaseRef = useRef({});
@@ -544,6 +772,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const anchoredOverlaysRef = useRef({});
   const layoutEditModeRef = useRef(false);
   const overlayVisibleRef = useRef(false);
+  const alignmentModeRef = useRef(DEFAULT_ALIGNMENT_STATE);
   const overlayDragFrameRef = useRef(null);
   const overlayDragPatchRef = useRef(null);
   const groupDragFrameRef = useRef(null);
@@ -589,6 +818,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     };
   }, [projectGeometry]);
 
+  const alignmentSnapCandidates = useMemo(
+    () => createAlignmentSnapCandidates(projectGeometry),
+    [projectGeometry],
+  );
+
   const hasValidCoords =
     Number.isFinite(coords?.yaw) && Number.isFinite(coords?.pitch);
 
@@ -625,8 +859,6 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       ) {
         const hasProjectSpherical = Array.isArray(anchoredPreview.projectPolygon) &&
           anchoredPreview.projectPolygon.length >= 3;
-        const hasProjectPixels = Array.isArray(anchoredPreview.projectPolygonPixels) &&
-          anchoredPreview.projectPolygonPixels.length >= 3;
         markers.addMarker({
           id: `overlay-project-${selectedImg.id_imagen}`,
           ...(hasProjectSpherical
@@ -1133,6 +1365,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       },
     }));
     setLayoutEditMode(true);
+    setAdvancedMode(false);
+    setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
     window.alertSuccess?.("Trazos 2D importados en esta vista 360.");
   };
 
@@ -1144,12 +1378,174 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         ...DEFAULT_LAYOUT_CONFIG,
       },
     }));
+    setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
+  };
+
+  const getPlanSourceLayoutPoint = (sourcePoint) => {
+    const runtime = getCurrentOverlayRuntime();
+    if (!runtime || !sourcePoint) return null;
+    const svgWidth = Number(runtime.overlayWidth) || OVERLAY_VIEWBOX.width;
+    const svgHeight = Number(runtime.overlayHeight) || OVERLAY_VIEWBOX.height;
+    const offsetX = Number(runtime.overlayOffsetX) || 0;
+    const offsetY = Number(runtime.overlayOffsetY) || 0;
+    return {
+      x: offsetX + (Number(sourcePoint.x) / OVERLAY_VIEWBOX.width) * svgWidth,
+      y: offsetY + (Number(sourcePoint.y) / OVERLAY_VIEWBOX.height) * svgHeight,
+    };
+  };
+
+  const previewAffineAlignment = (pairs) => {
+    const result = computeAffineAlignment(pairs);
+    if (!result) {
+      setAlignmentMode((prev) => ({
+        ...prev,
+        result: null,
+        error: "Los tres puntos del plano estan muy alineados o incompletos. Selecciona referencias mas separadas.",
+      }));
+      return;
+    }
+
+    updateSelectedOverlayConfig({
+      affineMatrix: result.matrix,
+      x: 0,
+      y: 0,
+      scale: 1,
+      rotation: 0,
+      tiltX: 0,
+      tiltY: 0,
+      perspectiveDepth: 900,
+    });
+
+    setAlignmentMode((prev) => ({
+      ...prev,
+      step: "review",
+      result,
+      error: null,
+    }));
+  };
+
+  const startAlignmentMode = async () => {
+    if (!selectedImg) return;
+    const geometry = await load2DGeometry();
+    if (!geometry) return;
+
+    const currentConfig = overlayLayoutsRef.current[selectedImageId] || {};
+    setOverlayLayouts((prev) => ({
+      ...prev,
+      [selectedImageId]: {
+        ...DEFAULT_LAYOUT_CONFIG,
+        ...currentConfig,
+        visible: true,
+      },
+    }));
+    setLayoutEditMode(true);
+    setAdvancedMode(false);
+    setSelectedLotIds(new Set());
+    selectedLotIdsRef.current = new Set();
+    setAlignmentMode({
+      ...DEFAULT_ALIGNMENT_STATE,
+      active: true,
+      step: "plan",
+    });
+  };
+
+  const cancelAlignmentMode = () => {
+    setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
+  };
+
+  const resetAlignmentPairs = () => {
+    setAlignmentMode({
+      ...DEFAULT_ALIGNMENT_STATE,
+      active: true,
+      step: "plan",
+    });
+  };
+
+  const handlePlanAlignmentClick = (event) => {
+    const currentAlignment = alignmentModeRef.current;
+    if (!currentAlignment?.active || currentAlignment.step !== "plan") return;
+    if (!overlaySvgRef.current) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const svgPoint = getSvgPointFromClient(
+      overlaySvgRef.current,
+      event.clientX,
+      event.clientY,
+    );
+    if (!svgPoint) return;
+
+    const source = chooseSnapCandidate(
+      overlaySvgRef.current,
+      svgPoint,
+      event.clientX,
+      event.clientY,
+      alignmentSnapCandidates,
+    );
+    const sourceLayout = getPlanSourceLayoutPoint(source);
+    if (!sourceLayout) return;
+
+    setAlignmentMode((prev) => ({
+      ...prev,
+      step: "viewer",
+      pendingPlanPoint: {
+        source,
+        sourceLayout,
+      },
+      error: null,
+    }));
+  };
+
+  const handleViewerAlignmentClick = (event) => {
+    const currentAlignment = alignmentModeRef.current;
+    if (!currentAlignment?.active || currentAlignment.step !== "viewer") return;
+    if (!viewerRef.current || !currentAlignment.pendingPlanPoint) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = viewerRef.current.getBoundingClientRect();
+    const targetViewer = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    if (!Number.isFinite(targetViewer.x) || !Number.isFinite(targetViewer.y)) return;
+
+    const nextPairs = [
+      ...currentAlignment.pairs,
+      {
+        ...currentAlignment.pendingPlanPoint,
+        targetViewer,
+      },
+    ];
+
+    if (nextPairs.length >= REQUIRED_AFFINE_POINTS) {
+      setAlignmentMode((prev) => ({
+        ...prev,
+        pairs: nextPairs,
+        pendingPlanPoint: null,
+        step: "review",
+      }));
+      previewAffineAlignment(nextPairs);
+      return;
+    }
+
+    setAlignmentMode((prev) => ({
+      ...prev,
+      pairs: nextPairs,
+      pendingPlanPoint: null,
+      step: "plan",
+      result: null,
+      error: null,
+    }));
   };
 
   const toggleLayoutEditMode = () => {
     if (layoutEditMode) {
       persistCurrentOverlayPosition();
       setLayoutEditMode(false);
+      setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
       return;
     }
 
@@ -1185,12 +1581,17 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   }, [layoutEditMode]);
 
   useEffect(() => {
+    alignmentModeRef.current = alignmentMode;
+  }, [alignmentMode]);
+
+  useEffect(() => {
     overlayVisibleRef.current = !!selectedOverlayConfig?.visible;
   }, [selectedOverlayConfig?.visible]);
 
   useEffect(() => {
     setLayoutEditMode(false);
     setDragState(null);
+    setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
   }, [selectedImageId]);
 
   useEffect(() => {
@@ -1221,7 +1622,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const markers = viewer.getPlugin(runtime.MarkersPlugin);
 
     viewer.addEventListener("click", ({ data }) => {
-      if (layoutEditModeRef.current && overlayVisibleRef.current) {
+      if (
+        alignmentModeRef.current?.active ||
+        (layoutEditModeRef.current && overlayVisibleRef.current)
+      ) {
         return;
       }
 
@@ -1511,7 +1915,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       const geometryForPayload = projectGeometry
         ? {
             projectPoints: projectGeometry.projectPoints,
-            lotes: (projectGeometry.lotes || []).map(({ path: _path, ...rest }) => rest),
+            lotes: (projectGeometry.lotes || []).map((lote) => {
+              const payloadLote = { ...lote };
+              delete payloadLote.path;
+              return payloadLote;
+            }),
           }
         : null;
 
@@ -1634,6 +2042,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   }, []);
 
   const startOverlayDrag = (event) => {
+    if (alignmentModeRef.current?.active) return;
     if (!layoutEditMode || !selectedOverlayConfig?.visible) return;
 
     event.preventDefault();
@@ -1708,8 +2117,9 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       // pueda reproducir la posición visual perfectamente, sin conversión de coordenadas.
       const { x, y, scale, rotation,
               tiltX = 0, tiltY = 0,
+              affineMatrix = null,
               perspectiveDepth = 900 } = cfg;
-      const committedCardTransform = { x, y, scale, rotation, tiltX, tiltY, perspectiveDepth };
+      const committedCardTransform = { x, y, scale, rotation, tiltX, tiltY, affineMatrix, perspectiveDepth };
 
       projectGeometry.lotes.forEach((lote) => {
         const loteId   = String(getLoteId(lote) ?? "");
@@ -1749,6 +2159,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   };
 
   const startGroupDrag = (event) => {
+    if (alignmentModeRef.current?.active) return;
     if (!layoutEditMode || selectedLotIds.size === 0) return;
     event.preventDefault();
     event.stopPropagation();
@@ -1787,7 +2198,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     if (!renderOverlayConfig?.visible || !projectGeometry) return null;
 
     const {
-      x, y, scale, rotation, opacity,
+      opacity,
       tiltX = 0, tiltY = 0, perspectiveDepth = 900,
       textureMode = "solid", showShadow = true,
     } = renderOverlayConfig;
@@ -1795,10 +2206,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     // Mantener la perspectiva fuera del transform del SVG evita que el DOM intente
     // resolver la proyección como una matriz 2D y permite guardar con el mismo modelo matemático.
     const layerPerspective = (perspectiveDepth > 0 && (tiltX !== 0 || tiltY !== 0)) ? perspectiveDepth : undefined;
-    const tilt = (tiltX !== 0 || tiltY !== 0)
-      ? `rotateX(${tiltX}deg) rotateY(${tiltY}deg) `
-      : "";
-    const cardTransform = `translate(${x}px, ${y}px) ${tilt}scale(${scale}) rotate(${rotation}deg)`;
+    const cardTransform = buildOverlayCssTransform(renderOverlayConfig);
 
     const shadowFilter = showShadow
       ? "drop-shadow(0 8px 18px rgba(0,0,0,0.62)) drop-shadow(0 2px 6px rgba(0,0,0,0.45))"
@@ -1848,6 +2256,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             role="img"
             aria-label="Trazos 2D del proyecto importados al editor 360"
             style={shadowFilter ? { filter: shadowFilter } : undefined}
+            onClick={handlePlanAlignmentClick}
           >
             <defs>
               {/* Hatch: líneas diagonales */}
@@ -1870,6 +2279,32 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 <line x1="0" y1="7" x2="14" y2="7" stroke="rgba(0,0,0,0.3)" strokeWidth="1.5" />
               </pattern>
             </defs>
+
+            {alignmentMode.active && (
+              <g className={styles.alignmentPointLayer}>
+                {alignmentMode.pairs.map((pair, index) => (
+                  <g key={`align-pair-${index}`}>
+                    <circle cx={pair.source.x} cy={pair.source.y} r="13" />
+                    <text x={pair.source.x} y={pair.source.y - 18}>{index + 1}</text>
+                  </g>
+                ))}
+                {alignmentMode.pendingPlanPoint?.source && (
+                  <g className={styles.alignmentPendingPoint}>
+                    <circle
+                      cx={alignmentMode.pendingPlanPoint.source.x}
+                      cy={alignmentMode.pendingPlanPoint.source.y}
+                      r="15"
+                    />
+                    <text
+                      x={alignmentMode.pendingPlanPoint.source.x}
+                      y={alignmentMode.pendingPlanPoint.source.y - 20}
+                    >
+                      {alignmentMode.pairs.length + 1}
+                    </text>
+                  </g>
+                )}
+              </g>
+            )}
 
             {renderOverlayConfig.showProjectOutline && !!projectGeometry.projectPath && (
               <path
@@ -1917,8 +2352,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
               return (
                 <g key={`unsel-${loteId}`}
                   transform={lotTransform}
-                  onClick={layoutEditMode ? (e) => { e.stopPropagation(); toggleLotSelection(loteId); } : undefined}
-                  style={{ color: lote.color, cursor: layoutEditMode ? "pointer" : "default" }}
+                  onClick={layoutEditMode && !alignmentMode.active ? (e) => { e.stopPropagation(); toggleLotSelection(loteId); } : undefined}
+                  style={{ color: lote.color, cursor: alignmentMode.active ? "crosshair" : layoutEditMode ? "pointer" : "default" }}
                 >
                   {textureMode !== "solid" && textureMode !== "outline" && (
                     <path d={lotPath} fill={lote.color} fillOpacity={effectiveLotOpacity * 0.5}
@@ -1955,8 +2390,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 return (
                   <g key={`sel-${loteId}`}
                     onMouseDown={startGroupDrag}
-                    onClick={layoutEditMode ? (e) => { e.stopPropagation(); toggleLotSelection(loteId); } : undefined}
-                    style={{ color: lote.color, cursor: layoutEditMode ? (groupDragState ? "grabbing" : "move") : "default" }}
+                    onClick={layoutEditMode && !alignmentMode.active ? (e) => { e.stopPropagation(); toggleLotSelection(loteId); } : undefined}
+                    style={{ color: lote.color, cursor: alignmentMode.active ? "crosshair" : layoutEditMode ? (groupDragState ? "grabbing" : "move") : "default" }}
                   >
                     {/* Glow exterior */}
                     <path d={projPath} fill="none" stroke="#ffe000"
@@ -2004,14 +2439,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const svgTopInCard = overlaySvgRef.current?.offsetTop ?? 0;
 
     const {
-      x, y, scale, rotation,
       tiltX = 0, tiltY = 0, perspectiveDepth = 900,
     } = renderCfg;
     const layerPerspective = (perspectiveDepth > 0 && (tiltX !== 0 || tiltY !== 0))
       ? perspectiveDepth : undefined;
-    const tilt = (tiltX !== 0 || tiltY !== 0)
-      ? `rotateX(${tiltX}deg) rotateY(${tiltY}deg) ` : "";
-    const frozenTransform = `translate(${x}px, ${y}px) ${tilt}scale(${scale}) rotate(${rotation}deg)`;
+    const frozenTransform = buildOverlayCssTransform(renderCfg);
 
     return (
       <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 15 }}>
@@ -2077,6 +2509,29 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             </div>
           );
         })}
+      </div>
+    );
+  };
+
+  const renderAlignmentViewerMarkers = () => {
+    if (!alignmentMode.active) return null;
+    const markers = alignmentMode.pairs
+      .map((pair, index) => ({ ...pair.targetViewer, index: index + 1 }))
+      .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+
+    if (!markers.length) return null;
+
+    return (
+      <div className={styles.alignmentViewerPointLayer} aria-hidden="true">
+        {markers.map((point) => (
+          <span
+            key={`viewer-align-${point.index}`}
+            className={styles.alignmentViewerPoint}
+            style={{ left: point.x, top: point.y }}
+          >
+            {point.index}
+          </span>
+        ))}
       </div>
     );
   };
@@ -2261,10 +2716,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                       Necesitas al menos 2 imagenes en el borrador para crear una conexion entre vistas.
                     </div>
                   )}
-                  <div className={styles.viewerFrame}>
+                  <div
+                    className={styles.viewerFrame}
+                    onClickCapture={handleViewerAlignmentClick}
+                  >
                     {!viewerReady && <div className={styles.viewerLoading}>Cargando visor...</div>}
                     <div ref={viewerRef} className={styles.viewerCanvas} />
                     {renderImportedOverlay()}
+                    {renderCommittedOverlay()}
+                    {renderAlignmentViewerMarkers()}
                   </div>
                 </>
               ) : (
@@ -2340,6 +2800,78 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   </p>
                 )}
 
+                {selectedOverlayConfig?.visible && (
+                  <div className={styles.alignmentPanel}>
+                    <div className={styles.alignmentHeader}>
+                      <strong>Modo Alinear</strong>
+                      <span>{alignmentMode.pairs.length}/{REQUIRED_AFFINE_POINTS} puntos</span>
+                    </div>
+                    <p className={styles.helperText}>
+                      {alignmentMode.active
+                        ? alignmentMode.step === "viewer"
+                          ? `Ahora marca en la vista 360 el punto ${alignmentMode.pairs.length + 1}.`
+                          : alignmentMode.step === "review"
+                            ? "Previsualización aplicada. Revisa el error y guarda el tour si coincide."
+                            : `Marca en el plano el punto ${alignmentMode.pairs.length + 1}. Se priorizan vertices y centroides.`
+                        : "Alinea con 3 correspondencias plano/360. Los ajustes manuales quedan en modo avanzado."}
+                    </p>
+                    <div className={styles.panelActions}>
+                      <button
+                        type="button"
+                        className={styles.btnPrimary360}
+                        onClick={startAlignmentMode}
+                        disabled={!selectedImg || geometryLoading}
+                      >
+                        <MousePointerClick size={16} />
+                        {alignmentMode.active ? "Reiniciar alineacion" : "Activar Modo Alinear"}
+                      </button>
+                      {alignmentMode.active && (
+                        <button
+                          type="button"
+                          className={styles.btnCancel}
+                          onClick={cancelAlignmentMode}
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+
+                    {alignmentMode.pendingPlanPoint?.source && (
+                      <div className={styles.alignmentSelectedPoint}>
+                        Plano: {alignmentMode.pendingPlanPoint.source.label}
+                        {alignmentMode.pendingPlanPoint.source.snapped ? " · snap" : " · libre"}
+                      </div>
+                    )}
+
+                    {alignmentMode.error && (
+                      <div className={styles.alignmentError}>{alignmentMode.error}</div>
+                    )}
+
+                    {alignmentMode.result && (
+                      <div className={styles.alignmentResult}>
+                        <div className={styles.alignmentQuality}>
+                          <strong>{alignmentMode.result.quality.label}</strong>
+                          <span>
+                            Promedio {alignmentMode.result.averageError.toFixed(1)} px · Max {alignmentMode.result.maxError.toFixed(1)} px
+                          </span>
+                        </div>
+                        {alignmentMode.result.residuals.map((item) => (
+                          <span key={item.index}>
+                            P{item.index}: {item.error.toFixed(1)} px
+                          </span>
+                        ))}
+                        <button
+                          type="button"
+                          className={styles.toggleButton}
+                          onClick={resetAlignmentPairs}
+                        >
+                          Rehacer puntos
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {selectedOverlayConfig ? (
                   <>
                     <div className={styles.toggleRow}>
@@ -2365,6 +2897,17 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                       </button>
                     </div>
 
+                    <button
+                      type="button"
+                      className={styles.toggleButton}
+                      style={{ width: "100%" }}
+                      onClick={() => setAdvancedMode((prev) => !prev)}
+                    >
+                      {advancedMode ? "Ocultar modo avanzado" : "Mostrar modo avanzado"}
+                    </button>
+
+                    {advancedMode && (
+                      <>
                     <label className={styles.rangeControl}>
                       <span>Escala</span>
                       <input
@@ -2858,9 +3401,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                         })()}
                       </div>
                     )}
+                      </>
+                    )}
 
                     <p className={styles.helperText}>
-                      Consejo: activa "Editar posicion", arrastra el overlay desde la vista y afina escala/rotacion hasta que coincida con la foto 360.
+                      Consejo: usa Modo Alinear para el ajuste inicial. Activa modo avanzado solo para microajustes posteriores.
                     </p>
                   </>
                 ) : (

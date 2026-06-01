@@ -608,6 +608,35 @@
   color: #4ade80;
 }
 
+:global(.dark) .alignmentPanel {
+  border-color: rgba(56, 189, 248, 0.24);
+  background: rgba(14, 165, 233, 0.1);
+}
+
+:global(.dark) .alignmentHeader strong,
+:global(.dark) .alignmentQuality strong {
+  color: #7dd3fc;
+}
+
+:global(.dark) .alignmentHeader span,
+:global(.dark) .alignmentQuality span,
+:global(.dark) .alignmentSelectedPoint,
+:global(.dark) .alignmentResult > span {
+  color: #dbeafe;
+}
+
+:global(.dark) .alignmentSelectedPoint,
+:global(.dark) .alignmentResult {
+  border-color: rgba(71, 85, 105, 0.42);
+  background: rgba(15, 23, 42, 0.62);
+}
+
+:global(.dark) .alignmentError {
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.12);
+}
+
 :global(.dark) .viewerLoading {
   background: rgba(15, 23, 42, 0.72);
   color: #e5edf7;
@@ -715,6 +744,109 @@
 .toggleButton:hover {
   border-color: rgba(74, 222, 128, 0.34);
   background: rgba(74, 222, 128, 0.09);
+}
+
+.alignmentPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(14, 165, 233, 0.22);
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.alignmentHeader,
+.alignmentQuality {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.alignmentHeader strong,
+.alignmentQuality strong {
+  color: #075985;
+  font-size: 0.9rem;
+}
+
+.alignmentHeader span,
+.alignmentQuality span,
+.alignmentSelectedPoint,
+.alignmentResult > span,
+.alignmentError {
+  color: #334155;
+  font-size: 0.8rem;
+}
+
+.alignmentSelectedPoint,
+.alignmentError,
+.alignmentResult {
+  border-radius: 10px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.alignmentError {
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.24);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.alignmentResult {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.alignmentPointLayer {
+  pointer-events: none;
+}
+
+.alignmentPointLayer circle {
+  fill: rgba(14, 165, 233, 0.85);
+  stroke: #ffffff;
+  stroke-width: 4;
+}
+
+.alignmentPointLayer text {
+  fill: #ffffff;
+  stroke: rgba(15, 23, 42, 0.8);
+  stroke-width: 3;
+  paint-order: stroke;
+  font-size: 32px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.alignmentPendingPoint circle {
+  fill: rgba(250, 204, 21, 0.9);
+  stroke: #0f172a;
+}
+
+.alignmentViewerPointLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  pointer-events: none;
+}
+
+.alignmentViewerPoint {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 165, 233, 0.92);
+  border: 2px solid #ffffff;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.32);
 }
 
 .panelActions {
