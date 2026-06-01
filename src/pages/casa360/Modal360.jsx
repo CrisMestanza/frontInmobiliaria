@@ -131,6 +131,20 @@ const removeTempMarker = (markers) => {
   }
 };
 
+// SVGSVGElement.offsetTop devuelve 0 en varios browsers; calcula el offset real
+// sumando la altura de los hermanos anteriores dentro del mismo contenedor.
+const getSvgTopOffsetInParent = (svgEl) => {
+  if (!svgEl) return 0;
+  let y = 0;
+  let sibling = svgEl.previousElementSibling;
+  while (sibling) {
+    const st = window.getComputedStyle(sibling);
+    y += sibling.offsetHeight + Math.max(parseFloat(st.marginBottom) || 0, 0);
+    sibling = sibling.previousElementSibling;
+  }
+  return y || (svgEl.offsetTop || 0);
+};
+
 const makeMarkerPosition = (yaw, pitch) => ({ yaw, pitch });
 
 const installDeferredViewerAutoSize = (viewer, delay = 180) => {
@@ -713,7 +727,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         overlaySvg?.clientHeight || overlaySvg?.viewBox?.baseVal?.height || OVERLAY_VIEWBOX.height,
       ),
       overlayOffsetX: Number(overlaySvg?.offsetLeft || 0),
-      overlayOffsetY: Number(overlaySvg?.offsetTop || 0),
+      overlayOffsetY: getSvgTopOffsetInParent(overlaySvg),
     };
   };
 
@@ -817,7 +831,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const svgLayoutHeight =
       overlaySvg.clientHeight || overlaySvg.viewBox?.baseVal?.height || OVERLAY_VIEWBOX.height;
     const svgOffsetX = overlaySvg.offsetLeft || 0;
-    const svgOffsetY = overlaySvg.offsetTop || 0;
+    const svgOffsetY = getSvgTopOffsetInParent(overlaySvg);
 
     if (!svgLayoutWidth || !svgLayoutHeight || !viewerRect.width || !viewerRect.height) {
       return anchoredOverlays[String(imageId)] || null;

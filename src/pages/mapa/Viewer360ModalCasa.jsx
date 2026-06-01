@@ -501,19 +501,44 @@ const projectViewerPointWithCamera = (
   return viewer.dataHelper.vector3ToSphericalCoords(direction);
 };
 
-const transformOverlayPoint = (point, config) => {
+const transformOverlayPoint = (point, config, perspectiveOrigin = null) => {
   const angle = ((config?.rotation || 0) * Math.PI) / 180;
   const scale = config?.scale || 1;
   const tx = config?.x || 0;
   const ty = config?.y || 0;
+  const tiltXRad = ((Number(config?.tiltX) || 0) * Math.PI) / 180;
+  const tiltYRad = ((Number(config?.tiltY) || 0) * Math.PI) / 180;
+  const pD = Number(config?.perspectiveDepth) || 900;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
-  const rx = point.x * cos - point.y * sin;
-  const ry = point.x * sin + point.y * cos;
+
+  let x = point.x * cos - point.y * sin;
+  let y = point.x * sin + point.y * cos;
+  let z = 0;
+  x *= scale;
+  y *= scale;
+
+  if (tiltYRad !== 0) {
+    const cY = Math.cos(tiltYRad), sY = Math.sin(tiltYRad);
+    const nx = x * cY + z * sY;
+    z = -x * sY + z * cY;
+    x = nx;
+  }
+  if (tiltXRad !== 0) {
+    const cX = Math.cos(tiltXRad), sX = Math.sin(tiltXRad);
+    const ny = y * cX - z * sX;
+    z = y * sX + z * cX;
+    y = ny;
+  }
+
+  const hasTilt = tiltXRad !== 0 || tiltYRad !== 0;
+  const factor = hasTilt ? pD / (pD - z) : 1;
+  const ox = perspectiveOrigin?.x ?? 0;
+  const oy = perspectiveOrigin?.y ?? 0;
 
   return {
-    x: tx + rx * scale,
-    y: ty + ry * scale,
+    x: ox + (x + tx - ox) * factor,
+    y: oy + (y + ty - oy) * factor,
   };
 };
 
@@ -606,7 +631,9 @@ const buildAnchoredOverlayFromLayout = (
     Number(layout.overlayHeight) ||
     (svgWidth / OVERLAY_VIEWBOX.width) * OVERLAY_VIEWBOX.height;
   const overlayOffsetX = Number(layout.overlayOffsetX) || 0;
-  const overlayOffsetY = Number(layout.overlayOffsetY) || OVERLAY_HEADER_OFFSET;
+  const overlayOffsetY = layout?.overlayOffsetY != null
+    ? Number(layout.overlayOffsetY)
+    : OVERLAY_HEADER_OFFSET;
 
   if (
     !Number.isFinite(svgWidth) ||
@@ -617,12 +644,16 @@ const buildAnchoredOverlayFromLayout = (
     return null;
   }
 
+  const perspectiveOrigin = savedViewerWidth > 0 && savedViewerHeight > 0
+    ? { x: savedViewerWidth / 2, y: savedViewerHeight / 2 }
+    : null;
+
   const convertPoint = (point) => {
     const localPoint = {
       x: overlayOffsetX + (point.x / OVERLAY_VIEWBOX.width) * svgWidth,
       y: overlayOffsetY + (point.y / OVERLAY_VIEWBOX.height) * svgHeight,
     };
-    const savedViewerPoint = transformOverlayPoint(localPoint, layout);
+    const savedViewerPoint = transformOverlayPoint(localPoint, layout, perspectiveOrigin);
     const viewerPoint = {
       x: savedViewerPoint.x * scaleX,
       y: savedViewerPoint.y * scaleY,
@@ -1911,7 +1942,7 @@ const Viewer360Modal = ({
         container: containerRef.current,
         panorama: currentImage.imagen,
         caption: currentImage.nombre,
-        adapter: [runtime.EquirectangularAdapter, { resolution: VIEWER_RESOLUTION }],
+        adapter: [runtime.EquirectangularAdapter, { resolution: VIEWER_RESOLUTION, useXmpData: false }],
         defaultZoomLvl: Number.isFinite(initialZoom) ? initialZoom : 35,
         moveSpeed: VIEWER_MOVE_SPEED,
         fisheye: false,
@@ -2028,9 +2059,9 @@ const Viewer360Modal = ({
       ) {
         markers.addMarker({
           id: `overlay-project-${currentImageId}`,
-          ...(hasProjectPixels
-            ? { polygonPixels: overlayToRender.projectPolygonPixels }
-            : { polygon: overlayToRender.projectPolygon }),
+          ...(hasProjectSpherical
+            ? { polygon: overlayToRender.projectPolygon }
+            : { polygonPixels: overlayToRender.projectPolygonPixels }),
           svgStyle: {
             fill: "rgba(14, 116, 44, 0.26)",
             stroke: "#14532d",
@@ -2056,9 +2087,9 @@ const Viewer360Modal = ({
           availableLotVariantById[String(loteId ?? `idx-${index}`)] ?? 0;
         markers.addMarker({
           id: `overlay-lote-${currentImageId}-${markerKey}-${index}`,
-          ...(hasPixels
-            ? { polygonPixels: lote.polygonPixels }
-            : { polygon: lote.polygon }),
+          ...(hasSpherical
+            ? { polygon: lote.polygon }
+            : { polygonPixels: lote.polygonPixels }),
           tooltip: {
             content: buildLoteTooltipContent(lote, status),
             className: `gh-lot-tooltip gh-lot-tooltip-${status.key}`,
