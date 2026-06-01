@@ -103,7 +103,7 @@ const VIEWER_LOADING_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 </svg>
 `)}`;
 
-const GALLERY_PRELOAD_RANGE = 1;
+const GALLERY_PRELOAD_RANGE = 2;
 const VIEWER_RESOLUTION = 32;
 const VIEWER_MOVE_SPEED = 1.75;
 const LOT_LABEL_MIN_ZOOM = 10;
@@ -357,37 +357,15 @@ const waitForNextFrame = () =>
     requestAnimationFrame(() => requestAnimationFrame(resolve));
   });
 
-const warmUpImage = (src, timeout = 2500) =>
+const warmUpImage = (src, timeout = 8000) =>
   new Promise((resolve) => {
-    if (!src) {
-      resolve();
-      return;
-    }
-
-    const image = new Image();
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      resolve();
-    };
-    const timer = window.setTimeout(finish, timeout);
-
-    image.decoding = "async";
-    image.fetchPriority = "high";
-    image.onload = () => {
-      window.clearTimeout(timer);
-      if (image.decode) {
-        image.decode().then(finish).catch(finish);
-      } else {
-        finish();
-      }
-    };
-    image.onerror = () => {
-      window.clearTimeout(timer);
-      finish();
-    };
-    image.src = src;
+    if (!src) { resolve(null); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => { controller.abort(); resolve(null); }, timeout);
+    fetch(src, { signal: controller.signal, cache: "force-cache" })
+      .then((res) => (res.ok ? res.blob() : Promise.reject()))
+      .then((blob) => { window.clearTimeout(timer); resolve(URL.createObjectURL(blob)); })
+      .catch(() => { window.clearTimeout(timer); resolve(null); });
   });
 
 const buildApiUrl = (path) => withApiBase(`${API_BASE}${path}`);
@@ -400,7 +378,8 @@ const normalizeUrl = (url) => {
 const normalizeImage = (img) => ({
   ...img,
   id_imagen: getImageId(img),
-  imagen: normalizeUrl(img.imagen),
+  imagen: normalizeUrl(img.imagen_thumb || img.imagen),
+  imagen_original: normalizeUrl(img.imagen),
 });
 const getProjectRecord = (img) => {
   if (img?.idproyecto && typeof img.idproyecto === "object") return img.idproyecto;
@@ -1163,6 +1142,11 @@ const Viewer360Modal = ({
   const galleryTouchStartY = useRef(0);
   const galleryTouchDeltaY = useRef(0);
   const galleryTouchStartTop = useRef(0);
+  const preloadBlobsRef = useRef(new Map());
+  const preloadPendingRef = useRef(new Set());
+  const openLoteFromMarkerRef = useRef(null);
+  const travelToImageByIdRef = useRef(null);
+  const lastShownSrcRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -1753,29 +1737,29 @@ const Viewer360Modal = ({
   }, []);
 
   useEffect(() => {
-    if (normalizedImages.length < 2) return undefined;
-
-    const adjacentIndexes = [
-      (currentIndex + 1) % normalizedImages.length,
-      (currentIndex - 1 + normalizedImages.length) % normalizedImages.length,
-    ];
-    const preloaders = adjacentIndexes
-      .map((idx) => normalizedImages[idx]?.imagen)
-      .filter(Boolean)
-      .map((src) => {
-        const image = new Image();
-        image.decoding = "async";
-        image.src = src;
-        return image;
+    if (normalizedImages.length < 2) return;
+    const range = GALLERY_PRELOAD_RANGE;
+    const indexes = new Set();
+    for (let i = 1; i <= range; i += 1) {
+      indexes.add((currentIndex + i) % normalizedImages.length);
+      indexes.add((currentIndex - i + normalizedImages.length) % normalizedImages.length);
+    }
+    indexes.forEach((idx) => {
+      const src = normalizedImages[idx]?.imagen;
+      if (!src || preloadBlobsRef.current.has(src) || preloadPendingRef.current.has(src)) return;
+      preloadPendingRef.current.add(src);
+      warmUpImage(src, 120000).then((blobUrl) => {
+        preloadPendingRef.current.delete(src);
+        if (blobUrl) preloadBlobsRef.current.set(src, blobUrl);
       });
-
-    return () => {
-      preloaders.forEach((image) => {
-        image.onload = null;
-        image.onerror = null;
-      });
-    };
+    });
   }, [currentIndex, normalizedImages]);
+
+  useEffect(() => () => {
+    preloadBlobsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    preloadBlobsRef.current.clear();
+    preloadPendingRef.current.clear();
+  }, []);
 
   useEffect(() => () => window.clearTimeout(travelTimerRef.current), []);
 
@@ -1909,39 +1893,36 @@ const Viewer360Modal = ({
     };
   }, [currentImageId]);
 
+  useEffect(() => { openLoteFromMarkerRef.current = openLoteFromMarker; }, [openLoteFromMarker]);
+  useEffect(() => { travelToImageByIdRef.current = travelToImageById; }, [travelToImageById]);
+
   useEffect(() => {
-    if (!containerRef.current || !currentImage || !viewerRuntimeReady) {
-      return undefined;
-    }
+    if (!containerRef.current || !viewerRuntimeReady) return undefined;
 
     let active = true;
     let viewerInstance = null;
-    let slowTimer = null;
     setViewerReady(false);
+    lastShownSrcRef.current = null;
     setViewerLoadMessage("Cargando imagen 360...");
-    slowTimer = window.setTimeout(() => {
-      if (active)
-        setViewerLoadMessage(
-          "La primera vista es pesada, ya casi está lista...",
-        );
-    }, 3200);
 
-    const createViewer = async () => {
+    const initViewer = async () => {
       await waitForNextFrame();
-      await warmUpImage(currentImage.imagen);
       if (!active || !containerRef.current) return;
       const runtime = viewerRuntimeRef.current || (await loadViewerRuntime());
       if (!active || !runtime) return;
 
+      const firstImage = currentImage;
       const imageKey = String(currentImageId ?? "");
       const initialLayout = currentOverlayBundle?.layouts?.[imageKey];
       const initialYaw = Number(initialLayout?.yaw);
       const initialPitch = Number(initialLayout?.pitch);
       const initialZoom = Number(initialLayout?.zoomLevel);
+      const firstSrc = preloadBlobsRef.current.get(firstImage?.imagen) || firstImage?.imagen;
+
       const viewerOptions = {
         container: containerRef.current,
-        panorama: currentImage.imagen,
-        caption: currentImage.nombre,
+        panorama: firstSrc,
+        caption: firstImage?.nombre,
         adapter: [runtime.EquirectangularAdapter, { resolution: VIEWER_RESOLUTION, useXmpData: false }],
         defaultZoomLvl: Number.isFinite(initialZoom) ? initialZoom : 35,
         moveSpeed: VIEWER_MOVE_SPEED,
@@ -1952,53 +1933,48 @@ const Viewer360Modal = ({
         plugins: [[runtime.MarkersPlugin, {}]],
       };
 
-      if (Number.isFinite(initialYaw)) {
-        viewerOptions.defaultYaw = initialYaw;
-      }
-
-      if (Number.isFinite(initialPitch)) {
-        viewerOptions.defaultPitch = initialPitch;
-      }
+      if (Number.isFinite(initialYaw)) viewerOptions.defaultYaw = initialYaw;
+      if (Number.isFinite(initialPitch)) viewerOptions.defaultPitch = initialPitch;
 
       viewerInstance = new runtime.Viewer(viewerOptions);
-
       viewerRef.current = viewerInstance;
-      const markers = viewerInstance.getPlugin(runtime.MarkersPlugin);
+      lastShownSrcRef.current = firstSrc;
 
+      const markers = viewerInstance.getPlugin(runtime.MarkersPlugin);
       markers.addEventListener("select-marker", (event) => {
         const marker = event?.marker || event?.detail?.marker;
         const markerData = marker?.data || marker?.config?.data || {};
         if (markerData.type === "lote") {
-          openLoteFromMarker(markerData);
+          openLoteFromMarkerRef.current?.(markerData);
           return;
         }
-
         const destinoId = markerData.destinoId;
-        if (destinoId) travelToImageById(destinoId, markerData.destinoNombre);
+        if (destinoId) travelToImageByIdRef.current?.(destinoId, markerData.destinoNombre);
       });
 
       viewerInstance.addEventListener("ready", () => {
-        window.clearTimeout(slowTimer);
-        setViewerReady(true);
+        if (active) setViewerReady(true);
       });
     };
 
-    createViewer();
+    initViewer();
 
     return () => {
       active = false;
-      window.clearTimeout(slowTimer);
       viewerInstance?.destroy();
       viewerRef.current = null;
+      lastShownSrcRef.current = null;
     };
-  }, [
-    currentImage,
-    currentImageId,
-    currentOverlayBundle,
-    openLoteFromMarker,
-    travelToImageById,
-    viewerRuntimeReady,
-  ]);
+  }, [viewerRuntimeReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !viewerReady || !currentImage?.imagen) return;
+    const src = preloadBlobsRef.current.get(currentImage.imagen) || currentImage.imagen;
+    if (src === lastShownSrcRef.current) return;
+    lastShownSrcRef.current = src;
+    viewer.setPanorama(src, { caption: currentImage.nombre, transition: true });
+  }, [currentImage?.imagen, viewerReady]);
 
   useEffect(() => {
     if (!viewerReady || !viewerRef.current || currentAnchoredOverlay?.visible) {

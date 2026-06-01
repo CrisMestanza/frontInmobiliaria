@@ -1191,6 +1191,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   useEffect(() => {
     setLayoutEditMode(false);
     setDragState(null);
+    setSelectedLotIds(new Set());
+    selectedLotIdsRef.current = new Set();
+    setGroupEdit(DEFAULT_GROUP_EDIT);
+    groupEditRef.current = DEFAULT_GROUP_EDIT;
+    groupEditBaseRef.current = {};
   }, [selectedImageId]);
 
   useEffect(() => {
@@ -1203,9 +1208,19 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const runtime = viewerRuntimeRef.current || viewerRuntimeCache;
     if (!runtime) return undefined;
 
+    const savedCameraConfig = overlayLayoutsRef.current[String(selectedImg.id_imagen)];
+    const restoredYaw = Number.isFinite(Number(savedCameraConfig?.yaw)) ? Number(savedCameraConfig.yaw) : 0;
+    const restoredPitch = Number.isFinite(Number(savedCameraConfig?.pitch)) ? Number(savedCameraConfig.pitch) : 0;
+    const restoredZoom = Number.isFinite(Number(savedCameraConfig?.zoomLevel))
+      ? Math.max(0, Math.min(100, Number(savedCameraConfig.zoomLevel)))
+      : 50;
+
     const viewer = new runtime.Viewer({
       container: viewerRef.current,
       panorama: selectedImg.imagen,
+      defaultYaw: restoredYaw,
+      defaultPitch: restoredPitch,
+      defaultZoomLvl: restoredZoom,
       adapter: runtime.EquirectangularAdapter
         ? [runtime.EquirectangularAdapter, { resolution: 32, useXmpData: false }]
         : undefined,
@@ -2340,6 +2355,85 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   </p>
                 )}
 
+                {!layoutEditMode && (
+                  <>
+                    {!hasValidCoords ? (
+                      selectedImg && (
+                        <p className={styles.helperText} style={{ textAlign: "center" }}>
+                          Haz click en el visor para colocar un punto nuevo.
+                        </p>
+                      )
+                    ) : (
+                      <>
+                        <div className={styles.pointInfo}>
+                          <span>Yaw: {coords.yaw.toFixed(4)}</span>
+                          <span>Pitch: {coords.pitch.toFixed(4)}</span>
+                        </div>
+
+                        <div>
+                          <h4 style={{ margin: "0 0 8px", fontSize: "0.98rem" }}>Conectar con una imagen existente</h4>
+                          {!existingDestinations.length ? (
+                            <p className={styles.helperText}>Todavia no hay otra imagen del borrador para enlazar.</p>
+                          ) : (
+                            <div className={styles.destinationsList}>
+                              {existingDestinations.map((img) => (
+                                <button
+                                  key={img.id_imagen}
+                                  type="button"
+                                  className={styles.destinationItem}
+                                  onClick={(event) => connectToExisting(img, event)}
+                                >
+                                  <img src={img.imagen} alt={img.nombre} className={styles.destinationThumb} />
+                                  <span>{img.nombre}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <h4 style={{ margin: "0 0 8px", fontSize: "0.98rem" }}>O crear una nueva imagen desde este punto</h4>
+                          <input
+                            type="text"
+                            value={newPointName}
+                            onChange={(event) => setNewPointName(event.target.value)}
+                            className={styles.inputName}
+                            placeholder="Nombre de la nueva vista"
+                          />
+                          <label className={styles.inlineUpload} style={{ marginTop: 8 }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className={styles.hiddenInput}
+                              onChange={(event) => setNewPointFile(event.target.files?.[0] || null)}
+                            />
+                            <Upload size={16} />
+                            <span>{newPointFile ? newPointFile.name : "Elegir imagen 360"}</span>
+                          </label>
+                          <div className={styles.panelActions} style={{ marginTop: 8 }}>
+                            <button
+                              type="button"
+                              className={styles.btnCancel}
+                              onClick={resetPointMode}
+                            >
+                              Cancelar punto
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.btnPrimary360}
+                              onClick={(event) => createAndConnectImage(event)}
+                              disabled={!newPointName.trim() || !newPointFile}
+                            >
+                              <Plus size={16} />
+                              Crear en borrador
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+
                 {selectedOverlayConfig ? (
                   <>
                     <div className={styles.toggleRow}>
@@ -2872,80 +2966,6 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 )}
               </div>
 
-              {!hasValidCoords ? (
-                selectedImg && !layoutEditMode && (
-                  <p className={styles.helperText} style={{ textAlign: "center" }}>
-                    Haz click en el visor para colocar un punto nuevo.
-                  </p>
-                )
-              ) : (
-                <>
-                  <div className={styles.pointInfo}>
-                    <span>Yaw: {coords.yaw.toFixed(4)}</span>
-                    <span>Pitch: {coords.pitch.toFixed(4)}</span>
-                  </div>
-
-                  <div className={styles.panelBlock}>
-                    <h4>Conectar con una imagen existente</h4>
-                    {!existingDestinations.length ? (
-                      <p className={styles.helperText}>Todavia no hay otra imagen del borrador para enlazar.</p>
-                    ) : (
-                      <div className={styles.destinationsList}>
-                        {existingDestinations.map((img) => (
-                          <button
-                            key={img.id_imagen}
-                            type="button"
-                            className={styles.destinationItem}
-                            onClick={(event) => connectToExisting(img, event)}
-                          >
-                            <img src={img.imagen} alt={img.nombre} className={styles.destinationThumb} />
-                            <span>{img.nombre}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className={styles.panelBlock}>
-                    <h4>O crear una nueva imagen desde este punto</h4>
-                    <input
-                      type="text"
-                      value={newPointName}
-                      onChange={(event) => setNewPointName(event.target.value)}
-                      className={styles.inputName}
-                      placeholder="Nombre de la nueva vista"
-                    />
-                    <label className={styles.inlineUpload}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className={styles.hiddenInput}
-                        onChange={(event) => setNewPointFile(event.target.files?.[0] || null)}
-                      />
-                      <Upload size={16} />
-                      <span>{newPointFile ? newPointFile.name : "Elegir imagen 360"}</span>
-                    </label>
-                    <div className={styles.panelActions}>
-                      <button
-                        type="button"
-                        className={styles.btnCancel}
-                        onClick={resetPointMode}
-                      >
-                        Cancelar punto
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.btnPrimary360}
-                        onClick={(event) => createAndConnectImage(event)}
-                        disabled={!newPointName.trim() || !newPointFile}
-                      >
-                        <Plus size={16} />
-                        Crear en borrador
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
             </aside>
           </div>
         </div>
