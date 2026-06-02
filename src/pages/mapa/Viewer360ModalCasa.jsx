@@ -2086,7 +2086,7 @@ const Viewer360Modal = ({
             overlayOpacity: lote.lotOpacity ?? overlayToRender.lotOpacity,
             loteColor: lote.color,
             availableVariant,
-            textureMode: overlayTextureMode,
+            textureMode: lote.textureMode ?? overlayTextureMode,
             showShadow: overlayShowShadow,
           }),
           zIndex: isSelected ? 9 : 6,
