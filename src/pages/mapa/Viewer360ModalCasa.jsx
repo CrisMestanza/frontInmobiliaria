@@ -1931,6 +1931,10 @@ const Viewer360Modal = ({
         loadingTxt: "Cargando vista 360...",
         navbar: ["zoom", "move", "caption"],
         plugins: [[runtime.MarkersPlugin, {}]],
+        rendererParameters: {
+          antialias: false,
+          powerPreference: "high-performance",
+        },
       };
 
       if (Number.isFinite(initialYaw)) viewerOptions.defaultYaw = initialYaw;
