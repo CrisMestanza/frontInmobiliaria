@@ -2037,7 +2037,7 @@ const Viewer360Modal = ({
         navbar: ["zoom", "move", "caption"],
         plugins: [[runtime.MarkersPlugin, {}]],
         rendererParameters: {
-          alpha: true,
+          alpha: false,
           antialias: false,
           powerPreference: "high-performance",
         },

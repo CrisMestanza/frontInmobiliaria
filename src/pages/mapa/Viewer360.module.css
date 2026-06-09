@@ -202,7 +202,6 @@
   position: relative;
   min-height: 0;
   isolation: isolate;
-  contain: paint;
 }
 
 .brandName {
