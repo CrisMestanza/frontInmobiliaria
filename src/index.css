@@ -429,3 +429,55 @@ a:focus-visible {
   animation: none;
   mix-blend-mode: normal;
 }
+
+/* ── PSV annotation markers — sign-post style (Modal360 + Viewer360ModalCasa) ── */
+.gh-local-ann-marker {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+}
+
+/* horizontal bar: lines extend left and right of the label */
+.gh-local-ann-hbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.gh-local-ann-hbar::before,
+.gh-local-ann-hbar::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: rgba(255,255,255,0.9);
+  min-width: 8px;
+}
+
+.gh-local-ann-label {
+  display: inline-block;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 8px 4px;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  pointer-events: none;
+  flex-shrink: 0;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0px 8px rgba(0,0,0,0.7);
+}
+
+/* vertical stick going down to the point */
+.gh-local-ann-vline {
+  width: 2px;
+  height: 22px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 1px;
+}

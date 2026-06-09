@@ -13,16 +13,20 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Building2,
+  MapPin,
   MapPinned,
   Maximize2,
   MessageCircle,
   Minimize2,
+  Pencil,
   Phone,
+  Plus,
   Ruler,
   Navigation,
   Route,
   Share2,
   Tag,
+  Trash2,
 } from "lucide-react";
 import { withApiBase } from "../../config/api.js";
 import styles from "./Viewer360.module.css";
@@ -53,6 +57,32 @@ const loadViewerRuntime = async () => {
 
 const API_BASE = "https://api.geohabita.com";
 const MARKER_SIZE = { width: 118, height: 78 };
+const ANNOTATION_MARKER_SIZE = { width: 44, height: 62 };
+const ANNOTATION_MARKER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="62" viewBox="0 0 44 62">
+  <defs>
+    <filter id="sh" x="-50%" y="-30%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#1e0a44" flood-opacity=".48"/>
+    </filter>
+    <radialGradient id="hg" cx="38%" cy="32%">
+      <stop offset="0%" stop-color="#c4b5fd"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </radialGradient>
+    <linearGradient id="sg" x1="22" y1="36" x2="22" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="22" cy="60" rx="7" ry="2.5" fill="rgba(0,0,0,0.22)"/>
+  <rect x="19" y="36" width="6" height="24" rx="3" fill="url(#sg)" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>
+  <g filter="url(#sh)">
+    <circle cx="22" cy="20" r="18" fill="url(#hg)" stroke="rgba(255,255,255,0.95)" stroke-width="2.5"/>
+  </g>
+  <circle cx="22" cy="13" r="2.8" fill="white"/>
+  <rect x="19.5" y="18" width="5" height="11" rx="2.5" fill="white"/>
+</svg>
+`)}`;
+
 const OVERLAY_VIEWBOX = { width: 1200, height: 780 };
 const OVERLAY_HEADER_OFFSET = 42;
 
@@ -310,6 +340,19 @@ const getLoteSvgStyle = ({
       strokeWidth: "3.5px",
       strokeLinejoin: "round",
       strokeOpacity: "1",
+      ...(shadowFilter ? { filter: shadowFilter } : {}),
+    };
+  }
+
+  if (textureMode === "transparent") {
+    const tFill = loteColor || status.fill;
+    return {
+      fill: tFill,
+      fillOpacity: "0.35",
+      stroke: darkenHexColor(tFill, 0.34) || status.stroke,
+      strokeWidth: "2.2px",
+      strokeLinejoin: "round",
+      strokeOpacity: "0.95",
       ...(shadowFilter ? { filter: shadowFilter } : {}),
     };
   }
@@ -829,6 +872,8 @@ const normalizeOverlayBundle = (rawOverlay) => {
     layoutsList: layoutsRaw,
     anchored,
     anchoredList: anchoredRaw,
+    annotations: Array.isArray(candidate.annotations) ? candidate.annotations : [],
+    userDrawings: (candidate.userDrawings && typeof candidate.userDrawings === "object") ? candidate.userDrawings : {},
   };
 };
 
@@ -1097,6 +1142,7 @@ const Viewer360Modal = ({
   const [hotspots, setHotspots] = useState([]);
   const [hotspotsLoading, setHotspotsLoading] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
+  const [viewerPanTick, setViewerPanTick] = useState(0);
   const [viewerRuntimeReady, setViewerRuntimeReady] = useState(false);
   const [viewerLoadMessage, setViewerLoadMessage] = useState(
     "Preparando recorrido 360...",
@@ -1130,6 +1176,7 @@ const Viewer360Modal = ({
   const viewerRuntimeRef = useRef(null);
   const containerRef = useRef(null);
   const lotLabelsFrameRef = useRef(null);
+  const drawPanFrameRef = useRef(null);
   const lotLabelsZoomTimerRef = useRef(null);
   const lotLabelsZoomingRef = useRef(false);
   const travelTimerRef = useRef(null);
@@ -1147,6 +1194,21 @@ const Viewer360Modal = ({
   const openLoteFromMarkerRef = useRef(null);
   const travelToImageByIdRef = useRef(null);
   const lastShownSrcRef = useRef(null);
+
+  const [drawMode, setDrawMode] = useState(null);
+  const [currentPolygonPoints, setCurrentPolygonPoints] = useState([]);
+  const [polygonCursorPos, setPolygonCursorPos] = useState(null);
+  const [userDrawings, setUserDrawings] = useState({});
+  const drawModeRef = useRef(null);
+  const currentPolygonPointsRef = useRef([]);
+  const drawOverlayRef = useRef(null);
+
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationLabel, setAnnotationLabel] = useState("");
+  const [annotationDesc, setAnnotationDesc] = useState("");
+  const [pendingAnnotCoords, setPendingAnnotCoords] = useState(null);
+  const [localAnnotations, setLocalAnnotations] = useState({});
+  const annotationModeRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -1221,6 +1283,30 @@ const Viewer360Modal = ({
   const overlayToRender = currentAnchoredOverlay?.visible
     ? currentAnchoredOverlay
     : computedOverlay;
+  const currentImageAnnotations = useMemo(() => {
+    const imageKey = String(currentImageId ?? "");
+    if (!imageKey) return [];
+    const seen = new Set();
+    const result = [];
+    for (const entry of overlayBundles) {
+      for (const ann of (entry.bundle?.annotations || [])) {
+        if (!ann?.id || !ann?.label || seen.has(ann.id)) continue;
+        seen.add(ann.id);
+        if (String(ann.imageId) === imageKey) result.push(ann);
+      }
+    }
+    return result;
+  }, [overlayBundles, currentImageId]);
+  const savedDrawings = useMemo(() => {
+    const key = String(currentImageId ?? "");
+    if (!key) return [];
+    for (const entry of overlayBundles) {
+      const drawings = entry.bundle?.userDrawings?.[key];
+      if (Array.isArray(drawings) && drawings.length) return drawings;
+    }
+    return [];
+  }, [overlayBundles, currentImageId]);
+
   const lotesForHud = useMemo(
     () => overlayToRender?.lotPolygons || [],
     [overlayToRender],
@@ -1895,6 +1981,20 @@ const Viewer360Modal = ({
 
   useEffect(() => { openLoteFromMarkerRef.current = openLoteFromMarker; }, [openLoteFromMarker]);
   useEffect(() => { travelToImageByIdRef.current = travelToImageById; }, [travelToImageById]);
+  useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
+  useEffect(() => { currentPolygonPointsRef.current = currentPolygonPoints; }, [currentPolygonPoints]);
+  useEffect(() => { annotationModeRef.current = annotationMode; }, [annotationMode]);
+  useEffect(() => {
+    setDrawMode(null);
+    currentPolygonPointsRef.current = [];
+    setCurrentPolygonPoints([]);
+    setPolygonCursorPos(null);
+    setAnnotationMode(false);
+    annotationModeRef.current = false;
+    setPendingAnnotCoords(null);
+    setAnnotationLabel("");
+    setAnnotationDesc("");
+  }, [currentImageId]);
 
   useEffect(() => {
     if (!containerRef.current || !viewerRuntimeReady) return undefined;
@@ -1919,12 +2019,17 @@ const Viewer360Modal = ({
       const initialZoom = Number(initialLayout?.zoomLevel);
       const firstSrc = preloadBlobsRef.current.get(firstImage?.imagen) || firstImage?.imagen;
 
+      const safeZoom = Number.isFinite(initialZoom)
+        ? Math.max(40, Math.min(70, initialZoom))
+        : 50;
+
       const viewerOptions = {
         container: containerRef.current,
         panorama: firstSrc,
         caption: firstImage?.nombre,
         adapter: [runtime.EquirectangularAdapter, { resolution: VIEWER_RESOLUTION, useXmpData: false }],
-        defaultZoomLvl: Number.isFinite(initialZoom) ? initialZoom : 35,
+        defaultZoomLvl: safeZoom,
+        defaultPitch: 0,
         moveSpeed: VIEWER_MOVE_SPEED,
         fisheye: false,
         loadingImg: VIEWER_LOADING_ICON,
@@ -1932,13 +2037,13 @@ const Viewer360Modal = ({
         navbar: ["zoom", "move", "caption"],
         plugins: [[runtime.MarkersPlugin, {}]],
         rendererParameters: {
+          alpha: true,
           antialias: false,
           powerPreference: "high-performance",
         },
       };
 
       if (Number.isFinite(initialYaw)) viewerOptions.defaultYaw = initialYaw;
-      if (Number.isFinite(initialPitch)) viewerOptions.defaultPitch = initialPitch;
 
       viewerInstance = new runtime.Viewer(viewerOptions);
       viewerRef.current = viewerInstance;
@@ -1979,6 +2084,70 @@ const Viewer360Modal = ({
     lastShownSrcRef.current = src;
     viewer.setPanorama(src, { caption: currentImage.nombre, transition: true });
   }, [currentImage?.imagen, viewerReady]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !viewerReady) return;
+    const handlePsvClick = (e) => {
+      if (!annotationModeRef.current) return;
+      const { yaw, pitch } = e.data;
+      if (!Number.isFinite(yaw) || !Number.isFinite(pitch)) return;
+      setPendingAnnotCoords({ yaw, pitch });
+      setAnnotationLabel("");
+      setAnnotationDesc("");
+    };
+    viewer.addEventListener("click", handlePsvClick);
+    return () => { viewer.removeEventListener("click", handlePsvClick); };
+  }, [viewerReady]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer || !viewerReady) return;
+    const tick = () => {
+      if (drawPanFrameRef.current) return;
+      drawPanFrameRef.current = window.requestAnimationFrame(() => {
+        drawPanFrameRef.current = null;
+        setViewerPanTick((n) => n + 1);
+      });
+    };
+    viewer.addEventListener("position-updated", tick);
+    viewer.addEventListener("zoom-updated", tick);
+    return () => {
+      viewer.removeEventListener("position-updated", tick);
+      viewer.removeEventListener("zoom-updated", tick);
+      if (drawPanFrameRef.current) {
+        window.cancelAnimationFrame(drawPanFrameRef.current);
+        drawPanFrameRef.current = null;
+      }
+    };
+  }, [viewerReady]);
+
+  const saveLocalAnnotation = useCallback(() => {
+    if (!pendingAnnotCoords || !annotationLabel.trim()) return;
+    const key = String(currentImageId);
+    const newAnn = {
+      id: `local-${Date.now()}`,
+      yaw: pendingAnnotCoords.yaw,
+      pitch: pendingAnnotCoords.pitch,
+      label: annotationLabel.trim(),
+      description: annotationDesc.trim(),
+    };
+    setLocalAnnotations((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] || []), newAnn],
+    }));
+    setPendingAnnotCoords(null);
+    setAnnotationLabel("");
+    setAnnotationDesc("");
+  }, [pendingAnnotCoords, annotationLabel, annotationDesc, currentImageId]);
+
+  const removeLocalAnnotation = useCallback((annId) => {
+    const key = String(currentImageId);
+    setLocalAnnotations((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).filter((a) => a.id !== annId),
+    }));
+  }, [currentImageId]);
 
   useEffect(() => {
     if (!viewerReady || !viewerRef.current || currentAnchoredOverlay?.visible) {
@@ -2122,6 +2291,42 @@ const Viewer360Modal = ({
         className: "gh-portal-hotspot-marker",
       });
     });
+
+    currentImageAnnotations.forEach((ann) => {
+      if (
+        !Number.isFinite(Number(ann.yaw)) ||
+        !Number.isFinite(Number(ann.pitch))
+      )
+        return;
+
+      const safeLabel = String(ann.label ?? "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const safeDesc = ann.description ? String(ann.description).replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+      markers.addMarker({
+        id: `ann-${ann.id}`,
+        html: `<div class="gh-local-ann-marker"><div class="gh-local-ann-hbar"><span class="gh-local-ann-label">${safeLabel}</span></div><div class="gh-local-ann-vline"></div></div>`,
+        size: { width: 180, height: 52 },
+        anchor: "bottom center",
+        position: { yaw: Number(ann.yaw), pitch: Number(ann.pitch) },
+        tooltip: safeDesc ? `<strong>${safeLabel}</strong><br><span style="font-size:0.84em;opacity:0.82">${safeDesc}</span>` : undefined,
+        data: { type: "annotation" },
+      });
+    });
+
+    const localAnns = localAnnotations[String(currentImageId)] || [];
+    localAnns.forEach((ann) => {
+      if (!Number.isFinite(ann.yaw) || !Number.isFinite(ann.pitch)) return;
+      const label = ann.label.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const desc = ann.description ? ann.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+      markers.addMarker({
+        id: ann.id,
+        html: `<div class="gh-local-ann-marker"><div class="gh-local-ann-hbar"><span class="gh-local-ann-label">${label}</span></div><div class="gh-local-ann-vline"></div></div>`,
+        size: { width: 180, height: 52 },
+        anchor: "bottom center",
+        position: { yaw: ann.yaw, pitch: ann.pitch },
+        tooltip: desc ? `<strong>${label}</strong><br><span style="font-size:0.84em;opacity:0.82">${desc}</span>` : undefined,
+        data: { type: "localAnnotation" },
+      });
+    });
   }, [
     viewerReady,
     hotspots,
@@ -2129,6 +2334,8 @@ const Viewer360Modal = ({
     currentImageId,
     selectedLoteId,
     availableLotVariantById,
+    currentImageAnnotations,
+    localAnnotations,
   ]);
 
   useEffect(() => {
@@ -2583,6 +2790,247 @@ const Viewer360Modal = ({
     loteNestedTouchDeltaY.current = 0;
     loteNestedScrollableTarget.current = null;
   };
+  const getDrawRelativePoint = (e) => {
+    const el = drawOverlayRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return {
+      x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
+    };
+  };
+
+  const handleDrawClick = (e) => {
+    if (drawModeRef.current !== "polygon") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pt = getDrawRelativePoint(e);
+    if (!pt) return;
+    const pts = currentPolygonPointsRef.current;
+    if (pts.length >= 3) {
+      const first = pts[0];
+      if (Math.hypot(pt.x - first.x, pt.y - first.y) < 0.035) {
+        closePolygon();
+        return;
+      }
+    }
+    const next = [...pts, pt];
+    currentPolygonPointsRef.current = next;
+    setCurrentPolygonPoints(next);
+  };
+
+  const handleDrawMouseMove = (e) => {
+    if (drawModeRef.current !== "polygon") return;
+    setPolygonCursorPos(getDrawRelativePoint(e));
+  };
+
+  const closePolygon = () => {
+    const pts = currentPolygonPointsRef.current;
+    if (pts.length < 3 || !currentImageId) return;
+    const key = String(currentImageId);
+    setUserDrawings((prev) => ({
+      ...prev,
+      [key]: [
+        ...(prev[key] || []),
+        { id: `draw-${crypto.randomUUID()}`, type: "polygon", points: [...pts], depth: 0, strokeWidth: 4 },
+      ],
+    }));
+    currentPolygonPointsRef.current = [];
+    setCurrentPolygonPoints([]);
+    setPolygonCursorPos(null);
+  };
+
+  const undoLastPoint = () => {
+    setCurrentPolygonPoints((prev) => {
+      const next = prev.slice(0, -1);
+      currentPolygonPointsRef.current = next;
+      return next;
+    });
+  };
+
+  const undoLastDrawing = () => {
+    if (!currentImageId) return;
+    const key = String(currentImageId);
+    setUserDrawings((prev) => {
+      const list = prev[key] || [];
+      if (!list.length) return prev;
+      return { ...prev, [key]: list.slice(0, -1) };
+    });
+  };
+
+  const clearAllDrawings = () => {
+    if (!currentImageId) return;
+    currentPolygonPointsRef.current = [];
+    setCurrentPolygonPoints([]);
+    setPolygonCursorPos(null);
+    setUserDrawings((prev) => ({ ...prev, [String(currentImageId)]: [] }));
+  };
+
+  const setShapeDepth = (shapeId, depth) => {
+    if (!currentImageId) return;
+    const key = String(currentImageId);
+    setUserDrawings((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((s) => s.id === shapeId ? { ...s, depth } : s),
+    }));
+  };
+
+  const setShapeStroke = (shapeId, strokeWidth) => {
+    if (!currentImageId) return;
+    const key = String(currentImageId);
+    setUserDrawings((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((s) => s.id === shapeId ? { ...s, strokeWidth } : s),
+    }));
+  };
+
+  const toP = (v) => `${(v * 100).toFixed(3)}%`;
+
+  const drawSegment = (x1, y1, x2, y2, sw, shadowW, dash, key) => (
+    <g key={key}>
+      <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
+        stroke="rgba(0,0,0,0.65)" strokeWidth={shadowW}
+        strokeDasharray={dash} strokeLinecap="round" />
+      <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
+        stroke="white" strokeWidth={sw}
+        strokeDasharray={dash} strokeLinecap="round" />
+    </g>
+  );
+
+  const renderCompletedShape = (shape) => {
+    if (!shape.points || shape.points.length < 2) return null;
+    let pts = shape.points;
+    if (shape.sphericalPoints?.length >= 3) {
+      const viewer = viewerRef.current;
+      const el = drawOverlayRef.current;
+      if (viewer && el && el.clientWidth && el.clientHeight) {
+        const projected = shape.sphericalPoints.map(({ yaw, pitch }) => {
+          try {
+            const pos = viewer.dataHelper.sphericalCoordsToViewerCoords({ yaw, pitch });
+            if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return null;
+            const nx = pos.x / el.clientWidth;
+            const ny = pos.y / el.clientHeight;
+            // Reject points more than 30% outside the viewport — avoids distorted
+            // lines that shoot off-screen when the camera pans away from the shape
+            if (nx < -0.3 || nx > 1.3 || ny < -0.3 || ny > 1.3) return null;
+            return { x: nx, y: ny };
+          } catch { return null; }
+        });
+        if (projected.every(Boolean)) pts = projected;
+        else return null; // One or more vertices are off-screen — hide cleanly
+      }
+    }
+    const depth = shape.depth || 0;
+    const sw = shape.strokeWidth ?? 4;
+    const shadowW = sw + 4;
+    const dx = depth * 0.004;
+    const dy = depth * 0.006;
+    const n = pts.length;
+
+    // Coordenadas en píxeles para sombra y etiqueta (polygon/text no soportan % en SVG)
+    const el = drawOverlayRef.current;
+    const w = el?.clientWidth || 1;
+    const h = el?.clientHeight || 1;
+    const pxPts = pts.map((p) => ({ x: p.x * w, y: p.y * h }));
+    const lx = pxPts.reduce((s, p) => s + p.x, 0) / pxPts.length;
+    const ly = pxPts.reduce((s, p) => s + p.y, 0) / pxPts.length;
+
+    return (
+      <g key={shape.id}>
+        {shape.showShadow && (
+          <polygon
+            points={pxPts.map((p) => `${p.x},${p.y}`).join(' ')}
+            fill="rgba(0,0,0,0.38)"
+            stroke="none"
+          />
+        )}
+        {depth > 0 && pts.map((p, i) => {
+          const next = pts[(i + 1) % n];
+          const bx = p.x + dx; const by = p.y + dy;
+          const bnx = next.x + dx; const bny = next.y + dy;
+          return (
+            <g key={`back-${i}`}>
+              {drawSegment(bx, by, bnx, bny, sw - 1, shadowW - 1, undefined, `bl-${i}`)}
+              {drawSegment(p.x, p.y, bx, by, Math.max(1, sw - 2), shadowW - 2, "5 3", `ed-${i}`)}
+            </g>
+          );
+        })}
+        {pts.map((p, i) =>
+          drawSegment(p.x, p.y, pts[(i + 1) % n].x, pts[(i + 1) % n].y, sw, shadowW, undefined, `fl-${i}`)
+        )}
+        {pts.map((p, i) => (
+          <circle key={i} cx={toP(p.x)} cy={toP(p.y)} r="7"
+            fill="white" stroke="rgba(0,0,0,0.65)" strokeWidth="2.5" />
+        ))}
+        {shape.label && (
+          <text
+            x={lx} y={ly}
+            textAnchor="middle" dominantBaseline="middle"
+            fontSize={Math.max(13, (shape.strokeWidth ?? 4) * 2.2)}
+            fontWeight="700"
+            fill="white"
+            stroke="rgba(0,0,0,0.75)"
+            strokeWidth="3"
+            paintOrder="stroke fill"
+          >
+            {shape.label}
+          </text>
+        )}
+      </g>
+    );
+  };
+
+  const renderInProgressPolygon = (pts, cursorPos) => {
+    if (!pts.length) return null;
+    const isNearFirst =
+      cursorPos && pts.length >= 3 &&
+      Math.hypot(cursorPos.x - pts[0].x, cursorPos.y - pts[0].y) < 0.035;
+    const last = pts[pts.length - 1];
+    return (
+      <g>
+        {pts.slice(0, -1).map((p, i) =>
+          drawSegment(p.x, p.y, pts[i + 1].x, pts[i + 1].y, 2.5, 5, "8 5", `seg-${i}`)
+        )}
+        {cursorPos && drawSegment(last.x, last.y, cursorPos.x, cursorPos.y, 1.5, 3.5, "5 4", "preview")}
+        {isNearFirst && drawSegment(cursorPos.x, cursorPos.y, pts[0].x, pts[0].y, 2, 3.5, "4 3", "close-preview")}
+        {pts.map((p, i) => (
+          <circle key={i} cx={toP(p.x)} cy={toP(p.y)}
+            r={i === 0 && isNearFirst ? 10 : 7}
+            fill={i === 0 ? (isNearFirst ? "rgba(80,230,120,0.95)" : "white") : "white"}
+            stroke={i === 0 ? (isNearFirst ? "rgba(0,130,60,0.9)" : "rgba(0,0,0,0.65)") : "rgba(0,0,0,0.65)"}
+            strokeWidth="2.5" />
+        ))}
+      </g>
+    );
+  };
+
+  const renderDrawingOverlay = () => {
+    const key = String(currentImageId ?? "");
+    const imgDrawings = (key && userDrawings[key]) || [];
+    const allShapes = [...savedDrawings, ...imgDrawings];
+    if (!drawMode && !allShapes.length && !currentPolygonPoints.length) return null;
+    const isActive = drawMode === "polygon";
+    return (
+      <div
+        ref={drawOverlayRef}
+        className={styles.drawingOverlayLayer}
+        style={{
+          cursor: isActive ? "crosshair" : "default",
+          pointerEvents: isActive ? "all" : "none",
+        }}
+        onClick={isActive ? handleDrawClick : undefined}
+        onMouseMove={isActive ? handleDrawMouseMove : undefined}
+        onMouseLeave={isActive ? () => setPolygonCursorPos(null) : undefined}
+      >
+        <svg data-tick={viewerPanTick} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+          {allShapes.map((shape) => renderCompletedShape(shape))}
+          {isActive && renderInProgressPolygon(currentPolygonPoints, polygonCursorPos)}
+        </svg>
+      </div>
+    );
+  };
+
   const mobileWatermarkTop = isMobileView
     ? Math.max(
         12,
@@ -2771,6 +3219,7 @@ const Viewer360Modal = ({
               </button>
             </>
           )}
+          {renderDrawingOverlay()}
         </div>
 
         {selectedLoteInfo && (

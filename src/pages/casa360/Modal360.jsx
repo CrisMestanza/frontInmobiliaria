@@ -12,10 +12,13 @@ import {
   ImagePlus,
   Link2,
   Map as MapIcon,
+  MapPin,
   MousePointerClick,
   Move,
+  Pencil,
   Plus,
   RotateCw,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -132,6 +135,32 @@ const HOTSPOT_MARKER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
   <circle cx="17" cy="17" r="14" fill="none" stroke="#86efac" stroke-width="2" stroke-opacity="0.55"/>
 </svg>
 `)}`;
+
+const ANNOTATION_MARKER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="62" viewBox="0 0 44 62">
+  <defs>
+    <filter id="sh" x="-50%" y="-30%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#1e0a44" flood-opacity=".48"/>
+    </filter>
+    <radialGradient id="hg" cx="38%" cy="32%">
+      <stop offset="0%" stop-color="#c4b5fd"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </radialGradient>
+    <linearGradient id="sg" x1="22" y1="36" x2="22" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="22" cy="60" rx="7" ry="2.5" fill="rgba(0,0,0,0.22)"/>
+  <rect x="19" y="36" width="6" height="24" rx="3" fill="url(#sg)" stroke="rgba(255,255,255,0.18)" stroke-width="0.5"/>
+  <g filter="url(#sh)">
+    <circle cx="22" cy="20" r="18" fill="url(#hg)" stroke="rgba(255,255,255,0.95)" stroke-width="2.5"/>
+  </g>
+  <circle cx="22" cy="13" r="2.8" fill="white"/>
+  <rect x="19.5" y="18" width="5" height="11" rx="2.5" fill="white"/>
+</svg>
+`)}`;
+const ANNOTATION_MARKER_SIZE = { width: 44, height: 62 };
 
 const createDraftImage = (file, nombre) => ({
   id_imagen: `draft-${crypto.randomUUID()}`,
@@ -1002,34 +1031,43 @@ const SliderWithInput = ({
   format,
   parse,
   onChange,
-}) => (
-  <label className={styles.rangeControl} title={tooltip}>
-    <span>{label}</span>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-    />
-    <input
-      type="number"
-      className={styles.numberInput}
-      min={numMin ?? min}
-      max={numMax ?? max}
-      step={numStep ?? step}
-      value={format ? format(value) : value}
-      onChange={(e) => {
-        const display = Number(e.target.value);
-        if (!Number.isFinite(display)) return;
-        const raw = parse ? parse(display) : display;
-        if (raw < min - 1e-9 || raw > max + 1e-9) return;
-        onChange(raw);
-      }}
-    />
-  </label>
-);
+  arrowStep = 1,
+}) => {
+  const handleArrow = (dir) => {
+    const raw = Math.min(max, Math.max(min, value + dir * arrowStep));
+    onChange(Math.round(raw * 100000) / 100000);
+  };
+  return (
+    <label className={styles.rangeControl} title={tooltip}>
+      <span>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <button type="button" className={styles.stepArrow} onClick={() => handleArrow(-1)}>−</button>
+      <input
+        type="number"
+        className={styles.numberInput}
+        min={numMin ?? min}
+        max={numMax ?? max}
+        step={numStep ?? step}
+        value={format ? format(value) : value}
+        onChange={(e) => {
+          const display = Number(e.target.value);
+          if (!Number.isFinite(display)) return;
+          const raw = parse ? parse(display) : display;
+          if (raw < min - 1e-9 || raw > max + 1e-9) return;
+          onChange(raw);
+        }}
+      />
+      <button type="button" className={styles.stepArrow} onClick={() => handleArrow(1)}>+</button>
+    </label>
+  );
+};
 
 const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const [imagenes, setImagenes] = useState([]);
@@ -1053,10 +1091,22 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const [groupDragState, setGroupDragState] = useState(null);
   const [alignmentMode, setAlignmentMode] = useState(DEFAULT_ALIGNMENT_STATE);
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [sliderPrecision, setSliderPrecision] = useState("normal");
   const [showAlignmentDetails, setShowAlignmentDetails] = useState(false);
+  const [annotations, setAnnotations] = useState([]);
+  const [annotationMode, setAnnotationMode] = useState(false);
+  const [annotationLabel, setAnnotationLabel] = useState("");
+  const [annotationDesc, setAnnotationDesc] = useState("");
+  const [drawMode, setDrawMode] = useState(null);
+  const [currentPolygonPoints, setCurrentPolygonPoints] = useState([]);
+  const [polygonCursorPos, setPolygonCursorPos] = useState(null);
+  const [userDrawings, setUserDrawings] = useState({});
+  const [viewerPanTick, setViewerPanTick] = useState(0);
   const groupEditRef = useRef(DEFAULT_GROUP_EDIT);
   const selectedLotIdsRef = useRef(new Set());
   const groupEditBaseRef = useRef({});
+  const annotationModeRef = useRef(false);
+  const annotationsRef = useRef([]);
 
   const token = localStorage.getItem("access");
   const viewerRef = useRef(null);
@@ -1075,6 +1125,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const overlayDragPatchRef = useRef(null);
   const groupDragFrameRef = useRef(null);
   const groupDragPatchRef = useRef(null);
+  const drawModeRef = useRef(null);
+  const currentPolygonPointsRef = useRef([]);
+  const drawOverlayRef = useRef(null);
+  const drawPanFrameRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -1112,6 +1166,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     return conexiones.filter((item) => item.origenId === selectedImg.id_imagen);
   }, [conexiones, selectedImg]);
 
+  const currentImageAnnotations = useMemo(
+    () => annotations.filter((a) => String(a.imageId) === String(selectedImageId)),
+    [annotations, selectedImageId],
+  );
+
   const importedOverlaySummary = useMemo(() => {
     if (!projectGeometry) return null;
     return {
@@ -1138,6 +1197,336 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     removeTempMarker(markers);
   };
 
+  const saveAnnotation = () => {
+    if (!coords || !annotationLabel.trim() || !selectedImg) return;
+    setAnnotations((prev) => [
+      ...prev,
+      {
+        id: `ann-${crypto.randomUUID()}`,
+        imageId: selectedImg.id_imagen,
+        yaw: coords.yaw,
+        pitch: coords.pitch,
+        label: annotationLabel.trim(),
+        description: annotationDesc.trim(),
+      },
+    ]);
+    setAnnotationLabel("");
+    setAnnotationDesc("");
+    resetPointMode();
+    window.alertSuccess?.("Pin de anotación guardado.");
+  };
+
+  const removeAnnotation = (id) => {
+    setAnnotations((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const toggleAnnotationMode = () => {
+    setAnnotationMode((prev) => {
+      if (!prev) resetPointMode();
+      return !prev;
+    });
+  };
+
+  const getDrawRelativePoint = (e) => {
+    const el = drawOverlayRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    return {
+      x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
+    };
+  };
+
+  const handleDrawClick = (e) => {
+    if (drawModeRef.current !== "polygon") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pt = getDrawRelativePoint(e);
+    if (!pt) return;
+    const pts = currentPolygonPointsRef.current;
+    if (pts.length >= 3) {
+      const first = pts[0];
+      if (Math.hypot(pt.x - first.x, pt.y - first.y) < 0.035) {
+        closePolygon();
+        return;
+      }
+    }
+    const next = [...pts, pt];
+    currentPolygonPointsRef.current = next;
+    setCurrentPolygonPoints(next);
+  };
+
+  const handleDrawMouseMove = (e) => {
+    if (drawModeRef.current !== "polygon") return;
+    setPolygonCursorPos(getDrawRelativePoint(e));
+  };
+
+  const closePolygon = () => {
+    const pts = currentPolygonPointsRef.current;
+    if (pts.length < 3 || !selectedImageId) return;
+
+    // Anclar cada punto al panorama esférico para que sigan el movimiento del visor
+    let sphericalPoints = null;
+    const viewer = viewerInstance.current;
+    const el = drawOverlayRef.current;
+    if (viewer && el && el.clientWidth && el.clientHeight) {
+      const sphs = pts.map((pt) => {
+        try {
+          const vp = { x: pt.x * el.clientWidth, y: pt.y * el.clientHeight };
+          const sph = viewer.dataHelper.viewerCoordsToSphericalCoords(vp);
+          if (!sph || !Number.isFinite(sph.yaw) || !Number.isFinite(sph.pitch)) return null;
+          return { yaw: sph.yaw, pitch: sph.pitch };
+        } catch {
+          return null;
+        }
+      });
+      if (sphs.every(Boolean)) sphericalPoints = sphs;
+    }
+
+    setUserDrawings((prev) => ({
+      ...prev,
+      [selectedImageId]: [
+        ...(prev[selectedImageId] || []),
+        { id: `draw-${crypto.randomUUID()}`, type: "polygon", points: [...pts], sphericalPoints, depth: 0, strokeWidth: 4, label: "", showShadow: false },
+      ],
+    }));
+    currentPolygonPointsRef.current = [];
+    setCurrentPolygonPoints([]);
+    setPolygonCursorPos(null);
+  };
+
+  const undoLastPoint = () => {
+    setCurrentPolygonPoints((prev) => {
+      const next = prev.slice(0, -1);
+      currentPolygonPointsRef.current = next;
+      return next;
+    });
+  };
+
+  const undoLastDrawing = () => {
+    if (!selectedImageId) return;
+    setUserDrawings((prev) => {
+      const list = prev[selectedImageId] || [];
+      if (!list.length) return prev;
+      return { ...prev, [selectedImageId]: list.slice(0, -1) };
+    });
+  };
+
+  const clearAllDrawings = () => {
+    if (!selectedImageId) return;
+    currentPolygonPointsRef.current = [];
+    setCurrentPolygonPoints([]);
+    setPolygonCursorPos(null);
+    setUserDrawings((prev) => ({ ...prev, [selectedImageId]: [] }));
+  };
+
+  const setShapeDepth = (shapeId, depth) => {
+    if (!selectedImageId) return;
+    setUserDrawings((prev) => ({
+      ...prev,
+      [selectedImageId]: (prev[selectedImageId] || []).map((s) =>
+        s.id === shapeId ? { ...s, depth } : s
+      ),
+    }));
+  };
+
+  const setShapeStroke = (shapeId, strokeWidth) => {
+    if (!selectedImageId) return;
+    setUserDrawings((prev) => ({
+      ...prev,
+      [selectedImageId]: (prev[selectedImageId] || []).map((s) =>
+        s.id === shapeId ? { ...s, strokeWidth } : s
+      ),
+    }));
+  };
+
+  const setShapeLabel = (shapeId, label) => {
+    if (!selectedImageId) return;
+    setUserDrawings((prev) => ({
+      ...prev,
+      [selectedImageId]: (prev[selectedImageId] || []).map((s) =>
+        s.id === shapeId ? { ...s, label } : s
+      ),
+    }));
+  };
+
+  const setShapeShadow = (shapeId, showShadow) => {
+    if (!selectedImageId) return;
+    setUserDrawings((prev) => ({
+      ...prev,
+      [selectedImageId]: (prev[selectedImageId] || []).map((s) =>
+        s.id === shapeId ? { ...s, showShadow } : s
+      ),
+    }));
+  };
+
+  const toP = (v) => `${(v * 100).toFixed(3)}%`;
+
+  const projectSphToPx = ({ yaw, pitch }) => {
+    const viewer = viewerInstance.current;
+    if (!viewer) return null;
+    try {
+      const pt = viewer.dataHelper.sphericalCoordsToViewerCoords({ yaw, pitch });
+      return (pt && Number.isFinite(pt.x) && Number.isFinite(pt.y)) ? pt : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const drawSegment = (x1, y1, x2, y2, sw, shadowW, dash, key) => (
+    <g key={key}>
+      <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
+        stroke="rgba(0,0,0,0.65)" strokeWidth={shadowW}
+        strokeDasharray={dash} strokeLinecap="round" />
+      <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
+        stroke="white" strokeWidth={sw}
+        strokeDasharray={dash} strokeLinecap="round" />
+    </g>
+  );
+
+  const renderCompletedShape = (shape) => {
+    if (!shape.points || shape.points.length < 2) return null;
+
+    // Proyectar al viewport actual si el trazo está anclado al panorama
+    let pts = null;
+    let isPx = false;
+    if (shape.sphericalPoints?.length >= 3) {
+      const projected = shape.sphericalPoints.map(projectSphToPx);
+      if (projected.every(Boolean)) {
+        pts = projected;
+        isPx = true;
+      }
+    }
+    if (!pts) pts = shape.points;
+
+    // Función de coordenada: píxeles directos o porcentaje del viewport
+    const c = isPx ? (v) => v : toP;
+
+    const depth = shape.depth || 0;
+    const sw = shape.strokeWidth ?? 4;
+    const shadowW = sw + 4;
+    const dx = isPx ? depth * 3 : depth * 0.004;
+    const dy = isPx ? depth * 5 : depth * 0.006;
+    const n = pts.length;
+
+    const seg = (x1, y1, x2, y2, sw2, shadowW2, dash, key) => (
+      <g key={key}>
+        <line x1={c(x1)} y1={c(y1)} x2={c(x2)} y2={c(y2)}
+          stroke="rgba(0,0,0,0.65)" strokeWidth={shadowW2}
+          strokeDasharray={dash} strokeLinecap="round" />
+        <line x1={c(x1)} y1={c(y1)} x2={c(x2)} y2={c(y2)}
+          stroke="white" strokeWidth={sw2}
+          strokeDasharray={dash} strokeLinecap="round" />
+      </g>
+    );
+
+    // Coordenadas en píxeles para sombra y etiqueta (polygon/text no soportan % en SVG)
+    const el = drawOverlayRef.current;
+    const w = el?.clientWidth || 1;
+    const h = el?.clientHeight || 1;
+    const pxPts = isPx ? pts : pts.map((p) => ({ x: p.x * w, y: p.y * h }));
+    const lx = pxPts.reduce((s, p) => s + p.x, 0) / pxPts.length;
+    const ly = pxPts.reduce((s, p) => s + p.y, 0) / pxPts.length;
+
+    return (
+      <g key={shape.id}>
+        {shape.showShadow && (
+          <polygon
+            points={pxPts.map((p) => `${p.x},${p.y}`).join(' ')}
+            fill="rgba(0,0,0,0.38)"
+            stroke="none"
+          />
+        )}
+        {depth > 0 && pts.map((p, i) => {
+          const next = pts[(i + 1) % n];
+          const bx = p.x + dx; const by = p.y + dy;
+          const bnx = next.x + dx; const bny = next.y + dy;
+          return (
+            <g key={`back-${i}`}>
+              {seg(bx, by, bnx, bny, sw - 1, shadowW - 1, undefined, `bl-${i}`)}
+              {seg(p.x, p.y, bx, by, Math.max(1, sw - 2), shadowW - 2, "5 3", `ed-${i}`)}
+            </g>
+          );
+        })}
+        {pts.map((p, i) =>
+          seg(p.x, p.y, pts[(i + 1) % n].x, pts[(i + 1) % n].y, sw, shadowW, undefined, `fl-${i}`)
+        )}
+        {pts.map((p, i) => (
+          <circle key={i} cx={c(p.x)} cy={c(p.y)} r="7"
+            fill="white" stroke="rgba(0,0,0,0.65)" strokeWidth="2.5" />
+        ))}
+        {shape.label && (
+          <text
+            x={lx} y={ly}
+            textAnchor="middle" dominantBaseline="middle"
+            fontSize={Math.max(13, (shape.strokeWidth ?? 4) * 2.2)}
+            fontWeight="700"
+            fill="white"
+            stroke="rgba(0,0,0,0.75)"
+            strokeWidth="3"
+            paintOrder="stroke fill"
+          >
+            {shape.label}
+          </text>
+        )}
+      </g>
+    );
+  };
+
+  const renderInProgressPolygon = (pts, cursorPos) => {
+    if (!pts.length) return null;
+    const isNearFirst =
+      cursorPos &&
+      pts.length >= 3 &&
+      Math.hypot(cursorPos.x - pts[0].x, cursorPos.y - pts[0].y) < 0.035;
+    const last = pts[pts.length - 1];
+    return (
+      <g>
+        {pts.slice(0, -1).map((p, i) =>
+          drawSegment(p.x, p.y, pts[i + 1].x, pts[i + 1].y, 2.5, 5, "8 5", `seg-${i}`)
+        )}
+        {cursorPos && drawSegment(last.x, last.y, cursorPos.x, cursorPos.y, 1.5, 3.5, "5 4", "preview")}
+        {isNearFirst && drawSegment(cursorPos.x, cursorPos.y, pts[0].x, pts[0].y, 2, 3.5, "4 3", "close-preview")}
+        {pts.map((p, i) => (
+          <circle key={i} cx={toP(p.x)} cy={toP(p.y)}
+            r={i === 0 && isNearFirst ? 10 : 7}
+            fill={i === 0 ? (isNearFirst ? "rgba(80,230,120,0.95)" : "white") : "white"}
+            stroke={i === 0 ? (isNearFirst ? "rgba(0,130,60,0.9)" : "rgba(0,0,0,0.65)") : "rgba(0,0,0,0.65)"}
+            strokeWidth="2.5" />
+        ))}
+      </g>
+    );
+  };
+
+  const renderDrawingOverlay = () => {
+    const imgDrawings = (selectedImageId && userDrawings[selectedImageId]) || [];
+    if (!drawMode && !imgDrawings.length && !currentPolygonPoints.length) return null;
+    const isActive = drawMode === "polygon";
+    return (
+      <div
+        ref={drawOverlayRef}
+        className={styles.drawingOverlayLayer}
+        style={{
+          cursor: isActive ? "crosshair" : "default",
+          pointerEvents: isActive ? "all" : "none",
+        }}
+        onClick={isActive ? handleDrawClick : undefined}
+        onMouseMove={isActive ? handleDrawMouseMove : undefined}
+        onMouseLeave={isActive ? () => setPolygonCursorPos(null) : undefined}
+      >
+        <svg
+          width="100%"
+          height="100%"
+          style={{ position: "absolute", inset: 0, overflow: "visible" }}
+        >
+          {imgDrawings.map((shape) => renderCompletedShape(shape))}
+          {isActive && renderInProgressPolygon(currentPolygonPoints, polygonCursorPos)}
+        </svg>
+      </div>
+    );
+  };
+
   const renderHotspots = () => {
     const viewer = viewerInstance.current;
     if (!viewer || !selectedImg) return;
@@ -1146,16 +1535,52 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     markers.clearMarkers();
 
     const storedAnchoredOverlay =
-      anchoredOverlays[String(selectedImg.id_imagen)] || null;
+      anchoredOverlaysRef.current[String(selectedImg.id_imagen)] ||
+      anchoredOverlays[String(selectedImg.id_imagen)] ||
+      null;
     const overlayConfig =
       selectedOverlayConfigRef.current || selectedOverlayConfig;
     const overlayIsExplicitlyHidden = overlayConfig?.visible === false;
-    const anchoredPreview = overlayIsExplicitlyHidden
-      ? null
-      : !layoutEditModeRef.current && overlayConfig?.visible
-        ? buildAnchoredOverlaySnapshot(selectedImg.id_imagen, overlayConfig) ||
-          storedAnchoredOverlay
-        : storedAnchoredOverlay;
+
+    // En modo no-edición usar la snapshot almacenada (coordenadas esféricas ya fijas).
+    // Sólo actualizar campos visuales del config actual para evitar re-proyección
+    // incorrecta cuando el visor se mueve (p.ej. por doble clic en Conexión/Anotar).
+    let anchoredPreview;
+    if (overlayIsExplicitlyHidden) {
+      anchoredPreview = null;
+    } else if (!layoutEditModeRef.current && overlayConfig?.visible) {
+      if (storedAnchoredOverlay) {
+        const globalTexture = overlayConfig.textureMode ?? "solid";
+        anchoredPreview = {
+          ...storedAnchoredOverlay,
+          textureMode: globalTexture,
+          lotOpacity: overlayConfig.lotOpacity,
+          lotPolygons: (storedAnchoredOverlay.lotPolygons || []).map((lote) => {
+            const override =
+              overlayConfig.lotOverrides?.[String(lote.idlote ?? "")] ?? {};
+            return {
+              ...lote,
+              textureMode: override.textureMode ?? globalTexture,
+            };
+          }),
+        };
+      } else {
+        const built = buildAnchoredOverlaySnapshot(
+          selectedImg.id_imagen,
+          overlayConfig,
+        );
+        // Cachear en el ref para que llamadas posteriores no re-proyecten con pan diferente
+        if (built) {
+          anchoredOverlaysRef.current = {
+            ...anchoredOverlaysRef.current,
+            [String(selectedImg.id_imagen)]: built,
+          };
+        }
+        anchoredPreview = built;
+      }
+    } else {
+      anchoredPreview = storedAnchoredOverlay;
+    }
 
     if (anchoredPreview?.visible && !layoutEditModeRef.current) {
       if (
@@ -1176,7 +1601,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           svgStyle: {
             fill: "rgba(14, 116, 44, 0.26)",
             stroke: "#14532d",
-            strokeWidth: "12px",
+            strokeWidth: "2px",
             strokeLinejoin: "round",
           },
           zIndex: 5,
@@ -1190,16 +1615,30 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           Array.isArray(lote.polygonPixels) && lote.polygonPixels.length >= 3;
         if (!hasSpherical && !hasPixels) return;
         const markerKey = lote.idlote ?? lote.nombre ?? index;
+
+        const lotTMode = lote.textureMode ?? anchoredPreview.textureMode ?? "solid";
+        let lotFill, lotFillOpacity;
+        if (lotTMode === "outline") {
+          lotFill = "none";
+          lotFillOpacity = "1";
+        } else if (lotTMode === "transparent") {
+          lotFill = lote.color || "#22c55e";
+          lotFillOpacity = "0.35";
+        } else {
+          lotFill = lote.color || "#22c55e";
+          lotFillOpacity = String(anchoredPreview.lotOpacity ?? 0.82);
+        }
+
         markers.addMarker({
           id: `overlay-lote-${selectedImg.id_imagen}-${markerKey}-${index}`,
           ...(hasSpherical
             ? { polygon: lote.polygon }
             : { polygonPixels: lote.polygonPixels }),
           svgStyle: {
-            fill: lote.color || "#22c55e",
-            fillOpacity: String(anchoredPreview.lotOpacity ?? 0.82),
-            stroke: "rgba(255,255,255,0.86)",
-            strokeWidth: "3px",
+            fill: lotFill,
+            fillOpacity: lotFillOpacity,
+            stroke: "rgba(255,255,255,0.75)",
+            strokeWidth: "0.8px",
             strokeLinejoin: "round",
           },
           zIndex: 6,
@@ -1218,6 +1657,22 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         data: { destinoId: hotspot.destinoId },
       });
     });
+
+    annotationsRef.current
+      .filter((ann) => String(ann.imageId) === String(selectedImg?.id_imagen))
+      .forEach((ann) => {
+        const safeLabel = String(ann.label ?? "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeDesc = ann.description ? String(ann.description).replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+        markers.addMarker({
+          id: `ann-${ann.id}`,
+          html: `<div class="gh-local-ann-marker"><div class="gh-local-ann-hbar"><span class="gh-local-ann-label">${safeLabel}</span></div><div class="gh-local-ann-vline"></div></div>`,
+          size: { width: 180, height: 52 },
+          anchor: "bottom center",
+          position: makeMarkerPosition(ann.yaw, ann.pitch),
+          tooltip: safeDesc ? `<strong>${safeLabel}</strong><br><span style="font-size:0.84em;opacity:0.82">${safeDesc}</span>` : undefined,
+          data: { type: "annotation", annotationId: ann.id },
+        });
+      });
 
     if (hasValidCoords) {
       markers.addMarker({
@@ -1248,6 +1703,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     React.startTransition(() => {
       setOverlayLayouts(nextLayouts);
     });
+
+    // Re-renderizar marcadores PSV inmediatamente si el visor está listo y no estamos en edición
+    if (viewerReady && !layoutEditModeRef.current && viewerInstance.current) {
+      renderHotspots();
+    }
   };
 
   const getCurrentOverlayRuntime = () => {
@@ -1575,16 +2035,19 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       selectedOverlayConfigRef.current || selectedOverlayConfig;
     if (!currentConfig?.visible) return null;
     captureCurrentLayoutRuntime();
+    // When NOT in edit mode and a valid snapshot already exists, return it as-is.
+    // Rebuilding here would re-project the 2D overlay through the CURRENT camera
+    // position, which may differ from when the user positioned the lots, corrupting
+    // the stored spherical coordinates.
+    if (!layoutEditModeRef.current) {
+      const existing = anchoredOverlaysRef.current[String(selectedImageId)];
+      if (existing && hasAnchoredGeometry(existing)) return existing;
+    }
     return snapshotOverlayForImage(selectedImageId);
   };
 
   const handleSelectImage = (img) => {
-    if (
-      layoutEditModeRef.current ||
-      !anchoredOverlaysRef.current[String(selectedImageId)]
-    ) {
-      persistCurrentOverlayPosition();
-    }
+    persistCurrentOverlayPosition();
     setSelectedImg(img);
   };
 
@@ -1697,6 +2160,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
 
       const loadedLayouts = {};
       const loadedAnchoredOverlays = {};
+      const loadedAnnotationsMap = new Map();
       let loadedGeometry = null;
 
       storedImages.forEach((img) => {
@@ -1726,6 +2190,12 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             }
           },
         );
+
+        (payload.annotations || []).forEach((ann) => {
+          if (ann?.id && ann?.imageId && ann?.label) {
+            loadedAnnotationsMap.set(String(ann.id), ann);
+          }
+        });
       });
 
       if (loadedGeometry) {
@@ -1740,6 +2210,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       }
       if (Object.keys(loadedAnchoredOverlays).length) {
         setAnchoredOverlays((prev) => ({ ...loadedAnchoredOverlays, ...prev }));
+      }
+      if (loadedAnnotationsMap.size) {
+        setAnnotations((prev) => {
+          const existingIds = new Set(prev.map((a) => String(a.id)));
+          const newAnns = [...loadedAnnotationsMap.values()].filter(
+            (a) => !existingIds.has(String(a.id)),
+          );
+          return newAnns.length ? [...prev, ...newAnns] : prev;
+        });
       }
     } catch (error) {
       console.error("Error cargando imagenes 360 guardadas:", error);
@@ -2070,6 +2549,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   };
 
   const handleViewerAlignmentClick = (event) => {
+    if (drawModeRef.current) return;
     const currentAlignment = alignmentModeRef.current;
     if (!currentAlignment?.active || currentAlignment.step !== "viewer") return;
     if (!viewerRef.current || !currentAlignment.pendingPlanPoint) return;
@@ -2149,16 +2629,46 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   }, [selectedOverlayConfig]);
 
   useEffect(() => {
-    anchoredOverlaysRef.current = anchoredOverlays;
-  }, [anchoredOverlays]);
-
-  useEffect(() => {
     layoutEditModeRef.current = layoutEditMode;
   }, [layoutEditMode]);
 
   useEffect(() => {
     alignmentModeRef.current = alignmentMode;
   }, [alignmentMode]);
+
+  useEffect(() => { annotationModeRef.current = annotationMode; }, [annotationMode]);
+  useEffect(() => { annotationsRef.current = annotations; }, [annotations]);
+  useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
+  useEffect(() => { currentPolygonPointsRef.current = currentPolygonPoints; }, [currentPolygonPoints]);
+
+  // Re-proyectar los trazos completados cuando el visor gira (solo si hay trazos activos)
+  useEffect(() => {
+    if (!viewerReady) return undefined;
+    const viewer = viewerInstance.current;
+    if (!viewer) return undefined;
+
+    const handlePan = () => {
+      if (drawPanFrameRef.current) return;
+      drawPanFrameRef.current = requestAnimationFrame(() => {
+        drawPanFrameRef.current = null;
+        setViewerPanTick((t) => t + 1);
+      });
+    };
+
+    viewer.addEventListener('position-updated', handlePan);
+    viewer.addEventListener('zoom-updated', handlePan);
+
+    return () => {
+      if (drawPanFrameRef.current) {
+        cancelAnimationFrame(drawPanFrameRef.current);
+        drawPanFrameRef.current = null;
+      }
+      try {
+        viewer.removeEventListener('position-updated', handlePan);
+        viewer.removeEventListener('zoom-updated', handlePan);
+      } catch { /* viewer ya destruido */ }
+    };
+  }, [viewerReady]);
 
   useEffect(() => {
     overlayVisibleRef.current = !!selectedOverlayConfig?.visible;
@@ -2173,6 +2683,13 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     setGroupEdit(DEFAULT_GROUP_EDIT);
     groupEditRef.current = DEFAULT_GROUP_EDIT;
     groupEditBaseRef.current = {};
+    setAnnotationMode(false);
+    setAnnotationLabel("");
+    setDrawMode(null);
+    setCurrentPolygonPoints([]);
+    currentPolygonPointsRef.current = [];
+    setPolygonCursorPos(null);
+    setAnnotationDesc("");
   }, [selectedImageId]);
 
   useEffect(() => {
@@ -2256,18 +2773,14 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
 
     markers.addEventListener("select-marker", (event) => {
       const marker = event?.marker || event?.detail?.marker;
+      if (marker?.data?.type === "annotation") return;
       if (!marker?.data?.destinoId) return;
 
       const destino = imagenes.find(
         (img) => img.id_imagen === marker.data.destinoId,
       );
       if (destino) {
-        if (
-          layoutEditModeRef.current ||
-          !anchoredOverlaysRef.current[String(selectedImageId)]
-        ) {
-          persistCurrentOverlayPosition();
-        }
+        persistCurrentOverlayPosition();
         setSelectedImg(destino);
       }
     });
@@ -2295,8 +2808,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     selectedImg,
     layoutEditMode,
     anchoredOverlays,
+    overlayLayouts,
     dragState,
     groupDragState,
+    annotations,
   ]);
 
   const handleBatchFiles = (event) => {
@@ -2310,7 +2825,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       preview: URL.createObjectURL(file),
     }));
 
-    setBatchItems((prev) => [...prev, ...items]);
+    setBatchItems(items);
     event.target.value = "";
   };
 
@@ -2434,11 +2949,21 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     );
     const skippedConnections = conexiones.length - resolvableConnections.length;
     stopOverlayDrag();
-    persistCurrentOverlayPosition();
+    const persistedSnapshot = persistCurrentOverlayPosition();
+    setLayoutEditMode(false);
+    setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
+    layoutEditModeRef.current = false;
+    alignmentModeRef.current = DEFAULT_ALIGNMENT_STATE;
     const currentConfig =
       selectedOverlayConfigRef.current || selectedOverlayConfig;
     const currentLayoutRuntime = captureCurrentLayoutRuntime();
-    const currentSnapshot = snapshotOverlayForImage(selectedImageId);
+    // Usar el snapshot guardado por persistCurrentOverlayPosition (capturado con la cámara
+    // correcta cuando el usuario posicionó el overlay), sin re-proyectar ahora que la cámara
+    // puede haber girado al agregar anotaciones u otras acciones.
+    const currentSnapshot =
+      persistedSnapshot ||
+      anchoredOverlaysRef.current[String(selectedImageId)] ||
+      null;
     const runtimeByImage = {
       ...(selectedImageId && currentLayoutRuntime
         ? {
@@ -2459,7 +2984,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         : {}),
     };
     const payloadAnchoredOverlays = [
-      ...Object.values(anchoredOverlays).filter(
+      ...Object.values(anchoredOverlaysRef.current).filter(
         (item) =>
           String(item?.imageId ?? "") !==
             String(currentSnapshot?.imageId ?? "") && hasAnchoredGeometry(item),
@@ -2554,6 +3079,12 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           }
         : null;
 
+      const remappedUserDrawings = {};
+      Object.entries(userDrawings).forEach(([imgId, shapes]) => {
+        const newId = remapImageId(imgId, imageMap);
+        if (newId && shapes?.length) remappedUserDrawings[newId] = shapes;
+      });
+
       const resolvedOverlayPayload = {
         geometry: geometryForPayload,
         clearMissingOverlays: true,
@@ -2565,6 +3096,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           ...overlay,
           imageId: remapImageId(overlay.imageId, imageMap),
         })),
+        annotations: annotations.map((a) => ({
+          ...a,
+          imageId: remapImageId(String(a.imageId), imageMap),
+        })),
+        userDrawings: remappedUserDrawings,
       };
 
       if (
@@ -3019,9 +3555,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       : undefined;
 
     const getLoteFill = (baseColor, lotTextureMode = textureMode) => {
-      if (lotTextureMode === "solid") return baseColor;
       if (lotTextureMode === "outline") return "none";
-      return `url(#gh-overlay-${lotTextureMode})`;
+      return baseColor;
     };
     const projectPath = renderOverlayConfig.showProjectOutline
       ? projectGeometry.projectPath ||
@@ -3082,88 +3617,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             style={shadowFilter ? { filter: shadowFilter } : undefined}
             onClick={handlePlanAlignmentClick}
           >
-            <defs>
-              {/* Hatch: líneas diagonales */}
-              <pattern
-                id="gh-overlay-hatch"
-                x="0"
-                y="0"
-                width="10"
-                height="10"
-                patternUnits="userSpaceOnUse"
-                patternTransform="rotate(45)"
-              >
-                <rect
-                  width="10"
-                  height="10"
-                  fill="currentColor"
-                  fillOpacity="0.55"
-                />
-                <line
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="10"
-                  stroke="rgba(0,0,0,0.35)"
-                  strokeWidth="3"
-                />
-              </pattern>
-              {/* Dots: puntos */}
-              <pattern
-                id="gh-overlay-dots"
-                x="0"
-                y="0"
-                width="12"
-                height="12"
-                patternUnits="userSpaceOnUse"
-              >
-                <rect
-                  width="12"
-                  height="12"
-                  fill="currentColor"
-                  fillOpacity="0.4"
-                />
-                <circle
-                  cx="6"
-                  cy="6"
-                  r="3"
-                  fill="currentColor"
-                  fillOpacity="0.9"
-                />
-              </pattern>
-              {/* Cross: cuadrícula */}
-              <pattern
-                id="gh-overlay-cross"
-                x="0"
-                y="0"
-                width="14"
-                height="14"
-                patternUnits="userSpaceOnUse"
-              >
-                <rect
-                  width="14"
-                  height="14"
-                  fill="currentColor"
-                  fillOpacity="0.45"
-                />
-                <line
-                  x1="7"
-                  y1="0"
-                  x2="7"
-                  y2="14"
-                  stroke="rgba(0,0,0,0.3)"
-                  strokeWidth="1.5"
-                />
-                <line
-                  x1="0"
-                  y1="7"
-                  x2="14"
-                  y2="7"
-                  stroke="rgba(0,0,0,0.3)"
-                  strokeWidth="1.5"
-                />
-              </pattern>
-            </defs>
+            <defs />
 
             {alignmentMode.active && (
               <g className={styles.alignmentPointLayer}>
@@ -3252,21 +3706,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                         : "default",
                   }}
                 >
-                  {lotTextureMode !== "solid" &&
-                    lotTextureMode !== "outline" && (
-                      <path
-                        d={lotPath}
-                        fill={lote.color}
-                        fillOpacity={effectiveLotOpacity * 0.5}
-                        className={styles.overlayLotePath}
-                        strokeWidth="0"
-                      />
-                    )}
                   <path
                     d={lotPath}
                     fill={getLoteFill(lote.color, lotTextureMode)}
                     fillOpacity={
-                      lotTextureMode === "solid" ? effectiveLotOpacity : 1
+                      lotTextureMode === "outline"
+                        ? 1
+                        : lotTextureMode === "transparent"
+                          ? 0.35
+                          : effectiveLotOpacity
                     }
                     className={styles.overlayLotePath}
                   />
@@ -3287,9 +3735,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   renderGroupEdit.opacity ?? renderOverlayConfig.lotOpacity;
                 const groupTexture = renderGroupEdit.textureMode ?? textureMode;
                 const getGLoteFill = (color) => {
-                  if (groupTexture === "solid") return color;
                   if (groupTexture === "outline") return "none";
-                  return `url(#gh-overlay-${groupTexture})`;
+                  return color;
                 };
 
                 return projectGeometry.lotes.map((lote, index) => {
@@ -3348,21 +3795,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                         strokeWidth="5"
                         strokeLinejoin="round"
                       />
-                      {groupTexture !== "solid" &&
-                        groupTexture !== "outline" && (
-                          <path
-                            d={projPath}
-                            fill={lote.color}
-                            fillOpacity={groupOpacity * 0.5}
-                            className={styles.overlayLotePath}
-                            strokeWidth="0"
-                          />
-                        )}
                       <path
                         d={projPath}
                         fill={getGLoteFill(lote.color)}
                         fillOpacity={
-                          groupTexture === "solid" ? groupOpacity : 1
+                          groupTexture === "outline"
+                            ? 1
+                            : groupTexture === "transparent"
+                              ? 0.35
+                              : groupOpacity
                         }
                         className={styles.overlayLotePath}
                       />
@@ -3615,6 +4056,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     <div ref={viewerRef} className={styles.viewerCanvas} />
                     {renderImportedOverlay()}
                     {renderAlignmentViewerMarkers()}
+                    {renderDrawingOverlay()}
                   </div>
                 </>
               ) : (
@@ -3650,7 +4092,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 {savingTour ? "Subiendo tour..." : "Subir tour al backend"}
               </button>
 
-              <div className={styles.panelBlock}>
+              <div className={`${styles.panelBlock} ${styles.panelBlockExpand}`}>
                 <div className={styles.sectionTitleRow}>
                   <MapIcon size={16} />
                   <h3>Trazos 2D sobre esta imagen</h3>
@@ -3686,16 +4128,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     type="button"
                     className={styles.btnCancel}
                     onClick={toggleLayoutEditMode}
-                    disabled={
-                      !selectedOverlayConfig?.visible || alignmentMode.active
-                    }
+                    disabled={!selectedOverlayConfig?.visible}
                   >
                     <Move size={16} />
-                    {alignmentMode.active
-                      ? "Alineacion activa"
-                      : layoutEditMode
-                        ? "Salir de edicion"
-                        : "Editar posicion"}
+                    {layoutEditMode ? "Salir de edicion" : "Editar posicion"}
                   </button>
                 </div>
 
@@ -3708,223 +4144,84 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   </p>
                 )}
 
-                {selectedOverlayConfig?.visible && (
-                  <div className={styles.alignmentPanel}>
-                    <div className={styles.alignmentHeader}>
-                      <strong>Modo Alinear</strong>
-                      <span>
-                        {alignmentMode.pairs.length} punto
-                        {alignmentMode.pairs.length === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    {!alignmentMode.active ? (
-                      <p className={styles.helperText}>
-                        Marca puntos iguales en el plano y en la foto 360 para
-                        alinearlos. Necesitas mínimo 3 pares. Más puntos =
-                        mejor precisión.
-                      </p>
-                    ) : (
-                      <>
-                        <div className={styles.alignmentSteps}>
-                          <div
-                            className={`${styles.alignmentStepBadge} ${alignmentMode.step !== "viewer" ? styles.alignmentStepBadgeActive : styles.alignmentStepBadgeDone}`}
-                          >
-                            <span
-                              className={`${styles.alignmentStepNum} ${alignmentMode.step !== "viewer" ? styles.alignmentStepNumActive : styles.alignmentStepNumDone}`}
-                            >
-                              {alignmentMode.step !== "viewer"
-                                ? alignmentMode.pairs.length + 1
-                                : "✓"}
-                            </span>
-                            En el plano
-                          </div>
-                          <div
-                            className={`${styles.alignmentStepBadge} ${alignmentMode.step === "viewer" ? styles.alignmentStepBadgeActive : ""}`}
-                          >
-                            <span
-                              className={`${styles.alignmentStepNum} ${alignmentMode.step === "viewer" ? styles.alignmentStepNumActive : ""}`}
-                            >
-                              {alignmentMode.step === "viewer"
-                                ? alignmentMode.pairs.length + 1
-                                : "→"}
-                            </span>
-                            En el visor
-                          </div>
-                        </div>
-                        <div className={styles.alignmentInstruction}>
-                          {alignmentMode.step === "viewer" ? (
-                            <>
-                              <strong
-                                className={styles.alignmentInstructionStrong}
-                              >
-                                Paso 2: Haz clic en el VISOR 360
-                              </strong>
-                              Busca el mismo punto que marcaste en el plano y
-                              haz clic sobre él en la fotografía panorámica.
-                            </>
-                          ) : alignmentMode.step === "review" ? (
-                            <>
-                              <strong
-                                className={styles.alignmentInstructionStrong}
-                              >
-                                Ajuste aplicado
-                              </strong>
-                              Revisa el resultado. Puedes añadir más puntos para
-                              mejorar la precisión.
-                            </>
-                          ) : (
-                            <>
-                              <strong
-                                className={styles.alignmentInstructionStrong}
-                              >
-                                Paso 1: Haz clic en el PLANO
-                              </strong>
-                              Elige una esquina de lote o intersección que
-                              también puedas identificar en la foto 360.
-                            </>
-                          )}
-                        </div>
-                      </>
-                    )}
-                    <div className={styles.panelActions}>
-                      <button
-                        type="button"
-                        className={styles.btnPrimary360}
-                        onClick={startAlignmentMode}
-                        disabled={!selectedImg || geometryLoading}
-                      >
-                        <MousePointerClick size={16} />
-                        {alignmentMode.active
-                          ? "Reiniciar alineacion"
-                          : "Activar Modo Alinear"}
-                      </button>
-                      {alignmentMode.active && (
-                        <button
-                          type="button"
-                          className={styles.btnCancel}
-                          onClick={cancelAlignmentMode}
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                    </div>
-
-                    {alignmentMode.pendingPlanPoint?.source && (
-                      <div className={styles.alignmentSelectedPoint}>
-                        Plano: {alignmentMode.pendingPlanPoint.source.label}
-                        {alignmentMode.pendingPlanPoint.source.snapped
-                          ? " · snap"
-                          : " · libre"}
-                      </div>
-                    )}
-
-                    {alignmentMode.error && (
-                      <div className={styles.alignmentError}>
-                        {alignmentMode.error}
-                      </div>
-                    )}
-
-                    {alignmentMode.result && (
-                      <div className={styles.alignmentResult}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <span
-                            className={styles.qualityBadge}
-                            data-tone={alignmentMode.result.quality.tone}
-                          >
-                            {alignmentMode.result.quality.tone === "good"
-                              ? "✓"
-                              : alignmentMode.result.quality.tone === "warn"
-                                ? "⚠"
-                                : "✗"}{" "}
-                            Ajuste {alignmentMode.result.quality.label}
-                          </span>
-                          <button
-                            type="button"
-                            className={styles.toggleButton}
-                            style={{ padding: "4px 8px", fontSize: "0.74rem" }}
-                            onClick={() =>
-                              setShowAlignmentDetails((prev) => !prev)
-                            }
-                          >
-                            {showAlignmentDetails
-                              ? "Ocultar detalle"
-                              : "Ver detalle"}
-                          </button>
-                        </div>
-                        {showAlignmentDetails && (
-                          <div className={styles.qualityDetails}>
-                            <span>
-                              {alignmentMode.result.pointCount} puntos · Error
-                              promedio:{" "}
-                              {alignmentMode.result.averageError.toFixed(1)} px
-                              · Máximo:{" "}
-                              {alignmentMode.result.maxError.toFixed(1)} px
-                            </span>
-                            {alignmentMode.result.residuals.map((item) => (
-                              <span key={item.index}>
-                                P{item.index}: {item.error.toFixed(1)} px
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <div className={styles.panelActions}>
-                          <button
-                            type="button"
-                            className={styles.toggleButton}
-                            onClick={continueAlignmentPoints}
-                          >
-                            <Plus size={14} />
-                            Agregar otro punto
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.toggleButton}
-                            onClick={undoLastAlignmentPair}
-                            disabled={!alignmentMode.pairs.length}
-                          >
-                            Deshacer ultimo
-                          </button>
-                        </div>
-                        {alignmentMode.pairs.length >
-                          REQUIRED_AFFINE_POINTS && (
-                          <button
-                            type="button"
-                            className={styles.toggleButton}
-                            onClick={removeWorstAlignmentPair}
-                          >
-                            Quitar punto con mas error
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className={styles.toggleButton}
-                          onClick={resetAlignmentPairs}
-                        >
-                          Rehacer todos los puntos
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {!layoutEditMode && !alignmentMode.active && (
                   <>
+                    {selectedImg && (
+                      <div className={styles.modeSwitchRow}>
+                        <button
+                          type="button"
+                          className={`${styles.modeTab} ${!annotationMode ? styles.modeTabActive : ""}`}
+                          onClick={() => {
+                            setAnnotationMode(false);
+                            resetPointMode();
+                          }}
+                        >
+                          <Link2 size={13} />
+                          Conexión
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.modeTab} ${annotationMode ? styles.modeTabActive : ""}`}
+                          onClick={toggleAnnotationMode}
+                        >
+                          <MapPin size={13} />
+                          Anotar
+                        </button>
+                      </div>
+                    )}
+
                     {!hasValidCoords ? (
                       selectedImg && (
                         <p
                           className={styles.helperText}
                           style={{ textAlign: "center" }}
                         >
-                          Haz click en el visor para colocar un punto nuevo.
+                          {annotationMode
+                            ? "Haz click en el visor para colocar un pin de anotación."
+                            : "Haz click en el visor para colocar un punto nuevo."}
                         </p>
                       )
+                    ) : annotationMode ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div className={styles.pointInfo}>
+                          <span>Yaw: {coords.yaw.toFixed(4)}</span>
+                          <span>Pitch: {coords.pitch.toFixed(4)}</span>
+                        </div>
+                        <input
+                          type="text"
+                          className={styles.inputName}
+                          placeholder="Etiqueta del pin (ej: Sala de estar)"
+                          value={annotationLabel}
+                          onChange={(e) => setAnnotationLabel(e.target.value)}
+                        />
+                        <textarea
+                          className={styles.inputName}
+                          style={{ resize: "vertical", minHeight: 68, fontFamily: "inherit" }}
+                          placeholder="Descripción (opcional)"
+                          value={annotationDesc}
+                          onChange={(e) => setAnnotationDesc(e.target.value)}
+                          rows={3}
+                        />
+                        <div className={styles.panelActions}>
+                          <button
+                            type="button"
+                            className={styles.btnCancel}
+                            onClick={resetPointMode}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.btnPrimary360}
+                            onClick={saveAnnotation}
+                            disabled={!annotationLabel.trim()}
+                          >
+                            <Plus size={16} />
+                            Guardar pin
+                          </button>
+                        </div>
+                      </div>
                     ) : (
                       <>
                         <div className={styles.pointInfo}>
@@ -4024,6 +4321,32 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                         </div>
                       </>
                     )}
+
+                    {currentImageAnnotations.length > 0 && (
+                      <div>
+                        <h4 style={{ margin: "0 0 8px", fontSize: "0.94rem", color: "#6d28d9" }}>
+                          Pines en esta vista ({currentImageAnnotations.length})
+                        </h4>
+                        <div className={styles.annotationsList}>
+                          {currentImageAnnotations.map((ann) => (
+                            <div key={ann.id} className={styles.annotationItem}>
+                              <div className={styles.annotationItemInfo}>
+                                <strong>{ann.label}</strong>
+                                {ann.description && <span>{ann.description}</span>}
+                              </div>
+                              <button
+                                type="button"
+                                className={styles.btnDel}
+                                onClick={() => removeAnnotation(ann.id)}
+                                aria-label="Eliminar pin"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -4075,6 +4398,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                         onChange={(v) =>
                           updateSelectedOverlayConfig({ scale: v })
                         }
+                        arrowStep={sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05}
                       />
                       <SliderWithInput
                         label="Rotación (°)"
@@ -4085,6 +4409,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                         onChange={(v) =>
                           updateSelectedOverlayConfig({ rotation: v })
                         }
+                        arrowStep={sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5}
                       />
                     </div>
 
@@ -4186,6 +4511,24 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                           </div>
                         </div>
 
+                        <div className={styles.precisionRow}>
+                          <span className={styles.precisionLabel}>Paso:</span>
+                          {[
+                            { key: "normal", label: "Normal" },
+                            { key: "fine", label: "Fino" },
+                            { key: "veryFine", label: "Muy fino" },
+                          ].map(({ key, label }) => (
+                            <button
+                              key={key}
+                              type="button"
+                              className={`${styles.precisionBtn} ${sliderPrecision === key ? styles.precisionBtnActive : ""}`}
+                              onClick={() => setSliderPrecision(key)}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+
                         <label className={styles.rangeControl}>
                           <span>Opacidad general</span>
                           <input
@@ -4200,6 +4543,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               })
                             }
                           />
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
+                              const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05;
+                              const v = Math.round(Math.max(0.15, selectedOverlayConfig.opacity - s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ opacity: v });
+                            }}
+                          >−</button>
                           <input
                             type="number"
                             className={styles.numberInput}
@@ -4217,6 +4569,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 });
                             }}
                           />
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
+                              const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05;
+                              const v = Math.round(Math.min(1, selectedOverlayConfig.opacity + s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ opacity: v });
+                            }}
+                          >+</button>
                         </label>
 
                         <label className={styles.rangeControl}>
@@ -4233,6 +4594,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               })
                             }
                           />
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
+                              const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05;
+                              const v = Math.round(Math.max(0.1, selectedOverlayConfig.lotOpacity - s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ lotOpacity: v });
+                            }}
+                          >−</button>
                           <input
                             type="number"
                             className={styles.numberInput}
@@ -4250,6 +4620,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 });
                             }}
                           />
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
+                              const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05;
+                              const v = Math.round(Math.min(1, selectedOverlayConfig.lotOpacity + s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ lotOpacity: v });
+                            }}
+                          >+</button>
                         </label>
 
                         <div className={styles.toggleRow}>
@@ -4313,6 +4692,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltX: Math.max(-60, (selectedOverlayConfig.tiltX ?? 0) - s) }); }}>−</button>
                             <input
                               type="number"
                               className={styles.numberInput}
@@ -4326,6 +4706,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                   updateSelectedOverlayConfig({ tiltX: v });
                               }}
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltX: Math.min(60, (selectedOverlayConfig.tiltX ?? 0) + s) }); }}>+</button>
                           </label>
 
                           <label className={styles.rangeControl}>
@@ -4342,6 +4723,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltY: Math.max(-60, (selectedOverlayConfig.tiltY ?? 0) - s) }); }}>−</button>
                             <input
                               type="number"
                               className={styles.numberInput}
@@ -4355,6 +4737,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                   updateSelectedOverlayConfig({ tiltY: v });
                               }}
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltY: Math.min(60, (selectedOverlayConfig.tiltY ?? 0) + s) }); }}>+</button>
                           </label>
 
                           <label className={styles.rangeControl}>
@@ -4373,6 +4756,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateSelectedOverlayConfig({ perspectiveDepth: Math.max(200, (selectedOverlayConfig.perspectiveDepth ?? 900) - s) }); }}>−</button>
                             <input
                               type="number"
                               className={styles.numberInput}
@@ -4390,6 +4774,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                   });
                               }}
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateSelectedOverlayConfig({ perspectiveDepth: Math.min(2000, (selectedOverlayConfig.perspectiveDepth ?? 900) + s) }); }}>+</button>
                           </label>
                           <div className={styles.presetRow}>
                             {[
@@ -4432,10 +4817,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                           </p>
                           <div className={styles.textureSelectorRow}>
                             {[
-                              { key: "solid", label: "Sólido" },
-                              { key: "hatch", label: "Tramas" },
-                              { key: "dots", label: "Puntos" },
-                              { key: "cross", label: "Cruz" },
+                              { key: "solid", label: "Con fondo" },
+                              { key: "transparent", label: "Transparente" },
                               { key: "outline", label: "Sin fondo" },
                             ].map(({ key, label }) => (
                               <button
@@ -4491,6 +4874,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scale: Math.round(Math.max(0.2, groupEdit.scale - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
                                       className={styles.numberInput}
@@ -4508,6 +4892,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                           updateGroupEdit({ scale: v / 100 });
                                       }}
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scale: Math.round(Math.min(3, groupEdit.scale + s) * 1000) / 1000 }); }}>+</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -4524,6 +4909,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ rotation: Math.max(-180, groupEdit.rotation - s) }); }}>−</button>
                                     <input
                                       type="number"
                                       className={styles.numberInput}
@@ -4541,6 +4927,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                           updateGroupEdit({ rotation: v });
                                       }}
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ rotation: Math.min(180, groupEdit.rotation + s) }); }}>+</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -4560,6 +4947,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; const cur = groupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateGroupEdit({ opacity: Math.round(Math.max(0.1, cur - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
                                       className={styles.numberInput}
@@ -4581,6 +4969,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                           updateGroupEdit({ opacity: v / 100 });
                                       }}
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; const cur = groupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateGroupEdit({ opacity: Math.round(Math.min(1, cur + s) * 1000) / 1000 }); }}>+</button>
                                   </label>
 
                                   <div
@@ -4690,6 +5079,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltX: Math.max(-60, (groupEdit.tiltX ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
                                       className={styles.numberInput}
@@ -4707,6 +5097,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                           updateGroupEdit({ tiltX: v });
                                       }}
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltX: Math.min(60, (groupEdit.tiltX ?? 0) + s) }); }}>+</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -4723,6 +5114,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltY: Math.max(-60, (groupEdit.tiltY ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
                                       className={styles.numberInput}
@@ -4740,6 +5132,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                           updateGroupEdit({ tiltY: v });
                                       }}
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltY: Math.min(60, (groupEdit.tiltY ?? 0) + s) }); }}>+</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -4758,6 +5151,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateGroupEdit({ perspectiveDepth: Math.max(200, (groupEdit.perspectiveDepth ?? 900) - s) }); }}>−</button>
                                     <input
                                       type="number"
                                       className={styles.numberInput}
@@ -4777,6 +5171,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                           });
                                       }}
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateGroupEdit({ perspectiveDepth: Math.min(2000, (groupEdit.perspectiveDepth ?? 900) + s) }); }}>+</button>
                                   </label>
 
                                   <div
@@ -4787,10 +5182,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                   </div>
                                   <div className={styles.textureSelectorRow}>
                                     {[
-                                      { key: "solid", label: "Sólido" },
-                                      { key: "hatch", label: "Tramas" },
-                                      { key: "dots", label: "Puntos" },
-                                      { key: "cross", label: "Cruz" },
+                                      { key: "solid", label: "Con fondo" },
+                                      { key: "transparent", label: "Transparente" },
                                       { key: "outline", label: "Sin fondo" },
                                     ].map(({ key, label }) => (
                                       <button
@@ -4873,10 +5266,6 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                       </>
                     )}
 
-                    <p className={styles.helperText}>
-                      Consejo: usa el Modo Alinear para mayor precisión. El
-                      ajuste rápido es ideal para un posicionamiento inicial.
-                    </p>
                   </>
                 ) : (
                   <div className={styles.emptyState}>
@@ -4886,7 +5275,152 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   </div>
                 )}
               </div>
+
             </aside>
+          </div>
+
+          <div className={styles.drawingSection}>
+            <div className={styles.sectionTitleRow}>
+              <Pencil size={16} />
+              <h3>Trazar formas</h3>
+            </div>
+
+            <div className={styles.drawingSectionBody}>
+              {!selectedImg ? (
+                <p className={styles.helperText}>
+                  Selecciona una imagen 360 para activar el modo de dibujo.
+                </p>
+              ) : (
+                <>
+                  <p className={styles.helperText}>
+                    {drawMode === "polygon"
+                      ? currentPolygonPoints.length === 0
+                        ? "Haz clic en el visor para colocar el primer punto."
+                        : currentPolygonPoints.length < 3
+                        ? `${currentPolygonPoints.length} punto(s). Sigue haciendo clic para agregar más.`
+                        : "Haz clic cerca del primer punto (verde) para cerrar la figura."
+                      : "Activa el modo polígono y haz clic en el visor para trazar."}
+                  </p>
+
+                  <div className={styles.panelActions}>
+                    <button
+                      type="button"
+                      className={
+                        drawMode === "polygon"
+                          ? styles.btnPrimary360
+                          : styles.btnCancel
+                      }
+                      onClick={() => {
+                        if (drawMode === "polygon") {
+                          setDrawMode(null);
+                          currentPolygonPointsRef.current = [];
+                          setCurrentPolygonPoints([]);
+                          setPolygonCursorPos(null);
+                        } else {
+                          setDrawMode("polygon");
+                        }
+                      }}
+                    >
+                      <Pencil size={15} />
+                      {drawMode === "polygon" ? "Salir de dibujo" : "Dibujar figura"}
+                    </button>
+
+                    {drawMode === "polygon" && currentPolygonPoints.length >= 3 && (
+                      <button
+                        type="button"
+                        className={styles.toggleButton}
+                        onClick={closePolygon}
+                      >
+                        Cerrar figura
+                      </button>
+                    )}
+                    {drawMode === "polygon" && currentPolygonPoints.length > 0 && (
+                      <button
+                        type="button"
+                        className={styles.toggleButton}
+                        onClick={undoLastPoint}
+                      >
+                        ← Punto
+                      </button>
+                    )}
+                  </div>
+
+                  {(userDrawings[selectedImageId] || []).length > 0 && (
+                    <div className={styles.shapeList}>
+                      {(userDrawings[selectedImageId] || []).map((shape, idx) => (
+                        <div key={shape.id} className={styles.shapeItem}>
+                          <span className={styles.helperText}>
+                            Figura {idx + 1} · {shape.points.length} puntos
+                          </span>
+                          <input
+                            type="text"
+                            className={styles.shapeLabelInput}
+                            placeholder="Nombre del trazo (opcional)"
+                            value={shape.label || ""}
+                            onChange={(e) => setShapeLabel(shape.id, e.target.value)}
+                            maxLength={60}
+                          />
+                          <label className={styles.depthLabel}>
+                            Grosor
+                            <input
+                              type="range"
+                              min={1}
+                              max={16}
+                              value={shape.strokeWidth ?? 4}
+                              onChange={(e) =>
+                                setShapeStroke(shape.id, Number(e.target.value))
+                              }
+                              className={styles.depthSlider}
+                            />
+                            <span className={styles.depthValue}>{shape.strokeWidth ?? 4}</span>
+                          </label>
+                          <label className={styles.depthLabel}>
+                            Profundidad
+                            <input
+                              type="range"
+                              min={0}
+                              max={40}
+                              value={shape.depth || 0}
+                              onChange={(e) =>
+                                setShapeDepth(shape.id, Number(e.target.value))
+                              }
+                              className={styles.depthSlider}
+                            />
+                            <span className={styles.depthValue}>{shape.depth || 0}</span>
+                          </label>
+                          <label className={styles.depthLabel} style={{ gap: 10 }}>
+                            <input
+                              type="checkbox"
+                              checked={shape.showShadow === true}
+                              onChange={(e) => setShapeShadow(shape.id, e.target.checked)}
+                              style={{ accentColor: "#0ea5e9", width: 15, height: 15 }}
+                            />
+                            Sombreado
+                          </label>
+                        </div>
+                      ))}
+                      <div className={styles.panelActions}>
+                        <button
+                          type="button"
+                          className={styles.toggleButton}
+                          onClick={undoLastDrawing}
+                        >
+                          Deshacer última
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.toggleButton}
+                          onClick={clearAllDrawings}
+                        >
+                          <Trash2 size={14} />
+                          Borrar todo
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

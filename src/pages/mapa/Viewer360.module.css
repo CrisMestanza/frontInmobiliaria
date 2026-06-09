@@ -201,6 +201,8 @@
   flex: 1;
   position: relative;
   min-height: 0;
+  isolation: isolate;
+  contain: paint;
 }
 
 .brandName {
@@ -636,12 +638,15 @@
 .viewerContainer {
   width: 100%;
   height: 100%;
-  contain: layout paint size;
+  contain: layout size;
   background: #020607;
+  color-scheme: normal;
 }
 
 .viewerContainer canvas {
   display: block;
+  filter: none !important;
+  color-scheme: normal;
 }
 
 .lotLabelsLayer {
@@ -1314,6 +1319,7 @@
 :global(.psv-marker.gh-portal-hotspot-marker) {
   opacity: 1;
 }
+
 
 :global(.psv-tooltip) {
   padding: 10px 14px;
@@ -2227,4 +2233,288 @@
   .projectSidebarGrid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Drawing overlay ── */
+.drawingOverlayLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  user-select: none;
+  touch-action: none;
+}
+
+/* ── Anotaciones locales panel ── */
+.annotationPanel {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* tabs row — identical to Modal360 modeSwitchRow */
+.annotModeSwitchRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.annotModeTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+.annotModeTab:hover {
+  border-color: rgba(167, 139, 250, 0.35);
+  background: rgba(109, 40, 217, 0.12);
+  color: #a78bfa;
+}
+
+.annotModeTabActive {
+  border-color: rgba(167, 139, 250, 0.5);
+  background: rgba(109, 40, 217, 0.18);
+  color: #c4b5fd;
+}
+
+.annotationHint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+  line-height: 1.4;
+  text-align: center;
+  min-height: 1em;
+}
+
+.annotationForm {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.annotInput {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.78rem;
+  padding: 6px 10px;
+  outline: none;
+}
+.annotInput::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+.annotInput:focus {
+  border-color: rgba(167, 139, 250, 0.5);
+}
+
+.annotFormActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.annotCancelBtn {
+  font-size: 0.76rem;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.65);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.annotCancelBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.annotSaveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(167, 139, 250, 0.5);
+  background: rgba(109, 40, 217, 0.18);
+  color: #c4b5fd;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.annotSaveBtn:hover:not(:disabled) {
+  background: rgba(109, 40, 217, 0.3);
+}
+.annotSaveBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.annotationList {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.annotationItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.annotItemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.annotItemLabel {
+  font-size: 0.76rem;
+  color: #e2e8f0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.annotItemDesc {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.annotDeleteBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.annotDeleteBtn:hover {
+  color: #f87171;
+}
+
+/* ── Trazar formas panel (inside sideGallery) ── */
+.drawingPanel {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drawingPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.drawingHint {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.drawingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.drawBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.drawBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.drawBtnActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.drawBtnActive:hover {
+  background: rgba(34, 197, 94, 0.28);
+}
+
+.shapeListViewer {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.shapeItemViewer {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.depthRowViewer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.rangeViewer {
+  flex: 1;
+  accent-color: #22c55e;
+  cursor: pointer;
 }
