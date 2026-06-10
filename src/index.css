@@ -438,6 +438,7 @@ a:focus-visible {
   align-items: center;
   cursor: pointer;
   filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+  width: 180px;
 }
 
 /* horizontal bar: lines extend left and right of the label */
