@@ -1666,7 +1666,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         markers.addMarker({
           id: `ann-${ann.id}`,
           html: `<div class="gh-local-ann-marker"><div class="gh-local-ann-hbar"><span class="gh-local-ann-label">${safeLabel}</span></div><div class="gh-local-ann-vline"></div></div>`,
-          size: { width: 180, height: 52 },
+          size: { width: 180, height: 37 },
           anchor: "bottom center",
           position: makeMarkerPosition(ann.yaw, ann.pitch),
           tooltip: safeDesc ? `<strong>${safeLabel}</strong><br><span style="font-size:0.84em;opacity:0.82">${safeDesc}</span>` : undefined,
