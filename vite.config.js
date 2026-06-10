@@ -5,6 +5,16 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   base: "/",
+  server: {
+    proxy: {
+      "/dev-media-proxy": {
+        target: "https://api.geohabita.com",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/dev-media-proxy/, "/media"),
+        secure: true,
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

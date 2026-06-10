@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark light;
   --theme-bg-main: #f5f8f7;
   --theme-bg-surface: #ffffff;
   --theme-bg-surface-raised: #ffffff;

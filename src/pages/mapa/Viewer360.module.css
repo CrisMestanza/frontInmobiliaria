@@ -202,6 +202,8 @@
   position: relative;
   min-height: 0;
   isolation: isolate;
+  filter: none !important;
+  color-scheme: dark;
 }
 
 .brandName {
@@ -639,13 +641,16 @@
   height: 100%;
   contain: layout size;
   background: #020607;
-  color-scheme: normal;
+  color-scheme: dark;
+  filter: none !important;
+  forced-color-adjust: none;
 }
 
 .viewerContainer canvas {
   display: block;
   filter: none !important;
-  color-scheme: normal;
+  color-scheme: dark;
+  forced-color-adjust: none;
 }
 
 .lotLabelsLayer {
@@ -908,6 +913,9 @@
   inset: 0;
   z-index: 12;
   pointer-events: none;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .projectOverlayCardPublic {
@@ -1299,6 +1307,20 @@
   scrollbar-width: none;
   -ms-overflow-style: none;
   position: relative;
+}
+
+:global(.psv-container),
+:global(.psv-canvas-container),
+:global(.psv-canvas) {
+  filter: none !important;
+  color-scheme: dark !important;
+}
+
+:global([data-theme="dark"]) .projectOverlayLayerPublic,
+:global([data-theme="dark"]) .drawingOverlayLayer {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 :global(.psv-marker.gh-portal-lot-marker) {
@@ -2241,6 +2263,9 @@
   z-index: 20;
   user-select: none;
   touch-action: none;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* ── Anotaciones locales panel ── */

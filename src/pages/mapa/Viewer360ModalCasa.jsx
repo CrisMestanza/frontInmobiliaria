@@ -400,15 +400,25 @@ const waitForNextFrame = () =>
     requestAnimationFrame(() => requestAnimationFrame(resolve));
   });
 
+const MEDIA_PREFIX = `${API_BASE}/media/`;
+const MEDIA_PROXY = `${API_BASE}/api/360media/`;
+
 const warmUpImage = (src, timeout = 8000) =>
   new Promise((resolve) => {
     if (!src) { resolve(null); return; }
+    const mediaSuffix = src.startsWith(MEDIA_PREFIX) ? src.slice(MEDIA_PREFIX.length) : null;
+    const fetchSrc = mediaSuffix
+      ? import.meta.env.DEV
+        ? `/dev-media-proxy/${mediaSuffix}`
+        : `${MEDIA_PROXY}${mediaSuffix}`
+      : src;
+    console.log("[360] warmUpImage fetching:", fetchSrc);
     const controller = new AbortController();
     const timer = window.setTimeout(() => { controller.abort(); resolve(null); }, timeout);
-    fetch(src, { signal: controller.signal, cache: "force-cache" })
-      .then((res) => (res.ok ? res.blob() : Promise.reject()))
-      .then((blob) => { window.clearTimeout(timer); resolve(URL.createObjectURL(blob)); })
-      .catch(() => { window.clearTimeout(timer); resolve(null); });
+    fetch(fetchSrc, { signal: controller.signal, cache: "no-cache" })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((blob) => { window.clearTimeout(timer); console.log("[360] warmUpImage OK → blob URL"); resolve(URL.createObjectURL(blob)); })
+      .catch((err) => { window.clearTimeout(timer); console.warn("[360] warmUpImage FAILED:", err?.message || err); resolve(null); });
   });
 
 const buildApiUrl = (path) => withApiBase(`${API_BASE}${path}`);
@@ -2001,9 +2011,25 @@ const Viewer360Modal = ({
 
     let active = true;
     let viewerInstance = null;
+    let readyFallbackTimer = null;
     setViewerReady(false);
     lastShownSrcRef.current = null;
     setViewerLoadMessage("Cargando imagen 360...");
+
+    const markViewerAsReady = () => {
+      if (readyFallbackTimer) {
+        window.clearTimeout(readyFallbackTimer);
+        readyFallbackTimer = null;
+      }
+      const root = containerRef.current;
+      if (root) {
+        root.querySelectorAll("*").forEach((el) => {
+          el.style.filter = "none";
+          el.style.colorScheme = "dark";
+        });
+      }
+      if (active) setViewerReady(true);
+    };
 
     const initViewer = async () => {
       await waitForNextFrame();
@@ -2017,7 +2043,20 @@ const Viewer360Modal = ({
       const initialYaw = Number(initialLayout?.yaw);
       const initialPitch = Number(initialLayout?.pitch);
       const initialZoom = Number(initialLayout?.zoomLevel);
-      const firstSrc = preloadBlobsRef.current.get(firstImage?.imagen) || firstImage?.imagen;
+
+      let firstSrc = preloadBlobsRef.current.get(firstImage?.imagen);
+      if (!firstSrc && firstImage?.imagen) {
+        const blob = await warmUpImage(firstImage.imagen, 8000);
+        if (!active) return;
+        if (blob) {
+          preloadBlobsRef.current.set(firstImage.imagen, blob);
+          firstSrc = blob;
+        } else {
+          firstSrc = firstImage.imagen;
+        }
+      }
+      if (!firstSrc) firstSrc = firstImage?.imagen;
+      console.log("[360] PSV panorama src:", firstSrc?.startsWith("blob:") ? "✅ blob:" + firstSrc.slice(5, 20) + "…" : "⚠️ raw URL: " + firstSrc);
 
       const safeZoom = Number.isFinite(initialZoom)
         ? Math.max(40, Math.min(70, initialZoom))
@@ -2039,7 +2078,7 @@ const Viewer360Modal = ({
         rendererParameters: {
           alpha: false,
           antialias: false,
-          powerPreference: "high-performance",
+          powerPreference: "default",
         },
       };
 
@@ -2061,15 +2100,22 @@ const Viewer360Modal = ({
         if (destinoId) travelToImageByIdRef.current?.(destinoId, markerData.destinoNombre);
       });
 
-      viewerInstance.addEventListener("ready", () => {
-        if (active) setViewerReady(true);
-      });
+      viewerInstance.addEventListener("ready", markViewerAsReady);
+      viewerInstance.addEventListener("panorama-loaded", markViewerAsReady);
+
+      readyFallbackTimer = window.setTimeout(() => {
+        if (!active || !containerRef.current) return;
+        if (containerRef.current.querySelector("canvas")) {
+          markViewerAsReady();
+        }
+      }, 2500);
     };
 
     initViewer();
 
     return () => {
       active = false;
+      if (readyFallbackTimer) window.clearTimeout(readyFallbackTimer);
       viewerInstance?.destroy();
       viewerRef.current = null;
       lastShownSrcRef.current = null;
@@ -2082,7 +2128,15 @@ const Viewer360Modal = ({
     const src = preloadBlobsRef.current.get(currentImage.imagen) || currentImage.imagen;
     if (src === lastShownSrcRef.current) return;
     lastShownSrcRef.current = src;
-    viewer.setPanorama(src, { caption: currentImage.nombre, transition: true });
+
+    Promise.resolve(
+      viewer.setPanorama(src, { caption: currentImage.nombre, transition: true }),
+    )
+      .then(() => setViewerReady(true))
+      .catch((error) => {
+        console.warn("No se pudo cambiar la vista 360:", error);
+        setViewerLoadMessage("No se pudo cargar la imagen 360.");
+      });
   }, [currentImage?.imagen, viewerReady]);
 
   useEffect(() => {
