@@ -4252,9 +4252,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                   }
                                 >
                                   <img
-                                    src={img.imagen}
+                                    src={img.imagen_thumb ? normalizeImageUrl(img.imagen_thumb) : img.imagen}
                                     alt={img.nombre}
                                     className={styles.destinationThumb}
+                                    loading="lazy"
                                   />
                                   <span>{img.nombre}</span>
                                 </button>
