@@ -7,9 +7,13 @@ import React, {
   useState,
 } from "react";
 import {
+  Church,
   Eye,
   EyeOff,
+  Goal,
+  Home,
   ImagePlus,
+  Landmark,
   Link2,
   Map as MapIcon,
   MapPin,
@@ -17,9 +21,13 @@ import {
   Move,
   Pencil,
   Plus,
+  Store,
+  Trees,
   RotateCw,
   Trash2,
   Upload,
+  Volleyball,
+  Waves,
   X,
 } from "lucide-react";
 import { authFetch } from "../../config/authFetch.js";
@@ -161,6 +169,26 @@ const ANNOTATION_MARKER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 </svg>
 `)}`;
 const ANNOTATION_MARKER_SIZE = { width: 44, height: 62 };
+
+const DRAWING_SCENARIO_TYPES = [
+  { key: "area",   label: "Area libre",       icon: MapIcon, color: "#0ea5e9" },
+  { key: "lote",   label: "Lote",             icon: Home,    color: "#16a34a" },
+  { key: "parque", label: "Parque",           icon: Trees,   color: "#22c55e" },
+  { key: "loza",   label: "Loza deportiva",   icon: Volleyball, color: "#22d3ee" },
+  { key: "cancha", label: "Cancha deportiva", icon: Goal,       color: "#4ade80" },
+  { key: "piscina",  label: "Piscina",          icon: Waves,    color: "#06b6d4" },
+  { key: "plaza",    label: "Plaza",            icon: Landmark, color: "#f59e0b" },
+  { key: "iglesia",  label: "Iglesia",          icon: Church,   color: "#e2e8f0" },
+  { key: "comercio", label: "Comercio",         icon: Store,    color: "#8b5cf6" },
+];
+
+const DEFAULT_DRAWING_SCENARIO = DRAWING_SCENARIO_TYPES[0];
+
+const getDrawingScenario = (key) =>
+  DRAWING_SCENARIO_TYPES.find((item) => item.key === key) ||
+  DEFAULT_DRAWING_SCENARIO;
+
+const renderCourtIcon = () => null;
 
 const createDraftImage = (file, nombre) => ({
   id_imagen: `draft-${crypto.randomUUID()}`,
@@ -1101,6 +1129,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const [currentPolygonPoints, setCurrentPolygonPoints] = useState([]);
   const [polygonCursorPos, setPolygonCursorPos] = useState(null);
   const [userDrawings, setUserDrawings] = useState({});
+  const [selectedDrawingScenario, setSelectedDrawingScenario] = useState(
+    DEFAULT_DRAWING_SCENARIO.key,
+  );
+  const [drawingColor, setDrawingColor] = useState("#ffffff");
+  const [drawingAreaName, setDrawingAreaName] = useState("");
   const [viewerPanTick, setViewerPanTick] = useState(0);
   const groupEditRef = useRef(DEFAULT_GROUP_EDIT);
   const selectedLotIdsRef = useRef(new Set());
@@ -1265,6 +1298,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const closePolygon = () => {
     const pts = currentPolygonPointsRef.current;
     if (pts.length < 3 || !selectedImageId) return;
+    const scenario = getDrawingScenario(selectedDrawingScenario);
 
     // Anclar cada punto al panorama esférico para que sigan el movimiento del visor
     let sphericalPoints = null;
@@ -1288,7 +1322,19 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       ...prev,
       [selectedImageId]: [
         ...(prev[selectedImageId] || []),
-        { id: `draw-${crypto.randomUUID()}`, type: "polygon", points: [...pts], sphericalPoints, depth: 0, strokeWidth: 4, label: "", showShadow: false },
+        {
+          id: `draw-${crypto.randomUUID()}`,
+          type: "polygon",
+          points: [...pts],
+          sphericalPoints,
+          depth: 0,
+          strokeWidth: 4,
+          label: scenario.key === "area" ? drawingAreaName.trim() : scenario.label,
+          scenarioKey: scenario.key,
+          scenarioLabel: scenario.label,
+          scenarioColor: drawingColor,
+          showShadow: false,
+        },
       ],
     }));
     currentPolygonPointsRef.current = [];
@@ -1351,12 +1397,43 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     }));
   };
 
+  const setShapeScenario = (shapeId, scenarioKey) => {
+    if (!selectedImageId) return;
+    const scenario = getDrawingScenario(scenarioKey);
+    setUserDrawings((prev) => ({
+      ...prev,
+      [selectedImageId]: (prev[selectedImageId] || []).map((s) => {
+        if (s.id !== shapeId) return s;
+        const previousScenario = getDrawingScenario(s.scenarioKey);
+        const usesAutomaticLabel =
+          !s.label || s.label === s.scenarioLabel || s.label === previousScenario.label;
+        return {
+          ...s,
+          scenarioKey: scenario.key,
+          scenarioLabel: scenario.label,
+          scenarioColor: scenario.color,
+          label: usesAutomaticLabel ? scenario.label : s.label,
+        };
+      }),
+    }));
+  };
+
   const setShapeShadow = (shapeId, showShadow) => {
     if (!selectedImageId) return;
     setUserDrawings((prev) => ({
       ...prev,
       [selectedImageId]: (prev[selectedImageId] || []).map((s) =>
         s.id === shapeId ? { ...s, showShadow } : s
+      ),
+    }));
+  };
+
+  const setShapeColor = (shapeId, color) => {
+    if (!selectedImageId) return;
+    setUserDrawings((prev) => ({
+      ...prev,
+      [selectedImageId]: (prev[selectedImageId] || []).map((s) =>
+        s.id === shapeId ? { ...s, scenarioColor: color } : s
       ),
     }));
   };
@@ -1406,6 +1483,16 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const depth = shape.depth || 0;
     const sw = shape.strokeWidth ?? 4;
     const shadowW = sw + 4;
+    const scenario = getDrawingScenario(shape.scenarioKey);
+    const ScenarioIcon = scenario.icon;
+    const scenarioLabel =
+      shape.label || shape.scenarioLabel || (shape.scenarioKey ? scenario.label : "");
+    const displayScenarioLabel =
+      scenarioLabel.length > 18
+        ? `${scenarioLabel.slice(0, 17)}...`
+        : scenarioLabel;
+    const scenarioColor =
+      shape.scenarioColor || (shape.scenarioKey ? scenario.color : "white");
     const dx = isPx ? depth * 3 : depth * 0.004;
     const dy = isPx ? depth * 5 : depth * 0.006;
     const n = pts.length;
@@ -1416,7 +1503,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           stroke="rgba(0,0,0,0.65)" strokeWidth={shadowW2}
           strokeDasharray={dash} strokeLinecap="round" />
         <line x1={c(x1)} y1={c(y1)} x2={c(x2)} y2={c(y2)}
-          stroke="white" strokeWidth={sw2}
+          stroke={scenarioColor} strokeWidth={sw2}
           strokeDasharray={dash} strokeLinecap="round" />
       </g>
     );
@@ -1428,6 +1515,31 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const pxPts = isPx ? pts : pts.map((p) => ({ x: p.x * w, y: p.y * h }));
     const lx = pxPts.reduce((s, p) => s + p.x, 0) / pxPts.length;
     const ly = pxPts.reduce((s, p) => s + p.y, 0) / pxPts.length;
+
+    // Orientación del polígono: ángulo de la arista más larga
+    let polyAngle = 0;
+    { let maxLen = 0;
+      for (let i = 0; i < pxPts.length; i++) {
+        const a = pxPts[i]; const b = pxPts[(i + 1) % pxPts.length];
+        const dx2 = b.x - a.x; const dy2 = b.y - a.y;
+        const len = Math.hypot(dx2, dy2);
+        if (len > maxLen) { maxLen = len; polyAngle = Math.atan2(dy2, dx2) * 180 / Math.PI; }
+      }
+    }
+    // Dimensiones en el marco local rotado del polígono
+    const rad = -polyAngle * Math.PI / 180;
+    const cosA = Math.cos(rad); const sinA = Math.sin(rad);
+    const local = pxPts.map(p => ({
+      x: (p.x - lx) * cosA - (p.y - ly) * sinA,
+      y: (p.x - lx) * sinA + (p.y - ly) * cosA,
+    }));
+    const localXs = local.map(p => p.x); const localYs = local.map(p => p.y);
+    const localW = Math.max(...localXs) - Math.min(...localXs);
+    const localH = Math.max(...localYs) - Math.min(...localYs);
+
+    const courtIcon = renderCourtIcon(shape.scenarioKey, lx, ly, localW, localH, polyAngle);
+    const hideLabel = shape.scenarioKey === "area" && !shape.label?.trim();
+    const labelY = courtIcon ? ly - localH * 0.28 : ly;
 
     return (
       <g key={shape.id}>
@@ -1456,19 +1568,27 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           <circle key={i} cx={c(p.x)} cy={c(p.y)} r="7"
             fill="white" stroke="rgba(0,0,0,0.65)" strokeWidth="2.5" />
         ))}
-        {shape.label && (
-          <text
-            x={lx} y={ly}
-            textAnchor="middle" dominantBaseline="middle"
-            fontSize={Math.max(13, (shape.strokeWidth ?? 4) * 2.2)}
-            fontWeight="700"
-            fill="white"
-            stroke="rgba(0,0,0,0.75)"
-            strokeWidth="3"
-            paintOrder="stroke fill"
-          >
-            {shape.label}
-          </text>
+        {courtIcon}
+        {!hideLabel && scenarioLabel && (
+          <g transform={`translate(${lx}, ${labelY})`}>
+            {shape.scenarioKey !== "area" && (
+              <ScenarioIcon x={-10} y={-10} width={20} height={20} color="white" strokeWidth={2.2} />
+            )}
+            <text
+              x={shape.scenarioKey !== "area" ? 14 : 0}
+              y={1}
+              textAnchor={shape.scenarioKey !== "area" ? "start" : "middle"}
+              dominantBaseline="middle"
+              fontSize="13"
+              fontWeight="800"
+              fill="white"
+              stroke="rgba(0,0,0,0.78)"
+              strokeWidth="3.5"
+              paintOrder="stroke fill"
+            >
+              {displayScenarioLabel}
+            </text>
+          </g>
         )}
       </g>
     );
@@ -2161,6 +2281,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       const loadedLayouts = {};
       const loadedAnchoredOverlays = {};
       const loadedAnnotationsMap = new Map();
+      const loadedUserDrawings = {};
       let loadedGeometry = null;
 
       storedImages.forEach((img) => {
@@ -2196,6 +2317,17 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             loadedAnnotationsMap.set(String(ann.id), ann);
           }
         });
+
+        if (payload.userDrawings && typeof payload.userDrawings === "object") {
+          Object.entries(payload.userDrawings).forEach(([imageId, shapes]) => {
+            if (!imageId || !Array.isArray(shapes) || !shapes.length) return;
+            const key = String(imageId);
+            loadedUserDrawings[key] = [
+              ...(loadedUserDrawings[key] || []),
+              ...shapes,
+            ];
+          });
+        }
       });
 
       if (loadedGeometry) {
@@ -2218,6 +2350,20 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             (a) => !existingIds.has(String(a.id)),
           );
           return newAnns.length ? [...prev, ...newAnns] : prev;
+        });
+      }
+      if (Object.keys(loadedUserDrawings).length) {
+        setUserDrawings((prev) => {
+          const next = { ...loadedUserDrawings, ...prev };
+          Object.entries(loadedUserDrawings).forEach(([imageId, shapes]) => {
+            const existing = prev[imageId] || [];
+            const existingIds = new Set(existing.map((shape) => String(shape.id)));
+            const newShapes = shapes.filter(
+              (shape) => shape?.id && !existingIds.has(String(shape.id)),
+            );
+            next[imageId] = newShapes.length ? [...newShapes, ...existing] : existing;
+          });
+          return next;
         });
       }
     } catch (error) {
@@ -2776,7 +2922,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       if (marker?.data?.type === "annotation") return;
       if (!marker?.data?.destinoId) return;
 
-      const destino = imagenes.find(
+      const destino = imagenesRef.current.find(
         (img) => img.id_imagen === marker.data.destinoId,
       );
       if (destino) {
@@ -2795,7 +2941,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       viewer.destroy();
       viewerInstance.current = null;
     };
-  }, [selectedImg, imagenes, viewerRuntimeReady]);
+  }, [selectedImg, viewerRuntimeReady]);
 
   useEffect(() => {
     if (viewerReady && !dragState && !groupDragState) {
@@ -3105,7 +3251,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
 
       if (
         resolvedOverlayPayload.layouts.length ||
-        resolvedOverlayPayload.anchoredOverlays.length
+        resolvedOverlayPayload.anchoredOverlays.length ||
+        Object.keys(resolvedOverlayPayload.userDrawings).length
       ) {
         const overlayUpdateForm = new FormData();
         overlayUpdateForm.append("idproyecto", idproyecto);
@@ -5303,6 +5450,49 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                       : "Activa el modo polígono y haz clic en el visor para trazar."}
                   </p>
 
+                  <div className={styles.scenarioPicker}>
+                    {DRAWING_SCENARIO_TYPES.map((scenario) => {
+                      const Icon = scenario.icon;
+                      const isSelected = selectedDrawingScenario === scenario.key;
+                      return (
+                        <button
+                          key={scenario.key}
+                          type="button"
+                          className={`${styles.scenarioOption} ${isSelected ? styles.scenarioOptionActive : ""}`}
+                          style={{ "--scenario-color": scenario.color }}
+                          onClick={() => setSelectedDrawingScenario(scenario.key)}
+                          title={`Agregar ${scenario.label}`}
+                        >
+                          <Icon size={15} />
+                          <span>{scenario.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedDrawingScenario === "area" && (
+                    <input
+                      type="text"
+                      className={styles.shapeLabelInput}
+                      placeholder="Nombre del área (opcional)"
+                      value={drawingAreaName}
+                      onChange={(e) => setDrawingAreaName(e.target.value)}
+                      maxLength={60}
+                    />
+                  )}
+
+                  <label className={styles.colorPickerRow}>
+                    <span>Color de línea</span>
+                    <span className={styles.colorPreview} style={{ background: drawingColor }} />
+                    <input
+                      type="color"
+                      value={drawingColor}
+                      onChange={(e) => setDrawingColor(e.target.value)}
+                      className={styles.colorInput}
+                      title="Elegir color de línea"
+                    />
+                  </label>
+
                   <div className={styles.panelActions}>
                     <button
                       type="button"
@@ -5353,6 +5543,37 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                           <span className={styles.helperText}>
                             Figura {idx + 1} · {shape.points.length} puntos
                           </span>
+                          <div className={styles.scenarioMiniPicker}>
+                            {DRAWING_SCENARIO_TYPES.map((scenario) => {
+                              const Icon = scenario.icon;
+                              const isSelected =
+                                (shape.scenarioKey || DEFAULT_DRAWING_SCENARIO.key) ===
+                                scenario.key;
+                              return (
+                                <button
+                                  key={scenario.key}
+                                  type="button"
+                                  className={`${styles.scenarioIconButton} ${isSelected ? styles.scenarioIconButtonActive : ""}`}
+                                  style={{ "--scenario-color": scenario.color }}
+                                  onClick={() => setShapeScenario(shape.id, scenario.key)}
+                                  title={scenario.label}
+                                  aria-label={scenario.label}
+                                >
+                                  <Icon size={14} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <label className={styles.colorPickerRow}>
+                            <span>Color de línea</span>
+                            <span className={styles.colorPreview} style={{ background: shape.scenarioColor || "#ffffff" }} />
+                            <input
+                              type="color"
+                              value={shape.scenarioColor || "#ffffff"}
+                              onChange={(e) => setShapeColor(shape.id, e.target.value)}
+                              className={styles.colorInput}
+                            />
+                          </label>
                           <input
                             type="text"
                             className={styles.shapeLabelInput}

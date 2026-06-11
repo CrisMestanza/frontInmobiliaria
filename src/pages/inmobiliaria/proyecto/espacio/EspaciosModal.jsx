@@ -9,7 +9,7 @@ import styles from "./EspaciosModal.module.css";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const GOOGLE_MAPS_LIBRARIES = ["drawing", "places", "geometry"];
-const GOOGLE_MAPS_API_KEY = "AIzaSyA0dsaDHTO3rx48cyq61wbhItaZ_sWcV94";
+const GOOGLE_MAPS_API_KEY = "AIzaSyA6BSNJEb6Ku4PuOLd9qXmAa7wOsUg39UA";
 
 const normalizePolygonCoords = (coords = []) => {
   const normalized = coords

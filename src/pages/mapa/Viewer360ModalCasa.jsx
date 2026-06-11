@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Building2,
+  Home,
+  Map as MapIcon,
   MapPin,
   MapPinned,
   Maximize2,
@@ -22,11 +24,18 @@ import {
   Phone,
   Plus,
   Ruler,
+  Church,
+  Goal,
+  Landmark,
   Navigation,
   Route,
   Share2,
+  Store,
   Tag,
   Trash2,
+  Trees,
+  Volleyball,
+  Waves,
 } from "lucide-react";
 import { withApiBase } from "../../config/api.js";
 import styles from "./Viewer360.module.css";
@@ -138,6 +147,27 @@ const VIEWER_RESOLUTION = 32;
 const VIEWER_MOVE_SPEED = 1.75;
 const LOT_LABEL_MIN_ZOOM = 10;
 const LOT_LABELS_ENABLED = false;
+
+const DRAWING_SCENARIO_TYPES = [
+  { key: "area",     label: "Area libre",       icon: MapIcon,   color: "#0ea5e9" },
+  { key: "lote",     label: "Lote",             icon: Home,      color: "#16a34a" },
+  { key: "parque",   label: "Parque",           icon: Trees,     color: "#22c55e" },
+  { key: "loza",     label: "Loza deportiva",   icon: Volleyball,color: "#22d3ee" },
+  { key: "cancha",   label: "Cancha deportiva", icon: Goal,      color: "#4ade80" },
+  { key: "piscina",  label: "Piscina",          icon: Waves,     color: "#06b6d4" },
+  { key: "plaza",    label: "Plaza",            icon: Landmark,  color: "#f59e0b" },
+  { key: "iglesia",  label: "Iglesia",          icon: Church,    color: "#e2e8f0" },
+  { key: "comercio", label: "Comercio",         icon: Store,     color: "#8b5cf6" },
+];
+
+const DEFAULT_DRAWING_SCENARIO = DRAWING_SCENARIO_TYPES[0];
+
+const getDrawingScenario = (key) =>
+  DRAWING_SCENARIO_TYPES.find((item) => item.key === key) ||
+  DEFAULT_DRAWING_SCENARIO;
+
+const renderCourtIcon = () => null;
+
 const shouldPrioritizeThumb = (idx, currentIndex) =>
   Math.abs(idx - currentIndex) <= GALLERY_PRELOAD_RANGE;
 
@@ -2941,13 +2971,13 @@ const Viewer360Modal = ({
 
   const toP = (v) => `${(v * 100).toFixed(3)}%`;
 
-  const drawSegment = (x1, y1, x2, y2, sw, shadowW, dash, key) => (
+  const drawSegment = (x1, y1, x2, y2, sw, shadowW, dash, key, color = "white") => (
     <g key={key}>
       <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
         stroke="rgba(0,0,0,0.65)" strokeWidth={shadowW}
         strokeDasharray={dash} strokeLinecap="round" />
       <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
-        stroke="white" strokeWidth={sw}
+        stroke={color} strokeWidth={sw}
         strokeDasharray={dash} strokeLinecap="round" />
     </g>
   );
@@ -2978,6 +3008,16 @@ const Viewer360Modal = ({
     const depth = shape.depth || 0;
     const sw = shape.strokeWidth ?? 4;
     const shadowW = sw + 4;
+    const scenario = getDrawingScenario(shape.scenarioKey);
+    const ScenarioIcon = scenario.icon;
+    const scenarioLabel =
+      shape.label || shape.scenarioLabel || (shape.scenarioKey ? scenario.label : "");
+    const displayScenarioLabel =
+      scenarioLabel.length > 18
+        ? `${scenarioLabel.slice(0, 17)}...`
+        : scenarioLabel;
+    const scenarioColor =
+      shape.scenarioColor || (shape.scenarioKey ? scenario.color : "white");
     const dx = depth * 0.004;
     const dy = depth * 0.006;
     const n = pts.length;
@@ -2989,6 +3029,31 @@ const Viewer360Modal = ({
     const pxPts = pts.map((p) => ({ x: p.x * w, y: p.y * h }));
     const lx = pxPts.reduce((s, p) => s + p.x, 0) / pxPts.length;
     const ly = pxPts.reduce((s, p) => s + p.y, 0) / pxPts.length;
+
+    // Orientación del polígono: ángulo de la arista más larga
+    let polyAngle = 0;
+    { let maxLen = 0;
+      for (let i = 0; i < pxPts.length; i++) {
+        const a = pxPts[i]; const b = pxPts[(i + 1) % pxPts.length];
+        const dx2 = b.x - a.x; const dy2 = b.y - a.y;
+        const len = Math.hypot(dx2, dy2);
+        if (len > maxLen) { maxLen = len; polyAngle = Math.atan2(dy2, dx2) * 180 / Math.PI; }
+      }
+    }
+    // Dimensiones en el marco local rotado del polígono
+    const rad = -polyAngle * Math.PI / 180;
+    const cosA = Math.cos(rad); const sinA = Math.sin(rad);
+    const local = pxPts.map(p => ({
+      x: (p.x - lx) * cosA - (p.y - ly) * sinA,
+      y: (p.x - lx) * sinA + (p.y - ly) * cosA,
+    }));
+    const localXs = local.map(p => p.x); const localYs = local.map(p => p.y);
+    const localW = Math.max(...localXs) - Math.min(...localXs);
+    const localH = Math.max(...localYs) - Math.min(...localYs);
+
+    const courtIcon = renderCourtIcon(shape.scenarioKey, lx, ly, localW, localH, polyAngle);
+    const hideLabel = shape.scenarioKey === "area" && !shape.label?.trim();
+    const labelY = courtIcon ? ly - localH * 0.28 : ly;
 
     return (
       <g key={shape.id}>
@@ -3005,31 +3070,39 @@ const Viewer360Modal = ({
           const bnx = next.x + dx; const bny = next.y + dy;
           return (
             <g key={`back-${i}`}>
-              {drawSegment(bx, by, bnx, bny, sw - 1, shadowW - 1, undefined, `bl-${i}`)}
-              {drawSegment(p.x, p.y, bx, by, Math.max(1, sw - 2), shadowW - 2, "5 3", `ed-${i}`)}
+              {drawSegment(bx, by, bnx, bny, sw - 1, shadowW - 1, undefined, `bl-${i}`, scenarioColor)}
+              {drawSegment(p.x, p.y, bx, by, Math.max(1, sw - 2), shadowW - 2, "5 3", `ed-${i}`, scenarioColor)}
             </g>
           );
         })}
         {pts.map((p, i) =>
-          drawSegment(p.x, p.y, pts[(i + 1) % n].x, pts[(i + 1) % n].y, sw, shadowW, undefined, `fl-${i}`)
+          drawSegment(p.x, p.y, pts[(i + 1) % n].x, pts[(i + 1) % n].y, sw, shadowW, undefined, `fl-${i}`, scenarioColor)
         )}
         {pts.map((p, i) => (
           <circle key={i} cx={toP(p.x)} cy={toP(p.y)} r="7"
             fill="white" stroke="rgba(0,0,0,0.65)" strokeWidth="2.5" />
         ))}
-        {shape.label && (
-          <text
-            x={lx} y={ly}
-            textAnchor="middle" dominantBaseline="middle"
-            fontSize={Math.max(13, (shape.strokeWidth ?? 4) * 2.2)}
-            fontWeight="700"
-            fill="white"
-            stroke="rgba(0,0,0,0.75)"
-            strokeWidth="3"
-            paintOrder="stroke fill"
-          >
-            {shape.label}
-          </text>
+        {courtIcon}
+        {!hideLabel && scenarioLabel && (
+          <g transform={`translate(${lx}, ${labelY})`}>
+            {shape.scenarioKey !== "area" && (
+              <ScenarioIcon x={-10} y={-10} width={20} height={20} color="white" strokeWidth={2.2} />
+            )}
+            <text
+              x={shape.scenarioKey !== "area" ? 14 : 0}
+              y={1}
+              textAnchor={shape.scenarioKey !== "area" ? "start" : "middle"}
+              dominantBaseline="middle"
+              fontSize="13"
+              fontWeight="800"
+              fill="white"
+              stroke="rgba(0,0,0,0.78)"
+              strokeWidth="3.5"
+              paintOrder="stroke fill"
+            >
+              {displayScenarioLabel}
+            </text>
+          </g>
         )}
       </g>
     );
