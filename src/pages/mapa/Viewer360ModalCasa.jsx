@@ -3054,6 +3054,12 @@ const Viewer360Modal = ({
     const courtIcon = renderCourtIcon(shape.scenarioKey, lx, ly, localW, localH, polyAngle);
     const hideLabel = shape.scenarioKey === "area" && !shape.label?.trim();
     const labelY = courtIcon ? ly - localH * 0.28 : ly;
+    const hasLabelIcon = shape.scenarioKey !== "area";
+    const pillW = Math.max(68, displayScenarioLabel.length * 8.5 + (hasLabelIcon ? 50 : 22));
+    const pillH = 28;
+    const pillHalf = pillW / 2;
+    const labelIconX = -pillHalf + 9;
+    const labelTextX = hasLabelIcon ? -pillHalf + 34 : 0;
 
     return (
       <g key={shape.id}>
@@ -3075,30 +3081,54 @@ const Viewer360Modal = ({
             </g>
           );
         })}
-        {pts.map((p, i) =>
-          drawSegment(p.x, p.y, pts[(i + 1) % n].x, pts[(i + 1) % n].y, sw, shadowW, undefined, `fl-${i}`, scenarioColor)
-        )}
-        {pts.map((p, i) => (
-          <circle key={i} cx={toP(p.x)} cy={toP(p.y)} r="7"
-            fill="white" stroke="rgba(0,0,0,0.65)" strokeWidth="2.5" />
-        ))}
+        <polygon
+          points={pxPts.map(p => `${p.x},${p.y}`).join(' ')}
+          fill="none"
+          stroke={scenarioColor}
+          strokeWidth={sw + 10}
+          strokeOpacity="0.13"
+          strokeLinejoin="round"
+        />
+        <polygon
+          points={pxPts.map(p => `${p.x},${p.y}`).join(' ')}
+          fill={scenarioColor}
+          fillOpacity="0.17"
+          stroke={scenarioColor}
+          strokeWidth={sw + 1.5}
+          strokeLinejoin="round"
+          strokeOpacity="0.9"
+        />
+        <polygon
+          points={pxPts.map(p => `${p.x},${p.y}`).join(' ')}
+          fill="none"
+          stroke="rgba(255,255,255,0.38)"
+          strokeWidth={sw * 0.38}
+          strokeLinejoin="round"
+        />
         {courtIcon}
         {!hideLabel && scenarioLabel && (
           <g transform={`translate(${lx}, ${labelY})`}>
-            {shape.scenarioKey !== "area" && (
-              <ScenarioIcon x={-10} y={-10} width={20} height={20} color="white" strokeWidth={2.2} />
+            <rect
+              x={-pillHalf} y={-pillH / 2}
+              width={pillW} height={pillH}
+              rx={pillH / 2} ry={pillH / 2}
+              fill="rgba(8,12,22,0.72)"
+              stroke={scenarioColor}
+              strokeWidth="1.4"
+              strokeOpacity="0.65"
+            />
+            {hasLabelIcon && (
+              <ScenarioIcon x={labelIconX} y={-10} width={20} height={20} color="white" strokeWidth={2} />
             )}
             <text
-              x={shape.scenarioKey !== "area" ? 14 : 0}
+              x={labelTextX}
               y={1}
-              textAnchor={shape.scenarioKey !== "area" ? "start" : "middle"}
+              textAnchor={hasLabelIcon ? "start" : "middle"}
               dominantBaseline="middle"
-              fontSize="13"
-              fontWeight="800"
+              fontSize="12"
+              fontWeight="700"
               fill="white"
-              stroke="rgba(0,0,0,0.78)"
-              strokeWidth="3.5"
-              paintOrder="stroke fill"
+              letterSpacing="0.4"
             >
               {displayScenarioLabel}
             </text>
