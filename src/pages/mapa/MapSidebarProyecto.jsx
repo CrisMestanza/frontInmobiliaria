@@ -266,6 +266,12 @@ const ProyectoSidebar = ({
     window.alert("Este proyecto no cuenta con vista 360° disponible.");
   }, [images360, loadImages360]);
 
+  useEffect(() => {
+    if (proyecto?.idproyecto) {
+      loadImages360();
+    }
+  }, [proyecto?.idproyecto, loadImages360]);
+
   const mensajeWhatsapp = encodeURIComponent(
     `Hola, vengo desde GeoHabita.\n` +
       `Estoy interesado en el proyecto *"${proyecto.nombreproyecto}"*.\n` +
@@ -1338,7 +1344,7 @@ const ProyectoSidebar = ({
                     </div>
                   </div>
 
-                  {proyecto?.idproyecto && (
+                  {images360.length > 0 && (
                     <button
                       onClick={handleOpen360}
                       className={styles.btn360}

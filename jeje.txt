@@ -1,0 +1,3114 @@
+Django REST framework
+Get Encuesta
+
+Get Encuesta
+Obtiene todos los datos con puntaje individual y total por docente
+
+GET /api/getencuesta/
+HTTP 200 OK
+Allow: GET, OPTIONS
+Content-Type: application/json
+Vary: Accept
+
+[
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "00987431",
+        "FullName": "PUYÓ ROMERO JAVIER AUGUSTO",
+        "departamento_academico": "CIENCIAS AMBIENTALES Y SANITARIAS                 ",
+        "puntaje_total": 68,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 3,
+                        "respuesta": "Ni acuerdo, ni desacuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "01112379",
+        "FullName": "MOZOMBITE TENAZOA PACITA MERCEDES",
+        "departamento_academico": "HUMANIDADES Y CIENCIAS SOCIALES                   ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "01135048",
+        "FullName": "ROMERO MALPARTIDA JANET DE JESÚS",
+        "departamento_academico": "OBSTETRICIA",
+        "puntaje_total": 73,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "01146693",
+        "FullName": "FASANANDO PUYO TERCERO",
+        "departamento_academico": "CIENCIAS ECONÓMICAS                               ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "07467952",
+        "FullName": "ORDOÑEZ SÁNCHEZ VICTOR HUGO",
+        "departamento_academico": "CIENCIAS ECONÓMICAS                               ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "17802330",
+        "FullName": "HUAMAN GARCÍA DAVID",
+        "departamento_academico": "HUMANIDADES Y CIENCIAS SOCIALES                   ",
+        "puntaje_total": 69,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "40016813",
+        "FullName": "MINGA SARMIENTO MILDER EDGAR",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 74,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "40033258",
+        "FullName": "LLOCLLA ROSILLO DORIS MARIBEL",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 70,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "40211032",
+        "FullName": "BORBOR VARGAS JHONY ALEXANDER",
+        "departamento_academico": "CIENCIAS AMBIENTALES Y SANITARIAS                 ",
+        "puntaje_total": 60,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "40392476",
+        "FullName": "CHOY REÁTEGUI WILLIAN",
+        "departamento_academico": "CIENCIAS ECONÓMICAS                               ",
+        "puntaje_total": 60,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "42405118",
+        "FullName": "PAREDES DÍAZ ELISEO",
+        "departamento_academico": "CIENCIAS ECONÓMICAS                               ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "42516093",
+        "FullName": "LOPEZ PEÑA ARMELO",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 62,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "42817344",
+        "FullName": "GUEVARA RABANAL LOURDES",
+        "departamento_academico": "CIENCIAS ECONÓMICAS                               ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "43563296",
+        "FullName": "HUANCAS ZURITA JOSÉ REYNALDO",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 72,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "45247777",
+        "FullName": "MENDOZA HERNANDEZ NORVIL",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "46038260",
+        "FullName": "CEDAMANOS SAAVEDRA NICOL LISBETH",
+        "departamento_academico": "CIENCIAS ECONÓMICAS                               ",
+        "puntaje_total": 60,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "46199435",
+        "FullName": "CABRERA SANTAMARIA MARCO ANTONIO",
+        "departamento_academico": "CIENCIAS AMBIENTALES Y SANITARIAS                 ",
+        "puntaje_total": 60,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "46287059",
+        "FullName": "MACEDO PIÑA CINTHIA",
+        "departamento_academico": "IDIOMAS                                           ",
+        "puntaje_total": 70,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 3,
+                        "respuesta": "Ni acuerdo, ni desacuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 3,
+                        "respuesta": "Ni acuerdo, ni desacuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "70413808-1",
+        "FullName": "CASTILLO RODRIGUEZ YORKA MARLEY",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "70413812",
+        "FullName": "CASTILLO RODRIGUEZ LORENA",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "77287276",
+        "FullName": "FERNÁNDEZ HURTADO STALYN",
+        "departamento_academico": "INGENIERÍA CIVIL",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D01122181",
+        "FullName": "PINTO RAMIREZ KARIN",
+        "departamento_academico": "DERECHO Y CIENCIAS POLÍTICAS                      ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D01155022",
+        "FullName": "DEL AGUILA HIDALGO YOLANDA SOFIA",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 73,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D44176530",
+        "FullName": "SUXE PADILLA RONAL",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 74,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D45455965",
+        "FullName": "SILVA CASTILLO JHANET",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 71,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D45763299",
+        "FullName": "GARCÍA JULCA DEYSI BEATRIZ",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 70,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D46482724",
+        "FullName": "SÁNCHEZ BARTURÉN MARÍA VERÓNICA",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D48220257",
+        "FullName": "DELGADO ROMERO JOSE HEINER",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 61,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D71116794",
+        "FullName": "MENDOZA FERNÁNDEZ TALITA RUTH",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D72565637",
+        "FullName": "JULCA SALVADOR CARMEN ELUSAY",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 75,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "nombre_encuesta": "ENCUESTA DE AUTOEVALUACIÓN DOCENTE  (TDR) ",
+        "UserName": "D74612989",
+        "FullName": "PAIVA ZAPATA CARLOS ALBERTO",
+        "departamento_academico": "EDUCACIÓN                                         ",
+        "puntaje_total": 74,
+        "PBM": 75,
+        "categorias": [
+            {
+                "amarrillo": "Cumplimiento de sílabos: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Desarrollo los contenidos del curso conforme al sílabo aprobado. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Relaciono las actividades de aprendizaje con los resultados esperados del sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Realizo las evaluaciones conforme a lo establecido en el sílabo. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Registro oportunamente las calificaciones en el SIGAU",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Desempeño pedagógico: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Planifico mis sesiones considerando los resultados de aprendizaje esperados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Utilizo estrategias didácticas activas y pertinentes al contenido del curso.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo la participación crítica y reflexiva de los estudiantes.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Evalúo el aprendizaje basándome en los criterios establecidos, asegurando una retroalimentación oportuna que impulse el desempeño académico de los estudiantes",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "rindo consejería académica en los cursos asignados para facilitar la superación de obstáculos y asegurar la adaptación exitosa de los estudiantes a la vida universitaria",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Impulso la investigación formativa en los cursos asignados",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Promuevo actividades de Responsabilidad Social Universitaria en los cursos asignados",
+                        "Puntuacion": 4,
+                        "respuesta": "De acuerdo"
+                    }
+                ]
+            },
+            {
+                "amarrillo": "Normas institucionales: SOLO PARA DOCENTES EN PRESTACIÓN DE SERVICIOS (TDR), SI USTED ES ORDNARIO OMITIR",
+                "preguntas": [
+                    {
+                        "pregunta": "Cumplo con los horarios establecidos para clases. ",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Presento oportunamente los informes académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Mantengo una comunicación respetuosa y colaborativa con estudiantes y colegas.",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    },
+                    {
+                        "pregunta": "Cumplo con los plazos de entrega de sílabos y materiales académicos",
+                        "Puntuacion": 5,
+                        "respuesta": "Muy de acuerdo"
+                    }
+                ]
+            }
+        ]
+    }
+]
