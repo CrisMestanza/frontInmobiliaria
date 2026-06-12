@@ -143,7 +143,7 @@ const VIEWER_LOADING_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 `)}`;
 
 const GALLERY_PRELOAD_RANGE = 2;
-const VIEWER_RESOLUTION = 32;
+const VIEWER_RESOLUTION = 64;
 const VIEWER_MOVE_SPEED = 1.75;
 const LOT_LABEL_MIN_ZOOM = 10;
 const LOT_LABELS_ENABLED = false;
@@ -1871,7 +1871,7 @@ const Viewer360Modal = ({
       indexes.add((currentIndex - i + normalizedImages.length) % normalizedImages.length);
     }
     indexes.forEach((idx) => {
-      const src = normalizedImages[idx]?.imagen;
+      const src = normalizedImages[idx]?.imagen_original;
       if (!src || preloadBlobsRef.current.has(src) || preloadPendingRef.current.has(src)) return;
       preloadPendingRef.current.add(src);
       warmUpImage(src, 120000).then((blobUrl) => {
@@ -2074,19 +2074,15 @@ const Viewer360Modal = ({
       const initialPitch = Number(initialLayout?.pitch);
       const initialZoom = Number(initialLayout?.zoomLevel);
 
-      let firstSrc = preloadBlobsRef.current.get(firstImage?.imagen);
-      if (!firstSrc && firstImage?.imagen) {
-        const blob = await warmUpImage(firstImage.imagen, 8000);
-        if (!active) return;
-        if (blob) {
-          preloadBlobsRef.current.set(firstImage.imagen, blob);
-          firstSrc = blob;
-        } else {
-          firstSrc = firstImage.imagen;
-        }
-      }
-      if (!firstSrc) firstSrc = firstImage?.imagen;
-      console.log("[360] PSV panorama src:", firstSrc?.startsWith("blob:") ? "✅ blob:" + firstSrc.slice(5, 20) + "…" : "⚠️ raw URL: " + firstSrc);
+      const fullKey = firstImage?.imagen_original;
+      const thumbKey = firstImage?.imagen;
+
+      // Mostrar inmediatamente: full-res si ya está en caché, si no el thumbnail
+      const cachedFull = fullKey ? preloadBlobsRef.current.get(fullKey) : null;
+      let firstSrc = cachedFull
+        || preloadBlobsRef.current.get(thumbKey)
+        || thumbKey
+        || fullKey;
 
       const safeZoom = Number.isFinite(initialZoom)
         ? Math.max(40, Math.min(70, initialZoom))
@@ -2107,8 +2103,8 @@ const Viewer360Modal = ({
         plugins: [[runtime.MarkersPlugin, {}]],
         rendererParameters: {
           alpha: false,
-          antialias: false,
-          powerPreference: "default",
+          antialias: true,
+          powerPreference: "high-performance",
         },
       };
 
@@ -2117,6 +2113,20 @@ const Viewer360Modal = ({
       viewerInstance = new runtime.Viewer(viewerOptions);
       viewerRef.current = viewerInstance;
       lastShownSrcRef.current = firstSrc;
+
+      // Carga full-res en segundo plano y actualiza silenciosamente
+      if (!cachedFull && fullKey && fullKey !== firstSrc) {
+        warmUpImage(fullKey, 120000).then((blobUrl) => {
+          if (!active || !viewerRef.current) return;
+          const upgradeSrc = blobUrl || fullKey;
+          if (blobUrl) preloadBlobsRef.current.set(fullKey, blobUrl);
+          if (lastShownSrcRef.current !== upgradeSrc) {
+            viewerRef.current.setPanorama(upgradeSrc, { transition: false })
+              .then(() => { lastShownSrcRef.current = upgradeSrc; })
+              .catch(() => {});
+          }
+        });
+      }
 
       const markers = viewerInstance.getPlugin(runtime.MarkersPlugin);
       markers.addEventListener("select-marker", (event) => {
@@ -2154,20 +2164,45 @@ const Viewer360Modal = ({
 
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!viewer || !viewerReady || !currentImage?.imagen) return;
-    const src = preloadBlobsRef.current.get(currentImage.imagen) || currentImage.imagen;
-    if (src === lastShownSrcRef.current) return;
+    if (!viewer || !viewerReady || !currentImage) return;
+
+    const fullKey = currentImage.imagen_original;
+    const thumbKey = currentImage.imagen;
+
+    // Mostrar inmediatamente: full-res si está en caché, si no el thumbnail
+    const cachedFull = fullKey ? preloadBlobsRef.current.get(fullKey) : null;
+    const src = cachedFull
+      || preloadBlobsRef.current.get(thumbKey)
+      || thumbKey
+      || fullKey;
+
+    if (!src || src === lastShownSrcRef.current) return;
     lastShownSrcRef.current = src;
 
     Promise.resolve(
       viewer.setPanorama(src, { caption: currentImage.nombre, transition: true }),
     )
-      .then(() => setViewerReady(true))
+      .then(() => {
+        setViewerReady(true);
+        // Si mostramos thumbnail, actualizar a full-res en segundo plano
+        if (!cachedFull && fullKey && fullKey !== src) {
+          warmUpImage(fullKey, 120000).then((blobUrl) => {
+            if (!viewerRef.current) return;
+            const upgradeSrc = blobUrl || fullKey;
+            if (blobUrl) preloadBlobsRef.current.set(fullKey, blobUrl);
+            if (lastShownSrcRef.current !== upgradeSrc) {
+              viewerRef.current.setPanorama(upgradeSrc, { transition: false })
+                .then(() => { lastShownSrcRef.current = upgradeSrc; })
+                .catch(() => {});
+            }
+          });
+        }
+      })
       .catch((error) => {
         console.warn("No se pudo cambiar la vista 360:", error);
         setViewerLoadMessage("No se pudo cargar la imagen 360.");
       });
-  }, [currentImage?.imagen, viewerReady]);
+  }, [currentImage?.imagen_original, viewerReady]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -2993,16 +3028,14 @@ const Viewer360Modal = ({
           try {
             const pos = viewer.dataHelper.sphericalCoordsToViewerCoords({ yaw, pitch });
             if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return null;
-            const nx = pos.x / el.clientWidth;
-            const ny = pos.y / el.clientHeight;
-            // Reject points more than 30% outside the viewport — avoids distorted
-            // lines that shoot off-screen when the camera pans away from the shape
+            const nx = Math.round(pos.x) / el.clientWidth;
+            const ny = Math.round(pos.y) / el.clientHeight;
             if (nx < -0.3 || nx > 1.3 || ny < -0.3 || ny > 1.3) return null;
             return { x: nx, y: ny };
           } catch { return null; }
         });
         if (projected.every(Boolean)) pts = projected;
-        else return null; // One or more vertices are off-screen — hide cleanly
+        else return null;
       }
     }
     const depth = shape.depth || 0;
@@ -3061,12 +3094,15 @@ const Viewer360Modal = ({
     const labelIconX = -pillHalf + 9;
     const labelTextX = hasLabelIcon ? -pillHalf + 34 : 0;
 
+    const pxPoints = pxPts.map(p => `${p.x},${p.y}`).join(' ');
+
     return (
       <g key={shape.id}>
-        {shape.showShadow && (
+        {/* Sombra base solo cuando hay etiqueta visible */}
+        {shape.showShadow && !hideLabel && (
           <polygon
-            points={pxPts.map((p) => `${p.x},${p.y}`).join(' ')}
-            fill="rgba(0,0,0,0.38)"
+            points={pxPoints}
+            fill="rgba(0,0,0,0.22)"
             stroke="none"
           />
         )}
@@ -3081,44 +3117,62 @@ const Viewer360Modal = ({
             </g>
           );
         })}
+        {/* Halo exterior solo cuando hay etiqueta — evita "sombra" en trazos sin nombre */}
+        {!hideLabel && (
+          <polygon
+            points={pxPoints}
+            fill="none"
+            stroke={scenarioColor}
+            strokeWidth={sw + 14}
+            strokeOpacity="0.09"
+            strokeLinejoin="round"
+          />
+        )}
+        {/* Relleno principal */}
         <polygon
-          points={pxPts.map(p => `${p.x},${p.y}`).join(' ')}
-          fill="none"
-          stroke={scenarioColor}
-          strokeWidth={sw + 10}
-          strokeOpacity="0.13"
-          strokeLinejoin="round"
-        />
-        <polygon
-          points={pxPts.map(p => `${p.x},${p.y}`).join(' ')}
+          points={pxPoints}
           fill={scenarioColor}
-          fillOpacity="0.17"
+          fillOpacity={hideLabel ? "0.13" : "0.20"}
           stroke={scenarioColor}
-          strokeWidth={sw + 1.5}
+          strokeWidth={hideLabel ? sw + 1 : sw + 4}
           strokeLinejoin="round"
-          strokeOpacity="0.9"
+          strokeOpacity={hideLabel ? "0.70" : "0.88"}
         />
+        {/* Borde interior blanco — da crisp y profundidad */}
         <polygon
-          points={pxPts.map(p => `${p.x},${p.y}`).join(' ')}
+          points={pxPoints}
           fill="none"
-          stroke="rgba(255,255,255,0.38)"
-          strokeWidth={sw * 0.38}
+          stroke="rgba(255,255,255,0.28)"
+          strokeWidth={sw * 0.32}
           strokeLinejoin="round"
         />
         {courtIcon}
         {!hideLabel && scenarioLabel && (
           <g transform={`translate(${lx}, ${labelY})`}>
+            {/* Sombra suave detrás de la pastilla */}
+            <rect
+              x={-pillHalf + 2} y={-pillH / 2 + 3}
+              width={pillW} height={pillH}
+              rx={pillH / 2} ry={pillH / 2}
+              fill="rgba(0,0,0,0.30)"
+            />
+            {/* Pastilla principal */}
             <rect
               x={-pillHalf} y={-pillH / 2}
               width={pillW} height={pillH}
               rx={pillH / 2} ry={pillH / 2}
-              fill="rgba(8,12,22,0.72)"
+              fill="rgba(10,14,26,0.78)"
               stroke={scenarioColor}
-              strokeWidth="1.4"
-              strokeOpacity="0.65"
+              strokeWidth="1.5"
+              strokeOpacity="0.70"
             />
             {hasLabelIcon && (
-              <ScenarioIcon x={labelIconX} y={-10} width={20} height={20} color="white" strokeWidth={2} />
+              <ScenarioIcon
+                x={labelIconX} y={-10}
+                width={20} height={20}
+                color={scenarioColor}
+                strokeWidth={2.2}
+              />
             )}
             <text
               x={labelTextX}
@@ -3128,7 +3182,7 @@ const Viewer360Modal = ({
               fontSize="12"
               fontWeight="700"
               fill="white"
-              letterSpacing="0.4"
+              letterSpacing="0.5"
             >
               {displayScenarioLabel}
             </text>
