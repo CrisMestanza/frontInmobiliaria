@@ -961,6 +961,13 @@ const normalizeOverlayBundle = (rawOverlay) => {
     return acc;
   }, {});
 
+  const additionalOverlays =
+    candidate.additionalOverlays &&
+    typeof candidate.additionalOverlays === "object" &&
+    !Array.isArray(candidate.additionalOverlays)
+      ? candidate.additionalOverlays
+      : {};
+
   return {
     geometry: candidate.geometry || null,
     layouts,
@@ -969,6 +976,7 @@ const normalizeOverlayBundle = (rawOverlay) => {
     anchoredList: anchoredRaw,
     annotations: Array.isArray(candidate.annotations) ? candidate.annotations : [],
     userDrawings: (candidate.userDrawings && typeof candidate.userDrawings === "object") ? candidate.userDrawings : {},
+    additionalOverlays,
   };
 };
 
@@ -1378,6 +1386,17 @@ const Viewer360Modal = ({
 
     return null;
   }, [currentImageId, overlayBundles]);
+
+  const currentAdditionalOverlays = useMemo(() => {
+    const imageKey = String(currentImageId ?? "");
+    if (!imageKey) return [];
+    for (const entry of overlayBundles) {
+      const instances = entry.bundle?.additionalOverlays?.[imageKey];
+      if (Array.isArray(instances) && instances.length) return instances;
+    }
+    return [];
+  }, [currentImageId, overlayBundles]);
+
   const currentOverlayBundle = useMemo(() => {
     const imageKey = String(currentImageId ?? "");
     if (!imageKey) return null;
@@ -2581,6 +2600,60 @@ const Viewer360Modal = ({
       });
     }
 
+    // Render additional committed overlay instances (multi-import from editor)
+    currentAdditionalOverlays.forEach((instance, instanceIdx) => {
+      if (!instance) return;
+      const instId = instance.instanceId || instanceIdx;
+      const hasSphProj = isValidPolygonPixels(instance.projectPolygon);
+      const hasPxProj = isValidPolygonPixels(instance.projectPolygonPixels);
+      if (instance.showProjectOutline !== false && (hasSphProj || hasPxProj)) {
+        markers.addMarker({
+          id: `overlay-project-extra-${currentImageId}-${instId}`,
+          ...(hasSphProj ? { polygon: instance.projectPolygon } : { polygonPixels: instance.projectPolygonPixels }),
+          svgStyle: {
+            fill: "rgba(34, 197, 94, 0.06)",
+            stroke: "rgba(74, 222, 128, 0.78)",
+            strokeWidth: "3.5px",
+            strokeDasharray: "12 7",
+            strokeLinejoin: "round",
+            strokeOpacity: "0.85",
+          },
+          zIndex: 5,
+        });
+      }
+      (instance.lotPolygons || []).forEach((lote, lotIdx) => {
+        const hasSph = isValidPolygonPixels(lote.polygon);
+        const hasPx = isValidPolygonPixels(lote.polygonPixels);
+        if (!hasSph && !hasPx) return;
+        const loteId = getLoteId(lote);
+        const mKey = loteId ?? lote.nombre ?? lotIdx;
+        const isSelected = String(loteId ?? "") === selectedLoteId;
+        const status = getLoteStatusMeta(lote.vendido);
+        const availableVariant = availableLotVariantById[String(loteId ?? `idx-${lotIdx}`)] ?? 0;
+        markers.addMarker({
+          id: `overlay-lote-extra-${currentImageId}-${instId}-${mKey}-${lotIdx}`,
+          ...(hasSph ? { polygon: lote.polygon } : { polygonPixels: lote.polygonPixels }),
+          tooltip: {
+            content: buildLoteTooltipContent(lote, status),
+            className: `gh-lot-tooltip gh-lot-tooltip-${status.key}`,
+            trigger: "hover",
+          },
+          className: `gh-portal-lot-marker gh-lot-${status.key} ${isSelected ? "gh-lot-selected" : ""}`,
+          data: { type: "lote", idlote: loteId, lote: { ...lote, idlote: loteId } },
+          svgStyle: getLoteSvgStyle({
+            status,
+            isSelected,
+            overlayOpacity: lote.lotOpacity ?? instance.lotOpacity,
+            loteColor: lote.color,
+            availableVariant,
+            textureMode: lote.textureMode ?? instance.textureMode ?? "solid",
+            showShadow: instance.showShadow !== false,
+          }),
+          zIndex: isSelected ? 9 : 6,
+        });
+      });
+    });
+
     hotspots.forEach((hotspot) => {
       if (
         !Number.isFinite(Number(hotspot.yaw)) ||
@@ -2659,6 +2732,7 @@ const Viewer360Modal = ({
     isPanoramaLoading,
     hotspots,
     overlayToRender,
+    currentAdditionalOverlays,
     currentImageId,
     savedDrawings,
     userDrawings,

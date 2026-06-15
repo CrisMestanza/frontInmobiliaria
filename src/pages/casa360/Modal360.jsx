@@ -1115,6 +1115,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const [geometryLoading, setGeometryLoading] = useState(false);
   const [overlayLayouts, setOverlayLayouts] = useState({});
   const [anchoredOverlays, setAnchoredOverlays] = useState({});
+  const [additionalOverlayInstances, setAdditionalOverlayInstances] = useState({});
   const [layoutEditMode, setLayoutEditMode] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [selectedLotIds, setSelectedLotIds] = useState(new Set());
@@ -1154,6 +1155,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const overlayLayoutsRef = useRef({});
   const selectedOverlayConfigRef = useRef(null);
   const anchoredOverlaysRef = useRef({});
+  const additionalOverlayInstancesRef = useRef({});
   const layoutEditModeRef = useRef(false);
   const overlayVisibleRef = useRef(false);
   const alignmentModeRef = useRef(DEFAULT_ALIGNMENT_STATE);
@@ -1217,6 +1219,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       vertices: projectGeometry.projectCount,
     };
   }, [projectGeometry]);
+
+  const additionalInstanceCount = useMemo(
+    () => (additionalOverlayInstances[selectedImageId] || []).length,
+    [additionalOverlayInstances, selectedImageId],
+  );
 
   const alignmentSnapCandidates = useMemo(
     () => createAlignmentSnapCandidates(projectGeometry),
@@ -1783,6 +1790,54 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       });
     }
 
+    // Render additional overlay instances (committed from previous imports on this image).
+    // These are always visible regardless of edit mode — they are permanently fixed.
+    {
+      const additionalInstances =
+        additionalOverlayInstancesRef.current[String(selectedImg.id_imagen)] || [];
+      additionalInstances.forEach((instance, instanceIdx) => {
+        if (!instance || !hasAnchoredGeometry(instance)) return;
+        const instId = instance.instanceId || instanceIdx;
+
+        if (
+          instance.showProjectOutline !== false &&
+          ((Array.isArray(instance.projectPolygon) && instance.projectPolygon.length >= 3) ||
+            (Array.isArray(instance.projectPolygonPixels) && instance.projectPolygonPixels.length >= 3))
+        ) {
+          const hasSph = Array.isArray(instance.projectPolygon) && instance.projectPolygon.length >= 3;
+          markers.addMarker({
+            id: `overlay-project-extra-${selectedImg.id_imagen}-${instId}`,
+            ...(hasSph ? { polygon: instance.projectPolygon } : { polygonPixels: instance.projectPolygonPixels }),
+            svgStyle: { fill: "rgba(14, 116, 44, 0.26)", stroke: "#14532d", strokeWidth: "2px", strokeLinejoin: "round" },
+            zIndex: 5,
+          });
+        }
+
+        (instance.lotPolygons || []).forEach((lote, lotIdx) => {
+          const hasSph = Array.isArray(lote.polygon) && lote.polygon.length >= 3;
+          const hasPx = Array.isArray(lote.polygonPixels) && lote.polygonPixels.length >= 3;
+          if (!hasSph && !hasPx) return;
+          const mKey = lote.idlote ?? lote.nombre ?? lotIdx;
+          const tMode = lote.textureMode ?? instance.textureMode ?? "solid";
+          const lotFill = tMode === "outline" ? "none" : (lote.color || "#22c55e");
+          const lotOpacity =
+            tMode === "outline" ? "1" : tMode === "transparent" ? "0.35" : String(instance.lotOpacity ?? 0.82);
+          markers.addMarker({
+            id: `overlay-lote-extra-${selectedImg.id_imagen}-${instId}-${mKey}-${lotIdx}`,
+            ...(hasSph ? { polygon: lote.polygon } : { polygonPixels: lote.polygonPixels }),
+            svgStyle: {
+              fill: lotFill,
+              fillOpacity: lotOpacity,
+              stroke: "rgba(255,255,255,0.75)",
+              strokeWidth: "0.8px",
+              strokeLinejoin: "round",
+            },
+            zIndex: 6,
+          });
+        });
+      });
+    }
+
     conexionesActuales.forEach((hotspot) => {
       markers.addMarker({
         id: hotspot.id,
@@ -2184,14 +2239,14 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       selectedOverlayConfigRef.current || selectedOverlayConfig;
     if (!currentConfig?.visible) return null;
     captureCurrentLayoutRuntime();
-    // When NOT in edit mode and a valid snapshot already exists, return it as-is.
+    // When a valid snapshot already exists, return it as-is.
     // Rebuilding here would re-project the 2D overlay through the CURRENT camera
     // position, which may differ from when the user positioned the lots, corrupting
     // the stored spherical coordinates.
-    if (!layoutEditModeRef.current) {
-      const existing = anchoredOverlaysRef.current[String(selectedImageId)];
-      if (existing && hasAnchoredGeometry(existing)) return existing;
-    }
+    // Callers that want a fresh re-projection (e.g. intentional exit from edit mode)
+    // must delete anchoredOverlaysRef.current[imageId] before calling this function.
+    const existing = anchoredOverlaysRef.current[String(selectedImageId)];
+    if (existing && hasAnchoredGeometry(existing)) return existing;
     return snapshotOverlayForImage(selectedImageId);
   };
 
@@ -2310,6 +2365,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
 
       const loadedLayouts = {};
       const loadedAnchoredOverlays = {};
+      const loadedAdditionalInstances = {};
       const loadedAnnotationsMap = new Map();
       const loadedUserDrawings = {};
       let loadedGeometry = null;
@@ -2358,6 +2414,20 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             ];
           });
         }
+
+        if (payload.additionalOverlays && typeof payload.additionalOverlays === "object") {
+          Object.entries(payload.additionalOverlays).forEach(([imageId, instances]) => {
+            if (!imageId || !Array.isArray(instances) || !instances.length) return;
+            const key = String(imageId);
+            const valid = instances.filter((inst) => hasAnchoredGeometry(inst));
+            if (valid.length) {
+              loadedAdditionalInstances[key] = [
+                ...(loadedAdditionalInstances[key] || []),
+                ...valid,
+              ];
+            }
+          });
+        }
       });
 
       if (loadedGeometry) {
@@ -2372,6 +2442,13 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       }
       if (Object.keys(loadedAnchoredOverlays).length) {
         setAnchoredOverlays((prev) => ({ ...loadedAnchoredOverlays, ...prev }));
+      }
+      if (Object.keys(loadedAdditionalInstances).length) {
+        additionalOverlayInstancesRef.current = {
+          ...loadedAdditionalInstances,
+          ...additionalOverlayInstancesRef.current,
+        };
+        setAdditionalOverlayInstances((prev) => ({ ...loadedAdditionalInstances, ...prev }));
       }
       if (loadedAnnotationsMap.size) {
         setAnnotations((prev) => {
@@ -2406,23 +2483,62 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     event?.stopPropagation();
     if (!selectedImg) return;
 
+    // If there's already a configured overlay, commit it as an additional instance
+    // and start a fresh one at DEFAULT position.
+    const existingConfig = overlayLayoutsRef.current[selectedImageId];
+    if (existingConfig?.visible) {
+      // Prefer the already-computed spherical snapshot (camera-independent) over rebuilding.
+      // buildAnchoredOverlaySnapshot re-projects from current camera which can drift.
+      const snapshot =
+        anchoredOverlaysRef.current[selectedImageId] ||
+        buildAnchoredOverlaySnapshot(selectedImageId, existingConfig);
+      if (snapshot && hasAnchoredGeometry(snapshot)) {
+        const instanceId = `inst-${Date.now()}`;
+        const newInstance = { ...snapshot, instanceId };
+        const current = additionalOverlayInstancesRef.current[selectedImageId] || [];
+        const updated = [...current, newInstance];
+        additionalOverlayInstancesRef.current = {
+          ...additionalOverlayInstancesRef.current,
+          [selectedImageId]: updated,
+        };
+        setAdditionalOverlayInstances((prev) => ({ ...prev, [selectedImageId]: updated }));
+      }
+      // Clear the main slot so the new import starts completely fresh
+      delete anchoredOverlaysRef.current[selectedImageId];
+      setAnchoredOverlays((prev) => {
+        const next = { ...prev };
+        delete next[selectedImageId];
+        return next;
+      });
+    }
+
     const geometry = await load2DGeometry();
     if (!geometry) return;
 
-    const currentConfig = overlayLayouts[selectedImageId] || {};
-    setOverlayLayouts((prev) => ({
-      ...prev,
-      [selectedImageId]: {
-        ...DEFAULT_LAYOUT_CONFIG,
-        ...currentConfig,
-        visible: true,
-      },
-    }));
+    const newConfig = { ...DEFAULT_LAYOUT_CONFIG, visible: true };
+    const nextLayouts = { ...overlayLayoutsRef.current, [selectedImageId]: newConfig };
+    overlayLayoutsRef.current = nextLayouts;
+    selectedOverlayConfigRef.current = newConfig;
+    setOverlayLayouts(nextLayouts);
     setLayoutEditMode(true);
     setAdvancedMode(false);
     setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
     resetPointMode();
     window.alertSuccess?.("Trazos 2D importados en esta vista 360.");
+  };
+
+  const clearAdditionalInstancesForCurrentImage = () => {
+    if (!selectedImageId) return;
+    additionalOverlayInstancesRef.current = Object.fromEntries(
+      Object.entries(additionalOverlayInstancesRef.current).filter(
+        ([imageId]) => imageId !== selectedImageId,
+      ),
+    );
+    setAdditionalOverlayInstances((prev) => {
+      const next = { ...prev };
+      delete next[selectedImageId];
+      return next;
+    });
   };
 
   const clearAnchoredOverlayForCurrentImage = () => {
@@ -2437,6 +2553,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       delete next[selectedImageId];
       return next;
     });
+    clearAdditionalInstancesForCurrentImage();
   };
 
   const toggleSelectedOverlayVisibility = () => {
@@ -2833,6 +2950,9 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     if (alignmentModeRef.current?.active) return;
 
     if (layoutEditMode) {
+      // Clear existing snapshot so persistCurrentOverlayPosition re-projects
+      // with the user's new intentional position before exiting edit mode.
+      delete anchoredOverlaysRef.current[String(selectedImageId)];
       persistCurrentOverlayPosition();
       setLayoutEditMode(false);
       setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
@@ -2875,6 +2995,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   useEffect(() => { annotationsRef.current = annotations; }, [annotations]);
   useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
   useEffect(() => { currentPolygonPointsRef.current = currentPolygonPoints; }, [currentPolygonPoints]);
+  useEffect(() => { additionalOverlayInstancesRef.current = additionalOverlayInstances; }, [additionalOverlayInstances]);
 
   // Re-proyectar los trazos completados cuando el visor gira (solo si hay trazos activos)
   useEffect(() => {
@@ -3047,6 +3168,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     dragState,
     groupDragState,
     annotations,
+    additionalOverlayInstances,
   ]);
 
   const handleBatchFiles = (event) => {
@@ -3184,6 +3306,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     );
     const skippedConnections = conexiones.length - resolvableConnections.length;
     stopOverlayDrag();
+    // If saving while in edit mode, force fresh re-projection to capture current position.
+    if (layoutEditModeRef.current) {
+      delete anchoredOverlaysRef.current[String(selectedImageId)];
+    }
     const persistedSnapshot = persistCurrentOverlayPosition();
     setLayoutEditMode(false);
     setAlignmentMode(DEFAULT_ALIGNMENT_STATE);
@@ -3320,6 +3446,13 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         if (newId && shapes?.length) remappedUserDrawings[newId] = shapes;
       });
 
+      const remappedAdditionalOverlays = {};
+      Object.entries(additionalOverlayInstancesRef.current).forEach(([imgId, instances]) => {
+        if (!instances?.length) return;
+        const newId = remapImageId(imgId, imageMap);
+        if (newId) remappedAdditionalOverlays[newId] = instances.map((inst) => ({ ...inst, imageId: newId }));
+      });
+
       const resolvedOverlayPayload = {
         geometry: geometryForPayload,
         clearMissingOverlays: true,
@@ -3336,6 +3469,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           imageId: remapImageId(String(a.imageId), imageMap),
         })),
         userDrawings: remappedUserDrawings,
+        additionalOverlays: remappedAdditionalOverlays,
       };
 
       if (
@@ -3411,6 +3545,14 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         });
         return next;
       });
+
+      const remappedAdditionalRef = {};
+      Object.entries(additionalOverlayInstancesRef.current).forEach(([imageId, instances]) => {
+        const resolvedId = String(imageMap[imageId] || imageId);
+        remappedAdditionalRef[resolvedId] = (instances || []).map((inst) => ({ ...inst, imageId: resolvedId }));
+      });
+      additionalOverlayInstancesRef.current = remappedAdditionalRef;
+      setAdditionalOverlayInstances(() => ({ ...remappedAdditionalRef }));
 
       setSelectedImg((prev) => {
         if (!prev) return prev;
@@ -4482,9 +4624,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     className={styles.btnPrimary360}
                     onClick={importLayoutIntoCurrentImage}
                     disabled={!selectedImg || geometryLoading}
+                    title={additionalInstanceCount > 0 ? `Fija el mapa actual y añade uno nuevo (${additionalInstanceCount + 1} mapas en total tras esto)` : "Importa el plano 2D sobre esta vista 360"}
                   >
                     <MapIcon size={16} />
-                    {geometryLoading ? "Importando..." : "Importar puntos 2D"}
+                    {geometryLoading ? "Importando..." : additionalInstanceCount > 0 ? `+ Añadir mapa 2D (${additionalInstanceCount} fijo${additionalInstanceCount !== 1 ? "s" : ""})` : "Importar puntos 2D"}
                   </button>
                   <button
                     type="button"
@@ -4497,6 +4640,19 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     {geometryLoading ? "..." : "Reimportar"}
                   </button>
                 </div>
+                {additionalInstanceCount > 0 && (
+                  <div className={styles.panelActions}>
+                    <button
+                      type="button"
+                      className={styles.btnCancel}
+                      onClick={clearAdditionalInstancesForCurrentImage}
+                      title="Elimina todos los mapas 2D fijos de esta imagen, dejando solo el actual"
+                    >
+                      <Trash2 size={16} />
+                      Limpiar {additionalInstanceCount} mapa{additionalInstanceCount !== 1 ? "s" : ""} fijo{additionalInstanceCount !== 1 ? "s" : ""}
+                    </button>
+                  </div>
+                )}
                 <div className={styles.panelActions}>
                   <button
                     type="button"
