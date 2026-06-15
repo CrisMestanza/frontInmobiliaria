@@ -1066,8 +1066,8 @@ const SliderWithInput = ({
     onChange(Math.round(raw * 100000) / 100000);
   };
   return (
-    <label className={styles.rangeControl} title={tooltip}>
-      <span>{label}</span>
+    <div className={styles.sliderControl} title={tooltip}>
+      <span className={styles.sliderLabel}>{label}</span>
       <input
         type="range"
         min={min}
@@ -1075,25 +1075,28 @@ const SliderWithInput = ({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        className={styles.sliderRange}
       />
-      <button type="button" className={styles.stepArrow} onClick={() => handleArrow(-1)}>−</button>
-      <input
-        type="number"
-        className={styles.numberInput}
-        min={numMin ?? min}
-        max={numMax ?? max}
-        step={numStep ?? step}
-        value={format ? format(value) : value}
-        onChange={(e) => {
-          const display = Number(e.target.value);
-          if (!Number.isFinite(display)) return;
-          const raw = parse ? parse(display) : display;
-          if (raw < min - 1e-9 || raw > max + 1e-9) return;
-          onChange(raw);
-        }}
-      />
-      <button type="button" className={styles.stepArrow} onClick={() => handleArrow(1)}>+</button>
-    </label>
+      <div className={styles.sliderInputRow}>
+        <button type="button" className={styles.stepArrow} onClick={() => handleArrow(-1)}>−</button>
+        <input
+          type="number"
+          className={styles.numberInput}
+          min={numMin ?? min}
+          max={numMax ?? max}
+          step={numStep ?? step}
+          value={format ? format(value) : value}
+          onChange={(e) => {
+            const display = Number(e.target.value);
+            if (!Number.isFinite(display)) return;
+            const raw = parse ? parse(display) : display;
+            if (raw < min - 1e-9 || raw > max + 1e-9) return;
+            onChange(raw);
+          }}
+        />
+        <button type="button" className={styles.stepArrow} onClick={() => handleArrow(1)}>+</button>
+      </div>
+    </div>
   );
 };
 
@@ -1154,6 +1157,9 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const layoutEditModeRef = useRef(false);
   const overlayVisibleRef = useRef(false);
   const alignmentModeRef = useRef(DEFAULT_ALIGNMENT_STATE);
+  const overlayCardRef = useRef(null);
+  const overlayUndoStackRef = useRef([]);
+  const [marqueeState, setMarqueeState] = useState(null);
   const overlayDragFrameRef = useRef(null);
   const overlayDragPatchRef = useRef(null);
   const groupDragFrameRef = useRef(null);
@@ -1216,6 +1222,17 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     () => createAlignmentSnapCandidates(projectGeometry),
     [projectGeometry],
   );
+
+  // Pre-compute SVG path strings for all lots — only rebuilds when geometry changes
+  const lotSvgPaths = useMemo(() => {
+    if (!projectGeometry?.lotes) return {};
+    return Object.fromEntries(
+      projectGeometry.lotes.map((lote, i) => [
+        String(getLoteId(lote) ?? i),
+        lote.path || buildSvgPath(lote.points || []),
+      ]),
+    );
+  }, [projectGeometry]);
 
   const hasValidCoords =
     Number.isFinite(coords?.yaw) && Number.isFinite(coords?.pitch);
@@ -1809,10 +1826,13 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const updateSelectedOverlayConfig = (patch) => {
     if (!selectedImageId) return;
 
-    const nextConfig = {
-      ...(overlayLayoutsRef.current[selectedImageId] || DEFAULT_LAYOUT_CONFIG),
-      ...patch,
-    };
+    const prevConfig = overlayLayoutsRef.current[selectedImageId] || DEFAULT_LAYOUT_CONFIG;
+    overlayUndoStackRef.current = [
+      ...overlayUndoStackRef.current.slice(-49),
+      { imageId: selectedImageId, config: prevConfig },
+    ];
+
+    const nextConfig = { ...prevConfig, ...patch };
     const nextLayouts = {
       ...overlayLayoutsRef.current,
       [selectedImageId]: nextConfig,
@@ -1828,6 +1848,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     if (viewerReady && !layoutEditModeRef.current && viewerInstance.current) {
       renderHotspots();
     }
+  };
+
+  const undoOverlayConfig = () => {
+    const entry = overlayUndoStackRef.current.pop();
+    if (!entry) return;
+    const nextLayouts = { ...overlayLayoutsRef.current, [entry.imageId]: entry.config };
+    overlayLayoutsRef.current = nextLayouts;
+    selectedOverlayConfigRef.current = entry.config;
+    setOverlayLayouts(nextLayouts);
   };
 
   const getCurrentOverlayRuntime = () => {
@@ -2171,30 +2200,31 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     setSelectedImg(img);
   };
 
-  const load2DGeometry = async () => {
-    if (hasRenderableGeometry(projectGeometry)) {
+  const load2DGeometry = async (forceReload = false) => {
+    if (!forceReload && hasRenderableGeometry(projectGeometry)) {
       const hydrated = hydrateStoredGeometry(projectGeometry);
       if (hydrated !== projectGeometry) setProjectGeometry(hydrated);
       return hydrated;
     }
-    if (geometryLoading) return hydrateStoredGeometry(projectGeometry);
+    if (!forceReload && geometryLoading) return hydrateStoredGeometry(projectGeometry);
 
     setGeometryLoading(true);
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const fetchOpts = { headers, cache: "no-store" };
 
     try {
       const projectRequest = authFetch(
         withApiBase(
           `https://api.geohabita.com/api/listPuntosProyecto/${idproyecto}`,
         ),
-        { headers },
+        fetchOpts,
       );
 
       const lotesRequest = authFetch(
         withApiBase(
           `https://api.geohabita.com/api/listPuntosLoteProyecto/${idproyecto}/`,
         ),
-        { headers },
+        fetchOpts,
       );
 
       const [projectRes, lotesRes] = await Promise.allSettled([
@@ -2220,7 +2250,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           withApiBase(
             `https://api.geohabita.com/api/getLoteProyecto/${idproyecto}`,
           ),
-          { headers },
+          fetchOpts,
         );
 
         lotesData = fallback.ok ? await fallback.json().catch(() => []) : [];
@@ -2453,6 +2483,65 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     overlayLayoutsRef.current = nextLayouts;
     selectedOverlayConfigRef.current = nextConfig;
     setOverlayLayouts(nextLayouts);
+  };
+
+  const reimportGeometry = async () => {
+    setProjectGeometry(null);
+    const geometry = await load2DGeometry(true);
+    if (geometry) window.alertSuccess?.(`${geometry.lotes.length} lotes reimportados desde el plano 2D.`);
+  };
+
+  const applyLayoutToAllImages = () => {
+    const base = selectedOverlayConfigRef.current || selectedOverlayConfig;
+    if (!base || !imagenes.length) return;
+    const { lotOverrides: _lo, alignmentWarp: _aw, ...shared } = base;
+    const next = { ...overlayLayoutsRef.current };
+    imagenes.forEach((img) => {
+      const id = String(img.id_imagen);
+      next[id] = { ...DEFAULT_LAYOUT_CONFIG, ...(next[id] || {}), ...shared, visible: true };
+    });
+    overlayLayoutsRef.current = next;
+    setOverlayLayouts(next);
+    window.alertSuccess?.(`Ajuste copiado a ${imagenes.length} vista(s).`);
+  };
+
+  const centerOverlayInViewer = () => {
+    const viewer = viewerRef.current;
+    const svg = overlaySvgRef.current;
+    if (!viewer || !svg) return;
+    const vw = viewer.clientWidth || 900;
+    const vh = viewer.clientHeight || 600;
+    const scale = selectedOverlayConfigRef.current?.scale ?? DEFAULT_LAYOUT_CONFIG.scale;
+    const cardW = (svg.clientWidth || OVERLAY_VIEWBOX.width) * scale;
+    const cardH = (svg.clientHeight || OVERLAY_VIEWBOX.height) * scale;
+    updateSelectedOverlayConfig({
+      x: Math.round(vw / 2 - cardW / 2),
+      y: Math.round(vh / 2 - cardH / 2),
+    });
+  };
+
+  const snapOverlayToPosition = (preset) => {
+    const viewer = viewerRef.current;
+    const svg = overlaySvgRef.current;
+    if (!viewer || !svg) return;
+    const vw = viewer.clientWidth || 900;
+    const vh = viewer.clientHeight || 600;
+    const scale = selectedOverlayConfigRef.current?.scale ?? DEFAULT_LAYOUT_CONFIG.scale;
+    const cardW = (svg.clientWidth || OVERLAY_VIEWBOX.width) * scale;
+    const cardH = (svg.clientHeight || OVERLAY_VIEWBOX.height) * scale;
+    const pad = 12;
+    const positions = {
+      tl: { x: pad,                    y: pad },
+      tc: { x: Math.round(vw/2-cardW/2), y: pad },
+      tr: { x: Math.round(vw-cardW-pad), y: pad },
+      ml: { x: pad,                    y: Math.round(vh/2-cardH/2) },
+      mc: { x: Math.round(vw/2-cardW/2), y: Math.round(vh/2-cardH/2) },
+      mr: { x: Math.round(vw-cardW-pad), y: Math.round(vh/2-cardH/2) },
+      bl: { x: pad,                    y: Math.round(vh-cardH-pad) },
+      bc: { x: Math.round(vw/2-cardW/2), y: Math.round(vh-cardH-pad) },
+      br: { x: Math.round(vw-cardW-pad), y: Math.round(vh-cardH-pad) },
+    };
+    if (positions[preset]) updateSelectedOverlayConfig(positions[preset]);
   };
 
   const getPlanSourceLayoutPoint = (sourcePoint) => {
@@ -3009,7 +3098,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     setSelectedImg((prev) => prev || nuevasImagenes[0] || null);
     setBatchItems([]);
     window.alertInfo?.(
-      "Imagenes agregadas al borrador local. Aun no se enviaron al backend.",
+      "Imágenes en borrador. Presiona «Publicar tour» para guardarlas.",
     );
   };
 
@@ -3364,6 +3453,31 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     };
   }, []);
 
+  // Keyboard shortcuts while overlay is in edit mode
+  useEffect(() => {
+    if (!layoutEditMode || !selectedOverlayConfig?.visible) return;
+    const onKey = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); undoOverlayConfig(); return; }
+      const step = e.shiftKey ? 1 : 10;
+      const scaleStep = e.shiftKey ? 0.005 : 0.02;
+      const rotStep = e.shiftKey ? 0.5 : 5;
+      const cfg = selectedOverlayConfigRef.current || {};
+      if (e.key === "ArrowLeft")  { e.preventDefault(); updateSelectedOverlayConfig({ x: (cfg.x ?? 70) - step }); }
+      if (e.key === "ArrowRight") { e.preventDefault(); updateSelectedOverlayConfig({ x: (cfg.x ?? 70) + step }); }
+      if (e.key === "ArrowUp")    { e.preventDefault(); updateSelectedOverlayConfig({ y: (cfg.y ?? 70) - step }); }
+      if (e.key === "ArrowDown")  { e.preventDefault(); updateSelectedOverlayConfig({ y: (cfg.y ?? 70) + step }); }
+      if (e.key === "[")          { e.preventDefault(); updateSelectedOverlayConfig({ scale: Math.max(0.3, (cfg.scale ?? 0.78) - scaleStep) }); }
+      if (e.key === "]")          { e.preventDefault(); updateSelectedOverlayConfig({ scale: Math.min(1.8, (cfg.scale ?? 0.78) + scaleStep) }); }
+      if (e.key === ",")          { e.preventDefault(); updateSelectedOverlayConfig({ rotation: (cfg.rotation ?? 0) - rotStep }); }
+      if (e.key === ".")          { e.preventDefault(); updateSelectedOverlayConfig({ rotation: (cfg.rotation ?? 0) + rotStep }); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  // updateSelectedOverlayConfig reads from refs internally — stable enough to omit
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutEditMode, selectedOverlayConfig?.visible]);
+
   const startOverlayDrag = (event) => {
     if (alignmentModeRef.current?.active) return;
     if (!layoutEditMode || !selectedOverlayConfig?.visible) return;
@@ -3384,10 +3498,16 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
 
     const deltaX = event.clientX - dragState.pointerX;
     const deltaY = event.clientY - dragState.pointerY;
-    overlayDragPatchRef.current = {
-      x: Math.round(dragState.x + deltaX),
-      y: Math.round(dragState.y + deltaY),
-    };
+    const newX = Math.round(dragState.x + deltaX);
+    const newY = Math.round(dragState.y + deltaY);
+    overlayDragPatchRef.current = { x: newX, y: newY };
+
+    // Update the card transform directly via DOM — bypasses React render loop for smooth 60fps drag
+    if (overlayCardRef.current) {
+      const tempConfig = { ...(selectedOverlayConfigRef.current || DEFAULT_LAYOUT_CONFIG), x: newX, y: newY };
+      overlayCardRef.current.style.transform = buildOverlayCssTransform(tempConfig);
+      return;
+    }
 
     if (overlayDragFrameRef.current) return;
     overlayDragFrameRef.current = requestAnimationFrame(() => {
@@ -3516,6 +3636,81 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         }
         next.add(loteId);
       }
+      selectedLotIdsRef.current = next;
+      return next;
+    });
+  };
+
+  // Marquee (rubber-band) selection — Ctrl+drag on the SVG overlay
+  const marqueeRef = useRef(null);
+
+  const handleMarqueePointerDown = (e) => {
+    if (!layoutEditMode || alignmentMode.active) return;
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const svg = overlaySvgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const scaleX = OVERLAY_VIEWBOX.width / rect.width;
+    const scaleY = OVERLAY_VIEWBOX.height / rect.height;
+    const ox = (e.clientX - rect.left) * scaleX;
+    const oy = (e.clientY - rect.top) * scaleY;
+    marqueeRef.current = { ox, oy, cx: ox, cy: oy };
+    setMarqueeState({ x: ox, y: oy, w: 0, h: 0 });
+    svg.setPointerCapture(e.pointerId);
+  };
+
+  const handleMarqueePointerMove = (e) => {
+    if (!marqueeRef.current) return;
+    const svg = overlaySvgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const scaleX = OVERLAY_VIEWBOX.width / rect.width;
+    const scaleY = OVERLAY_VIEWBOX.height / rect.height;
+    const cx = (e.clientX - rect.left) * scaleX;
+    const cy = (e.clientY - rect.top) * scaleY;
+    const { ox, oy } = marqueeRef.current;
+    marqueeRef.current.cx = cx;
+    marqueeRef.current.cy = cy;
+    setMarqueeState({
+      x: Math.min(ox, cx),
+      y: Math.min(oy, cy),
+      w: Math.abs(cx - ox),
+      h: Math.abs(cy - oy),
+    });
+  };
+
+  const handleMarqueePointerUp = () => {
+    const m = marqueeRef.current;
+    if (!m) return;
+    marqueeRef.current = null;
+    setMarqueeState(null);
+    if (!projectGeometry?.lotes) return;
+    const { ox, oy, cx, cy } = m;
+    const minX = Math.min(ox, cx), maxX = Math.max(ox, cx);
+    const minY = Math.min(oy, cy), maxY = Math.max(oy, cy);
+    if (maxX - minX < 4 && maxY - minY < 4) return; // too small — treat as click
+    const toAdd = [];
+    projectGeometry.lotes.forEach((lote, index) => {
+      const loteId = String(getLoteId(lote) ?? index);
+      const pts = lote.points || [];
+      if (!pts.length) return;
+      const centX = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+      const centY = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+      if (centX >= minX && centX <= maxX && centY >= minY && centY <= maxY) {
+        toAdd.push(loteId);
+      }
+    });
+    if (!toAdd.length) return;
+    setSelectedLotIds((prev) => {
+      const next = new Set(prev);
+      if (next.size === 0) {
+        groupEditBaseRef.current = { ...(selectedOverlayConfig?.lotOverrides ?? {}) };
+        groupEditRef.current = DEFAULT_GROUP_EDIT;
+        setGroupEdit(DEFAULT_GROUP_EDIT);
+      }
+      toAdd.forEach((id) => next.add(id));
       selectedLotIdsRef.current = next;
       return next;
     });
@@ -3731,12 +3926,14 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         }
       >
         <div
+          ref={overlayCardRef}
           className={styles.projectOverlayCard}
           style={{
             transform: cardTransform,
             opacity: hasAlignmentWarp ? 0 : layoutEditMode ? opacity : 0,
             visibility: layoutEditMode ? "visible" : "hidden",
             pointerEvents: hasAlignmentWarp ? "none" : undefined,
+            willChange: dragState ? "transform" : undefined,
           }}
           onMouseDown={startOverlayDrag}
         >
@@ -3763,6 +3960,9 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             aria-label="Trazos 2D del proyecto importados al editor 360"
             style={shadowFilter ? { filter: shadowFilter } : undefined}
             onClick={handlePlanAlignmentClick}
+            onPointerDown={handleMarqueePointerDown}
+            onPointerMove={handleMarqueePointerMove}
+            onPointerUp={handleMarqueePointerUp}
           >
             <defs />
 
@@ -3818,7 +4018,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
               const lotTextureMode =
                 (currentOverride || override)?.textureMode ?? textureMode;
 
-              let lotPath = lote.path || buildSvgPath(lote.points || []);
+              let lotPath = lotSvgPaths[loteId] || lote.path || buildSvgPath(lote.points || []);
               let lotTransform = undefined;
               if (override?.committedPoints?.length) {
                 lotPath = buildSvgPath(override.committedPoints);
@@ -3958,6 +4158,21 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   );
                 });
               })()}
+
+            {/* Marquee selection rectangle */}
+            {marqueeState && (
+              <rect
+                x={marqueeState.x}
+                y={marqueeState.y}
+                width={marqueeState.w}
+                height={marqueeState.h}
+                fill="rgba(72,199,142,0.12)"
+                stroke="#48c78e"
+                strokeWidth="2"
+                strokeDasharray="6 3"
+                pointerEvents="none"
+              />
+            )}
           </svg>
         </div>
       </div>
@@ -4070,7 +4285,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   <Upload size={20} />
                   <strong>Agregar imagenes 360</strong>
                   <span>
-                    Primero se guardan en el frontend, no en la base de datos.
+                    Se guardan en borrador hasta que publiques el tour.
                   </span>
                 </label>
 
@@ -4147,7 +4362,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                           <div className={styles.galleryMeta}>
                             <strong>{img.nombre}</strong>
                             <span>
-                              {img.isDraft ? "Borrador local" : "Sincronizada"}
+                              {img.isDraft ? "Sin publicar" : "Publicada"}
                             </span>
                             {imageOverlay?.visible && (
                               <span className={styles.galleryOverlayTag}>
@@ -4236,7 +4451,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 disabled={savingTour || !imagenes.length}
               >
                 <Upload size={16} />
-                {savingTour ? "Subiendo tour..." : "Subir tour al backend"}
+                {savingTour ? "Publicando..." : "Publicar tour"}
               </button>
 
               <div className={`${styles.panelBlock} ${styles.panelBlockExpand}`}>
@@ -4274,12 +4489,35 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   <button
                     type="button"
                     className={styles.btnCancel}
+                    onClick={reimportGeometry}
+                    disabled={geometryLoading}
+                    title="Vuelve a descargar los lotes desde el plano 2D del proyecto"
+                  >
+                    <RotateCw size={16} />
+                    {geometryLoading ? "..." : "Reimportar"}
+                  </button>
+                </div>
+                <div className={styles.panelActions}>
+                  <button
+                    type="button"
+                    className={styles.btnCancel}
                     onClick={toggleLayoutEditMode}
                     disabled={!selectedOverlayConfig?.visible}
                   >
                     <Move size={16} />
                     {layoutEditMode ? "Salir de edicion" : "Editar posicion"}
                   </button>
+                  {selectedOverlayConfig?.visible && imagenes.length > 1 && (
+                    <button
+                      type="button"
+                      className={styles.btnCancel}
+                      onClick={applyLayoutToAllImages}
+                      title="Copia escala, rotación y opacidad del plano actual a todas las vistas"
+                    >
+                      <Eye size={16} />
+                      Copiar a todas
+                    </button>
+                  )}
                 </div>
 
                 {layoutEditMode && selectedOverlayConfig?.visible && (
@@ -4523,7 +4761,46 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                         <RotateCw size={15} />
                         Reiniciar ajuste
                       </button>
+                      {layoutEditMode && (
+                        <button
+                          type="button"
+                          className={styles.toggleButton}
+                          onClick={centerOverlayInViewer}
+                          title="Centra el plano en la vista actual"
+                        >
+                          <Move size={15} />
+                          Centrar
+                        </button>
+                      )}
                     </div>
+
+                    {layoutEditMode && selectedOverlayConfig?.visible && (
+                      <div className={styles.quickAdjustSection}>
+                        <p className={styles.reliefSectionTitle} style={{ margin: 0 }}>
+                          Posición rápida
+                        </p>
+                        <div className={styles.positionPresetGrid}>
+                          {[
+                            ["tl","↖"],["tc","↑"],["tr","↗"],
+                            ["ml","←"],["mc","·"],["mr","→"],
+                            ["bl","↙"],["bc","↓"],["br","↘"],
+                          ].map(([key, icon]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              className={`${styles.presetBtn} ${key === "mc" ? styles.presetBtnCenter : ""}`}
+                              onClick={() => snapOverlayToPosition(key)}
+                              title={key === "mc" ? "Centrar" : undefined}
+                            >
+                              {icon}
+                            </button>
+                          ))}
+                        </div>
+                        <p className={styles.helperText} style={{ marginTop: 4, textAlign: "center" }}>
+                          ← → ↑ ↓ mueve · [ ] escala · , . rota
+                        </p>
+                      </div>
+                    )}
 
                     <div className={styles.quickAdjustSection}>
                       <p
@@ -4575,87 +4852,21 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     {advancedMode && (
                       <>
 
-                        <div className={styles.positionPair}>
-                          <span className={styles.positionPairLabel}>
-                            Posición
-                          </span>
-                          <div className={styles.positionPairCols}>
-                            <div className={styles.positionPairItem}>
-                              <span>X</span>
-                              <button
-                                type="button"
-                                className={styles.arrowBtn}
-                                onClick={() =>
-                                  updateSelectedOverlayConfig({
-                                    x: (selectedOverlayConfig.x ?? 70) - 10,
-                                  })
-                                }
-                              >
-                                ←
-                              </button>
-                              <input
-                                type="number"
-                                className={styles.numberInput}
-                                step="5"
-                                value={Math.round(
-                                  selectedOverlayConfig.x ?? 70,
-                                )}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  if (Number.isFinite(v))
-                                    updateSelectedOverlayConfig({ x: v });
-                                }}
-                              />
-                              <button
-                                type="button"
-                                className={styles.arrowBtn}
-                                onClick={() =>
-                                  updateSelectedOverlayConfig({
-                                    x: (selectedOverlayConfig.x ?? 70) + 10,
-                                  })
-                                }
-                              >
-                                →
-                              </button>
+                        <div className={styles.sliderControl}>
+                          <span className={styles.sliderLabel}>Posición manual</span>
+                          <div className={styles.joystickGrid}>
+                            <div />
+                            <button type="button" className={styles.arrowBtn} onClick={() => updateSelectedOverlayConfig({ y: (selectedOverlayConfig.y ?? 70) - 10 })}>↑</button>
+                            <div />
+                            <button type="button" className={styles.arrowBtn} onClick={() => updateSelectedOverlayConfig({ x: (selectedOverlayConfig.x ?? 70) - 10 })}>←</button>
+                            <div className={styles.joystickCenter}>
+                              <input type="number" className={styles.numberInput} style={{ width: 44, fontSize: "0.7rem" }} step="5" value={Math.round(selectedOverlayConfig.x ?? 70)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) updateSelectedOverlayConfig({ x: v }); }} />
+                              <input type="number" className={styles.numberInput} style={{ width: 44, fontSize: "0.7rem" }} step="5" value={Math.round(selectedOverlayConfig.y ?? 70)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) updateSelectedOverlayConfig({ y: v }); }} />
                             </div>
-                            <div className={styles.positionPairItem}>
-                              <span>Y</span>
-                              <button
-                                type="button"
-                                className={styles.arrowBtn}
-                                onClick={() =>
-                                  updateSelectedOverlayConfig({
-                                    y: (selectedOverlayConfig.y ?? 70) - 10,
-                                  })
-                                }
-                              >
-                                ↑
-                              </button>
-                              <input
-                                type="number"
-                                className={styles.numberInput}
-                                step="5"
-                                value={Math.round(
-                                  selectedOverlayConfig.y ?? 70,
-                                )}
-                                onChange={(e) => {
-                                  const v = Number(e.target.value);
-                                  if (Number.isFinite(v))
-                                    updateSelectedOverlayConfig({ y: v });
-                                }}
-                              />
-                              <button
-                                type="button"
-                                className={styles.arrowBtn}
-                                onClick={() =>
-                                  updateSelectedOverlayConfig({
-                                    y: (selectedOverlayConfig.y ?? 70) + 10,
-                                  })
-                                }
-                              >
-                                ↓
-                              </button>
-                            </div>
+                            <button type="button" className={styles.arrowBtn} onClick={() => updateSelectedOverlayConfig({ x: (selectedOverlayConfig.x ?? 70) + 10 })}>→</button>
+                            <div />
+                            <button type="button" className={styles.arrowBtn} onClick={() => updateSelectedOverlayConfig({ y: (selectedOverlayConfig.y ?? 70) + 10 })}>↓</button>
+                            <div />
                           </div>
                         </div>
 
@@ -4926,24 +5137,13 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                           </label>
                           <div className={styles.presetRow}>
                             {[
-                              {
-                                label: "Vista aérea",
-                                tiltX: -35,
-                                tiltY: 0,
-                                perspectiveDepth: 700,
-                              },
-                              {
-                                label: "Perspectiva suave",
-                                tiltX: -15,
-                                tiltY: 0,
-                                perspectiveDepth: 1200,
-                              },
-                              {
-                                label: "Sin inclinación",
-                                tiltX: 0,
-                                tiltY: 0,
-                                perspectiveDepth: 900,
-                              },
+                              { label: "Vista satélite", tiltX: -55, tiltY: 0, perspectiveDepth: 500 },
+                              { label: "Vista aérea", tiltX: -35, tiltY: 0, perspectiveDepth: 700 },
+                              { label: "Perspectiva suave", tiltX: -15, tiltY: 0, perspectiveDepth: 1200 },
+                              { label: "Vista frontal", tiltX: 0, tiltY: 0, perspectiveDepth: 900 },
+                              { label: "Ladera izq", tiltX: -20, tiltY: -20, perspectiveDepth: 800 },
+                              { label: "Ladera der", tiltX: -20, tiltY: 20, perspectiveDepth: 800 },
+                              { label: "Gran angular", tiltX: -10, tiltY: 0, perspectiveDepth: 300 },
                             ].map(({ label, ...preset }) => (
                               <button
                                 key={label}

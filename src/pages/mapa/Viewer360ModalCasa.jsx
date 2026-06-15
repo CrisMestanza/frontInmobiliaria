@@ -36,6 +36,7 @@ import {
   Trees,
   Volleyball,
   Waves,
+  CheckCircle2,
 } from "lucide-react";
 import { withApiBase } from "../../config/api.js";
 import styles from "./Viewer360.module.css";
@@ -95,29 +96,83 @@ const ANNOTATION_MARKER_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 const OVERLAY_VIEWBOX = { width: 1200, height: 780 };
 const OVERLAY_HEADER_OFFSET = 42;
 
+// Pano loader lot data — format: [top%, left%, width%, height%, delay-s]
+// Mirroring GeoHabitaLoader's LOTES style, grouped in realistic subdivision clusters
+const PANO_LOTS = [
+  // Zone A — top-left
+  [ 3, 2,  10, 7,  0.00], [ 3, 14, 8,  7,  0.15],
+  [11, 2,  10, 7,  0.30], [11, 14, 8,  7,  0.45],
+  [19, 2,  10, 6,  0.60], [19, 14, 8,  6,  0.75],
+  // Zone B — top-right
+  [ 4, 72, 10, 8,  0.20], [ 4, 84, 11, 8,  0.35],
+  [14, 72, 10, 7,  0.50], [14, 84, 11, 6,  0.10],
+  [22, 72, 10, 6,  0.65], [22, 84, 11, 8,  0.80],
+  // Zone C — center (flanks the core spinner)
+  [34, 41,  9, 7,  0.25], [34, 52,  7, 7,  0.40],
+  [43, 41,  9, 7,  0.55], [43, 52,  7, 7,  0.70],
+  // Zone D — bottom-left
+  [72,  5,  9, 7,  0.08], [72, 16, 11, 7,  0.23],
+  [81,  5,  9, 6,  0.38], [81, 16, 11, 6,  0.53],
+  // Zone E — bottom-right
+  [74, 75,  8, 6,  0.13], [74, 85, 10, 6,  0.28],
+  [82, 75,  8, 7,  0.43], [82, 85, 10, 5,  0.58],
+  // Scattered singletons
+  [ 7, 29,  7, 5,  0.18], [ 7, 58,  8, 6,  0.33],
+  [57, 30,  7, 6,  0.48], [57, 62,  6, 5,  0.63],
+  [42, 92,  6, 5,  0.78], [47,  2,  7, 5,  0.93],
+];
+
+// Darker zone blocks behind each lot cluster — like GeoHabitaLoader's zone fills
+const PANO_ZONES = [
+  [ 1,  1, 24, 31],  // Zone A
+  [ 1, 68, 25, 30],  // Zone B
+  [30, 37, 22, 25],  // Zone C
+  [68,  1, 23, 22],  // Zone D
+  [70, 71, 24, 22],  // Zone E
+];
+
+// Road separators between clusters (% of overlay area)
+const PANO_ROADS = [
+  { x: 0,  y: 31, w: 100, h: 0.35 },
+  { x: 0,  y: 67, w: 100, h: 0.35 },
+  { x: 27, y:  0, w: 0.35, h: 32  },
+  { x: 63, y:  0, w: 0.35, h: 68  },
+];
+
+// Inline SVG icons for space area labels (per scenario type)
+const SPACE_LABEL_ICONS = {
+  parque:    `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22V13"/><path d="M12 13C8 13 5 10 5 6.5S8.5 2 12 2s7 1.5 7 4.5S16 13 12 13z"/></svg>`,
+  area:      `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>`,
+  manzana:   `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>`,
+  via:       `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 20 L10 4 M14 4 L19 20"/><line x1="7" y1="14" x2="17" y2="14"/></svg>`,
+  iglesia:   `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="8"/><line x1="9" y1="5" x2="15" y2="5"/><path d="M6 22V12l6-4 6 4v10H6z"/></svg>`,
+  parquedep: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5 12h14M12 5v14"/></svg>`,
+  comercio:  `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+};
+
 const HOTSPOT_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="118" height="78" viewBox="0 0 118 78">
   <defs>
-    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#000" flood-opacity=".34"/>
+    <filter id="sh" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity=".42"/>
     </filter>
-    <linearGradient id="head" x1="49" x2="69" y1="14" y2="34">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="58%" stop-color="#f8fafc"/>
-      <stop offset="100%" stop-color="#dbeafe"/>
-    </linearGradient>
-    <linearGradient id="stick" x1="57" x2="61" y1="34" y2="66">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#dbeafe"/>
+    <radialGradient id="badge" cx="36%" cy="28%">
+      <stop offset="0%" stop-color="#1a6633"/>
+      <stop offset="100%" stop-color="#052e16"/>
+    </radialGradient>
+    <linearGradient id="stem" gradientUnits="userSpaceOnUse" x1="59" y1="34" x2="59" y2="68">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity=".95"/>
+      <stop offset="100%" stop-color="#14532d" stop-opacity=".7"/>
     </linearGradient>
   </defs>
-  <ellipse cx="59" cy="69" rx="11" ry="3" fill="rgba(15,23,42,.28)"/>
-  <g filter="url(#shadow)">
-    <rect x="57" y="32" width="4" height="35" rx="2" fill="url(#stick)" stroke="rgba(15,23,42,.2)" stroke-width=".8"/>
-    <circle cx="59" cy="24" r="13" fill="url(#head)" stroke="rgba(15,23,42,.3)" stroke-width="1.6"/>
-    <circle cx="59" cy="24" r="6" fill="#ffffff" opacity=".96"/>
-    <path d="M53.5 17.5c2.4-2.1 6.1-2.8 9.2-1.6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity=".88"/>
+  <circle cx="59" cy="22" r="21" fill="rgba(34,197,94,0.14)"/>
+  <ellipse cx="59" cy="70" rx="8" ry="2" fill="rgba(0,0,0,0.22)"/>
+  <rect x="56.5" y="34" width="5" height="34" rx="2.5" fill="url(#stem)"/>
+  <g filter="url(#sh)">
+    <circle cx="59" cy="22" r="17" fill="url(#badge)" stroke="rgba(74,222,128,0.9)" stroke-width="2"/>
   </g>
+  <circle cx="59" cy="22" r="12" fill="none" stroke="rgba(187,247,208,0.18)" stroke-width="5"/>
+  <path d="M55 14 L63 22 L55 30" fill="none" stroke="rgba(255,255,255,0.96)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 `)}`;
 
@@ -445,7 +500,7 @@ const warmUpImage = (src, timeout = 8000) =>
     console.log("[360] warmUpImage fetching:", fetchSrc);
     const controller = new AbortController();
     const timer = window.setTimeout(() => { controller.abort(); resolve(null); }, timeout);
-    fetch(fetchSrc, { signal: controller.signal, cache: "no-cache" })
+    fetch(fetchSrc, { signal: controller.signal })
       .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((blob) => { window.clearTimeout(timer); console.log("[360] warmUpImage OK → blob URL"); resolve(URL.createObjectURL(blob)); })
       .catch((err) => { window.clearTimeout(timer); console.warn("[360] warmUpImage FAILED:", err?.message || err); resolve(null); });
@@ -1159,12 +1214,25 @@ const buildLoteLabelLines = (lote) => {
 
 const buildLoteTooltipContent = (lote, status) => {
   const area = hasDisplayValue(lote?.area_total_m2) ? `${lote.area_total_m2} m²` : "";
+  const name = String(lote?.nombre || `Lote ${getLoteId(lote) || ""}`).replace(/</g, "&lt;");
+  const statusColor =
+    status.key === "available" ? "#22c55e" :
+    status.key === "reserved"  ? "#f59e0b" : "#ef4444";
   return `
     <div class="gh-lot-tooltip-card">
-      <div class="gh-lot-tooltip-name">${String(lote?.nombre || `Lote ${getLoteId(lote) || ""}`)}</div>
-      <div class="gh-lot-tooltip-meta">
-        ${area ? `<span>${area}</span>` : ""}
-        <span>${status.label}</span>
+      <div class="gh-lot-tooltip-header">
+        <div class="gh-lot-tooltip-logo-wrap">
+          <img class="gh-lot-tooltip-logo" src="/habitasinfondo.png" alt="GeoHabita" />
+        </div>
+        <div class="gh-lot-tooltip-title">
+          <span class="gh-lot-tooltip-name">${name}</span>
+          ${area ? `<span class="gh-lot-tooltip-area">${area}</span>` : ""}
+        </div>
+      </div>
+      <div class="gh-lot-tooltip-footer">
+        <span class="gh-lot-tooltip-dot" style="background:${statusColor};box-shadow:0 0 6px ${statusColor}88"></span>
+        <span class="gh-lot-tooltip-status-label" style="color:${statusColor}">${status.label}</span>
+        <span class="gh-lot-tooltip-cta">Ver detalles →</span>
       </div>
     </div>
   `;
@@ -1202,6 +1270,8 @@ const Viewer360Modal = ({
   const [loteSheetMode, setLoteSheetMode] = useState("mid");
   const [loteSheetTop, setLoteSheetTop] = useState(null);
   const [isLoteSheetDragging, setIsLoteSheetDragging] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isPanoramaLoading, setIsPanoramaLoading] = useState(false);
   const overlayRef = useRef(null);
   const sideGalleryRef = useRef(null);
   const sideGalleryBodyRef = useRef(null);
@@ -1583,9 +1653,13 @@ const Viewer360Modal = ({
 
     const controller = new AbortController();
     loteInfoAbortRef.current = controller;
-    setLoteInfoLoading(true);
+    const hasFallback = hasUsefulLoteInfo(fallbackLote);
+    // Show fallback data immediately so the panel renders without waiting for API
+    setLoteInfoLoading(!hasFallback);
     setSelectedLoteInfo({
-      lote: fallbackLote || { idlote: loteId, nombre: `Lote ${loteId}` },
+      lote: hasFallback
+        ? { ...fallbackLote, idlote: getLoteId(fallbackLote) ?? loteId }
+        : { idlote: loteId, nombre: `Lote ${loteId}` },
       proyecto: null,
       inmobiliaria: null,
     });
@@ -1636,9 +1710,6 @@ const Viewer360Modal = ({
     const key = String(projectId ?? "");
     if (!key) return [];
 
-    const cached = projectLotesCacheRef.current.get(key);
-    if (cached) return cached;
-
     const urls = [`/api/listPuntosLoteProyecto/${key}/`];
 
     const token = localStorage.getItem("access");
@@ -1647,25 +1718,19 @@ const Viewer360Modal = ({
     }
 
     for (const url of urls) {
-      const init =
-        url.includes("/api/getLoteProyecto/") && token
-          ? {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          : undefined;
+      const init = {
+        cache: "no-store",
+        ...(url.includes("/api/getLoteProyecto/") && token
+          ? { headers: { Authorization: `Bearer ${token}` } }
+          : {}),
+      };
       const res = await fetch(buildApiUrl(url), init);
       if (!res.ok) continue;
       const data = await res.json().catch(() => []);
       const lotes = Array.isArray(data) ? data : [];
-      if (lotes.length) {
-        projectLotesCacheRef.current.set(key, lotes);
-        return lotes;
-      }
+      if (lotes.length) return lotes;
     }
 
-    projectLotesCacheRef.current.set(key, []);
     return [];
   }, []);
 
@@ -2097,8 +2162,8 @@ const Viewer360Modal = ({
         defaultPitch: 0,
         moveSpeed: VIEWER_MOVE_SPEED,
         fisheye: false,
-        loadingImg: VIEWER_LOADING_ICON,
-        loadingTxt: "Cargando vista 360...",
+        loadingImg: null,
+        loadingTxt: "",
         navbar: ["zoom", "move", "caption"],
         plugins: [[runtime.MarkersPlugin, {}]],
         rendererParameters: {
@@ -2179,11 +2244,14 @@ const Viewer360Modal = ({
     if (!src || src === lastShownSrcRef.current) return;
     lastShownSrcRef.current = src;
 
+    setIsPanoramaLoading(true);
+
     Promise.resolve(
       viewer.setPanorama(src, { caption: currentImage.nombre, transition: true }),
     )
       .then(() => {
         setViewerReady(true);
+        setIsPanoramaLoading(false);
         // Si mostramos thumbnail, actualizar a full-res en segundo plano
         if (!cachedFull && fullKey && fullKey !== src) {
           warmUpImage(fullKey, 120000).then((blobUrl) => {
@@ -2199,6 +2267,7 @@ const Viewer360Modal = ({
         }
       })
       .catch((error) => {
+        setIsPanoramaLoading(false);
         console.warn("No se pudo cambiar la vista 360:", error);
         setViewerLoadMessage("No se pudo cargar la imagen 360.");
       });
@@ -2219,11 +2288,32 @@ const Viewer360Modal = ({
     return () => { viewer.removeEventListener("click", handlePsvClick); };
   }, [viewerReady]);
 
+  // Preload prev/next scenes into blob cache for instant transitions
+  useEffect(() => {
+    if (!normalizedImages.length) return;
+    const adjacent = [
+      normalizedImages[(currentIndex + 1) % normalizedImages.length],
+      normalizedImages[(currentIndex - 1 + normalizedImages.length) % normalizedImages.length],
+    ];
+    adjacent.forEach((img) => {
+      const key = img?.imagen_original || img?.imagen;
+      if (key && !preloadBlobsRef.current.has(key) && !preloadPendingRef.current.has(key)) {
+        preloadPendingRef.current.add(key);
+        warmUpImage(key, 60000).then((blobUrl) => {
+          preloadPendingRef.current.delete(key);
+          if (blobUrl) preloadBlobsRef.current.set(key, blobUrl);
+        }).catch(() => { preloadPendingRef.current.delete(key); });
+      }
+    });
+  }, [currentIndex, normalizedImages]);
+
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || !viewerReady) return;
     const tick = () => {
-      if (drawPanFrameRef.current) return;
+      if (drawPanFrameRef.current) {
+        window.cancelAnimationFrame(drawPanFrameRef.current);
+      }
       drawPanFrameRef.current = window.requestAnimationFrame(() => {
         drawPanFrameRef.current = null;
         setViewerPanTick((n) => n + 1);
@@ -2311,6 +2401,111 @@ const Viewer360Modal = ({
     );
     markers.clearMarkers();
 
+    // Don't add new-scene markers until the panorama texture is fully loaded
+    if (isPanoramaLoading) return;
+
+    // Render space/drawing overlays as stable PSV polygon markers (synced with WebGL)
+    const spaceKey = String(currentImageId ?? "");
+    const allSpaceShapes = [
+      ...savedDrawings,
+      ...((spaceKey && userDrawings[spaceKey]) || []),
+    ];
+    // Stroke pattern per scenario type — gives each area type a visual texture
+    const SPACE_DASH = {
+      area:      "12 5 2 5",
+      parque:    "8 3",
+      manzana:   "none",
+      via:       "4 3",
+      iglesia:   "10 4 2 4",
+      parquedep: "8 4",
+      comercio:  "6 3 2 3",
+    };
+    // Containment-based project contour detection using 2D canvas coords (no spherical wraparound).
+    // The project contour is the shape whose 2D polygon contains at least one other shape's centroid.
+    const shapesFor2D = allSpaceShapes.filter(
+      (s) => s.points && s.points.length >= 3 && s.sphericalPoints && s.sphericalPoints.length >= 3,
+    );
+    const centroids2D = shapesFor2D.map((s) => ({
+      x: s.points.reduce((acc, p) => acc + p.x, 0) / s.points.length,
+      y: s.points.reduce((acc, p) => acc + p.y, 0) / s.points.length,
+    }));
+    const pointInPoly2D = (x, y, poly) => {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i].x, yi = poly[i].y;
+        const xj = poly[j].x, yj = poly[j].y;
+        if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+          inside = !inside;
+      }
+      return inside;
+    };
+    const projectContourIds = new Set(
+      shapesFor2D
+        .filter((shape, i) =>
+          shapesFor2D.some((_, j) => i !== j && pointInPoly2D(
+            centroids2D[j].x, centroids2D[j].y, shape.points,
+          )),
+        )
+        .map((s) => s.id),
+    );
+
+    allSpaceShapes.forEach((shape) => {
+      if (!shape.sphericalPoints || shape.sphericalPoints.length < 3) return;
+      const isProjectContour = projectContourIds.has(shape.id);
+      const scenario = getDrawingScenario(shape.scenarioKey);
+      const color = shape.scenarioColor || (shape.scenarioKey ? scenario.color : "#22c55e");
+      const label = shape.label || shape.scenarioLabel || scenario.label;
+      const safeLabel = label ? String(label).replace(/</g, "&lt;") : "";
+      const dash = SPACE_DASH[shape.scenarioKey] || "none";
+
+      markers.addMarker({
+        id: `space-${shape.id}`,
+        polygon: shape.sphericalPoints,
+        className: `gh-space-marker gh-space-${shape.scenarioKey || "default"}`,
+        svgStyle: {
+          fill: color,
+          fillOpacity: "0.18",
+          stroke: color,
+          strokeWidth: "2.8px",
+          strokeDasharray: dash,
+          strokeLinejoin: "round",
+          strokeOpacity: "0.88",
+        },
+        zIndex: 4,
+      });
+
+      // Label at polygon centroid — skip for project contour (it's the outer boundary, not a space)
+      if (safeLabel && !isProjectContour) {
+        const pts = shape.sphericalPoints;
+        const n = pts.length;
+
+        // Angular extent check: skip labels for degenerate/invisible areas
+        const pitches = pts.map((p) => p.pitch);
+        const pitchSpan = Math.max(...pitches) - Math.min(...pitches);
+        const yaws = pts.map((p) => p.yaw);
+        const yawSpan = Math.max(...yaws) - Math.min(...yaws);
+        if (pitchSpan < 0.04 && yawSpan < 0.04) return; // too small to label
+
+        const sinSum = pts.reduce((s, p) => s + Math.sin(p.yaw), 0);
+        const cosSum = pts.reduce((s, p) => s + Math.cos(p.yaw), 0);
+        const centroid = {
+          yaw: Math.atan2(sinSum / n, cosSum / n),
+          pitch: pts.reduce((s, p) => s + p.pitch, 0) / n,
+        };
+        const iconSvg = SPACE_LABEL_ICONS[shape.scenarioKey] || SPACE_LABEL_ICONS.area;
+        markers.addMarker({
+          id: `space-label-${shape.id}`,
+          html: `<div class="gh-space-label gh-space-label-${shape.scenarioKey || "default"}">
+            <span class="gh-space-label-icon">${iconSvg}</span>
+            <span class="gh-space-label-text">${safeLabel}</span>
+          </div>`,
+          position: centroid,
+          anchor: "center center",
+          zIndex: 5,
+        });
+      }
+    });
+
     if (overlayToRender?.visible) {
       const overlayTextureMode = overlayToRender.textureMode ?? "solid";
       const overlayShowShadow = overlayToRender.showShadow !== false;
@@ -2330,14 +2525,14 @@ const Viewer360Modal = ({
           ...(hasProjectSpherical
             ? { polygon: overlayToRender.projectPolygon }
             : { polygonPixels: overlayToRender.projectPolygonPixels }),
+          className: "gh-project-outline-marker",
           svgStyle: {
-            fill: "rgba(14, 116, 44, 0.26)",
-            stroke: "#14532d",
-            strokeWidth: "12px",
+            fill: "rgba(34, 197, 94, 0.06)",
+            stroke: "rgba(74, 222, 128, 0.78)",
+            strokeWidth: "3.5px",
+            strokeDasharray: "12 7",
             strokeLinejoin: "round",
-            ...(overlayShowShadow
-              ? { filter: "drop-shadow(0px 4px 10px rgba(0,0,0,0.5))" }
-              : {}),
+            strokeOpacity: "0.85",
           },
           zIndex: 5,
         });
@@ -2393,6 +2588,7 @@ const Viewer360Modal = ({
       )
         return;
 
+      const destName = (hotspot.destino?.nombre || "Vista conectada").replace(/</g, "&lt;");
       markers.addMarker({
         id: `hotspot-${hotspot.id}`,
         image: HOTSPOT_ICON,
@@ -2402,7 +2598,19 @@ const Viewer360Modal = ({
           yaw: Number(hotspot.yaw),
           pitch: Number(hotspot.pitch),
         },
-        tooltip: hotspot.destino?.nombre || "Ir a vista",
+        tooltip: {
+          content: `<div class="gh-hotspot-tip">
+            <div class="gh-hotspot-tip-icon">
+              <img class="gh-hotspot-logo" src="/habitasinfondo.png" alt="GeoHabita" />
+            </div>
+            <div class="gh-hotspot-tip-body">
+              <strong>${destName}</strong>
+              <span>Toca para navegar</span>
+            </div>
+          </div>`,
+          className: "gh-hotspot-tooltip-wrap",
+          trigger: "hover",
+        },
         data: {
           destinoId: hotspot.destino?.id_imagen,
           destinoNombre: hotspot.destino?.nombre,
@@ -2448,9 +2656,12 @@ const Viewer360Modal = ({
     });
   }, [
     viewerReady,
+    isPanoramaLoading,
     hotspots,
     overlayToRender,
     currentImageId,
+    savedDrawings,
+    userDrawings,
     selectedLoteId,
     availableLotVariantById,
     currentImageAnnotations,
@@ -3024,18 +3235,34 @@ const Viewer360Modal = ({
       const viewer = viewerRef.current;
       const el = drawOverlayRef.current;
       if (viewer && el && el.clientWidth && el.clientHeight) {
+        const camPos = viewer.getPosition();
+        const camYaw = camPos?.yaw ?? 0;
+        const camPitch = camPos?.pitch ?? 0;
+        // Camera direction unit vector (spherical → Cartesian)
+        const cx = Math.cos(camPitch) * Math.sin(camYaw);
+        const cy = Math.sin(camPitch);
+        const cz = Math.cos(camPitch) * Math.cos(camYaw);
+
         const projected = shape.sphericalPoints.map(({ yaw, pitch }) => {
           try {
+            // Hemisphere check: dot product > 0 means point is in front of camera
+            const px = Math.cos(pitch) * Math.sin(yaw);
+            const py = Math.sin(pitch);
+            const pz = Math.cos(pitch) * Math.cos(yaw);
+            if (px * cx + py * cy + pz * cz <= 0.04) return null; // behind camera
+
             const pos = viewer.dataHelper.sphericalCoordsToViewerCoords({ yaw, pitch });
             if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return null;
-            const nx = Math.round(pos.x) / el.clientWidth;
-            const ny = Math.round(pos.y) / el.clientHeight;
-            if (nx < -0.3 || nx > 1.3 || ny < -0.3 || ny > 1.3) return null;
+            const nx = pos.x / el.clientWidth;
+            const ny = pos.y / el.clientHeight;
+            if (nx < -0.5 || nx > 1.5 || ny < -0.5 || ny > 1.5) return null;
             return { x: nx, y: ny };
           } catch { return null; }
         });
-        if (projected.every(Boolean)) pts = projected;
-        else return null;
+        // Render partial polygon: need at least 3 valid vertices
+        const validPts = projected.filter(Boolean);
+        if (validPts.length < 3) return null;
+        pts = validPts;
       }
     }
     const depth = shape.depth || 0;
@@ -3219,7 +3446,9 @@ const Viewer360Modal = ({
   const renderDrawingOverlay = () => {
     const key = String(currentImageId ?? "");
     const imgDrawings = (key && userDrawings[key]) || [];
-    const allShapes = [...savedDrawings, ...imgDrawings];
+    // Shapes with sphericalPoints are rendered as stable PSV polygon markers; skip them here
+    const allShapes = [...savedDrawings, ...imgDrawings]
+      .filter((s) => !s.sphericalPoints || s.sphericalPoints.length < 3);
     if (!drawMode && !allShapes.length && !currentPolygonPoints.length) return null;
     const isActive = drawMode === "polygon";
     return (
@@ -3254,7 +3483,7 @@ const Viewer360Modal = ({
     : 0;
 
   return (
-    <div className={styles.overlay360} ref={overlayRef}>
+    <div className={`${styles.overlay360} ${isSidebarCollapsed ? styles.overlay360Collapsed : ""}`} ref={overlayRef} data-theme="dark">
       {isMobileView && (
         <div
           className={styles.mobileFloatingWatermark}
@@ -3267,45 +3496,59 @@ const Viewer360Modal = ({
       <div className={styles.mainContent}>
         <div className={`${styles.header360} viewer-hud-enter`}>
           <div className={styles.titleGroup}>
-            <h3 className={styles.imageTitle}>{projectName}</h3>
-            <p className={styles.imageSubtitle}>Explora la vista y el contenido</p>
-            <div className={styles.headerStats}>
-              <div className={styles.brandStat}>
-                <span className={styles.statValue}>{lotesSummary.total}</span>
-                <span className={styles.statLabel}>Experiencia virtual</span>
-              </div>
-              <div className={styles.brandStat}>
-                <span className={styles.statValue} style={{ color: "#22c55e" }}>
-                  {lotesSummary.available}
-                </span>
-                <span className={styles.statLabel}>Disponibles</span>
-              </div>
-              <div className={styles.brandStat}>
-                <span className={styles.statValue} style={{ color: "#f59e0b" }}>
-                  {lotesSummary.reserved}
-                </span>
-                <span className={styles.statLabel}>Reservados</span>
-              </div>
-              <div className={styles.brandStat}>
-                <span className={styles.statValue} style={{ color: "#ef4444" }}>
-                  {lotesSummary.sold}
-                </span>
-                <span className={styles.statLabel}>Vendidos</span>
-              </div>
+            <div className={styles.badge360}>
+              <CheckCircle2 size={13} />
+              <span>GeoHabita 360°</span>
             </div>
+            <h3 className={styles.imageTitle}>{projectName}</h3>
+            {lotesSummary.total > 0 && (
+              <div className={styles.headerStats}>
+                <div className={styles.brandStat}>
+                  <span className={styles.statValue}>{lotesSummary.total}</span>
+                  <span className={styles.statLabel}>Total</span>
+                </div>
+                <div className={styles.brandStat}>
+                  <span className={styles.statValue} style={{ color: "#22c55e" }}>{lotesSummary.available}</span>
+                  <span className={styles.statLabel}>Disponibles</span>
+                </div>
+                {lotesSummary.reserved > 0 && (
+                  <div className={styles.brandStat}>
+                    <span className={styles.statValue} style={{ color: "#f59e0b" }}>{lotesSummary.reserved}</span>
+                    <span className={styles.statLabel}>Reservados</span>
+                  </div>
+                )}
+                {lotesSummary.sold > 0 && (
+                  <div className={styles.brandStat}>
+                    <span className={styles.statValue} style={{ color: "#ef4444" }}>{lotesSummary.sold}</span>
+                    <span className={styles.statLabel}>Vendidos</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {normalizedImages.length > 1 && (
+              <div className={styles.headerMeta}>
+                <span className={styles.headerMetaPill}>
+                  {normalizedImages.length} escenas 360°
+                </span>
+              </div>
+            )}
           </div>
           <div className={styles.headerActions}>
             <button
               type="button"
               onClick={toggleFullscreen}
-              className={styles.closeBtn}
+              className={styles.iconBtn}
+              title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
             >
               {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-              <span>{isFullscreen ? "Salir" : "Pantalla completa"}</span>
             </button>
-            <button type="button" onClick={onClose} className={styles.closeBtn}>
+            <button
+              type="button"
+              onClick={onClose}
+              className={styles.iconBtnClose}
+              title="Cerrar"
+            >
               <X size={20} />
-              <span>Cerrar</span>
             </button>
           </div>
         </div>
@@ -3394,21 +3637,42 @@ const Viewer360Modal = ({
             </div>
           </div>
 
-          {travelingTo && (
-            <div className={styles.travelOverlay}>
-              <div className={styles.travelTunnel} />
-              <div className={styles.travelTarget}>
-                <Navigation size={18} />
-                Entrando a {travelingTo}
+          {((isPanoramaLoading && viewerReady) || !!travelingTo) && (
+            <div className={styles.panoLoader}>
+              {/* Aerial subdivision map background — inspired by GeoHabitaLoader */}
+              <div className={styles.panoLoaderMap}>
+                {PANO_ZONES.map(([t, l, w, h], i) => (
+                  <div key={`z-${i}`} className={styles.panoLoaderZone}
+                    style={{ top: `${t}%`, left: `${l}%`, width: `${w}%`, height: `${h}%` }} />
+                ))}
+                {PANO_ROADS.map((road, i) => (
+                  <div key={`road-${i}`} className={styles.panoLoaderRoad}
+                    style={{ left: `${road.x}%`, top: `${road.y}%`, width: `${road.w}%`, height: `${road.h}%` }} />
+                ))}
+                {PANO_LOTS.map(([t, l, w, h, d], i) => (
+                  <div key={`lot-${i}`} className={styles.panoLoaderLotCell}
+                    style={{ top: `${t}%`, left: `${l}%`, width: `${w}%`, height: `${h}%`,
+                             animationDelay: `${d}s, ${d + 1.4}s` }} />
+                ))}
+                <div className={styles.panoLoaderBeam} />
               </div>
-            </div>
-          )}
-
-          {hotspots.length > 0 && (
-            <div className={`${styles.hotspotHint} viewer-hud-enter`}>
-              <Navigation size={16} />
-              {hotspots.length} punto{hotspots.length === 1 ? "" : "s"}{" "}
-              disponible{hotspots.length === 1 ? "" : "s"}
+              {/* Central spinner + branding */}
+              <div className={styles.panoLoaderCore}>
+                <div className={styles.panoLoaderRing}>
+                  <div className={styles.panoLoaderLogo}>
+                    <img src="/habitasinfondo.png" alt="GeoHabita" />
+                  </div>
+                </div>
+                <div className={styles.panoLoaderBrand}>
+                  <span className={styles.panoLoaderBrandName}>
+                    Geo<em>Habita</em>
+                  </span>
+                  <span className={styles.panoLoaderBrand360}>360°</span>
+                </div>
+                <p className={styles.panoLoaderText}>
+                  {travelingTo ? `Navegando a ${travelingTo}` : "Cargando vista"}
+                </p>
+              </div>
             </div>
           )}
 
@@ -3418,17 +3682,39 @@ const Viewer360Modal = ({
                 type="button"
                 className={`${styles.navBtn} ${styles.prev}`}
                 onClick={prevImage}
+                title={normalizedImages[(currentIndex - 1 + normalizedImages.length) % normalizedImages.length]?.nombre || "Anterior"}
               >
-                <ChevronLeft size={30} />
+                <ChevronLeft size={22} />
+                <span className={styles.navBtnLabel}>
+                  {normalizedImages[(currentIndex - 1 + normalizedImages.length) % normalizedImages.length]?.nombre || "Anterior"}
+                </span>
               </button>
               <button
                 type="button"
                 className={`${styles.navBtn} ${styles.next}`}
                 onClick={nextImage}
+                title={normalizedImages[(currentIndex + 1) % normalizedImages.length]?.nombre || "Siguiente"}
               >
-                <ChevronRight size={30} />
+                <span className={styles.navBtnLabel}>
+                  {normalizedImages[(currentIndex + 1) % normalizedImages.length]?.nombre || "Siguiente"}
+                </span>
+                <ChevronRight size={22} />
               </button>
             </>
+          )}
+          {normalizedImages.length > 1 && (
+            <div className={styles.tourDots}>
+              {normalizedImages.map((img, idx) => (
+                <button
+                  key={getImageId(img) || idx}
+                  type="button"
+                  className={`${styles.tourDot} ${idx === currentIndex ? styles.tourDotActive : ""}`}
+                  onClick={() => setCurrentIndex(idx)}
+                  aria-label={img.nombre || `Escena ${idx + 1}`}
+                  title={img.nombre || `Escena ${idx + 1}`}
+                />
+              ))}
+            </div>
           )}
           {renderDrawingOverlay()}
         </div>
@@ -3495,12 +3781,13 @@ const Viewer360Modal = ({
             >
             {/* <div className={styles.loteDrawerHeader} /> */}
 
-            {loteInfoLoading ? (
+            {loteInfoLoading && !selectedLoteInfo?.lote ? (
               <div className={styles.loteInfoState}>Cargando lote...</div>
-            ) : loteInfoError ? (
-              <div className={styles.loteInfoState}>{loteInfoError}</div>
             ) : (
               <>
+                {loteInfoError && (
+                  <div className={styles.loteEnrichError}>{loteInfoError}</div>
+                )}
                 <div className={styles.loteDrawerHero} data-lote-hero>
                   <div className={styles.loteDrawerStatusWrap}>
                     <span
@@ -3787,13 +4074,38 @@ const Viewer360Modal = ({
             <div className={styles.mobileDragHandle} />
           </div>
         )}
-        <div className={styles.galleryHeader}>
-          <ImageIcon size={18} className={styles.greenText} />
-          <div>
-            <span>Vistas disponibles</span>
-            <small>{normalizedImages.length} ambientes</small>
-          </div>
+        <div className={`${styles.galleryHeader} ${isSidebarCollapsed ? styles.galleryHeaderCollapsed : ""}`}>
+          {!isSidebarCollapsed && (
+            <>
+              <ImageIcon size={18} className={styles.greenText} />
+              <div>
+                <span>Vistas disponibles</span>
+                <small>{normalizedImages.length} ambientes</small>
+              </div>
+            </>
+          )}
+          {!isMobileView && (
+            <button
+              type="button"
+              className={styles.sideCollapseBtn}
+              onClick={() => setIsSidebarCollapsed((v) => !v)}
+              aria-label={isSidebarCollapsed ? "Expandir galería" : "Contraer galería"}
+              title={isSidebarCollapsed ? "Expandir galería" : "Contraer galería"}
+            >
+              {isSidebarCollapsed ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
+            </button>
+          )}
         </div>
+        {isSidebarCollapsed && !isMobileView ? (
+          <div
+            className={styles.sideGalleryCollapsedIcon}
+            onClick={() => setIsSidebarCollapsed(false)}
+            title="Expandir galería"
+          >
+            <ImageIcon size={18} />
+            <span className={styles.sideGalleryCollapsedLabel}>Galería</span>
+          </div>
+        ) : (
         <div
           className={`${styles.sideGalleryBody} ${isMobileView && gallerySheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
           ref={sideGalleryBodyRef}
@@ -3802,9 +4114,38 @@ const Viewer360Modal = ({
           onTouchEnd={onGalleryNestedTouchEnd}
         >
         <div className={styles.projectSidebarPanel}>
+          <div className={styles.sidebarBrandRow}>
+            <img src="/habitasinfondo.png" alt="GeoHabita" className={styles.sidebarBrandLogo} />
+            <span className={styles.sidebarBrandTag}>Proyecto</span>
+          </div>
           <div className={styles.projectSidebarIntro}>
-            <small>Proyecto actual</small>
             <h4>{projectName}</h4>
+            {lotesSummary.total > 0 && (
+              <div className={styles.sidebarLotStats}>
+                <div className={styles.sidebarLotStat}>
+                  <span className={styles.sidebarStatVal} style={{ color: "#22c55e" }}>
+                    {lotesSummary.available}
+                  </span>
+                  <span className={styles.sidebarStatLbl}>Disponibles</span>
+                </div>
+                {lotesSummary.reserved > 0 && (
+                  <div className={styles.sidebarLotStat}>
+                    <span className={styles.sidebarStatVal} style={{ color: "#f59e0b" }}>
+                      {lotesSummary.reserved}
+                    </span>
+                    <span className={styles.sidebarStatLbl}>Reservados</span>
+                  </div>
+                )}
+                {lotesSummary.sold > 0 && (
+                  <div className={styles.sidebarLotStat}>
+                    <span className={styles.sidebarStatVal} style={{ color: "#ef4444" }}>
+                      {lotesSummary.sold}
+                    </span>
+                    <span className={styles.sidebarStatLbl}>Vendidos</span>
+                  </div>
+                )}
+              </div>
+            )}
             {projectSidebarInfo.description && (
               <p>{projectSidebarInfo.description}</p>
             )}
@@ -3836,6 +4177,12 @@ const Viewer360Modal = ({
             )}
           </div>
         </div>
+        <div className={styles.sidebarDivider} />
+        <div className={styles.sidebarSectionLabel}>
+          <ImageIcon size={14} />
+          <span>Ambientes 360°</span>
+          <span className={styles.sidebarSectionCount}>{normalizedImages.length}</span>
+        </div>
         <div className={styles.galleryList}>
           {normalizedImages.map((img, idx) => (
             <button
@@ -3863,21 +4210,25 @@ const Viewer360Modal = ({
           ))}
         </div>
 
+        <div className={styles.sidebarDivider} />
         <div className={styles.hotspotsPanel}>
           <div className={styles.hotspotsHeader}>
-            <Route size={16} />
-            <span>Puntos de esta vista</span>
+            <Navigation size={15} />
+            <span>Recorrido 360°</span>
+            {hotspots.length > 0 && (
+              <span className={styles.hotspotsCount}>{hotspots.length}</span>
+            )}
           </div>
 
           {hotspotsLoading ? (
-            <div className={styles.emptyHotspots}>Cargando puntos...</div>
+            <div className={styles.emptyHotspots}>Cargando conexiones...</div>
           ) : hotspots.length === 0 ? (
             <div className={styles.emptyHotspots}>
-              Esta vista no tiene puntos conectados.
+              Sin conexiones en esta vista.
             </div>
           ) : (
             <div className={styles.hotspotsList}>
-              {hotspots.map((hotspot) => (
+              {hotspots.map((hotspot, idx) => (
                 <button
                   key={hotspot.id}
                   type="button"
@@ -3890,20 +4241,25 @@ const Viewer360Modal = ({
                   }
                 >
                   <div className={styles.hotspotIconWrap}>
-                    <MapPinned size={16} />
+                    <span className={styles.hotspotIdx}>{idx + 1}</span>
                   </div>
-                  <div>
+                  <div className={styles.hotspotItemBody}>
                     <strong>
                       {hotspot.destino?.nombre || "Vista conectada"}
                     </strong>
-                    <span>Ir al punto seleccionado</span>
+                    <span>
+                      <Navigation size={10} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+                      Navegar a esta vista
+                    </span>
                   </div>
+                  <ChevronRight size={14} className={styles.hotspotChevron} />
                 </button>
               ))}
             </div>
           )}
         </div>
         </div>
+        )}
       </aside>
     </div>
   );
