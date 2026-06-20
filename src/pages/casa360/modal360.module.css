@@ -340,6 +340,16 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.btnCancelActive {
+  background: rgba(72, 199, 142, 0.16);
+  border-color: rgba(72, 199, 142, 0.55);
+  color: #0f5132;
+}
+
+.btnCancelActive:hover {
+  background: rgba(72, 199, 142, 0.22);
+}
+
 .btnPrimary360 {
   display: inline-flex;
   align-items: center;
@@ -1655,6 +1665,27 @@
   outline: 3px solid #60a5fa;
   outline-offset: -3px;
   animation: viewerPulse 1.4s ease-in-out infinite;
+}
+
+.viewerFrameSelecting {
+  outline: 2px dashed #48c78e;
+  outline-offset: -2px;
+}
+
+.lotMarqueeBox {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  background: rgba(72, 199, 142, 0.14);
+  border: 2px dashed #48c78e;
+  border-radius: 2px;
+}
+
+.anchoredSelectionLayer {
+  z-index: 17;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4));
 }
 
 /* ── Badges de pasos de alineación ──────────────────────── */
