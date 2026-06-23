@@ -400,7 +400,14 @@ const getLoteSvgStyle = ({
     darkenHexColor(baseFill, 0.34) || availableTone?.stroke || status.stroke;
 
   const textureMod = TEXTURE_STROKE_VARIANTS[textureMode] ?? {};
+  // Una sola sombra (en vez de dos apiladas) para el caso general: con hasta un
+  // centenar de lotes visibles a la vez, dos filtros drop-shadow por polígono
+  // duplican el costo de repintado en cada frame de paneo/zoom. El lote
+  // seleccionado (uno solo a la vez) sí puede pagarse la sombra doble.
   const shadowFilter = showShadow
+    ? "drop-shadow(0px 3px 6px rgba(0,0,0,0.45))"
+    : undefined;
+  const selectedShadowFilter = showShadow
     ? "drop-shadow(0px 4px 10px rgba(0,0,0,0.55)) drop-shadow(0px 1px 3px rgba(0,0,0,0.4))"
     : undefined;
   const textureFillOpacity = textureMode !== "solid" && textureMode !== "outline" ? "0.55" : null;
@@ -409,11 +416,25 @@ const getLoteSvgStyle = ({
     return {
       fill: "none",
       fillOpacity: "0",
-      stroke: "rgba(255,255,255,0.9)",
-      strokeWidth: "2.5px",
+      stroke: isSelected ? "#0f766e" : "rgba(255,255,255,0.9)",
+      strokeWidth: isSelected ? "3.5px" : "2.5px",
       strokeLinejoin: "round",
       strokeOpacity: "1",
       ...(shadowFilter ? { filter: shadowFilter } : {}),
+    };
+  }
+
+  if (textureMode === "transparent") {
+    // Sin drop-shadow: una sombra detrás de un relleno translúcido se ve como un
+    // halo oscuro que opaca el efecto "transparente" que se está pidiendo.
+    const tFill = loteColor || status.fill;
+    return {
+      fill: tFill,
+      fillOpacity: isSelected ? "0.55" : "0.35",
+      stroke: isSelected ? "#0f766e" : darkenHexColor(tFill, 0.34) || status.stroke,
+      strokeWidth: isSelected ? "3px" : "2.2px",
+      strokeLinejoin: "round",
+      strokeOpacity: "0.95",
     };
   }
 
@@ -425,20 +446,7 @@ const getLoteSvgStyle = ({
       strokeWidth: "3.5px",
       strokeLinejoin: "round",
       strokeOpacity: "1",
-      ...(shadowFilter ? { filter: shadowFilter } : {}),
-    };
-  }
-
-  if (textureMode === "transparent") {
-    const tFill = loteColor || status.fill;
-    return {
-      fill: tFill,
-      fillOpacity: "0.35",
-      stroke: darkenHexColor(tFill, 0.34) || status.stroke,
-      strokeWidth: "2.2px",
-      strokeLinejoin: "round",
-      strokeOpacity: "0.95",
-      ...(shadowFilter ? { filter: shadowFilter } : {}),
+      ...(selectedShadowFilter ? { filter: selectedShadowFilter } : {}),
     };
   }
 

@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import {
   BoxSelect,
+  ChevronDown,
+  ChevronRight,
   Church,
   Eye,
   EyeOff,
@@ -22,6 +24,8 @@ import {
   Move,
   Pencil,
   Plus,
+  History,
+  Save,
   Store,
   Trees,
   RotateCw,
@@ -770,6 +774,12 @@ const applyGroupTransformWithTiltToPoints = (points, gcx, gcy, groupEdit) => {
     tiltX = 0,
     tiltY = 0,
     perspectiveDepth = 900,
+    flipX = false,
+    flipY = false,
+    dz = 0,
+    pivotOffsetX = 0,
+    pivotOffsetY = 0,
+    lensCurve = 0,
   } = groupEdit;
   if (
     scale === 1 &&
@@ -781,9 +791,17 @@ const applyGroupTransformWithTiltToPoints = (points, gcx, gcy, groupEdit) => {
     dx === 0 &&
     dy === 0 &&
     tiltX === 0 &&
-    tiltY === 0
+    tiltY === 0 &&
+    !flipX &&
+    !flipY &&
+    dz === 0 &&
+    pivotOffsetX === 0 &&
+    pivotOffsetY === 0 &&
+    lensCurve === 0
   )
     return points;
+  const pivotX = gcx + pivotOffsetX;
+  const pivotY = gcy + pivotOffsetY;
   const r = (rotation * Math.PI) / 180;
   const rX = (tiltX * Math.PI) / 180;
   const rY = (tiltY * Math.PI) / 180;
@@ -792,11 +810,20 @@ const applyGroupTransformWithTiltToPoints = (points, gcx, gcy, groupEdit) => {
   const pD = perspectiveDepth || 900;
   const cosR = Math.cos(r),
     sinR = Math.sin(r);
+  const signX = flipX ? -1 : 1;
+  const signY = flipY ? -1 : 1;
+  const lensK = lensCurve / 100;
   return points.map((p) => {
-    let lx = (p.x - gcx) * scale * scaleX;
-    let ly = (p.y - gcy) * scale * scaleY;
+    let lx = (p.x - pivotX) * scale * scaleX * signX;
+    let ly = (p.y - pivotY) * scale * scaleY * signY;
     let x = lx * cosR - ly * sinR;
     let y = lx * sinR + ly * cosR;
+    if (lensK !== 0) {
+      const rr = Math.sqrt(x * x + y * y) / 600;
+      const lensFactor = Math.max(0.05, 1 + lensK * rr * rr);
+      x *= lensFactor;
+      y *= lensFactor;
+    }
     let z = 0;
     if (skX !== 0 || skY !== 0) {
       const sx = x + y * Math.tan(skX);
@@ -818,8 +845,9 @@ const applyGroupTransformWithTiltToPoints = (points, gcx, gcy, groupEdit) => {
       z = y * sX + z * cX;
       y = ny;
     }
-    const factor = rX !== 0 || rY !== 0 ? pD / (pD - z) : 1;
-    return { x: gcx + dx + x * factor, y: gcy + dy + y * factor };
+    z += dz;
+    const factor = rX !== 0 || rY !== 0 || dz !== 0 ? pD / (pD - z) : 1;
+    return { x: pivotX + dx + x * factor, y: pivotY + dy + y * factor };
   });
 };
 
@@ -837,6 +865,29 @@ const DEFAULT_GROUP_EDIT = {
   tiltX: 0,
   tiltY: 0,
   perspectiveDepth: 900,
+  flipX: false,
+  flipY: false,
+  dz: 0,
+  pivotOffsetX: 0,
+  pivotOffsetY: 0,
+  lensCurve: 0,
+  vertexOffsets: {},
+};
+
+// Identifica un vértice por su coordenada BASE (antes de aplicar el transform
+// del grupo), redondeada para tolerar el ruido de punto flotante. Dos lotes
+// vecinos que comparten una esquina en el plano original tienen el mismo
+// punto base ahí, así que comparten la misma clave — arrastrar esa esquina
+// mueve a todos los lotes que la tocan a la vez, no solo a uno.
+const getVertexKey = (x, y) => `${Math.round(x * 10) / 10}|${Math.round(y * 10) / 10}`;
+
+const applyVertexOffsetsToPoints = (points, baseKeys, vertexOffsets) => {
+  if (!vertexOffsets || !baseKeys || !Object.keys(vertexOffsets).length) return points;
+  return points.map((p, i) => {
+    const off = vertexOffsets[baseKeys[i]];
+    if (!off) return p;
+    return { x: p.x + (off.dx || 0), y: p.y + (off.dy || 0) };
+  });
 };
 
 // ── Modo "ajuste fino sobre el tour" (zoom) ──────────────────────────────
@@ -1279,9 +1330,11 @@ const SliderWithInput = ({
   parse,
   onChange,
   arrowStep = 1,
+  fineArrowStep,
 }) => {
-  const handleArrow = (dir) => {
-    const raw = Math.min(max, Math.max(min, value + dir * arrowStep));
+  const smallStep = fineArrowStep ?? arrowStep / 5;
+  const handleArrow = (dir, amount = arrowStep) => {
+    const raw = Math.min(max, Math.max(min, value + dir * amount));
     onChange(Math.round(raw * 100000) / 100000);
   };
   return (
@@ -1297,6 +1350,7 @@ const SliderWithInput = ({
         className={styles.sliderRange}
       />
       <div className={styles.sliderInputRow}>
+        <button type="button" className={styles.stepArrow} onClick={() => handleArrow(-1, smallStep)}>−−</button>
         <button type="button" className={styles.stepArrow} onClick={() => handleArrow(-1)}>−</button>
         <input
           type="number"
@@ -1314,9 +1368,56 @@ const SliderWithInput = ({
           }}
         />
         <button type="button" className={styles.stepArrow} onClick={() => handleArrow(1)}>+</button>
+        <button type="button" className={styles.stepArrow} onClick={() => handleArrow(1, smallStep)}>++</button>
       </div>
     </div>
   );
+};
+
+// Borrador local: guarda el avance del overlay 2D (posición, lotes confirmados/fijos)
+// en localStorage para que cerrar la pestaña sin publicar no borre el trabajo.
+const LOCAL_DRAFT_KEY = (idproyecto) => `gh360_draft_${idproyecto}`;
+const LOCAL_DRAFT_DEBOUNCE_MS = 1500;
+
+const readLocalDraft = (idproyecto) => {
+  try {
+    const raw = localStorage.getItem(LOCAL_DRAFT_KEY(idproyecto));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const writeLocalDraft = (idproyecto, data) => {
+  try {
+    localStorage.setItem(LOCAL_DRAFT_KEY(idproyecto), JSON.stringify(data));
+  } catch {
+    // Cuota de localStorage llena o modo privado — el autoguardado simplemente
+    // no persiste esta vez, sin romper la edición en curso.
+  }
+};
+
+const clearLocalDraft = (idproyecto) => {
+  try {
+    localStorage.removeItem(LOCAL_DRAFT_KEY(idproyecto));
+  } catch {
+    // no-op
+  }
+};
+
+const formatRelativeSavedAt = (timestamp) => {
+  if (!timestamp) return "";
+  const diffMs = Date.now() - timestamp;
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "hace un momento";
+  if (minutes === 1) return "hace 1 minuto";
+  if (minutes < 60) return `hace ${minutes} minutos`;
+  const hours = Math.floor(minutes / 60);
+  if (hours === 1) return "hace 1 hora";
+  return `hace ${hours} horas`;
 };
 
 const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
@@ -1335,6 +1436,10 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const [overlayLayouts, setOverlayLayouts] = useState({});
   const [anchoredOverlays, setAnchoredOverlays] = useState({});
   const [additionalOverlayInstances, setAdditionalOverlayInstances] = useState({});
+  const [localDraftPrompt, setLocalDraftPrompt] = useState(null);
+  const [localDraftSavedAt, setLocalDraftSavedAt] = useState(null);
+  const localDraftReadyRef = useRef(false);
+  const localDraftTimeoutRef = useRef(null);
   const [layoutEditMode, setLayoutEditMode] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [selectedLotIds, setSelectedLotIds] = useState(new Set());
@@ -1395,6 +1500,9 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   const groupDragPatchRef = useRef(null);
   const anchoredGroupDragFrameRef = useRef(null);
   const anchoredGroupDragPatchRef = useRef(null);
+  const [vertexDragState, setVertexDragState] = useState(null);
+  const vertexDragFrameRef = useRef(null);
+  const vertexDragPatchRef = useRef(null);
   const drawModeRef = useRef(null);
   const currentPolygonPointsRef = useRef([]);
   const drawOverlayRef = useRef(null);
@@ -2094,12 +2202,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     }
 
     // Render additional overlay instances (committed from previous imports on this image).
-    // These are always visible regardless of edit mode — they are permanently fixed.
+    // These ignore the live overlay's edit mode — they're permanently fixed — but each
+    // instance has its own `visible` flag so a specific stray/duplicate one can be
+    // hidden without touching the others or the live overlay.
     {
       const additionalInstances =
         additionalOverlayInstancesRef.current[String(selectedImg.id_imagen)] || [];
       additionalInstances.forEach((instance, instanceIdx) => {
         if (!instance || !hasAnchoredGeometry(instance)) return;
+        if (instance.visible === false) return;
         const instId = instance.instanceId || instanceIdx;
 
         if (
@@ -2188,15 +2299,25 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     }
   };
 
+  // Guarda un punto de restauración (config del overlay + instancias fijas/ancladas)
+  // antes de cualquier cambio que el usuario pueda querer deshacer con Ctrl+Z.
+  const pushOverlayUndoSnapshot = (imageId = selectedImageId) => {
+    if (!imageId) return;
+    overlayUndoStackRef.current = [
+      ...overlayUndoStackRef.current.slice(-49),
+      {
+        imageId,
+        config: overlayLayoutsRef.current[imageId] || DEFAULT_LAYOUT_CONFIG,
+        additionalInstances: additionalOverlayInstancesRef.current[imageId] || [],
+      },
+    ];
+  };
+
   const updateSelectedOverlayConfig = (patch) => {
     if (!selectedImageId) return;
 
+    pushOverlayUndoSnapshot(selectedImageId);
     const prevConfig = overlayLayoutsRef.current[selectedImageId] || DEFAULT_LAYOUT_CONFIG;
-    overlayUndoStackRef.current = [
-      ...overlayUndoStackRef.current.slice(-49),
-      { imageId: selectedImageId, config: prevConfig },
-    ];
-
     const nextConfig = { ...prevConfig, ...patch };
     const nextLayouts = {
       ...overlayLayoutsRef.current,
@@ -2222,6 +2343,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     overlayLayoutsRef.current = nextLayouts;
     selectedOverlayConfigRef.current = entry.config;
     setOverlayLayouts(nextLayouts);
+
+    const nextAdditional = {
+      ...additionalOverlayInstancesRef.current,
+      [entry.imageId]: entry.additionalInstances || [],
+    };
+    additionalOverlayInstancesRef.current = nextAdditional;
+    setAdditionalOverlayInstances(nextAdditional);
+
+    if (viewerInstance.current) renderHotspots();
   };
 
   const getCurrentOverlayRuntime = () => {
@@ -2526,7 +2656,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
               ? (baseOverrides[loteId] ?? {})
               : (lotOverrides[loteId] ?? {})
             : {};
-          if (override.visible === false) return null;
+          if (override.visible === false || override.anchoredFixed) return null;
 
           let anchoredPoints;
 
@@ -2920,8 +3050,81 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       }
     } catch (error) {
       console.error("Error cargando imagenes 360 guardadas:", error);
+    } finally {
+      // Si hay un borrador local (autoguardado de una sesión anterior sin publicar),
+      // se ofrece restaurarlo recién ahora que ya cargó lo publicado — así el usuario
+      // elige conscientemente si lo quiere traer de vuelta en vez de perderlo en silencio.
+      const draft = readLocalDraft(idproyecto);
+      if (draft && (draft.overlayLayouts || draft.additionalOverlayInstances)) {
+        setLocalDraftPrompt(draft);
+      }
+      localDraftReadyRef.current = true;
     }
   }, [idproyecto, token]);
+
+  const restoreLocalDraft = () => {
+    if (!localDraftPrompt) return;
+    if (localDraftPrompt.overlayLayouts) {
+      overlayLayoutsRef.current = {
+        ...overlayLayoutsRef.current,
+        ...localDraftPrompt.overlayLayouts,
+      };
+      setOverlayLayouts((prev) => ({ ...prev, ...localDraftPrompt.overlayLayouts }));
+    }
+    if (localDraftPrompt.additionalOverlayInstances) {
+      additionalOverlayInstancesRef.current = {
+        ...additionalOverlayInstancesRef.current,
+        ...localDraftPrompt.additionalOverlayInstances,
+      };
+      setAdditionalOverlayInstances((prev) => ({
+        ...prev,
+        ...localDraftPrompt.additionalOverlayInstances,
+      }));
+    }
+    if (localDraftPrompt.anchoredOverlays) {
+      anchoredOverlaysRef.current = {
+        ...anchoredOverlaysRef.current,
+        ...localDraftPrompt.anchoredOverlays,
+      };
+      setAnchoredOverlays((prev) => ({ ...prev, ...localDraftPrompt.anchoredOverlays }));
+    }
+    setLocalDraftSavedAt(localDraftPrompt.savedAt || null);
+    setLocalDraftPrompt(null);
+    if (viewerInstance.current) renderHotspots();
+    window.alertSuccess?.("Borrador local restaurado.");
+  };
+
+  const discardLocalDraft = () => {
+    clearLocalDraft(idproyecto);
+    setLocalDraftPrompt(null);
+    setLocalDraftSavedAt(null);
+  };
+
+  // Autoguardado: cada cambio en la posición/lotes confirmados del overlay 2D se
+  // guarda en localStorage (con un pequeño debounce) para no perder el avance si
+  // el usuario cierra la pestaña sin publicar el tour.
+  useEffect(() => {
+    if (!localDraftReadyRef.current || !idproyecto) return undefined;
+    if (localDraftTimeoutRef.current) clearTimeout(localDraftTimeoutRef.current);
+    localDraftTimeoutRef.current = setTimeout(() => {
+      const hasContent =
+        Object.keys(overlayLayouts).length ||
+        Object.keys(additionalOverlayInstances).length ||
+        Object.keys(anchoredOverlays).length;
+      if (!hasContent) return;
+      const savedAt = Date.now();
+      writeLocalDraft(idproyecto, {
+        overlayLayouts,
+        additionalOverlayInstances,
+        anchoredOverlays,
+        savedAt,
+      });
+      setLocalDraftSavedAt(savedAt);
+    }, LOCAL_DRAFT_DEBOUNCE_MS);
+    return () => {
+      if (localDraftTimeoutRef.current) clearTimeout(localDraftTimeoutRef.current);
+    };
+  }, [idproyecto, overlayLayouts, additionalOverlayInstances, anchoredOverlays]);
 
   const importLayoutIntoCurrentImage = async (event) => {
     event?.preventDefault();
@@ -2984,6 +3187,161 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       delete next[selectedImageId];
       return next;
     });
+  };
+
+  // Oculta/muestra UNA sola capa fija (instancia) sin tocar el resto ni el overlay
+  // en vivo — para poder esconder un mapa/lote duplicado puntual sin borrar nada.
+  const toggleAdditionalInstanceVisibility = (instanceId) => {
+    if (!selectedImageId) return;
+    setAdditionalOverlayInstances((prev) => {
+      const current = prev[selectedImageId] || [];
+      const updated = current.map((inst) =>
+        inst.instanceId === instanceId
+          ? { ...inst, visible: inst.visible === false ? true : false }
+          : inst,
+      );
+      additionalOverlayInstancesRef.current = {
+        ...additionalOverlayInstancesRef.current,
+        [selectedImageId]: updated,
+      };
+      return { ...prev, [selectedImageId]: updated };
+    });
+    if (viewerInstance.current) renderHotspots();
+  };
+
+  // Elimina UNA sola capa fija (instancia), dejando intactas las demás y el overlay
+  // en vivo — para borrar definitivamente solo el mapa/grupo de lotes sobrante.
+  const removeAdditionalInstance = (instanceId) => {
+    if (!selectedImageId) return;
+    setAdditionalOverlayInstances((prev) => {
+      const current = prev[selectedImageId] || [];
+      const updated = current.filter((inst) => inst.instanceId !== instanceId);
+      additionalOverlayInstancesRef.current = {
+        ...additionalOverlayInstancesRef.current,
+        [selectedImageId]: updated,
+      };
+      return { ...prev, [selectedImageId]: updated };
+    });
+    if (viewerInstance.current) renderHotspots();
+  };
+
+  // Lotes ya confirmados/fijos a la foto en esta imagen (promovidos desde "Confirmar
+  // y deseleccionar"), agrupados POR INSTANCIA (en vez de aplanados en una sola lista)
+  // para poder mostrar un resumen compacto por capa y permitir ocultar/eliminar una
+  // capa puntual (p.ej. una duplicada) sin desplegar cada lote uno por uno.
+  const fixedInstancesForCurrentImage = useMemo(() => {
+    const instances = additionalOverlayInstances[selectedImageId] || [];
+    return instances
+      .filter((instance) => String(instance.instanceId || "").startsWith("fixed-"))
+      .map((instance, idx) => ({
+        instanceId: instance.instanceId,
+        visible: instance.visible !== false,
+        label: `Capa fija ${idx + 1}`,
+        lotes: (instance.lotPolygons || []).map((lote) => ({
+          instanceId: instance.instanceId,
+          loteId: String(lote.idlote ?? ""),
+          nombre: lote.nombre,
+          color: lote.color,
+          textureMode: lote.textureMode ?? instance.textureMode ?? "solid",
+          lotOpacity: lote.lotOpacity ?? instance.lotOpacity ?? 0.82,
+        })),
+      }));
+  }, [additionalOverlayInstances, selectedImageId]);
+
+  const [expandedFixedInstanceIds, setExpandedFixedInstanceIds] = useState(() => new Set());
+  const toggleFixedInstanceExpanded = (instanceId) => {
+    setExpandedFixedInstanceIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(instanceId)) next.delete(instanceId);
+      else next.add(instanceId);
+      return next;
+    });
+  };
+
+  const updateFixedLotStyle = (instanceId, loteId, patch) => {
+    setAdditionalOverlayInstances((prev) => {
+      const current = prev[selectedImageId] || [];
+      const updated = current.map((instance) => {
+        if (instance.instanceId !== instanceId) return instance;
+        return {
+          ...instance,
+          lotPolygons: (instance.lotPolygons || []).map((lote) =>
+            String(lote.idlote ?? "") === loteId ? { ...lote, ...patch } : lote,
+          ),
+        };
+      });
+      additionalOverlayInstancesRef.current = {
+        ...additionalOverlayInstancesRef.current,
+        [selectedImageId]: updated,
+      };
+      return { ...prev, [selectedImageId]: updated };
+    });
+    if (viewerInstance.current) renderHotspots();
+  };
+
+  // Saca un lote ya fijado de vuelta al modo editable: convierte su polígono esférico
+  // guardado en "committedSphericalPoints" (el mismo campo que usa el panel de ajuste
+  // fino sobre el tour) y entra a modo zoom con el lote ya seleccionado, listo para
+  // transformarlo de nuevo sin perder su posición actual.
+  const reactivateFixedLot = (instanceId, loteId) => {
+    const instances = additionalOverlayInstancesRef.current[selectedImageId] || [];
+    const instance = instances.find((inst) => inst.instanceId === instanceId);
+    const lote = instance?.lotPolygons?.find(
+      (l) => String(l.idlote ?? "") === loteId,
+    );
+    if (!lote?.polygon?.length) return;
+
+    pushOverlayUndoSnapshot(selectedImageId);
+
+    const remainingLotPolygons = (instance.lotPolygons || []).filter(
+      (l) => String(l.idlote ?? "") !== loteId,
+    );
+    const updatedInstances = remainingLotPolygons.length
+      ? instances.map((inst) =>
+          inst.instanceId === instanceId
+            ? { ...inst, lotPolygons: remainingLotPolygons }
+            : inst,
+        )
+      : instances.filter((inst) => inst.instanceId !== instanceId);
+    additionalOverlayInstancesRef.current = {
+      ...additionalOverlayInstancesRef.current,
+      [selectedImageId]: updatedInstances,
+    };
+    setAdditionalOverlayInstances((prev) => ({
+      ...prev,
+      [selectedImageId]: updatedInstances,
+    }));
+
+    const nextLayouts = {
+      ...overlayLayoutsRef.current,
+      [selectedImageId]: {
+        ...(overlayLayoutsRef.current[selectedImageId] || DEFAULT_LAYOUT_CONFIG),
+        visible: true,
+        lotOverrides: {
+          ...(overlayLayoutsRef.current[selectedImageId]?.lotOverrides ?? {}),
+          [loteId]: {
+            ...(overlayLayoutsRef.current[selectedImageId]?.lotOverrides?.[loteId] ?? {}),
+            anchoredFixed: false,
+            committedSphericalPoints: lote.polygon,
+          },
+        },
+      },
+    };
+    overlayLayoutsRef.current = nextLayouts;
+    selectedOverlayConfigRef.current = nextLayouts[selectedImageId];
+    setOverlayLayouts(nextLayouts);
+
+    setLayoutEditMode(true);
+    setAnchoredEditMode(true);
+    groupEditBaseRef.current = { ...(nextLayouts[selectedImageId].lotOverrides ?? {}) };
+    sphericalGroupEditRef.current = DEFAULT_SPHERICAL_GROUP_EDIT;
+    setSphericalGroupEdit(DEFAULT_SPHERICAL_GROUP_EDIT);
+    const nextSelected = new Set([loteId]);
+    selectedLotIdsRef.current = nextSelected;
+    setSelectedLotIds(nextSelected);
+
+    if (viewerInstance.current) renderHotspots();
+    window.alertSuccess?.("Lote reactivado — ajústalo en modo zoom y vuelve a confirmar.");
   };
 
   const clearAnchoredOverlayForCurrentImage = () => {
@@ -3594,28 +3952,40 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       ? Math.max(0, Math.min(100, Number(savedCameraConfig.zoomLevel)))
       : 50;
 
-    const viewer = new runtime.Viewer({
-      container: viewerRef.current,
-      panorama: selectedImg.imagen,
-      defaultYaw: restoredYaw,
-      defaultPitch: restoredPitch,
-      defaultZoomLvl: restoredZoom,
-      adapter: runtime.EquirectangularAdapter
-        ? [
-            runtime.EquirectangularAdapter,
-            { resolution: 32, useXmpData: false },
-          ]
-        : undefined,
-      rendererParameters: {
-        alpha: true,
-        antialias: false,
-        powerPreference: "high-performance",
-      },
-      plugins: [[runtime.MarkersPlugin, {}]],
-      navbar: ["zoom", "move", "caption", "fullscreen"],
-      caption: `${selectedImg.nombre} · borrador local`,
-      loadingImg: "https://geohabita.com/loading.gif",
-    });
+    let viewer;
+    try {
+      viewer = new runtime.Viewer({
+        container: viewerRef.current,
+        panorama: selectedImg.imagen,
+        defaultYaw: restoredYaw,
+        defaultPitch: restoredPitch,
+        defaultZoomLvl: restoredZoom,
+        adapter: runtime.EquirectangularAdapter
+          ? [
+              runtime.EquirectangularAdapter,
+              { resolution: 32, useXmpData: false },
+            ]
+          : undefined,
+        rendererParameters: {
+          alpha: true,
+          antialias: false,
+          powerPreference: "high-performance",
+        },
+        plugins: [[runtime.MarkersPlugin, {}]],
+        navbar: ["zoom", "move", "caption", "fullscreen"],
+        caption: `${selectedImg.nombre} · borrador local`,
+        loadingImg: "https://geohabita.com/loading.gif",
+      });
+    } catch (err) {
+      // El contenedor puede tener ancho/alto 0 durante una resolución muy
+      // pequeña (p.ej. devtools en modo responsive); evita tumbar todo el
+      // dashboard si el visor 360 no logra inicializarse.
+      console.error("No se pudo inicializar el visor 360:", err);
+      window.alertError?.(
+        "No se pudo cargar el visor 360 con esta resolución. Amplía la ventana e intenta de nuevo.",
+      );
+      return undefined;
+    }
     const restoreViewerAutoSize = installDeferredViewerAutoSize(viewer);
 
     viewerInstance.current = viewer;
@@ -4110,6 +4480,12 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         };
       });
 
+      // Ya publicado: el borrador local quedaría desactualizado/redundante frente
+      // a lo que ahora vive en el backend, así que se descarta para no ofrecer
+      // restaurar datos viejos en la próxima sesión.
+      clearLocalDraft(idproyecto);
+      setLocalDraftSavedAt(null);
+
       window.alertSuccess?.("Tour 360 y overlay 2D guardados correctamente.");
     } catch (error) {
       console.error(error);
@@ -4228,18 +4604,35 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       updateSphericalGroupEdit(anchoredGroupDragPatchRef.current);
       anchoredGroupDragPatchRef.current = null;
     }
+    if (vertexDragFrameRef.current) {
+      cancelAnimationFrame(vertexDragFrameRef.current);
+      vertexDragFrameRef.current = null;
+    }
+    if (vertexDragPatchRef.current) {
+      const patch = vertexDragPatchRef.current;
+      vertexDragPatchRef.current = null;
+      updateGroupEdit({
+        vertexOffsets: {
+          ...groupEditRef.current.vertexOffsets,
+          [patch.key]: { dx: patch.dx, dy: patch.dy },
+        },
+      });
+    }
     if (dragState) setDragState(null);
     if (groupDragState) setGroupDragState(null);
     if (anchoredGroupDragState) setAnchoredGroupDragState(null);
+    if (vertexDragState) setVertexDragState(null);
   };
 
   useEffect(() => {
-    if (!dragState && !groupDragState && !anchoredGroupDragState) return undefined;
+    if (!dragState && !groupDragState && !anchoredGroupDragState && !vertexDragState)
+      return undefined;
 
     const handleWindowMouseMove = (event) => {
       handleOverlayPointerMove(event);
       handleGroupPointerMove(event);
       handleAnchoredGroupPointerMove(event);
+      handleVertexPointerMove(event);
     };
 
     window.addEventListener("mousemove", handleWindowMouseMove);
@@ -4249,7 +4642,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", stopOverlayDrag);
     };
-  }, [dragState, groupDragState, anchoredGroupDragState]);
+  }, [dragState, groupDragState, anchoredGroupDragState, vertexDragState]);
 
   const updateGroupEdit = (patch) => {
     const next = { ...groupEditRef.current, ...patch };
@@ -4273,16 +4666,100 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     groupEditBaseRef.current = {};
   };
 
+  // "Confirmar y deseleccionar" en el panel plano (tarjeta flotante, antes de anclar
+  // todo el plano a la foto): además de congelar la transformación del grupo, proyecta
+  // cada lote confirmado a coordenadas esféricas (yaw/pitch) con la cámara actual y lo
+  // promueve a marcador fijo real (igual que una instancia "+ Añadir mapa 2D"), para que
+  // quede pegado a la foto — como en el visor público — y ya no responda a mover/zoom
+  // de la cámara ni a la tarjeta flotante. Si el ocultar ("Ocultar" pasa visible:false)
+  // o si la proyección falla (cámara no lista), se conserva el comportamiento anterior
+  // (sólo congelar los puntos dentro del overlay flotante) para no perder el ajuste.
   const commitGroupEdit = (extraOverride = {}) => {
     const activeSelectedIds = selectedLotIdsRef.current;
     const activeGroupEdit = groupEditRef.current;
     const baseOverrides = groupEditBaseRef.current;
     if (activeSelectedIds.size === 0 || !projectGeometry) return;
+    pushOverlayUndoSnapshot(selectedImageId);
     const gc = computeGroupCentroid(
       projectGeometry.lotes,
       activeSelectedIds,
       baseOverrides,
     );
+
+    const isHidingOnly = extraOverride.visible === false;
+    const fixedLotPolygons = [];
+    const fixedLoteIds = new Set();
+    const finalPtsByLote = {};
+
+    projectGeometry.lotes.forEach((lote, loteIndex) => {
+      const loteId = getLoteKey(lote, loteIndex);
+      if (!activeSelectedIds.has(loteId)) return;
+      const base = baseOverrides[loteId] ?? {};
+      const basePts = applyLotSvgTransform(lote.points || [], base);
+      const baseKeys = basePts.map((p) => getVertexKey(p.x, p.y));
+      const finalPts = applyVertexOffsetsToPoints(
+        applyGroupTransformWithTiltToPoints(basePts, gc.cx, gc.cy, activeGroupEdit),
+        baseKeys,
+        activeGroupEdit.vertexOffsets,
+      );
+      finalPtsByLote[loteId] = finalPts;
+
+      if (isHidingOnly) return;
+      const anchoredPts = finalPts
+        .map((p) => convertOverlayLayoutPointToAnchored(p))
+        .filter((p) => p?.spherical);
+      if (anchoredPts.length >= 3) {
+        fixedLoteIds.add(loteId);
+        fixedLotPolygons.push({
+          idlote: getLoteId(lote),
+          nombre: lote.nombre,
+          precio: lote.precio,
+          moneda: lote.moneda,
+          area_total_m2: lote.area_total_m2,
+          ancho: lote.ancho,
+          largo: lote.largo,
+          color: lote.color,
+          vendido: lote.vendido,
+          textureMode:
+            activeGroupEdit.textureMode ??
+            base.textureMode ??
+            selectedOverlayConfig?.textureMode ??
+            "solid",
+          lotOpacity:
+            activeGroupEdit.opacity ??
+            base.opacity ??
+            selectedOverlayConfig?.lotOpacity ??
+            0.82,
+          polygon: anchoredPts.map((p) => p.spherical),
+          polygonPixels: anchoredPts.map((p) => p.pixels).filter(Boolean),
+        });
+      }
+    });
+
+    if (fixedLotPolygons.length) {
+      const instanceId = `fixed-${Date.now()}`;
+      const newInstance = {
+        imageId: selectedImageId,
+        instanceId,
+        visible: true,
+        showProjectOutline: false,
+        textureMode: "solid",
+        lotOpacity: selectedOverlayConfig?.lotOpacity ?? 0.82,
+        projectPolygon: [],
+        projectPolygonPixels: [],
+        lotPolygons: fixedLotPolygons,
+      };
+      const current = additionalOverlayInstancesRef.current[selectedImageId] || [];
+      const updated = [...current, newInstance];
+      additionalOverlayInstancesRef.current = {
+        ...additionalOverlayInstancesRef.current,
+        [selectedImageId]: updated,
+      };
+      setAdditionalOverlayInstances((prev) => ({
+        ...prev,
+        [selectedImageId]: updated,
+      }));
+    }
 
     setOverlayLayouts((prev) => {
       const cfg = prev[selectedImageId] || DEFAULT_LAYOUT_CONFIG;
@@ -4291,22 +4768,24 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       projectGeometry.lotes.forEach((lote, loteIndex) => {
         const loteId = getLoteKey(lote, loteIndex);
         if (!activeSelectedIds.has(loteId)) return;
-        const base = baseOverrides[loteId] ?? {};
-        const basePts = applyLotSvgTransform(lote.points || [], base);
-        const finalPts = applyGroupTransformWithTiltToPoints(
-          basePts,
-          gc.cx,
-          gc.cy,
-          activeGroupEdit,
-        );
         const {
           committedCardTransform: _unusedCommittedCardTransform,
           ...previousOverride
         } = newOverrides[loteId] ?? {};
 
+        if (fixedLoteIds.has(loteId)) {
+          // Promovido a marcador fijo anclado a la foto: se quita del overlay
+          // flotante (anchoredFixed) en vez de quedar como committedPoints.
+          newOverrides[loteId] = {
+            ...previousOverride,
+            anchoredFixed: true,
+          };
+          return;
+        }
+
         newOverrides[loteId] = {
           ...previousOverride,
-          committedPoints: finalPts,
+          committedPoints: finalPtsByLote[loteId],
           ...(activeGroupEdit.opacity !== null
             ? { opacity: activeGroupEdit.opacity }
             : {}),
@@ -4321,6 +4800,8 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         [selectedImageId]: { ...cfg, lotOverrides: newOverrides },
       };
     });
+
+    if (viewerInstance.current) renderHotspots();
   };
 
   // Equivalente a commitGroupEdit pero en espacio esférico (yaw/pitch), para el modo
@@ -4331,6 +4812,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     const baseOverrides = groupEditBaseRef.current;
     const viewer = viewerInstance.current;
     if (activeSelectedIds.size === 0 || !projectGeometry || !viewer) return;
+    pushOverlayUndoSnapshot(selectedImageId);
 
     const cachedSnapshot =
       anchoredOverlaysRef.current[String(selectedImageId)] ||
@@ -4590,7 +5072,12 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         projectGeometry.lotes.forEach((lote, index) => {
           const loteId = getLoteKey(lote, index);
           const override = config.lotOverrides?.[loteId] ?? {};
-          if (override.visible === false) return;
+          // Los lotes ya confirmados/fijados a la foto se excluyen de la selección
+          // por rectángulo: ya no viven en el plano flotante, así que probar su
+          // posición cruda (sin transformar) producía falsos positivos que los
+          // hacían "reaparecer" en su posición original al quedar atrapados en un
+          // rectángulo nuevo cercano.
+          if (override.visible === false || override.anchoredFixed) return;
           const basePts = override.committedPoints?.length
             ? override.committedPoints
             : applyLotSvgTransform(lote.points || [], override);
@@ -4647,6 +5134,24 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       startY: event.clientY,
       baseDx: groupEditRef.current.dx,
       baseDy: groupEditRef.current.dy,
+    });
+  };
+
+  // Arrastra una sola esquina del grupo seleccionado (modo plano, antes de anclar):
+  // ajusta solo ese vértice — y cualquier otro lote que comparta esa misma esquina en
+  // el plano original — sin tocar la escala/rotación/posición del resto del grupo.
+  const startVertexDrag = (event, vertexKey) => {
+    if (alignmentModeRef.current?.active) return;
+    if (!layoutEditMode || selectedLotIds.size === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const current = groupEditRef.current.vertexOffsets?.[vertexKey] || { dx: 0, dy: 0 };
+    setVertexDragState({
+      key: vertexKey,
+      startX: event.clientX,
+      startY: event.clientY,
+      baseDx: current.dx || 0,
+      baseDy: current.dy || 0,
     });
   };
 
@@ -4804,6 +5309,37 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     });
   };
 
+  const handleVertexPointerMove = (event) => {
+    if (!vertexDragState || !overlaySvgRef.current) return;
+    const svgEl = overlaySvgRef.current;
+    const scaleX =
+      OVERLAY_VIEWBOX.width / (svgEl.clientWidth || OVERLAY_VIEWBOX.width);
+    const scaleY =
+      OVERLAY_VIEWBOX.height / (svgEl.clientHeight || OVERLAY_VIEWBOX.height);
+    const dxSvg = (event.clientX - vertexDragState.startX) * scaleX;
+    const dySvg = (event.clientY - vertexDragState.startY) * scaleY;
+    vertexDragPatchRef.current = {
+      key: vertexDragState.key,
+      dx: vertexDragState.baseDx + dxSvg,
+      dy: vertexDragState.baseDy + dySvg,
+    };
+
+    if (vertexDragFrameRef.current) return;
+    vertexDragFrameRef.current = requestAnimationFrame(() => {
+      vertexDragFrameRef.current = null;
+      const patch = vertexDragPatchRef.current;
+      vertexDragPatchRef.current = null;
+      if (patch) {
+        updateGroupEdit({
+          vertexOffsets: {
+            ...groupEditRef.current.vertexOffsets,
+            [patch.key]: { dx: patch.dx, dy: patch.dy },
+          },
+        });
+      }
+    });
+  };
+
   const handleAnchoredGroupPointerMove = (event) => {
     if (!anchoredGroupDragState) return;
     const viewer = viewerInstance.current;
@@ -4901,21 +5437,6 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
           }}
           onMouseDown={startOverlayDrag}
         >
-          <div className={styles.projectOverlayHeader}>
-            <span className={styles.overlayTitleBadge}>Trazos 2D</span>
-            {layoutEditMode ? (
-              <span className={styles.overlayEditHint}>
-                <Move size={13} />
-                Arrastra para ubicar
-              </span>
-            ) : (
-              <span className={styles.overlayEditHint}>
-                <Eye size={13} />
-                Vista previa
-              </span>
-            )}
-          </div>
-
           <svg
             ref={overlaySvgRef}
             className={styles.projectOverlaySvg}
@@ -4966,7 +5487,11 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             {projectGeometry.lotes.map((lote, index) => {
               const loteId = getLoteKey(lote, index);
               const override = renderOverlayConfig.lotOverrides?.[loteId] ?? {};
-              if (override.visible === false || selectedLotIds.has(loteId))
+              if (
+                override.visible === false ||
+                override.anchoredFixed ||
+                selectedLotIds.has(loteId)
+              )
                 return null;
               // Lotes confirmados se renderizan en su propio card frozen (fuera del CSS transform del card activo).
               // Usar selectedOverlayConfig (no deferred) para evitar el flash de posición base durante el render
@@ -5047,7 +5572,12 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                   return color;
                 };
 
-                return projectGeometry.lotes.map((lote, index) => {
+                // Vértices únicos del contorno combinado: los lotes vecinos que
+                // comparten una esquina en el plano original aportan la misma clave,
+                // así que solo se dibuja un puntito ahí (arrastrarlo mueve a todos).
+                const vertexMap = new Map();
+
+                const lotElements = projectGeometry.lotes.map((lote, index) => {
                   const loteId = getLoteKey(lote, index);
                   const override = base[loteId] ?? {};
                   if (!selectedLotIds.has(loteId) || override.visible === false)
@@ -5056,12 +5586,17 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     lote.points || [],
                     override,
                   );
-                  const projPts = applyGroupTransformWithTiltToPoints(
-                    basePts,
-                    gcx,
-                    gcy,
-                    renderGroupEdit,
+                  const baseKeys = basePts.map((p) => getVertexKey(p.x, p.y));
+                  const projPts = applyVertexOffsetsToPoints(
+                    applyGroupTransformWithTiltToPoints(basePts, gcx, gcy, renderGroupEdit),
+                    baseKeys,
+                    renderGroupEdit.vertexOffsets,
                   );
+                  projPts.forEach((p, i) => {
+                    if (!vertexMap.has(baseKeys[i])) {
+                      vertexMap.set(baseKeys[i], { x: p.x, y: p.y });
+                    }
+                  });
                   const projPath = buildSvgPath(projPts);
                   return (
                     <g
@@ -5090,16 +5625,16 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                       <path
                         d={projPath}
                         fill="none"
-                        stroke="#ffe000"
+                        stroke="#5eead4"
                         strokeWidth="10"
                         strokeLinejoin="round"
-                        strokeOpacity="0.35"
+                        strokeOpacity="0.3"
                       />
                       {/* Borde de selección */}
                       <path
                         d={projPath}
-                        fill="rgba(255,230,0,0.38)"
-                        stroke="#ffe000"
+                        fill="rgba(94,234,212,0.26)"
+                        stroke="#5eead4"
                         strokeWidth="5"
                         strokeLinejoin="round"
                       />
@@ -5118,6 +5653,26 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     </g>
                   );
                 });
+
+                const vertexHandles =
+                  layoutEditMode && !alignmentMode.active
+                    ? [...vertexMap.entries()].map(([key, pos]) => (
+                        <circle
+                          key={`vertex-${key}`}
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={vertexDragState?.key === key ? 9 : 7}
+                          fill="#0f172a"
+                          stroke="#5eead4"
+                          strokeWidth="2.5"
+                          style={{ cursor: "crosshair" }}
+                          onMouseDown={(e) => startVertexDrag(e, key)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ))
+                    : [];
+
+                return [...lotElements, ...vertexHandles];
               })()}
           </svg>
         </div>
@@ -5233,12 +5788,12 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
             groupTexture === "outline" ? 1 : groupTexture === "transparent" ? 0.35 : groupOpacity;
           return (
             <g key={loteId}>
-              <path d={d} fill="none" stroke="#ffe000" strokeWidth="10" strokeOpacity="0.35" />
+              <path d={d} fill="none" stroke="#5eead4" strokeWidth="10" strokeOpacity="0.3" />
               <path
                 d={d}
                 fill={fill}
                 fillOpacity={fillOpacity}
-                stroke="#ffe000"
+                stroke="#5eead4"
                 strokeWidth="2.5"
                 style={{
                   cursor: anchoredGroupDragState ? "grabbing" : "move",
@@ -5539,6 +6094,24 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 conexion(es) creadas
               </div>
 
+              {localDraftPrompt && (
+                <div className={styles.helperBox} style={{ borderColor: "rgba(72,199,142,0.4)" }}>
+                  <strong>Hay un borrador local sin publicar</strong>
+                  <p style={{ margin: "4px 0 8px" }}>
+                    Guardado {formatRelativeSavedAt(localDraftPrompt.savedAt)} en este navegador. ¿Lo restauras?
+                  </p>
+                  <div className={styles.panelActions}>
+                    <button type="button" className={styles.btnPrimary360} onClick={restoreLocalDraft}>
+                      <History size={14} />
+                      Restaurar
+                    </button>
+                    <button type="button" className={styles.btnCancel} onClick={discardLocalDraft}>
+                      Descartar
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
                 className={styles.btnPrimary360}
@@ -5548,6 +6121,23 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                 <Upload size={16} />
                 {savingTour ? "Publicando..." : "Publicar tour"}
               </button>
+
+              {localDraftSavedAt && (
+                <div className={styles.helperText} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    <Save size={12} />
+                    Borrador local guardado {formatRelativeSavedAt(localDraftSavedAt)}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.btnDel}
+                    title="Borrar el borrador local guardado en este navegador"
+                    onClick={discardLocalDraft}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              )}
 
               <div className={`${styles.panelBlock} ${styles.panelBlockExpand}`}>
                 <div className={styles.sectionTitleRow}>
@@ -5580,7 +6170,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     title={additionalInstanceCount > 0 ? `Fija el mapa actual y añade uno nuevo (${additionalInstanceCount + 1} mapas en total tras esto)` : "Importa el plano 2D sobre esta vista 360"}
                   >
                     <MapIcon size={16} />
-                    {geometryLoading ? "Importando..." : additionalInstanceCount > 0 ? `+ Añadir mapa 2D (${additionalInstanceCount} fijo${additionalInstanceCount !== 1 ? "s" : ""})` : "Importar puntos 2D"}
+                    {geometryLoading ? "Importando..." : additionalInstanceCount > 0 ? `+ Añadir mapa 2D (${additionalInstanceCount} fijo${additionalInstanceCount !== 1 ? "s" : ""})` : "Importar plano 2D"}
                   </button>
                   <button
                     type="button"
@@ -5606,6 +6196,123 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                     </button>
                   </div>
                 )}
+
+                {fixedInstancesForCurrentImage.length > 0 && (
+                  <div className={styles.blockEditPanel}>
+                    <p className={styles.blockEditCount}>
+                      {fixedInstancesForCurrentImage.length} capa
+                      {fixedInstancesForCurrentImage.length !== 1 ? "s" : ""} fija
+                      {fixedInstancesForCurrentImage.length !== 1 ? "s" : ""} en esta foto
+                    </p>
+                    {fixedInstancesForCurrentImage.map((instance) => {
+                      const isExpanded = expandedFixedInstanceIds.has(instance.instanceId);
+                      return (
+                        <div
+                          key={instance.instanceId}
+                          style={{
+                            padding: "8px 0",
+                            borderTop: "1px solid rgba(94,234,212,0.18)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <button
+                              type="button"
+                              className={styles.btnCancel}
+                              style={{ padding: "4px 6px" }}
+                              onClick={() => toggleFixedInstanceExpanded(instance.instanceId)}
+                              title={isExpanded ? "Contraer lista de lotes" : "Ver lotes de esta capa"}
+                            >
+                              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                            </button>
+                            <strong style={{ fontSize: "0.82rem", flex: 1 }}>
+                              {instance.label} · {instance.lotes.length} lote
+                              {instance.lotes.length !== 1 ? "s" : ""}
+                              {!instance.visible && " (oculta)"}
+                            </strong>
+                            <button
+                              type="button"
+                              className={styles.btnCancel}
+                              style={{ padding: "4px 6px" }}
+                              onClick={() => toggleAdditionalInstanceVisibility(instance.instanceId)}
+                              title={instance.visible ? "Ocultar solo esta capa" : "Mostrar esta capa"}
+                            >
+                              {instance.visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.btnCancel}
+                              style={{ padding: "4px 6px" }}
+                              onClick={() => {
+                                if (window.confirm(`¿Eliminar "${instance.label}" (${instance.lotes.length} lote${instance.lotes.length !== 1 ? "s" : ""})? Esta acción no se puede deshacer.`)) {
+                                  removeAdditionalInstance(instance.instanceId);
+                                }
+                              }}
+                              title="Eliminar solo esta capa"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          {isExpanded && (
+                            <div style={{ marginTop: 6, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+                              {instance.lotes.map((lote) => (
+                                <div
+                                  key={`${lote.instanceId}-${lote.loteId}`}
+                                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <span
+                                      style={{
+                                        width: 10,
+                                        height: 10,
+                                        borderRadius: 3,
+                                        background: lote.color || "#22c55e",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                    <strong style={{ fontSize: "0.82rem" }}>
+                                      {lote.nombre || `Lote ${lote.loteId}`}
+                                    </strong>
+                                  </div>
+                                  <div className={styles.textureSelectorRow}>
+                                    {[
+                                      { key: "solid", label: "Con fondo" },
+                                      { key: "transparent", label: "Transparente" },
+                                      { key: "outline", label: "Sin fondo" },
+                                    ].map(({ key, label }) => (
+                                      <button
+                                        key={key}
+                                        type="button"
+                                        className={`${styles.textureBtn} ${lote.textureMode === key ? styles.textureBtnActive : ""}`}
+                                        onClick={() =>
+                                          updateFixedLotStyle(lote.instanceId, lote.loteId, {
+                                            textureMode: key,
+                                          })
+                                        }
+                                      >
+                                        {label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={styles.btnCancel}
+                                    onClick={() => reactivateFixedLot(lote.instanceId, lote.loteId)}
+                                    title="Lo saca de fijo y lo selecciona en modo zoom para volver a transformarlo"
+                                  >
+                                    <Move size={14} />
+                                    Reactivar para editar
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 <div className={styles.panelActions}>
                   <button
                     type="button"
@@ -6052,6 +6759,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                             type="button"
                             className={styles.stepArrow}
                             onClick={() => {
+                              const s = 0.005;
+                              const v = Math.round(Math.max(0.15, selectedOverlayConfig.opacity - s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ opacity: v });
+                            }}
+                          >−−</button>
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
                               const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05;
                               const v = Math.round(Math.max(0.15, selectedOverlayConfig.opacity - s) * 1000) / 1000;
                               updateSelectedOverlayConfig({ opacity: v });
@@ -6083,6 +6799,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               updateSelectedOverlayConfig({ opacity: v });
                             }}
                           >+</button>
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
+                              const s = 0.005;
+                              const v = Math.round(Math.min(1, selectedOverlayConfig.opacity + s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ opacity: v });
+                            }}
+                          >++</button>
                         </label>
 
                         <label className={styles.rangeControl}>
@@ -6099,6 +6824,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               })
                             }
                           />
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
+                              const s = 0.005;
+                              const v = Math.round(Math.max(0.1, selectedOverlayConfig.lotOpacity - s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ lotOpacity: v });
+                            }}
+                          >−−</button>
                           <button
                             type="button"
                             className={styles.stepArrow}
@@ -6134,6 +6868,15 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               updateSelectedOverlayConfig({ lotOpacity: v });
                             }}
                           >+</button>
+                          <button
+                            type="button"
+                            className={styles.stepArrow}
+                            onClick={() => {
+                              const s = 0.005;
+                              const v = Math.round(Math.min(1, selectedOverlayConfig.lotOpacity + s) * 1000) / 1000;
+                              updateSelectedOverlayConfig({ lotOpacity: v });
+                            }}
+                          >++</button>
                         </label>
 
                         <div className={styles.toggleRow}>
@@ -6197,6 +6940,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ tiltX: Math.max(-60, (selectedOverlayConfig.tiltX ?? 0) - s) }); }}>−−</button>
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltX: Math.max(-60, (selectedOverlayConfig.tiltX ?? 0) - s) }); }}>−</button>
                             <input
                               type="number"
@@ -6212,6 +6956,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               }}
                             />
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltX: Math.min(60, (selectedOverlayConfig.tiltX ?? 0) + s) }); }}>+</button>
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ tiltX: Math.min(60, (selectedOverlayConfig.tiltX ?? 0) + s) }); }}>++</button>
                           </label>
 
                           <label className={styles.rangeControl}>
@@ -6228,6 +6973,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ tiltY: Math.max(-60, (selectedOverlayConfig.tiltY ?? 0) - s) }); }}>−−</button>
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltY: Math.max(-60, (selectedOverlayConfig.tiltY ?? 0) - s) }); }}>−</button>
                             <input
                               type="number"
@@ -6243,6 +6989,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               }}
                             />
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ tiltY: Math.min(60, (selectedOverlayConfig.tiltY ?? 0) + s) }); }}>+</button>
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ tiltY: Math.min(60, (selectedOverlayConfig.tiltY ?? 0) + s) }); }}>++</button>
                           </label>
 
                           <label className={styles.rangeControl}>
@@ -6261,6 +7008,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateSelectedOverlayConfig({ perspectiveDepth: Math.max(200, (selectedOverlayConfig.perspectiveDepth ?? 900) - s) }); }}>−−</button>
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateSelectedOverlayConfig({ perspectiveDepth: Math.max(200, (selectedOverlayConfig.perspectiveDepth ?? 900) - s) }); }}>−</button>
                             <input
                               type="number"
@@ -6280,6 +7028,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               }}
                             />
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateSelectedOverlayConfig({ perspectiveDepth: Math.min(2000, (selectedOverlayConfig.perspectiveDepth ?? 900) + s) }); }}>+</button>
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateSelectedOverlayConfig({ perspectiveDepth: Math.min(2000, (selectedOverlayConfig.perspectiveDepth ?? 900) + s) }); }}>++</button>
                           </label>
                         </div>
 
@@ -6302,6 +7051,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSelectedOverlayConfig({ scaleX: Math.round(Math.max(0.5, (selectedOverlayConfig.scaleX ?? 1) - s) * 1000) / 1000 }); }}>−−</button>
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSelectedOverlayConfig({ scaleX: Math.round(Math.max(0.5, (selectedOverlayConfig.scaleX ?? 1) - s) * 1000) / 1000 }); }}>−</button>
                             <input
                               type="number"
@@ -6317,6 +7067,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               }}
                             />
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSelectedOverlayConfig({ scaleX: Math.round(Math.min(2, (selectedOverlayConfig.scaleX ?? 1) + s) * 1000) / 1000 }); }}>+</button>
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSelectedOverlayConfig({ scaleX: Math.round(Math.min(2, (selectedOverlayConfig.scaleX ?? 1) + s) * 1000) / 1000 }); }}>++</button>
                           </label>
 
                           <label className={styles.rangeControl}>
@@ -6333,6 +7084,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSelectedOverlayConfig({ scaleY: Math.round(Math.max(0.5, (selectedOverlayConfig.scaleY ?? 1) - s) * 1000) / 1000 }); }}>−−</button>
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSelectedOverlayConfig({ scaleY: Math.round(Math.max(0.5, (selectedOverlayConfig.scaleY ?? 1) - s) * 1000) / 1000 }); }}>−</button>
                             <input
                               type="number"
@@ -6348,6 +7100,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               }}
                             />
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSelectedOverlayConfig({ scaleY: Math.round(Math.min(2, (selectedOverlayConfig.scaleY ?? 1) + s) * 1000) / 1000 }); }}>+</button>
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSelectedOverlayConfig({ scaleY: Math.round(Math.min(2, (selectedOverlayConfig.scaleY ?? 1) + s) * 1000) / 1000 }); }}>++</button>
                           </label>
 
                           <label className={styles.rangeControl}>
@@ -6364,6 +7117,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ skewX: Math.max(-45, (selectedOverlayConfig.skewX ?? 0) - s) }); }}>−−</button>
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ skewX: Math.max(-45, (selectedOverlayConfig.skewX ?? 0) - s) }); }}>−</button>
                             <input
                               type="number"
@@ -6379,6 +7133,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               }}
                             />
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ skewX: Math.min(45, (selectedOverlayConfig.skewX ?? 0) + s) }); }}>+</button>
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ skewX: Math.min(45, (selectedOverlayConfig.skewX ?? 0) + s) }); }}>++</button>
                           </label>
 
                           <label className={styles.rangeControl}>
@@ -6395,6 +7150,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                 })
                               }
                             />
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ skewY: Math.max(-45, (selectedOverlayConfig.skewY ?? 0) - s) }); }}>−−</button>
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ skewY: Math.max(-45, (selectedOverlayConfig.skewY ?? 0) - s) }); }}>−</button>
                             <input
                               type="number"
@@ -6410,6 +7166,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                               }}
                             />
                             <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSelectedOverlayConfig({ skewY: Math.min(45, (selectedOverlayConfig.skewY ?? 0) + s) }); }}>+</button>
+                            <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSelectedOverlayConfig({ skewY: Math.min(45, (selectedOverlayConfig.skewY ?? 0) + s) }); }}>++</button>
                           </label>
                         </div>
 
@@ -6478,6 +7235,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSphericalGroupEdit({ scale: Math.round(Math.max(0.3, sphericalGroupEdit.scale - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSphericalGroupEdit({ scale: Math.round(Math.max(0.3, sphericalGroupEdit.scale - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -6493,6 +7251,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSphericalGroupEdit({ scale: Math.round(Math.min(3, sphericalGroupEdit.scale + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSphericalGroupEdit({ scale: Math.round(Math.min(3, sphericalGroupEdit.scale + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6509,6 +7268,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ rotation: Math.max(-180, sphericalGroupEdit.rotation - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ rotation: Math.max(-180, sphericalGroupEdit.rotation - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -6524,6 +7284,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ rotation: Math.min(180, sphericalGroupEdit.rotation + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ rotation: Math.min(180, sphericalGroupEdit.rotation + s) }); }}>++</button>
                                   </label>
 
                                   <div
@@ -6547,6 +7308,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ tiltX: Math.max(-60, (sphericalGroupEdit.tiltX ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ tiltX: Math.max(-60, (sphericalGroupEdit.tiltX ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -6562,6 +7324,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ tiltX: Math.min(60, (sphericalGroupEdit.tiltX ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ tiltX: Math.min(60, (sphericalGroupEdit.tiltX ?? 0) + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6578,6 +7341,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ tiltY: Math.max(-60, (sphericalGroupEdit.tiltY ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ tiltY: Math.max(-60, (sphericalGroupEdit.tiltY ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -6593,6 +7357,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ tiltY: Math.min(60, (sphericalGroupEdit.tiltY ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ tiltY: Math.min(60, (sphericalGroupEdit.tiltY ?? 0) + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6609,6 +7374,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateSphericalGroupEdit({ perspectiveDepth: Math.max(200, (sphericalGroupEdit.perspectiveDepth ?? 900) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateSphericalGroupEdit({ perspectiveDepth: Math.max(200, (sphericalGroupEdit.perspectiveDepth ?? 900) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -6624,6 +7390,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateSphericalGroupEdit({ perspectiveDepth: Math.min(2000, (sphericalGroupEdit.perspectiveDepth ?? 900) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateSphericalGroupEdit({ perspectiveDepth: Math.min(2000, (sphericalGroupEdit.perspectiveDepth ?? 900) + s) }); }}>++</button>
                                   </label>
 
                                   <div
@@ -6647,6 +7414,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSphericalGroupEdit({ scaleX: Math.round(Math.max(0.5, (sphericalGroupEdit.scaleX ?? 1) - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSphericalGroupEdit({ scaleX: Math.round(Math.max(0.5, (sphericalGroupEdit.scaleX ?? 1) - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -6662,6 +7430,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSphericalGroupEdit({ scaleX: Math.round(Math.min(2, (sphericalGroupEdit.scaleX ?? 1) + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSphericalGroupEdit({ scaleX: Math.round(Math.min(2, (sphericalGroupEdit.scaleX ?? 1) + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6678,6 +7447,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSphericalGroupEdit({ scaleY: Math.round(Math.max(0.5, (sphericalGroupEdit.scaleY ?? 1) - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSphericalGroupEdit({ scaleY: Math.round(Math.max(0.5, (sphericalGroupEdit.scaleY ?? 1) - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -6693,6 +7463,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateSphericalGroupEdit({ scaleY: Math.round(Math.min(2, (sphericalGroupEdit.scaleY ?? 1) + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateSphericalGroupEdit({ scaleY: Math.round(Math.min(2, (sphericalGroupEdit.scaleY ?? 1) + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6709,6 +7480,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ skewX: Math.max(-45, (sphericalGroupEdit.skewX ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ skewX: Math.max(-45, (sphericalGroupEdit.skewX ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -6724,6 +7496,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ skewX: Math.min(45, (sphericalGroupEdit.skewX ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ skewX: Math.min(45, (sphericalGroupEdit.skewX ?? 0) + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6740,6 +7513,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ skewY: Math.max(-45, (sphericalGroupEdit.skewY ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ skewY: Math.max(-45, (sphericalGroupEdit.skewY ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -6755,6 +7529,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateSphericalGroupEdit({ skewY: Math.min(45, (sphericalGroupEdit.skewY ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateSphericalGroupEdit({ skewY: Math.min(45, (sphericalGroupEdit.skewY ?? 0) + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6771,6 +7546,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; const cur = sphericalGroupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateSphericalGroupEdit({ opacity: Math.round(Math.max(0.1, cur - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; const cur = sphericalGroupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateSphericalGroupEdit({ opacity: Math.round(Math.max(0.1, cur - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -6786,6 +7562,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; const cur = sphericalGroupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateSphericalGroupEdit({ opacity: Math.round(Math.min(1, cur + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; const cur = sphericalGroupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateSphericalGroupEdit({ opacity: Math.round(Math.min(1, cur + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <div
@@ -6906,6 +7683,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateGroupEdit({ scale: Math.round(Math.max(0.2, groupEdit.scale - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scale: Math.round(Math.max(0.2, groupEdit.scale - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -6925,6 +7703,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scale: Math.round(Math.min(3, groupEdit.scale + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateGroupEdit({ scale: Math.round(Math.min(3, groupEdit.scale + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6941,6 +7720,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ rotation: Math.max(-180, groupEdit.rotation - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ rotation: Math.max(-180, groupEdit.rotation - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -6960,6 +7740,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ rotation: Math.min(180, groupEdit.rotation + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ rotation: Math.min(180, groupEdit.rotation + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -6979,6 +7760,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; const cur = groupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateGroupEdit({ opacity: Math.round(Math.max(0.1, cur - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; const cur = groupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateGroupEdit({ opacity: Math.round(Math.max(0.1, cur - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -7002,6 +7784,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; const cur = groupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateGroupEdit({ opacity: Math.round(Math.min(1, cur + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; const cur = groupEdit.opacity ?? selectedOverlayConfig.lotOpacity; updateGroupEdit({ opacity: Math.round(Math.min(1, cur + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <div
@@ -7048,6 +7831,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ tiltX: Math.max(-60, (groupEdit.tiltX ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltX: Math.max(-60, (groupEdit.tiltX ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -7067,6 +7851,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltX: Math.min(60, (groupEdit.tiltX ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ tiltX: Math.min(60, (groupEdit.tiltX ?? 0) + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -7083,6 +7868,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ tiltY: Math.max(-60, (groupEdit.tiltY ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltY: Math.max(-60, (groupEdit.tiltY ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -7102,6 +7888,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ tiltY: Math.min(60, (groupEdit.tiltY ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ tiltY: Math.min(60, (groupEdit.tiltY ?? 0) + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -7120,6 +7907,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateGroupEdit({ perspectiveDepth: Math.max(200, (groupEdit.perspectiveDepth ?? 900) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateGroupEdit({ perspectiveDepth: Math.max(200, (groupEdit.perspectiveDepth ?? 900) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -7141,6 +7929,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 50; updateGroupEdit({ perspectiveDepth: Math.min(2000, (groupEdit.perspectiveDepth ?? 900) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateGroupEdit({ perspectiveDepth: Math.min(2000, (groupEdit.perspectiveDepth ?? 900) + s) }); }}>++</button>
                                   </label>
 
                                   <div
@@ -7164,6 +7953,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateGroupEdit({ scaleX: Math.round(Math.max(0.5, (groupEdit.scaleX ?? 1) - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scaleX: Math.round(Math.max(0.5, (groupEdit.scaleX ?? 1) - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -7179,6 +7969,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scaleX: Math.round(Math.min(2, (groupEdit.scaleX ?? 1) + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateGroupEdit({ scaleX: Math.round(Math.min(2, (groupEdit.scaleX ?? 1) + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -7195,6 +7986,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateGroupEdit({ scaleY: Math.round(Math.max(0.5, (groupEdit.scaleY ?? 1) - s) * 1000) / 1000 }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scaleY: Math.round(Math.max(0.5, (groupEdit.scaleY ?? 1) - s) * 1000) / 1000 }); }}>−</button>
                                     <input
                                       type="number"
@@ -7210,6 +8002,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.005 : sliderPrecision === "fine" ? 0.01 : 0.05; updateGroupEdit({ scaleY: Math.round(Math.min(2, (groupEdit.scaleY ?? 1) + s) * 1000) / 1000 }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.005; updateGroupEdit({ scaleY: Math.round(Math.min(2, (groupEdit.scaleY ?? 1) + s) * 1000) / 1000 }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -7226,6 +8019,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ skewX: Math.max(-45, (groupEdit.skewX ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ skewX: Math.max(-45, (groupEdit.skewX ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -7241,6 +8035,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ skewX: Math.min(45, (groupEdit.skewX ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ skewX: Math.min(45, (groupEdit.skewX ?? 0) + s) }); }}>++</button>
                                   </label>
 
                                   <label className={styles.rangeControl}>
@@ -7257,6 +8052,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                         })
                                       }
                                     />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ skewY: Math.max(-45, (groupEdit.skewY ?? 0) - s) }); }}>−−</button>
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ skewY: Math.max(-45, (groupEdit.skewY ?? 0) - s) }); }}>−</button>
                                     <input
                                       type="number"
@@ -7272,7 +8068,154 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
                                       }}
                                     />
                                     <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ skewY: Math.min(45, (groupEdit.skewY ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ skewY: Math.min(45, (groupEdit.skewY ?? 0) + s) }); }}>++</button>
                                   </label>
+
+                                  <div
+                                    className={styles.reliefSectionTitle}
+                                    style={{ marginTop: 10 }}
+                                  >
+                                    Esquinas (arrastra los puntitos en el visor)
+                                  </div>
+                                  <p className={styles.helperText} style={{ margin: 0 }}>
+                                    Cada esquina del contorno se puede ajustar a mano, sin
+                                    afectar el resto del grupo. Las esquinas compartidas entre
+                                    lotes vecinos se mueven juntas.
+                                  </p>
+                                  {Object.keys(groupEdit.vertexOffsets || {}).length > 0 && (
+                                    <button
+                                      type="button"
+                                      className={styles.btnCancel}
+                                      onClick={() => updateGroupEdit({ vertexOffsets: {} })}
+                                    >
+                                      Restablecer esquinas
+                                    </button>
+                                  )}
+
+                                  <div
+                                    className={styles.reliefSectionTitle}
+                                    style={{ marginTop: 10 }}
+                                  >
+                                    Más transformaciones
+                                  </div>
+
+                                  <div className={styles.textureSelectorRow}>
+                                    <button
+                                      type="button"
+                                      className={`${styles.textureBtn} ${groupEdit.flipX ? styles.textureBtnActive : ""}`}
+                                      title="Invierte el grupo como en un espejo, de izquierda a derecha"
+                                      onClick={() => updateGroupEdit({ flipX: !groupEdit.flipX })}
+                                    >
+                                      Espejo horizontal
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={`${styles.textureBtn} ${groupEdit.flipY ? styles.textureBtnActive : ""}`}
+                                      title="Invierte el grupo como en un espejo, de arriba a abajo"
+                                      onClick={() => updateGroupEdit({ flipY: !groupEdit.flipY })}
+                                    >
+                                      Espejo vertical
+                                    </button>
+                                  </div>
+
+                                  <label className={styles.rangeControl}>
+                                    <span title="Empuja el grupo hacia adelante o atrás en el espacio 3D, separado de la escala">Profundidad (acercar / alejar)</span>
+                                    <input
+                                      type="range"
+                                      min="-500"
+                                      max="500"
+                                      step="5"
+                                      value={groupEdit.dz ?? 0}
+                                      onChange={(e) =>
+                                        updateGroupEdit({
+                                          dz: Number(e.target.value),
+                                        })
+                                      }
+                                    />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateGroupEdit({ dz: Math.max(-500, (groupEdit.dz ?? 0) - s) }); }}>−−</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 25; updateGroupEdit({ dz: Math.max(-500, (groupEdit.dz ?? 0) - s) }); }}>−</button>
+                                    <input
+                                      type="number"
+                                      className={styles.numberInput}
+                                      min="-500"
+                                      max="500"
+                                      step="5"
+                                      value={groupEdit.dz ?? 0}
+                                      onChange={(e) => {
+                                        const v = Number(e.target.value);
+                                        if (Number.isFinite(v) && v >= -500 && v <= 500)
+                                          updateGroupEdit({ dz: v });
+                                      }}
+                                    />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 5 : sliderPrecision === "fine" ? 10 : 25; updateGroupEdit({ dz: Math.min(500, (groupEdit.dz ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 5; updateGroupEdit({ dz: Math.min(500, (groupEdit.dz ?? 0) + s) }); }}>++</button>
+                                  </label>
+
+                                  <label className={styles.rangeControl}>
+                                    <span title="Curva el grupo como una lente: positivo lo abomba (ojo de pez), negativo lo hunde (cojín). Útil para igualar la curvatura de la foto 360">Curvatura de lente</span>
+                                    <input
+                                      type="range"
+                                      min="-50"
+                                      max="50"
+                                      step="1"
+                                      value={groupEdit.lensCurve ?? 0}
+                                      onChange={(e) =>
+                                        updateGroupEdit({
+                                          lensCurve: Number(e.target.value),
+                                        })
+                                      }
+                                    />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ lensCurve: Math.max(-50, (groupEdit.lensCurve ?? 0) - s) }); }}>−−</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ lensCurve: Math.max(-50, (groupEdit.lensCurve ?? 0) - s) }); }}>−</button>
+                                    <input
+                                      type="number"
+                                      className={styles.numberInput}
+                                      min="-50"
+                                      max="50"
+                                      step="1"
+                                      value={groupEdit.lensCurve ?? 0}
+                                      onChange={(e) => {
+                                        const v = Number(e.target.value);
+                                        if (Number.isFinite(v) && v >= -50 && v <= 50)
+                                          updateGroupEdit({ lensCurve: v });
+                                      }}
+                                    />
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = sliderPrecision === "veryFine" ? 0.5 : sliderPrecision === "fine" ? 1 : 5; updateGroupEdit({ lensCurve: Math.min(50, (groupEdit.lensCurve ?? 0) + s) }); }}>+</button>
+                                    <button type="button" className={styles.stepArrow} onClick={() => { const s = 0.5; updateGroupEdit({ lensCurve: Math.min(50, (groupEdit.lensCurve ?? 0) + s) }); }}>++</button>
+                                  </label>
+
+                                  <div
+                                    className={styles.reliefSectionTitle}
+                                    style={{ marginTop: 10 }}
+                                  >
+                                    Punto de pivote (ancla de inclinación)
+                                  </div>
+                                  <div className={styles.sliderControl}>
+                                    <div className={styles.joystickGrid}>
+                                      <div />
+                                      <button type="button" className={styles.arrowBtn} onClick={() => updateGroupEdit({ pivotOffsetY: (groupEdit.pivotOffsetY ?? 0) - 10 })}>↑</button>
+                                      <div />
+                                      <button type="button" className={styles.arrowBtn} onClick={() => updateGroupEdit({ pivotOffsetX: (groupEdit.pivotOffsetX ?? 0) - 10 })}>←</button>
+                                      <div className={styles.joystickCenter}>
+                                        <input type="number" className={styles.numberInput} style={{ width: 44, fontSize: "0.7rem" }} step="5" value={Math.round(groupEdit.pivotOffsetX ?? 0)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) updateGroupEdit({ pivotOffsetX: v }); }} />
+                                        <input type="number" className={styles.numberInput} style={{ width: 44, fontSize: "0.7rem" }} step="5" value={Math.round(groupEdit.pivotOffsetY ?? 0)} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) updateGroupEdit({ pivotOffsetY: v }); }} />
+                                      </div>
+                                      <button type="button" className={styles.arrowBtn} onClick={() => updateGroupEdit({ pivotOffsetX: (groupEdit.pivotOffsetX ?? 0) + 10 })}>→</button>
+                                      <div />
+                                      <button type="button" className={styles.arrowBtn} onClick={() => updateGroupEdit({ pivotOffsetY: (groupEdit.pivotOffsetY ?? 0) + 10 })}>↓</button>
+                                      <div />
+                                    </div>
+                                    {(groupEdit.pivotOffsetX !== 0 || groupEdit.pivotOffsetY !== 0) && (
+                                      <button
+                                        type="button"
+                                        className={styles.toggleButton}
+                                        style={{ marginTop: 6 }}
+                                        onClick={() => updateGroupEdit({ pivotOffsetX: 0, pivotOffsetY: 0 })}
+                                      >
+                                        Centrar pivote
+                                      </button>
+                                    )}
+                                  </div>
 
                                   <div
                                     className={styles.reliefSectionTitle}

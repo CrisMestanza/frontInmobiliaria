@@ -894,7 +894,8 @@
 }
 
 @media (max-width: 1180px) {
-  .admin-layout {
+  .admin-layout,
+  .admin-layout.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
 
