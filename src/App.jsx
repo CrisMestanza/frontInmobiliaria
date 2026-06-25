@@ -31,6 +31,7 @@ import Leads from "./pages/admin/modules/leads/Leads.jsx";
 import PublicMap from "./pages/admin/modules/publicMap/PublicMap.jsx";
 import SettingsPage from "./pages/admin/modules/settings/Settings.jsx";
 const NotFound = React.lazy(() => import("./pages/NotFound/NotFound.jsx"));
+const Visor360Page = React.lazy(() => import("./pages/visor360/Visor360Page.jsx"));
 
 function AdminShell({ setAppLoading }) {
   return (
@@ -48,6 +49,7 @@ function App() {
       <Suspense fallback={null}>
         <Routes>
           <Route path="/mapa/:inmoId" element={<MyMap />} />
+          <Route path="/visor360/:projectId" element={<Visor360Page />} />
           <Route path="/login" element={<LoginLayout />} />
           <Route path="/register" element={<Register />} />
           <Route path="/inicio" element={<GeoHabita />} />

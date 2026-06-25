@@ -2208,7 +2208,14 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     {
       const additionalInstances =
         additionalOverlayInstancesRef.current[String(selectedImg.id_imagen)] || [];
-      additionalInstances.forEach((instance, instanceIdx) => {
+      const seenInstanceIds = new Set();
+      const uniqueAdditionalInstances = additionalInstances.filter((inst, idx) => {
+        const id = inst?.instanceId ?? idx;
+        if (seenInstanceIds.has(id)) return false;
+        seenInstanceIds.add(id);
+        return true;
+      });
+      uniqueAdditionalInstances.forEach((instance, instanceIdx) => {
         if (!instance || !hasAnchoredGeometry(instance)) return;
         if (instance.visible === false) return;
         const instId = instance.instanceId || instanceIdx;
@@ -3141,7 +3148,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         anchoredOverlaysRef.current[selectedImageId] ||
         buildAnchoredOverlaySnapshot(selectedImageId, existingConfig);
       if (snapshot && hasAnchoredGeometry(snapshot)) {
-        const instanceId = `inst-${Date.now()}`;
+        const instanceId = `inst-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const newInstance = { ...snapshot, instanceId };
         const current = additionalOverlayInstancesRef.current[selectedImageId] || [];
         const updated = [...current, newInstance];
@@ -3231,8 +3238,14 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
   // capa puntual (p.ej. una duplicada) sin desplegar cada lote uno por uno.
   const fixedInstancesForCurrentImage = useMemo(() => {
     const instances = additionalOverlayInstances[selectedImageId] || [];
+    const seenIds = new Set();
     return instances
-      .filter((instance) => String(instance.instanceId || "").startsWith("fixed-"))
+      .filter((instance) => {
+        if (!String(instance.instanceId || "").startsWith("fixed-")) return false;
+        if (seenIds.has(instance.instanceId)) return false;
+        seenIds.add(instance.instanceId);
+        return true;
+      })
       .map((instance, idx) => ({
         instanceId: instance.instanceId,
         visible: instance.visible !== false,
@@ -4737,7 +4750,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
     });
 
     if (fixedLotPolygons.length) {
-      const instanceId = `fixed-${Date.now()}`;
+      const instanceId = `fixed-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const newInstance = {
         imageId: selectedImageId,
         instanceId,

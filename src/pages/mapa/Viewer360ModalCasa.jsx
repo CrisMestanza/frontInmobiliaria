@@ -439,14 +439,16 @@ const getLoteSvgStyle = ({
   }
 
   if (isSelected) {
+    const selColor = loteColor || baseFill || status.fill || "#22d3ee";
     return {
-      fill: "url(#gh-viewer-hatch-selected)",
-      fillOpacity: "0.92",
-      stroke: "#0f766e",
-      strokeWidth: "3.5px",
+      fill: selColor,
+      fillOpacity: "0.55",
+      stroke: "#ffffff",
+      strokeWidth: "7px",
       strokeLinejoin: "round",
       strokeOpacity: "1",
-      ...(selectedShadowFilter ? { filter: selectedShadowFilter } : {}),
+      paintOrder: "stroke fill",
+      filter: `drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px ${selColor}) drop-shadow(0 0 30px ${selColor})`,
     };
   }
 
@@ -1320,6 +1322,11 @@ const Viewer360Modal = ({
   const openLoteFromMarkerRef = useRef(null);
   const travelToImageByIdRef = useRef(null);
   const lastShownSrcRef = useRef(null);
+  const lastCenteredLoteRef = useRef(null);
+  const currentOpenLoteIdRef = useRef(null);
+  const currentCenteringAnimationRef = useRef(null);
+
+  const [shareCopied, setShareCopied] = useState(false);
 
   const [drawMode, setDrawMode] = useState(null);
   const [currentPolygonPoints, setCurrentPolygonPoints] = useState([]);
@@ -1767,6 +1774,10 @@ const Viewer360Modal = ({
       const inlineId = getLoteId(inlineLote) ?? markerData?.idlote;
 
       if (inlineId) {
+        // Tag this invocation so stale continuations after await can bail out
+        const token = String(inlineId);
+        currentOpenLoteIdRef.current = token;
+
         setSelectedLoteInfo({
           lote: inlineLote || { idlote: inlineId, nombre: `Lote ${inlineId}` },
           proyecto: null,
@@ -1779,6 +1790,7 @@ const Viewer360Modal = ({
         try {
           const projectId = getProjectId(currentImage);
           const lotes = await loadProjectLotes(projectId);
+          if (currentOpenLoteIdRef.current !== token) return;
           const match = lotes.find((lote) => {
             const loteId = getLoteId(lote);
             return (
@@ -1795,14 +1807,19 @@ const Viewer360Modal = ({
             };
           }
         } catch {
+          if (currentOpenLoteIdRef.current !== token) return;
           fallbackLote = inlineLote;
         }
 
+        if (currentOpenLoteIdRef.current !== token) return;
         loadLoteInfo(inlineId, fallbackLote);
         return;
       }
 
       if (inlineLote?.nombre) {
+        const token = `name:${inlineLote.nombre}`;
+        currentOpenLoteIdRef.current = token;
+
         setSelectedLoteInfo({
           lote: inlineLote,
           proyecto: null,
@@ -1814,6 +1831,7 @@ const Viewer360Modal = ({
         try {
           const projectId = getProjectId(currentImage);
           const lotes = await loadProjectLotes(projectId);
+          if (currentOpenLoteIdRef.current !== token) return;
           const match = lotes.find(
             (lote) =>
               normalizeText(lote.nombre) === normalizeText(inlineLote.nombre),
@@ -1825,6 +1843,7 @@ const Viewer360Modal = ({
           }
           setLoteInfoLoading(false);
         } catch {
+          if (currentOpenLoteIdRef.current !== token) return;
           setLoteInfoLoading(false);
         }
       }
@@ -2433,10 +2452,16 @@ const Viewer360Modal = ({
 
     // Render space/drawing overlays as stable PSV polygon markers (synced with WebGL)
     const spaceKey = String(currentImageId ?? "");
+    const allSpaceShapesSeen = new Set();
     const allSpaceShapes = [
       ...savedDrawings,
       ...((spaceKey && userDrawings[spaceKey]) || []),
-    ];
+    ].filter((s) => {
+      if (!s?.id) return true;
+      if (allSpaceShapesSeen.has(s.id)) return false;
+      allSpaceShapesSeen.add(s.id);
+      return true;
+    });
     // Stroke pattern per scenario type — gives each area type a visual texture
     const SPACE_DASH = {
       area:      "12 5 2 5",
@@ -2609,7 +2634,14 @@ const Viewer360Modal = ({
     }
 
     // Render additional committed overlay instances (multi-import from editor)
-    currentAdditionalOverlays.forEach((instance, instanceIdx) => {
+    const seenAdditionalIds = new Set();
+    const uniqueAdditionalOverlays = currentAdditionalOverlays.filter((inst, idx) => {
+      const id = inst?.instanceId ?? idx;
+      if (seenAdditionalIds.has(id)) return false;
+      seenAdditionalIds.add(id);
+      return true;
+    });
+    uniqueAdditionalOverlays.forEach((instance, instanceIdx) => {
       if (!instance) return;
       const instId = instance.instanceId || instanceIdx;
       const hasSphProj = isValidPolygonPixels(instance.projectPolygon);
@@ -2749,6 +2781,60 @@ const Viewer360Modal = ({
     currentImageAnnotations,
     localAnnotations,
   ]);
+
+  // Auto-center the viewer on the selected lot, offset for the sidebar on desktop.
+  useEffect(() => {
+    if (!viewerReady || !viewerRef.current || !selectedLoteId) return;
+    if (lastCenteredLoteRef.current === selectedLoteId) return;
+    lastCenteredLoteRef.current = selectedLoteId;
+
+    // Find the selected lot's spherical polygon [[yaw,pitch],...]
+    let targetPolygon = null;
+    const searchLots = (lotPolygons) => {
+      if (!Array.isArray(lotPolygons)) return;
+      for (const lote of lotPolygons) {
+        if (String(getLoteId(lote) ?? "") === selectedLoteId && isValidPolygonPixels(lote.polygon)) {
+          targetPolygon = lote.polygon;
+          return;
+        }
+      }
+    };
+    if (overlayToRender?.lotPolygons) searchLots(overlayToRender.lotPolygons);
+    if (!targetPolygon) {
+      for (const inst of currentAdditionalOverlays) {
+        if (targetPolygon) break;
+        searchLots(inst?.lotPolygons);
+      }
+    }
+    if (!targetPolygon) return;
+
+    // Spherical centroid — sin/cos averaging for yaw to handle wraparound
+    const n = targetPolygon.length;
+    const sinSum = targetPolygon.reduce((s, p) => s + Math.sin(Number(p[0])), 0);
+    const cosSum = targetPolygon.reduce((s, p) => s + Math.cos(Number(p[0])), 0);
+    const pitchSum = targetPolygon.reduce((s, p) => s + Number(p[1]), 0);
+    const centroidYaw = Math.atan2(sinSum / n, cosSum / n);
+    const centroidPitch = pitchSum / n;
+
+    // On desktop the lot info panel is ~360 px wide on the right side.
+    // Shift the camera right by half that width converted to radians so the
+    // lot ends up centred in the visible (non-panel) area.
+    const viewer = viewerRef.current;
+    const containerW = containerRef.current?.clientWidth || 800;
+    const hFovDeg = viewer?.state?.hFov ?? 90;
+    const hFovRad = hFovDeg * (Math.PI / 180);
+    const sidebarPx = !isMobileView && selectedLoteId ? Math.min(360, containerW - 48) : 0;
+    const yawOffset = (sidebarPx / 2) * (hFovRad / containerW);
+
+    currentCenteringAnimationRef.current?.cancel?.();
+    const animation = viewer.animate({
+      yaw: centroidYaw + yawOffset,
+      pitch: centroidPitch,
+      speed: "4rpm",
+    });
+    currentCenteringAnimationRef.current = animation ?? null;
+    animation?.catch?.(() => {});
+  }, [selectedLoteId, viewerReady, overlayToRender, currentAdditionalOverlays, isMobileView]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -3564,6 +3650,27 @@ const Viewer360Modal = ({
       )
     : 0;
 
+  const shareProjectId = useMemo(() => {
+    for (const img of normalizedImages) {
+      const id = getProjectId(img);
+      if (id) return String(id);
+    }
+    return null;
+  }, [normalizedImages]);
+
+  const handleShare = useCallback(() => {
+    if (!shareProjectId) return;
+    const url = `${window.location.origin}/visor360/${shareProjectId}`;
+    if (navigator.share) {
+      navigator.share({ title: projectName || "Vista 360°", url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      }).catch(() => {});
+    }
+  }, [shareProjectId, projectName]);
+
   return (
     <div className={`${styles.overlay360} ${isSidebarCollapsed ? styles.overlay360Collapsed : ""}`} ref={overlayRef} data-theme="dark">
       {isMobileView && (
@@ -3616,6 +3723,16 @@ const Viewer360Modal = ({
             )}
           </div>
           <div className={styles.headerActions}>
+            {shareProjectId && (
+              <button
+                type="button"
+                onClick={handleShare}
+                className={styles.iconBtn}
+                title={shareCopied ? "¡Enlace copiado!" : "Compartir vista 360°"}
+              >
+                {shareCopied ? <CheckCircle2 size={18} /> : <Share2 size={18} />}
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleFullscreen}

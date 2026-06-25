@@ -1745,7 +1745,24 @@
 
 :global(.psv-marker.gh-portal-lot-marker.gh-lot-selected) {
   z-index: 12;
+  animation: ghLotSelectedPulse 2s ease-in-out infinite;
 }
+
+:global(.psv-marker.gh-portal-lot-marker.gh-lot-selected polygon),
+:global(.psv-marker.gh-portal-lot-marker.gh-lot-selected path) {
+  animation: ghLotSelectedStroke 2s ease-in-out infinite;
+}
+
+@keyframes ghLotSelectedPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.70; }
+}
+
+@keyframes ghLotSelectedStroke {
+  0%, 100% { stroke-width: 7px; stroke-opacity: 1; }
+  50%       { stroke-width: 4px; stroke-opacity: 0.55; }
+}
+
 
 :global(.psv-marker.gh-portal-lot-marker svg),
 :global(.psv-marker.gh-portal-lot-marker path),
