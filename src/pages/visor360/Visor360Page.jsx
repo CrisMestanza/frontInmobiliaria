@@ -26,7 +26,7 @@ export default function Visor360Page() {
 
   useEffect(() => {
     if (!projectId) { setStatus("error"); return; }
-    fetch(`${API_BASE_URL}/api/get_imagen_360_casa/${projectId}/`)
+    fetch(`${API_BASE_URL}/api/get_imagen_360_casa/${projectId}/`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((data) => {
         const list = Array.isArray(data) ? data : [];

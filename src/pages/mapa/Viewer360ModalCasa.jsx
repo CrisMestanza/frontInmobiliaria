@@ -100,54 +100,69 @@ const OVERLAY_HEADER_OFFSET = 42;
 // Mirroring GeoHabitaLoader's LOTES style, grouped in realistic subdivision clusters
 const PANO_LOTS = [
   // Zone A — top-left
-  [ 3, 2,  10, 7,  0.00], [ 3, 14, 8,  7,  0.15],
-  [11, 2,  10, 7,  0.30], [11, 14, 8,  7,  0.45],
-  [19, 2,  10, 6,  0.60], [19, 14, 8,  6,  0.75],
+  [3, 2, 10, 7, 0.0],
+  [3, 14, 8, 7, 0.15],
+  [11, 2, 10, 7, 0.3],
+  [11, 14, 8, 7, 0.45],
+  [19, 2, 10, 6, 0.6],
+  [19, 14, 8, 6, 0.75],
   // Zone B — top-right
-  [ 4, 72, 10, 8,  0.20], [ 4, 84, 11, 8,  0.35],
-  [14, 72, 10, 7,  0.50], [14, 84, 11, 6,  0.10],
-  [22, 72, 10, 6,  0.65], [22, 84, 11, 8,  0.80],
+  [4, 72, 10, 8, 0.2],
+  [4, 84, 11, 8, 0.35],
+  [14, 72, 10, 7, 0.5],
+  [14, 84, 11, 6, 0.1],
+  [22, 72, 10, 6, 0.65],
+  [22, 84, 11, 8, 0.8],
   // Zone C — center (flanks the core spinner)
-  [34, 41,  9, 7,  0.25], [34, 52,  7, 7,  0.40],
-  [43, 41,  9, 7,  0.55], [43, 52,  7, 7,  0.70],
+  [34, 41, 9, 7, 0.25],
+  [34, 52, 7, 7, 0.4],
+  [43, 41, 9, 7, 0.55],
+  [43, 52, 7, 7, 0.7],
   // Zone D — bottom-left
-  [72,  5,  9, 7,  0.08], [72, 16, 11, 7,  0.23],
-  [81,  5,  9, 6,  0.38], [81, 16, 11, 6,  0.53],
+  [72, 5, 9, 7, 0.08],
+  [72, 16, 11, 7, 0.23],
+  [81, 5, 9, 6, 0.38],
+  [81, 16, 11, 6, 0.53],
   // Zone E — bottom-right
-  [74, 75,  8, 6,  0.13], [74, 85, 10, 6,  0.28],
-  [82, 75,  8, 7,  0.43], [82, 85, 10, 5,  0.58],
+  [74, 75, 8, 6, 0.13],
+  [74, 85, 10, 6, 0.28],
+  [82, 75, 8, 7, 0.43],
+  [82, 85, 10, 5, 0.58],
   // Scattered singletons
-  [ 7, 29,  7, 5,  0.18], [ 7, 58,  8, 6,  0.33],
-  [57, 30,  7, 6,  0.48], [57, 62,  6, 5,  0.63],
-  [42, 92,  6, 5,  0.78], [47,  2,  7, 5,  0.93],
+  [7, 29, 7, 5, 0.18],
+  [7, 58, 8, 6, 0.33],
+  [57, 30, 7, 6, 0.48],
+  [57, 62, 6, 5, 0.63],
+  [42, 92, 6, 5, 0.78],
+  [47, 2, 7, 5, 0.93],
 ];
 
 // Darker zone blocks behind each lot cluster — like GeoHabitaLoader's zone fills
 const PANO_ZONES = [
-  [ 1,  1, 24, 31],  // Zone A
-  [ 1, 68, 25, 30],  // Zone B
-  [30, 37, 22, 25],  // Zone C
-  [68,  1, 23, 22],  // Zone D
-  [70, 71, 24, 22],  // Zone E
+  [1, 1, 24, 31], // Zone A
+  [1, 68, 25, 30], // Zone B
+  [30, 37, 22, 25], // Zone C
+  [68, 1, 23, 22], // Zone D
+  [70, 71, 24, 22], // Zone E
 ];
 
 // Road separators between clusters (% of overlay area)
 const PANO_ROADS = [
-  { x: 0,  y: 31, w: 100, h: 0.35 },
-  { x: 0,  y: 67, w: 100, h: 0.35 },
-  { x: 27, y:  0, w: 0.35, h: 32  },
-  { x: 63, y:  0, w: 0.35, h: 68  },
+  { x: 0, y: 31, w: 100, h: 0.35 },
+  { x: 0, y: 67, w: 100, h: 0.35 },
+  { x: 27, y: 0, w: 0.35, h: 32 },
+  { x: 63, y: 0, w: 0.35, h: 68 },
 ];
 
 // Inline SVG icons for space area labels (per scenario type)
 const SPACE_LABEL_ICONS = {
-  parque:    `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22V13"/><path d="M12 13C8 13 5 10 5 6.5S8.5 2 12 2s7 1.5 7 4.5S16 13 12 13z"/></svg>`,
-  area:      `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>`,
-  manzana:   `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>`,
-  via:       `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 20 L10 4 M14 4 L19 20"/><line x1="7" y1="14" x2="17" y2="14"/></svg>`,
-  iglesia:   `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="8"/><line x1="9" y1="5" x2="15" y2="5"/><path d="M6 22V12l6-4 6 4v10H6z"/></svg>`,
+  parque: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 22V13"/><path d="M12 13C8 13 5 10 5 6.5S8.5 2 12 2s7 1.5 7 4.5S16 13 12 13z"/></svg>`,
+  area: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>`,
+  manzana: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>`,
+  via: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 20 L10 4 M14 4 L19 20"/><line x1="7" y1="14" x2="17" y2="14"/></svg>`,
+  iglesia: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="2" x2="12" y2="8"/><line x1="9" y1="5" x2="15" y2="5"/><path d="M6 22V12l6-4 6 4v10H6z"/></svg>`,
   parquedep: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M5 12h14M12 5v14"/></svg>`,
-  comercio:  `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+  comercio: `<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
 };
 
 const HOTSPOT_ICON = `data:image/svg+xml;utf8,${encodeURIComponent(`
@@ -204,15 +219,15 @@ const LOT_LABEL_MIN_ZOOM = 10;
 const LOT_LABELS_ENABLED = false;
 
 const DRAWING_SCENARIO_TYPES = [
-  { key: "area",     label: "Area libre",       icon: MapIcon,   color: "#0ea5e9" },
-  { key: "lote",     label: "Lote",             icon: Home,      color: "#16a34a" },
-  { key: "parque",   label: "Parque",           icon: Trees,     color: "#22c55e" },
-  { key: "loza",     label: "Loza deportiva",   icon: Volleyball,color: "#22d3ee" },
-  { key: "cancha",   label: "Cancha deportiva", icon: Goal,      color: "#4ade80" },
-  { key: "piscina",  label: "Piscina",          icon: Waves,     color: "#06b6d4" },
-  { key: "plaza",    label: "Plaza",            icon: Landmark,  color: "#f59e0b" },
-  { key: "iglesia",  label: "Iglesia",          icon: Church,    color: "#e2e8f0" },
-  { key: "comercio", label: "Comercio",         icon: Store,     color: "#8b5cf6" },
+  { key: "area", label: "Area libre", icon: MapIcon, color: "#0ea5e9" },
+  { key: "lote", label: "Lote", icon: Home, color: "#16a34a" },
+  { key: "parque", label: "Parque", icon: Trees, color: "#22c55e" },
+  { key: "loza", label: "Loza deportiva", icon: Volleyball, color: "#22d3ee" },
+  { key: "cancha", label: "Cancha deportiva", icon: Goal, color: "#4ade80" },
+  { key: "piscina", label: "Piscina", icon: Waves, color: "#06b6d4" },
+  { key: "plaza", label: "Plaza", icon: Landmark, color: "#f59e0b" },
+  { key: "iglesia", label: "Iglesia", icon: Church, color: "#e2e8f0" },
+  { key: "comercio", label: "Comercio", icon: Store, color: "#8b5cf6" },
 ];
 
 const DEFAULT_DRAWING_SCENARIO = DRAWING_SCENARIO_TYPES[0];
@@ -255,6 +270,17 @@ const parseFinancingConfig = (value) => {
   } catch {
     return null;
   }
+};
+
+const isFinancingConfigured = (config) => {
+  if (!config) return false;
+  // Require explicit months range AND either an interest rate or minimum initial amount
+  const hasMonths = Number(config.max_months) > 1;
+  const hasRate = Number(config.annual_interest_rate) > 0;
+  const hasInitial =
+    Number(config.max_initial_amount) > 0 ||
+    Number(config.default_initial_amount) > 0;
+  return hasMonths && (hasRate || hasInitial);
 };
 
 const formatCurrencyMoney = (value, currency = "S/") => {
@@ -300,7 +326,9 @@ const getProjectId = (img) =>
   img?.idproyecto ??
   img?.proyecto?.idproyecto;
 const darkenHexColor = (value, amount = 0.24) => {
-  const hex = String(value || "").trim().replace("#", "");
+  const hex = String(value || "")
+    .trim()
+    .replace("#", "");
   const normalized =
     hex.length === 3
       ? hex
@@ -316,7 +344,9 @@ const darkenHexColor = (value, amount = 0.24) => {
   const toChannel = (start) =>
     Math.max(
       0,
-      Math.round(parseInt(normalized.slice(start, start + 2), 16) * (1 - amount)),
+      Math.round(
+        parseInt(normalized.slice(start, start + 2), 16) * (1 - amount),
+      ),
     )
       .toString(16)
       .padStart(2, "0");
@@ -374,10 +404,10 @@ const getAvailableLoteTone = (variant = 0) =>
       };
 
 const TEXTURE_STROKE_VARIANTS = {
-  hatch:   { strokeDasharray: "6 3",  strokeWidth: "2.8px" },
-  dots:    { strokeDasharray: "2 6",  strokeWidth: "2.8px" },
-  cross:   { strokeDasharray: "10 4", strokeWidth: "2.8px" },
-  solid:   {},
+  hatch: { strokeDasharray: "6 3", strokeWidth: "2.8px" },
+  dots: { strokeDasharray: "2 6", strokeWidth: "2.8px" },
+  cross: { strokeDasharray: "10 4", strokeWidth: "2.8px" },
+  solid: {},
   outline: { strokeWidth: "2.5px" },
 };
 
@@ -407,10 +437,8 @@ const getLoteSvgStyle = ({
   const shadowFilter = showShadow
     ? "drop-shadow(0px 3px 6px rgba(0,0,0,0.45))"
     : undefined;
-  const selectedShadowFilter = showShadow
-    ? "drop-shadow(0px 4px 10px rgba(0,0,0,0.55)) drop-shadow(0px 1px 3px rgba(0,0,0,0.4))"
-    : undefined;
-  const textureFillOpacity = textureMode !== "solid" && textureMode !== "outline" ? "0.55" : null;
+  const textureFillOpacity =
+    textureMode !== "solid" && textureMode !== "outline" ? "0.55" : null;
 
   if (textureMode === "outline") {
     return {
@@ -425,30 +453,37 @@ const getLoteSvgStyle = ({
   }
 
   if (textureMode === "transparent") {
+    if (isSelected) {
+      return {
+        fill: "#11e69f",
+        fillOpacity: "0.90",
+        stroke: "#14da8e",
+        strokeWidth: "3px",
+        strokeLinejoin: "round",
+        strokeOpacity: "1",
+      };
+    }
     // Sin drop-shadow: una sombra detrás de un relleno translúcido se ve como un
     // halo oscuro que opaca el efecto "transparente" que se está pidiendo.
     const tFill = loteColor || status.fill;
     return {
       fill: tFill,
-      fillOpacity: isSelected ? "0.55" : "0.35",
-      stroke: isSelected ? "#0f766e" : darkenHexColor(tFill, 0.34) || status.stroke,
-      strokeWidth: isSelected ? "3px" : "2.2px",
+      fillOpacity: "0.35",
+      stroke: darkenHexColor(tFill, 0.34) || status.stroke,
+      strokeWidth: "2.2px",
       strokeLinejoin: "round",
       strokeOpacity: "0.95",
     };
   }
 
   if (isSelected) {
-    const selColor = loteColor || baseFill || status.fill || "#22d3ee";
     return {
-      fill: selColor,
-      fillOpacity: "0.55",
-      stroke: "#ffffff",
-      strokeWidth: "7px",
+      fill: "#ffffff",
+      fillOpacity: "0.88",
+      stroke: "#7c3aed",
+      strokeWidth: "3px",
       strokeLinejoin: "round",
       strokeOpacity: "1",
-      paintOrder: "stroke fill",
-      filter: `drop-shadow(0 0 6px #fff) drop-shadow(0 0 14px ${selColor}) drop-shadow(0 0 30px ${selColor})`,
     };
   }
 
@@ -480,12 +515,16 @@ const getLoteSvgStyle = ({
 
   return {
     fill: baseFill,
-    fillOpacity: textureFillOpacity ?? String(Math.min(Number(overlayOpacity ?? 0.82), 0.82)),
+    fillOpacity:
+      textureFillOpacity ??
+      String(Math.min(Number(overlayOpacity ?? 0.82), 0.82)),
     stroke: derivedStroke,
     strokeWidth: textureMod.strokeWidth ?? "2.2px",
     strokeLinejoin: "round",
     strokeOpacity: "0.95",
-    ...(textureMod.strokeDasharray ? { strokeDasharray: textureMod.strokeDasharray } : {}),
+    ...(textureMod.strokeDasharray
+      ? { strokeDasharray: textureMod.strokeDasharray }
+      : {}),
     ...(shadowFilter ? { filter: shadowFilter } : {}),
   };
 };
@@ -498,22 +537,49 @@ const waitForNextFrame = () =>
 const MEDIA_PREFIX = `${API_BASE}/media/`;
 const MEDIA_PROXY = `${API_BASE}/api/360media/`;
 
+const MAX_BLOB_CACHE = 8;
+
+const addToBlobCache = (cache, key, blobUrl) => {
+  if (cache.size >= MAX_BLOB_CACHE) {
+    const oldestKey = cache.keys().next().value;
+    const oldestUrl = cache.get(oldestKey);
+    URL.revokeObjectURL(oldestUrl);
+    cache.delete(oldestKey);
+  }
+  cache.set(key, blobUrl);
+};
+
 const warmUpImage = (src, timeout = 8000) =>
   new Promise((resolve) => {
-    if (!src) { resolve(null); return; }
-    const mediaSuffix = src.startsWith(MEDIA_PREFIX) ? src.slice(MEDIA_PREFIX.length) : null;
+    if (!src) {
+      resolve(null);
+      return;
+    }
+    const mediaSuffix = src.startsWith(MEDIA_PREFIX)
+      ? src.slice(MEDIA_PREFIX.length)
+      : null;
     const fetchSrc = mediaSuffix
       ? import.meta.env.DEV
         ? `/dev-media-proxy/${mediaSuffix}`
         : `${MEDIA_PROXY}${mediaSuffix}`
       : src;
-    console.log("[360] warmUpImage fetching:", fetchSrc);
     const controller = new AbortController();
-    const timer = window.setTimeout(() => { controller.abort(); resolve(null); }, timeout);
+    const timer = window.setTimeout(() => {
+      controller.abort();
+      resolve(null);
+    }, timeout);
     fetch(fetchSrc, { signal: controller.signal })
-      .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((blob) => { window.clearTimeout(timer); console.log("[360] warmUpImage OK → blob URL"); resolve(URL.createObjectURL(blob)); })
-      .catch((err) => { window.clearTimeout(timer); console.warn("[360] warmUpImage FAILED:", err?.message || err); resolve(null); });
+      .then((res) =>
+        res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`)),
+      )
+      .then((blob) => {
+        window.clearTimeout(timer);
+        resolve(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        window.clearTimeout(timer);
+        resolve(null);
+      });
   });
 
 const buildApiUrl = (path) => withApiBase(`${API_BASE}${path}`);
@@ -530,7 +596,8 @@ const normalizeImage = (img) => ({
   imagen_original: normalizeUrl(img.imagen),
 });
 const getProjectRecord = (img) => {
-  if (img?.idproyecto && typeof img.idproyecto === "object") return img.idproyecto;
+  if (img?.idproyecto && typeof img.idproyecto === "object")
+    return img.idproyecto;
   if (img?.proyecto && typeof img.proyecto === "object") return img.proyecto;
   return {};
 };
@@ -646,13 +713,15 @@ const transformOverlayPoint = (point, config, perspectiveOrigin = null) => {
   y *= scale;
 
   if (tiltYRad !== 0) {
-    const cY = Math.cos(tiltYRad), sY = Math.sin(tiltYRad);
+    const cY = Math.cos(tiltYRad),
+      sY = Math.sin(tiltYRad);
     const nx = x * cY + z * sY;
     z = -x * sY + z * cY;
     x = nx;
   }
   if (tiltXRad !== 0) {
-    const cX = Math.cos(tiltXRad), sX = Math.sin(tiltXRad);
+    const cX = Math.cos(tiltXRad),
+      sX = Math.sin(tiltXRad);
     const ny = y * cX - z * sX;
     z = y * sX + z * cX;
     y = ny;
@@ -758,9 +827,10 @@ const buildAnchoredOverlayFromLayout = (
     Number(layout.overlayHeight) ||
     (svgWidth / OVERLAY_VIEWBOX.width) * OVERLAY_VIEWBOX.height;
   const overlayOffsetX = Number(layout.overlayOffsetX) || 0;
-  const overlayOffsetY = layout?.overlayOffsetY != null
-    ? Number(layout.overlayOffsetY)
-    : OVERLAY_HEADER_OFFSET;
+  const overlayOffsetY =
+    layout?.overlayOffsetY != null
+      ? Number(layout.overlayOffsetY)
+      : OVERLAY_HEADER_OFFSET;
 
   if (
     !Number.isFinite(svgWidth) ||
@@ -771,16 +841,21 @@ const buildAnchoredOverlayFromLayout = (
     return null;
   }
 
-  const perspectiveOrigin = savedViewerWidth > 0 && savedViewerHeight > 0
-    ? { x: savedViewerWidth / 2, y: savedViewerHeight / 2 }
-    : null;
+  const perspectiveOrigin =
+    savedViewerWidth > 0 && savedViewerHeight > 0
+      ? { x: savedViewerWidth / 2, y: savedViewerHeight / 2 }
+      : null;
 
   const convertPoint = (point) => {
     const localPoint = {
       x: overlayOffsetX + (point.x / OVERLAY_VIEWBOX.width) * svgWidth,
       y: overlayOffsetY + (point.y / OVERLAY_VIEWBOX.height) * svgHeight,
     };
-    const savedViewerPoint = transformOverlayPoint(localPoint, layout, perspectiveOrigin);
+    const savedViewerPoint = transformOverlayPoint(
+      localPoint,
+      layout,
+      perspectiveOrigin,
+    );
     const viewerPoint = {
       x: savedViewerPoint.x * scaleX,
       y: savedViewerPoint.y * scaleY,
@@ -984,8 +1059,13 @@ const normalizeOverlayBundle = (rawOverlay) => {
     layoutsList: layoutsRaw,
     anchored,
     anchoredList: anchoredRaw,
-    annotations: Array.isArray(candidate.annotations) ? candidate.annotations : [],
-    userDrawings: (candidate.userDrawings && typeof candidate.userDrawings === "object") ? candidate.userDrawings : {},
+    annotations: Array.isArray(candidate.annotations)
+      ? candidate.annotations
+      : [],
+    userDrawings:
+      candidate.userDrawings && typeof candidate.userDrawings === "object"
+        ? candidate.userDrawings
+        : {},
     additionalOverlays,
   };
 };
@@ -1092,8 +1172,7 @@ const isPointInPolygon = (point, polygon = []) => {
     const yj = Number(polygon[j]?.[1]);
 
     const intersects =
-      yi > y !== yj > y &&
-      x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-6) + xi;
+      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi || 1e-6) + xi;
     if (intersects) inside = !inside;
   }
 
@@ -1114,7 +1193,11 @@ const getPointToSegmentDistance = (point, start, end) => {
     return Math.hypot(px - x1, py - y1);
   }
 
-  const t = clamp(((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy), 0, 1);
+  const t = clamp(
+    ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy),
+    0,
+    1,
+  );
   const projX = x1 + t * dx;
   const projY = y1 + t * dy;
   return Math.hypot(px - projX, py - projY);
@@ -1213,7 +1296,9 @@ const computeLongestEdgeAngle = (polygon = []) => {
 };
 
 const buildLoteLabelLines = (lote) => {
-  const rawName = String(lote?.nombre || `Lote ${getLoteId(lote) || ""}`).trim();
+  const rawName = String(
+    lote?.nombre || `Lote ${getLoteId(lote) || ""}`,
+  ).trim();
   const normalizedName = rawName.replace(/\s+/g, " ").trim();
   const manzanaMatch = normalizedName.match(/^(.*?)(,?\s*manzana\s+.+)$/i);
   const number = manzanaMatch?.[1]?.trim() || normalizedName;
@@ -1231,11 +1316,19 @@ const buildLoteLabelLines = (lote) => {
 };
 
 const buildLoteTooltipContent = (lote, status) => {
-  const area = hasDisplayValue(lote?.area_total_m2) ? `${lote.area_total_m2} m²` : "";
-  const name = String(lote?.nombre || `Lote ${getLoteId(lote) || ""}`).replace(/</g, "&lt;");
+  const area = hasDisplayValue(lote?.area_total_m2)
+    ? `${lote.area_total_m2} m²`
+    : "";
+  const name = String(lote?.nombre || `Lote ${getLoteId(lote) || ""}`).replace(
+    /</g,
+    "&lt;",
+  );
   const statusColor =
-    status.key === "available" ? "#22c55e" :
-    status.key === "reserved"  ? "#f59e0b" : "#ef4444";
+    status.key === "available"
+      ? "#22c55e"
+      : status.key === "reserved"
+        ? "#f59e0b"
+        : "#ef4444";
   return `
     <div class="gh-lot-tooltip-card">
       <div class="gh-lot-tooltip-header">
@@ -1433,7 +1526,7 @@ const Viewer360Modal = ({
     const seen = new Set();
     const result = [];
     for (const entry of overlayBundles) {
-      for (const ann of (entry.bundle?.annotations || [])) {
+      for (const ann of entry.bundle?.annotations || []) {
         if (!ann?.id || !ann?.label || seen.has(ann.id)) continue;
         seen.add(ann.id);
         if (String(ann.imageId) === imageKey) result.push(ann);
@@ -1491,8 +1584,9 @@ const Viewer360Modal = ({
   const viewerFinancingMaxInitial = Math.max(
     viewerFinancingMinInitial,
     Math.min(
-      Number(viewerFinancingConfig?.max_initial_amount || viewerFinancingPrice || 0) ||
-        viewerFinancingPrice,
+      Number(
+        viewerFinancingConfig?.max_initial_amount || viewerFinancingPrice || 0,
+      ) || viewerFinancingPrice,
       viewerFinancingPrice || Number.MAX_SAFE_INTEGER,
     ),
   );
@@ -1523,7 +1617,7 @@ const Viewer360Modal = ({
     setViewerFinancingMonths(viewerDefaultMonths);
   }, [viewerDefaultInitial, viewerDefaultMonths, selectedLoteId]);
   const viewerFinancingScenario = useMemo(() => {
-    if (!viewerFinancingConfig || !viewerFinancingPrice) return null;
+    if (!viewerFinancingConfig || !viewerFinancingPrice || !isFinancingConfigured(viewerFinancingConfig)) return null;
     const initial = clamp(
       viewerFinancingInitial,
       viewerFinancingMinInitial,
@@ -1535,8 +1629,12 @@ const Viewer360Modal = ({
       viewerFinancingMaxMonths,
     );
     const annualRate = Number(viewerFinancingConfig?.annual_interest_rate || 0);
-    const monthlyAdminFee = Number(viewerFinancingConfig?.monthly_admin_fee || 0);
-    const insuranceMonthly = Number(viewerFinancingConfig?.insurance_monthly || 0);
+    const monthlyAdminFee = Number(
+      viewerFinancingConfig?.monthly_admin_fee || 0,
+    );
+    const insuranceMonthly = Number(
+      viewerFinancingConfig?.insurance_monthly || 0,
+    );
     const financedBase = Math.max(viewerFinancingPrice - initial, 0);
     const monthlyEstimate =
       calcPayment(financedBase, annualRate, months) +
@@ -1571,8 +1669,9 @@ const Viewer360Modal = ({
     return {
       description: truncateText(record?.descripcion, 180),
       price: formatProjectMoney(record),
-      area:
-        hasDisplayValue(record?.area_total_m2) ? `${record.area_total_m2} m2` : "",
+      area: hasDisplayValue(record?.area_total_m2)
+        ? `${record.area_total_m2} m2`
+        : "",
       dimensions:
         hasDisplayValue(record?.ancho) && hasDisplayValue(record?.largo)
           ? `${record.ancho}m x ${record.largo}m`
@@ -1596,7 +1695,9 @@ const Viewer360Modal = ({
         };
       })
       .filter((item) => item && item.vendido === 0)
-      .sort((a, b) => a.centroid.y - b.centroid.y || a.centroid.x - b.centroid.x);
+      .sort(
+        (a, b) => a.centroid.y - b.centroid.y || a.centroid.x - b.centroid.x,
+      );
 
     if (!availableItems.length) return {};
 
@@ -1627,33 +1728,30 @@ const Viewer360Modal = ({
       return acc;
     }, {});
   }, [lotesForHud]);
-  const lotLabelsData = useMemo(
-    () => {
-      if (!LOT_LABELS_ENABLED) return [];
+  const lotLabelsData = useMemo(() => {
+    if (!LOT_LABELS_ENABLED) return [];
 
-      return lotesForHud
-        .map((lote, index) => {
-          const polygonPixels = lote?.polygonPixels || [];
-          if (!isValidPolygonPixels(polygonPixels)) return null;
+    return lotesForHud
+      .map((lote, index) => {
+        const polygonPixels = lote?.polygonPixels || [];
+        if (!isValidPolygonPixels(polygonPixels)) return null;
 
-          const loteId = getLoteId(lote) ?? `idx-${index}`;
-          const labelLines = buildLoteLabelLines(lote);
-          return {
-            id: `lot-label-${currentImageId}-${loteId}-${index}`,
-            loteId: String(loteId),
-            lote,
-            status: getLoteStatusMeta(lote?.vendido),
-            availableVariant: availableLotVariantById[String(loteId)] ?? 0,
-            anchor: computePolygonLabelAnchor(polygonPixels),
-            polygonPixels,
-            labelLines,
-            isSelected: String(loteId) === selectedLoteId,
-          };
-        })
-        .filter(Boolean);
-    },
-    [availableLotVariantById, currentImageId, lotesForHud, selectedLoteId],
-  );
+        const loteId = getLoteId(lote) ?? `idx-${index}`;
+        const labelLines = buildLoteLabelLines(lote);
+        return {
+          id: `lot-label-${currentImageId}-${loteId}-${index}`,
+          loteId: String(loteId),
+          lote,
+          status: getLoteStatusMeta(lote?.vendido),
+          availableVariant: availableLotVariantById[String(loteId)] ?? 0,
+          anchor: computePolygonLabelAnchor(polygonPixels),
+          polygonPixels,
+          labelLines,
+          isSelected: String(loteId) === selectedLoteId,
+        };
+      })
+      .filter(Boolean);
+  }, [availableLotVariantById, currentImageId, lotesForHud, selectedLoteId]);
   const travelToImageById = useCallback(
     (id, label) => {
       const index = normalizedImages.findIndex(
@@ -1703,6 +1801,7 @@ const Viewer360Modal = ({
         buildApiUrl(`/api/mapa/lote_detalle/${loteId}/`),
         {
           signal: controller.signal,
+          cache: "no-store",
         },
       );
       const data = await res.json().catch(() => ({}));
@@ -1865,11 +1964,11 @@ const Viewer360Modal = ({
 
   const getGalleryAnchors = useCallback(() => {
     if (typeof window === "undefined") {
-      return { expandedTop: 120, midTop: 420, collapsedTop: 0 };
+      return { expandedTop: 120, midTop: 380, collapsedTop: 0 };
     }
     const vh = window.innerHeight;
     const expandedTop = Math.max(84, vh * 0.14);
-    const midTop = vh * 0.56;
+    const midTop = vh * 0.48;
     const collapsedTop = vh - 86;
     return {
       expandedTop,
@@ -1880,11 +1979,11 @@ const Viewer360Modal = ({
 
   const getLoteAnchors = useCallback(() => {
     if (typeof window === "undefined") {
-      return { expandedTop: 72, midTop: 360, collapsedTop: 0 };
+      return { expandedTop: 72, midTop: 320, collapsedTop: 0 };
     }
     const vh = window.innerHeight;
     const expandedTop = Math.max(64, vh * 0.1);
-    const midTop = vh * 0.34;
+    const midTop = vh * 0.42;
     const collapsedTop = vh - 86;
     return {
       expandedTop,
@@ -1979,24 +2078,34 @@ const Viewer360Modal = ({
     const indexes = new Set();
     for (let i = 1; i <= range; i += 1) {
       indexes.add((currentIndex + i) % normalizedImages.length);
-      indexes.add((currentIndex - i + normalizedImages.length) % normalizedImages.length);
+      indexes.add(
+        (currentIndex - i + normalizedImages.length) % normalizedImages.length,
+      );
     }
     indexes.forEach((idx) => {
       const src = normalizedImages[idx]?.imagen_original;
-      if (!src || preloadBlobsRef.current.has(src) || preloadPendingRef.current.has(src)) return;
+      if (
+        !src ||
+        preloadBlobsRef.current.has(src) ||
+        preloadPendingRef.current.has(src)
+      )
+        return;
       preloadPendingRef.current.add(src);
       warmUpImage(src, 120000).then((blobUrl) => {
         preloadPendingRef.current.delete(src);
-        if (blobUrl) preloadBlobsRef.current.set(src, blobUrl);
+        if (blobUrl) addToBlobCache(preloadBlobsRef.current, src, blobUrl);
       });
     });
   }, [currentIndex, normalizedImages]);
 
-  useEffect(() => () => {
-    preloadBlobsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    preloadBlobsRef.current.clear();
-    preloadPendingRef.current.clear();
-  }, []);
+  useEffect(
+    () => () => {
+      preloadBlobsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      preloadBlobsRef.current.clear();
+      preloadPendingRef.current.clear();
+    },
+    [],
+  );
 
   useEffect(() => () => window.clearTimeout(travelTimerRef.current), []);
 
@@ -2130,11 +2239,21 @@ const Viewer360Modal = ({
     };
   }, [currentImageId]);
 
-  useEffect(() => { openLoteFromMarkerRef.current = openLoteFromMarker; }, [openLoteFromMarker]);
-  useEffect(() => { travelToImageByIdRef.current = travelToImageById; }, [travelToImageById]);
-  useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
-  useEffect(() => { currentPolygonPointsRef.current = currentPolygonPoints; }, [currentPolygonPoints]);
-  useEffect(() => { annotationModeRef.current = annotationMode; }, [annotationMode]);
+  useEffect(() => {
+    openLoteFromMarkerRef.current = openLoteFromMarker;
+  }, [openLoteFromMarker]);
+  useEffect(() => {
+    travelToImageByIdRef.current = travelToImageById;
+  }, [travelToImageById]);
+  useEffect(() => {
+    drawModeRef.current = drawMode;
+  }, [drawMode]);
+  useEffect(() => {
+    currentPolygonPointsRef.current = currentPolygonPoints;
+  }, [currentPolygonPoints]);
+  useEffect(() => {
+    annotationModeRef.current = annotationMode;
+  }, [annotationMode]);
   useEffect(() => {
     setDrawMode(null);
     currentPolygonPointsRef.current = [];
@@ -2190,10 +2309,11 @@ const Viewer360Modal = ({
 
       // Mostrar inmediatamente: full-res si ya está en caché, si no el thumbnail
       const cachedFull = fullKey ? preloadBlobsRef.current.get(fullKey) : null;
-      let firstSrc = cachedFull
-        || preloadBlobsRef.current.get(thumbKey)
-        || thumbKey
-        || fullKey;
+      let firstSrc =
+        cachedFull ||
+        preloadBlobsRef.current.get(thumbKey) ||
+        thumbKey ||
+        fullKey;
 
       const safeZoom = Number.isFinite(initialZoom)
         ? Math.max(40, Math.min(70, initialZoom))
@@ -2203,13 +2323,17 @@ const Viewer360Modal = ({
         container: containerRef.current,
         panorama: firstSrc,
         caption: firstImage?.nombre,
-        adapter: [runtime.EquirectangularAdapter, { resolution: VIEWER_RESOLUTION, useXmpData: false }],
+        adapter: [
+          runtime.EquirectangularAdapter,
+          { resolution: VIEWER_RESOLUTION, useXmpData: false },
+        ],
         defaultZoomLvl: safeZoom,
         defaultPitch: 0,
         moveSpeed: VIEWER_MOVE_SPEED,
         fisheye: false,
         loadingImg: null,
         loadingTxt: "",
+        maxFps: 60,
         navbar: ["zoom", "move", "caption"],
         plugins: [[runtime.MarkersPlugin, {}]],
         rendererParameters: {
@@ -2230,10 +2354,13 @@ const Viewer360Modal = ({
         warmUpImage(fullKey, 120000).then((blobUrl) => {
           if (!active || !viewerRef.current) return;
           const upgradeSrc = blobUrl || fullKey;
-          if (blobUrl) preloadBlobsRef.current.set(fullKey, blobUrl);
+          if (blobUrl) addToBlobCache(preloadBlobsRef.current, fullKey, blobUrl);
           if (lastShownSrcRef.current !== upgradeSrc) {
-            viewerRef.current.setPanorama(upgradeSrc, { transition: false })
-              .then(() => { lastShownSrcRef.current = upgradeSrc; })
+            viewerRef.current
+              .setPanorama(upgradeSrc, { transition: false })
+              .then(() => {
+                lastShownSrcRef.current = upgradeSrc;
+              })
               .catch(() => {});
           }
         });
@@ -2248,7 +2375,8 @@ const Viewer360Modal = ({
           return;
         }
         const destinoId = markerData.destinoId;
-        if (destinoId) travelToImageByIdRef.current?.(destinoId, markerData.destinoNombre);
+        if (destinoId)
+          travelToImageByIdRef.current?.(destinoId, markerData.destinoNombre);
       });
 
       viewerInstance.addEventListener("ready", markViewerAsReady);
@@ -2282,10 +2410,11 @@ const Viewer360Modal = ({
 
     // Mostrar inmediatamente: full-res si está en caché, si no el thumbnail
     const cachedFull = fullKey ? preloadBlobsRef.current.get(fullKey) : null;
-    const src = cachedFull
-      || preloadBlobsRef.current.get(thumbKey)
-      || thumbKey
-      || fullKey;
+    const src =
+      cachedFull ||
+      preloadBlobsRef.current.get(thumbKey) ||
+      thumbKey ||
+      fullKey;
 
     if (!src || src === lastShownSrcRef.current) return;
     lastShownSrcRef.current = src;
@@ -2293,7 +2422,10 @@ const Viewer360Modal = ({
     setIsPanoramaLoading(true);
 
     Promise.resolve(
-      viewer.setPanorama(src, { caption: currentImage.nombre, transition: true }),
+      viewer.setPanorama(src, {
+        caption: currentImage.nombre,
+        transition: true,
+      }),
     )
       .then(() => {
         setViewerReady(true);
@@ -2303,10 +2435,13 @@ const Viewer360Modal = ({
           warmUpImage(fullKey, 120000).then((blobUrl) => {
             if (!viewerRef.current) return;
             const upgradeSrc = blobUrl || fullKey;
-            if (blobUrl) preloadBlobsRef.current.set(fullKey, blobUrl);
+            if (blobUrl) addToBlobCache(preloadBlobsRef.current, fullKey, blobUrl);
             if (lastShownSrcRef.current !== upgradeSrc) {
-              viewerRef.current.setPanorama(upgradeSrc, { transition: false })
-                .then(() => { lastShownSrcRef.current = upgradeSrc; })
+              viewerRef.current
+                .setPanorama(upgradeSrc, { transition: false })
+                .then(() => {
+                  lastShownSrcRef.current = upgradeSrc;
+                })
                 .catch(() => {});
             }
           });
@@ -2331,7 +2466,9 @@ const Viewer360Modal = ({
       setAnnotationDesc("");
     };
     viewer.addEventListener("click", handlePsvClick);
-    return () => { viewer.removeEventListener("click", handlePsvClick); };
+    return () => {
+      viewer.removeEventListener("click", handlePsvClick);
+    };
   }, [viewerReady]);
 
   // Preload prev/next scenes into blob cache for instant transitions
@@ -2339,16 +2476,26 @@ const Viewer360Modal = ({
     if (!normalizedImages.length) return;
     const adjacent = [
       normalizedImages[(currentIndex + 1) % normalizedImages.length],
-      normalizedImages[(currentIndex - 1 + normalizedImages.length) % normalizedImages.length],
+      normalizedImages[
+        (currentIndex - 1 + normalizedImages.length) % normalizedImages.length
+      ],
     ];
     adjacent.forEach((img) => {
       const key = img?.imagen_original || img?.imagen;
-      if (key && !preloadBlobsRef.current.has(key) && !preloadPendingRef.current.has(key)) {
+      if (
+        key &&
+        !preloadBlobsRef.current.has(key) &&
+        !preloadPendingRef.current.has(key)
+      ) {
         preloadPendingRef.current.add(key);
-        warmUpImage(key, 60000).then((blobUrl) => {
-          preloadPendingRef.current.delete(key);
-          if (blobUrl) preloadBlobsRef.current.set(key, blobUrl);
-        }).catch(() => { preloadPendingRef.current.delete(key); });
+        warmUpImage(key, 60000)
+          .then((blobUrl) => {
+            preloadPendingRef.current.delete(key);
+            if (blobUrl) addToBlobCache(preloadBlobsRef.current, key, blobUrl);
+          })
+          .catch(() => {
+            preloadPendingRef.current.delete(key);
+          });
       }
     });
   }, [currentIndex, normalizedImages]);
@@ -2396,13 +2543,16 @@ const Viewer360Modal = ({
     setAnnotationDesc("");
   }, [pendingAnnotCoords, annotationLabel, annotationDesc, currentImageId]);
 
-  const removeLocalAnnotation = useCallback((annId) => {
-    const key = String(currentImageId);
-    setLocalAnnotations((prev) => ({
-      ...prev,
-      [key]: (prev[key] || []).filter((a) => a.id !== annId),
-    }));
-  }, [currentImageId]);
+  const removeLocalAnnotation = useCallback(
+    (annId) => {
+      const key = String(currentImageId);
+      setLocalAnnotations((prev) => ({
+        ...prev,
+        [key]: (prev[key] || []).filter((a) => a.id !== annId),
+      }));
+    },
+    [currentImageId],
+  );
 
   useEffect(() => {
     if (!viewerReady || !viewerRef.current || currentAnchoredOverlay?.visible) {
@@ -2464,18 +2614,22 @@ const Viewer360Modal = ({
     });
     // Stroke pattern per scenario type — gives each area type a visual texture
     const SPACE_DASH = {
-      area:      "12 5 2 5",
-      parque:    "8 3",
-      manzana:   "none",
-      via:       "4 3",
-      iglesia:   "10 4 2 4",
+      area: "12 5 2 5",
+      parque: "8 3",
+      manzana: "none",
+      via: "4 3",
+      iglesia: "10 4 2 4",
       parquedep: "8 4",
-      comercio:  "6 3 2 3",
+      comercio: "6 3 2 3",
     };
     // Containment-based project contour detection using 2D canvas coords (no spherical wraparound).
     // The project contour is the shape whose 2D polygon contains at least one other shape's centroid.
     const shapesFor2D = allSpaceShapes.filter(
-      (s) => s.points && s.points.length >= 3 && s.sphericalPoints && s.sphericalPoints.length >= 3,
+      (s) =>
+        s.points &&
+        s.points.length >= 3 &&
+        s.sphericalPoints &&
+        s.sphericalPoints.length >= 3,
     );
     const centroids2D = shapesFor2D.map((s) => ({
       x: s.points.reduce((acc, p) => acc + p.x, 0) / s.points.length,
@@ -2484,9 +2638,11 @@ const Viewer360Modal = ({
     const pointInPoly2D = (x, y, poly) => {
       let inside = false;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        const xi = poly[i].x, yi = poly[i].y;
-        const xj = poly[j].x, yj = poly[j].y;
-        if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
+        const xi = poly[i].x,
+          yi = poly[i].y;
+        const xj = poly[j].x,
+          yj = poly[j].y;
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)
           inside = !inside;
       }
       return inside;
@@ -2494,9 +2650,11 @@ const Viewer360Modal = ({
     const projectContourIds = new Set(
       shapesFor2D
         .filter((shape, i) =>
-          shapesFor2D.some((_, j) => i !== j && pointInPoly2D(
-            centroids2D[j].x, centroids2D[j].y, shape.points,
-          )),
+          shapesFor2D.some(
+            (_, j) =>
+              i !== j &&
+              pointInPoly2D(centroids2D[j].x, centroids2D[j].y, shape.points),
+          ),
         )
         .map((s) => s.id),
     );
@@ -2505,7 +2663,8 @@ const Viewer360Modal = ({
       if (!shape.sphericalPoints || shape.sphericalPoints.length < 3) return;
       const isProjectContour = projectContourIds.has(shape.id);
       const scenario = getDrawingScenario(shape.scenarioKey);
-      const color = shape.scenarioColor || (shape.scenarioKey ? scenario.color : "#22c55e");
+      const color =
+        shape.scenarioColor || (shape.scenarioKey ? scenario.color : "#22c55e");
       const label = shape.label || shape.scenarioLabel || scenario.label;
       const safeLabel = label ? String(label).replace(/</g, "&lt;") : "";
       const dash = SPACE_DASH[shape.scenarioKey] || "none";
@@ -2544,7 +2703,8 @@ const Viewer360Modal = ({
           yaw: Math.atan2(sinSum / n, cosSum / n),
           pitch: pts.reduce((s, p) => s + p.pitch, 0) / n,
         };
-        const iconSvg = SPACE_LABEL_ICONS[shape.scenarioKey] || SPACE_LABEL_ICONS.area;
+        const iconSvg =
+          SPACE_LABEL_ICONS[shape.scenarioKey] || SPACE_LABEL_ICONS.area;
         markers.addMarker({
           id: `space-label-${shape.id}`,
           html: `<div class="gh-space-label gh-space-label-${shape.scenarioKey || "default"}">
@@ -2635,12 +2795,14 @@ const Viewer360Modal = ({
 
     // Render additional committed overlay instances (multi-import from editor)
     const seenAdditionalIds = new Set();
-    const uniqueAdditionalOverlays = currentAdditionalOverlays.filter((inst, idx) => {
-      const id = inst?.instanceId ?? idx;
-      if (seenAdditionalIds.has(id)) return false;
-      seenAdditionalIds.add(id);
-      return true;
-    });
+    const uniqueAdditionalOverlays = currentAdditionalOverlays.filter(
+      (inst, idx) => {
+        const id = inst?.instanceId ?? idx;
+        if (seenAdditionalIds.has(id)) return false;
+        seenAdditionalIds.add(id);
+        return true;
+      },
+    );
     uniqueAdditionalOverlays.forEach((instance, instanceIdx) => {
       if (!instance) return;
       const instId = instance.instanceId || instanceIdx;
@@ -2649,7 +2811,9 @@ const Viewer360Modal = ({
       if (instance.showProjectOutline !== false && (hasSphProj || hasPxProj)) {
         markers.addMarker({
           id: `overlay-project-extra-${currentImageId}-${instId}`,
-          ...(hasSphProj ? { polygon: instance.projectPolygon } : { polygonPixels: instance.projectPolygonPixels }),
+          ...(hasSphProj
+            ? { polygon: instance.projectPolygon }
+            : { polygonPixels: instance.projectPolygonPixels }),
           svgStyle: {
             fill: "rgba(34, 197, 94, 0.06)",
             stroke: "rgba(74, 222, 128, 0.78)",
@@ -2669,17 +2833,24 @@ const Viewer360Modal = ({
         const mKey = loteId ?? lote.nombre ?? lotIdx;
         const isSelected = String(loteId ?? "") === selectedLoteId;
         const status = getLoteStatusMeta(lote.vendido);
-        const availableVariant = availableLotVariantById[String(loteId ?? `idx-${lotIdx}`)] ?? 0;
+        const availableVariant =
+          availableLotVariantById[String(loteId ?? `idx-${lotIdx}`)] ?? 0;
         markers.addMarker({
           id: `overlay-lote-extra-${currentImageId}-${instId}-${mKey}-${lotIdx}`,
-          ...(hasSph ? { polygon: lote.polygon } : { polygonPixels: lote.polygonPixels }),
+          ...(hasSph
+            ? { polygon: lote.polygon }
+            : { polygonPixels: lote.polygonPixels }),
           tooltip: {
             content: buildLoteTooltipContent(lote, status),
             className: `gh-lot-tooltip gh-lot-tooltip-${status.key}`,
             trigger: "hover",
           },
           className: `gh-portal-lot-marker gh-lot-${status.key} ${isSelected ? "gh-lot-selected" : ""}`,
-          data: { type: "lote", idlote: loteId, lote: { ...lote, idlote: loteId } },
+          data: {
+            type: "lote",
+            idlote: loteId,
+            lote: { ...lote, idlote: loteId },
+          },
           svgStyle: getLoteSvgStyle({
             status,
             isSelected,
@@ -2701,7 +2872,10 @@ const Viewer360Modal = ({
       )
         return;
 
-      const destName = (hotspot.destino?.nombre || "Vista conectada").replace(/</g, "&lt;");
+      const destName = (hotspot.destino?.nombre || "Vista conectada").replace(
+        /</g,
+        "&lt;",
+      );
       markers.addMarker({
         id: `hotspot-${hotspot.id}`,
         image: HOTSPOT_ICON,
@@ -2739,15 +2913,21 @@ const Viewer360Modal = ({
       )
         return;
 
-      const safeLabel = String(ann.label ?? "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const safeDesc = ann.description ? String(ann.description).replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+      const safeLabel = String(ann.label ?? "")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const safeDesc = ann.description
+        ? String(ann.description).replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        : "";
       markers.addMarker({
         id: `ann-${ann.id}`,
         html: `<div class="gh-local-ann-marker"><div class="gh-local-ann-hbar"><span class="gh-local-ann-label">${safeLabel}</span></div><div class="gh-local-ann-vline"></div></div>`,
         size: { width: 180, height: 52 },
         anchor: "bottom center",
         position: { yaw: Number(ann.yaw), pitch: Number(ann.pitch) },
-        tooltip: safeDesc ? `<strong>${safeLabel}</strong><br><span style="font-size:0.84em;opacity:0.82">${safeDesc}</span>` : undefined,
+        tooltip: safeDesc
+          ? `<strong>${safeLabel}</strong><br><span style="font-size:0.84em;opacity:0.82">${safeDesc}</span>`
+          : undefined,
         data: { type: "annotation" },
       });
     });
@@ -2756,14 +2936,18 @@ const Viewer360Modal = ({
     localAnns.forEach((ann) => {
       if (!Number.isFinite(ann.yaw) || !Number.isFinite(ann.pitch)) return;
       const label = ann.label.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const desc = ann.description ? ann.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+      const desc = ann.description
+        ? ann.description.replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        : "";
       markers.addMarker({
         id: ann.id,
         html: `<div class="gh-local-ann-marker"><div class="gh-local-ann-hbar"><span class="gh-local-ann-label">${label}</span></div><div class="gh-local-ann-vline"></div></div>`,
         size: { width: 180, height: 52 },
         anchor: "bottom center",
         position: { yaw: ann.yaw, pitch: ann.pitch },
-        tooltip: desc ? `<strong>${label}</strong><br><span style="font-size:0.84em;opacity:0.82">${desc}</span>` : undefined,
+        tooltip: desc
+          ? `<strong>${label}</strong><br><span style="font-size:0.84em;opacity:0.82">${desc}</span>`
+          : undefined,
         data: { type: "localAnnotation" },
       });
     });
@@ -2793,7 +2977,10 @@ const Viewer360Modal = ({
     const searchLots = (lotPolygons) => {
       if (!Array.isArray(lotPolygons)) return;
       for (const lote of lotPolygons) {
-        if (String(getLoteId(lote) ?? "") === selectedLoteId && isValidPolygonPixels(lote.polygon)) {
+        if (
+          String(getLoteId(lote) ?? "") === selectedLoteId &&
+          isValidPolygonPixels(lote.polygon)
+        ) {
           targetPolygon = lote.polygon;
           return;
         }
@@ -2810,8 +2997,14 @@ const Viewer360Modal = ({
 
     // Spherical centroid — sin/cos averaging for yaw to handle wraparound
     const n = targetPolygon.length;
-    const sinSum = targetPolygon.reduce((s, p) => s + Math.sin(Number(p[0])), 0);
-    const cosSum = targetPolygon.reduce((s, p) => s + Math.cos(Number(p[0])), 0);
+    const sinSum = targetPolygon.reduce(
+      (s, p) => s + Math.sin(Number(p[0])),
+      0,
+    );
+    const cosSum = targetPolygon.reduce(
+      (s, p) => s + Math.cos(Number(p[0])),
+      0,
+    );
     const pitchSum = targetPolygon.reduce((s, p) => s + Number(p[1]), 0);
     const centroidYaw = Math.atan2(sinSum / n, cosSum / n);
     const centroidPitch = pitchSum / n;
@@ -2821,20 +3014,46 @@ const Viewer360Modal = ({
     // lot ends up centred in the visible (non-panel) area.
     const viewer = viewerRef.current;
     const containerW = containerRef.current?.clientWidth || 800;
+    const containerH = containerRef.current?.clientHeight || window.innerHeight;
     const hFovDeg = viewer?.state?.hFov ?? 90;
     const hFovRad = hFovDeg * (Math.PI / 180);
-    const sidebarPx = !isMobileView && selectedLoteId ? Math.min(360, containerW - 48) : 0;
+    const sidebarPx =
+      !isMobileView && selectedLoteId ? Math.min(360, containerW - 48) : 0;
     const yawOffset = (sidebarPx / 2) * (hFovRad / containerW);
+
+    // On mobile the lot sheet slides up from the bottom. Tilt the camera
+    // downward (negative pitch in PSV's positive-up convention) so the lot
+    // appears in the center of the visible map area above the sheet instead
+    // of the full-viewport center.
+    let pitchOffset = 0;
+    if (isMobileView) {
+      const sheetTop = getLoteAnchors().midTop;
+      const vFovRad =
+        2 * Math.atan(Math.tan(hFovRad / 2) * (containerH / containerW));
+      // (containerH/2 - sheetTop/2) is the pixel distance from viewport center
+      // to visible-area center. Dividing by containerH gives a fraction of vFov.
+      pitchOffset =
+        ((containerH / 2 - sheetTop / 2) / containerH) * vFovRad;
+    }
 
     currentCenteringAnimationRef.current?.cancel?.();
     const animation = viewer.animate({
       yaw: centroidYaw + yawOffset,
-      pitch: centroidPitch,
+      // Subtract: PSV pitch is positive-upward, so reducing pitch tilts the
+      // camera downward, which raises the lot into the visible area above the sheet.
+      pitch: centroidPitch - pitchOffset,
       speed: "4rpm",
     });
     currentCenteringAnimationRef.current = animation ?? null;
     animation?.catch?.(() => {});
-  }, [selectedLoteId, viewerReady, overlayToRender, currentAdditionalOverlays, isMobileView]);
+  }, [
+    selectedLoteId,
+    viewerReady,
+    overlayToRender,
+    currentAdditionalOverlays,
+    isMobileView,
+    getLoteAnchors,
+  ]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -2875,15 +3094,17 @@ const Viewer360Modal = ({
 
         const projectedPolygon = label.polygonPixels
           .map((point) => {
-            const polygonSpherical = viewer.dataHelper.textureCoordsToSphericalCoords({
-              textureX: Number(point[0]),
-              textureY: Number(point[1]),
-            });
-            return viewer.dataHelper.sphericalCoordsToViewerCoords(polygonSpherical);
+            const polygonSpherical =
+              viewer.dataHelper.textureCoordsToSphericalCoords({
+                textureX: Number(point[0]),
+                textureY: Number(point[1]),
+              });
+            return viewer.dataHelper.sphericalCoordsToViewerCoords(
+              polygonSpherical,
+            );
           })
           .filter(
-            (point) =>
-              Number.isFinite(point?.x) && Number.isFinite(point?.y),
+            (point) => Number.isFinite(point?.x) && Number.isFinite(point?.y),
           );
 
         if (projectedPolygon.length < 3) {
@@ -2932,7 +3153,10 @@ const Viewer360Modal = ({
           return;
         }
 
-        const polygonAsArrays = projectedPolygon.map((point) => [point.x, point.y]);
+        const polygonAsArrays = projectedPolygon.map((point) => [
+          point.x,
+          point.y,
+        ]);
         const anchor = computePolygonLabelAnchor(polygonAsArrays);
         const safeRadius = getDistanceToPolygonEdges(anchor, polygonAsArrays);
         const rawAngle = computeLongestEdgeAngle(projectedPolygon);
@@ -2943,7 +3167,8 @@ const Viewer360Modal = ({
         const titleFontSize = clamp(
           Math.min(
             projectedWidth / (titleLength * 0.84),
-            projectedHeight / (lineCount === 3 ? 4.65 : lineCount === 2 ? 3.6 : 2.45),
+            projectedHeight /
+              (lineCount === 3 ? 4.65 : lineCount === 2 ? 3.6 : 2.45),
             Math.sqrt(projectedArea) * 0.07,
             safeRadius * 0.46,
           ),
@@ -2952,10 +3177,15 @@ const Viewer360Modal = ({
         );
         const areaFontSize = Math.max(4.1, titleFontSize * 0.3);
         const blockFontSize = Math.max(4.1, titleFontSize * 0.26);
-        const opacity = label.isSelected ? 1 : clamp(projectedArea / 2400, 0.82, 1);
+        const opacity = label.isSelected
+          ? 1
+          : clamp(projectedArea / 2400, 0.82, 1);
         group.setAttribute("display", "inline");
         group.setAttribute("opacity", String(opacity));
-        group.setAttribute("transform", `translate(${anchor.x} ${anchor.y}) rotate(${angle})`);
+        group.setAttribute(
+          "transform",
+          `translate(${anchor.x} ${anchor.y}) rotate(${angle})`,
+        );
         group.setAttribute(
           "class",
           label.isSelected ? styles.lotLabelSelected : styles.lotLabel,
@@ -2964,14 +3194,20 @@ const Viewer360Modal = ({
         titleNode.setAttribute("font-size", String(titleFontSize));
         titleNode.setAttribute(
           "y",
-          lineCount === 3 ? String(-titleFontSize * 0.64) : lineCount === 2 ? "-1.5" : "0",
+          lineCount === 3
+            ? String(-titleFontSize * 0.64)
+            : lineCount === 2
+              ? "-1.5"
+              : "0",
         );
 
         if (areaNode) {
           areaNode.setAttribute("font-size", String(areaFontSize));
           areaNode.setAttribute(
             "y",
-            lineCount === 3 ? String(titleFontSize * 0.1) : String(titleFontSize * 0.68),
+            lineCount === 3
+              ? String(titleFontSize * 0.1)
+              : String(titleFontSize * 0.68),
           );
           areaNode.textContent = canShowArea ? label.labelLines.area || "" : "";
           areaNode.setAttribute("display", canShowArea ? "inline" : "none");
@@ -2980,7 +3216,9 @@ const Viewer360Modal = ({
         if (blockNode) {
           blockNode.setAttribute("font-size", String(blockFontSize));
           blockNode.setAttribute("y", String(titleFontSize * 0.96));
-          blockNode.textContent = canShowBlock ? label.labelLines.block || "" : "";
+          blockNode.textContent = canShowBlock
+            ? label.labelLines.block || ""
+            : "";
           blockNode.setAttribute("display", canShowBlock ? "inline" : "none");
         }
       });
@@ -3037,7 +3275,8 @@ const Viewer360Modal = ({
   useEffect(() => {
     if (!overlayRef.current) return;
     const ctx = gsap.context(() => {
-      const hudTargets = overlayRef.current?.querySelectorAll(".viewer-hud-enter");
+      const hudTargets =
+        overlayRef.current?.querySelectorAll(".viewer-hud-enter");
       if (hudTargets?.length) {
         gsap.fromTo(
           hudTargets,
@@ -3054,7 +3293,9 @@ const Viewer360Modal = ({
         );
       }
 
-      const panelTargets = overlayRef.current?.querySelectorAll(".viewer-panel-enter");
+      const panelTargets = overlayRef.current?.querySelectorAll(
+        ".viewer-panel-enter",
+      );
       if (panelTargets?.length) {
         gsap.fromTo(
           panelTargets,
@@ -3087,7 +3328,12 @@ const Viewer360Modal = ({
 
       tl.fromTo(
         loteDrawerRef.current,
-        { autoAlpha: 0, x: isMobileView ? 0 : 34, y: isMobileView ? 34 : 0, scale: 0.985 },
+        {
+          autoAlpha: 0,
+          x: isMobileView ? 0 : 34,
+          y: isMobileView ? 34 : 0,
+          scale: 0.985,
+        },
         { autoAlpha: 1, x: 0, y: 0, scale: 1, duration: 0.58 },
       );
 
@@ -3122,6 +3368,32 @@ const Viewer360Modal = ({
     },
   );
 
+  const shareProjectId = useMemo(() => {
+    for (const img of normalizedImages) {
+      const id = getProjectId(img);
+      if (id) return String(id);
+    }
+    return null;
+  }, [normalizedImages]);
+
+  const handleShare = useCallback(() => {
+    if (!shareProjectId) return;
+    const url = `${window.location.origin}/visor360/${shareProjectId}`;
+    if (navigator.share) {
+      navigator
+        .share({ title: projectName || "Vista 360°", url })
+        .catch(() => {});
+    } else {
+      navigator.clipboard
+        .writeText(url)
+        .then(() => {
+          setShareCopied(true);
+          setTimeout(() => setShareCopied(false), 2000);
+        })
+        .catch(() => {});
+    }
+  }, [shareProjectId, projectName]);
+
   if (!normalizedImages.length) return null;
   const selectedLoteStatus = selectedLote
     ? getLoteStatusMeta(selectedLote.vendido)
@@ -3131,7 +3403,8 @@ const Viewer360Modal = ({
     if (!isMobileView) return;
     galleryTouchStartY.current = e.targetTouches[0].clientY;
     galleryTouchDeltaY.current = 0;
-    galleryTouchStartTop.current = gallerySheetTop ?? getGalleryAnchors().midTop;
+    galleryTouchStartTop.current =
+      gallerySheetTop ?? getGalleryAnchors().midTop;
     setIsGalleryDragging(true);
     e.stopPropagation();
   };
@@ -3140,7 +3413,9 @@ const Viewer360Modal = ({
     if (!isMobileView || !galleryTouchStartY.current) return;
     galleryTouchDeltaY.current =
       e.targetTouches[0].clientY - galleryTouchStartY.current;
-    setGalleryTopAndMode(galleryTouchStartTop.current + galleryTouchDeltaY.current);
+    setGalleryTopAndMode(
+      galleryTouchStartTop.current + galleryTouchDeltaY.current,
+    );
     e.preventDefault();
     e.stopPropagation();
   };
@@ -3164,7 +3439,9 @@ const Viewer360Modal = ({
     const sheetEl = sideGalleryRef.current;
     const contentScrollable =
       !!contentEl && contentEl.scrollHeight > contentEl.clientHeight + 2;
-    galleryNestedScrollableTarget.current = contentScrollable ? contentEl : sheetEl;
+    galleryNestedScrollableTarget.current = contentScrollable
+      ? contentEl
+      : sheetEl;
     e.stopPropagation();
   };
 
@@ -3245,7 +3522,9 @@ const Viewer360Modal = ({
     const sheetEl = loteDrawerRef.current;
     const contentScrollable =
       !!contentEl && contentEl.scrollHeight > contentEl.clientHeight + 2;
-    loteNestedScrollableTarget.current = contentScrollable ? contentEl : sheetEl;
+    loteNestedScrollableTarget.current = contentScrollable
+      ? contentEl
+      : sheetEl;
     e.stopPropagation();
   };
 
@@ -3331,7 +3610,13 @@ const Viewer360Modal = ({
       ...prev,
       [key]: [
         ...(prev[key] || []),
-        { id: `draw-${crypto.randomUUID()}`, type: "polygon", points: [...pts], depth: 0, strokeWidth: 4 },
+        {
+          id: `draw-${crypto.randomUUID()}`,
+          type: "polygon",
+          points: [...pts],
+          depth: 0,
+          strokeWidth: 4,
+        },
       ],
     }));
     currentPolygonPointsRef.current = [];
@@ -3370,7 +3655,9 @@ const Viewer360Modal = ({
     const key = String(currentImageId);
     setUserDrawings((prev) => ({
       ...prev,
-      [key]: (prev[key] || []).map((s) => s.id === shapeId ? { ...s, depth } : s),
+      [key]: (prev[key] || []).map((s) =>
+        s.id === shapeId ? { ...s, depth } : s,
+      ),
     }));
   };
 
@@ -3379,20 +3666,46 @@ const Viewer360Modal = ({
     const key = String(currentImageId);
     setUserDrawings((prev) => ({
       ...prev,
-      [key]: (prev[key] || []).map((s) => s.id === shapeId ? { ...s, strokeWidth } : s),
+      [key]: (prev[key] || []).map((s) =>
+        s.id === shapeId ? { ...s, strokeWidth } : s,
+      ),
     }));
   };
 
   const toP = (v) => `${(v * 100).toFixed(3)}%`;
 
-  const drawSegment = (x1, y1, x2, y2, sw, shadowW, dash, key, color = "white") => (
+  const drawSegment = (
+    x1,
+    y1,
+    x2,
+    y2,
+    sw,
+    shadowW,
+    dash,
+    key,
+    color = "white",
+  ) => (
     <g key={key}>
-      <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
-        stroke="rgba(0,0,0,0.65)" strokeWidth={shadowW}
-        strokeDasharray={dash} strokeLinecap="round" />
-      <line x1={toP(x1)} y1={toP(y1)} x2={toP(x2)} y2={toP(y2)}
-        stroke={color} strokeWidth={sw}
-        strokeDasharray={dash} strokeLinecap="round" />
+      <line
+        x1={toP(x1)}
+        y1={toP(y1)}
+        x2={toP(x2)}
+        y2={toP(y2)}
+        stroke="rgba(0,0,0,0.65)"
+        strokeWidth={shadowW}
+        strokeDasharray={dash}
+        strokeLinecap="round"
+      />
+      <line
+        x1={toP(x1)}
+        y1={toP(y1)}
+        x2={toP(x2)}
+        y2={toP(y2)}
+        stroke={color}
+        strokeWidth={sw}
+        strokeDasharray={dash}
+        strokeLinecap="round"
+      />
     </g>
   );
 
@@ -3419,13 +3732,19 @@ const Viewer360Modal = ({
             const pz = Math.cos(pitch) * Math.cos(yaw);
             if (px * cx + py * cy + pz * cz <= 0.04) return null; // behind camera
 
-            const pos = viewer.dataHelper.sphericalCoordsToViewerCoords({ yaw, pitch });
-            if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return null;
+            const pos = viewer.dataHelper.sphericalCoordsToViewerCoords({
+              yaw,
+              pitch,
+            });
+            if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y))
+              return null;
             const nx = pos.x / el.clientWidth;
             const ny = pos.y / el.clientHeight;
             if (nx < -0.5 || nx > 1.5 || ny < -0.5 || ny > 1.5) return null;
             return { x: nx, y: ny };
-          } catch { return null; }
+          } catch {
+            return null;
+          }
         });
         // Render partial polygon: need at least 3 valid vertices
         const validPts = projected.filter(Boolean);
@@ -3439,7 +3758,9 @@ const Viewer360Modal = ({
     const scenario = getDrawingScenario(shape.scenarioKey);
     const ScenarioIcon = scenario.icon;
     const scenarioLabel =
-      shape.label || shape.scenarioLabel || (shape.scenarioKey ? scenario.label : "");
+      shape.label ||
+      shape.scenarioLabel ||
+      (shape.scenarioKey ? scenario.label : "");
     const displayScenarioLabel =
       scenarioLabel.length > 18
         ? `${scenarioLabel.slice(0, 17)}...`
@@ -3460,58 +3781,95 @@ const Viewer360Modal = ({
 
     // Orientación del polígono: ángulo de la arista más larga
     let polyAngle = 0;
-    { let maxLen = 0;
+    {
+      let maxLen = 0;
       for (let i = 0; i < pxPts.length; i++) {
-        const a = pxPts[i]; const b = pxPts[(i + 1) % pxPts.length];
-        const dx2 = b.x - a.x; const dy2 = b.y - a.y;
+        const a = pxPts[i];
+        const b = pxPts[(i + 1) % pxPts.length];
+        const dx2 = b.x - a.x;
+        const dy2 = b.y - a.y;
         const len = Math.hypot(dx2, dy2);
-        if (len > maxLen) { maxLen = len; polyAngle = Math.atan2(dy2, dx2) * 180 / Math.PI; }
+        if (len > maxLen) {
+          maxLen = len;
+          polyAngle = (Math.atan2(dy2, dx2) * 180) / Math.PI;
+        }
       }
     }
     // Dimensiones en el marco local rotado del polígono
-    const rad = -polyAngle * Math.PI / 180;
-    const cosA = Math.cos(rad); const sinA = Math.sin(rad);
-    const local = pxPts.map(p => ({
+    const rad = (-polyAngle * Math.PI) / 180;
+    const cosA = Math.cos(rad);
+    const sinA = Math.sin(rad);
+    const local = pxPts.map((p) => ({
       x: (p.x - lx) * cosA - (p.y - ly) * sinA,
       y: (p.x - lx) * sinA + (p.y - ly) * cosA,
     }));
-    const localXs = local.map(p => p.x); const localYs = local.map(p => p.y);
+    const localXs = local.map((p) => p.x);
+    const localYs = local.map((p) => p.y);
     const localW = Math.max(...localXs) - Math.min(...localXs);
     const localH = Math.max(...localYs) - Math.min(...localYs);
 
-    const courtIcon = renderCourtIcon(shape.scenarioKey, lx, ly, localW, localH, polyAngle);
+    const courtIcon = renderCourtIcon(
+      shape.scenarioKey,
+      lx,
+      ly,
+      localW,
+      localH,
+      polyAngle,
+    );
     const hideLabel = shape.scenarioKey === "area" && !shape.label?.trim();
     const labelY = courtIcon ? ly - localH * 0.28 : ly;
     const hasLabelIcon = shape.scenarioKey !== "area";
-    const pillW = Math.max(68, displayScenarioLabel.length * 8.5 + (hasLabelIcon ? 50 : 22));
+    const pillW = Math.max(
+      68,
+      displayScenarioLabel.length * 8.5 + (hasLabelIcon ? 50 : 22),
+    );
     const pillH = 28;
     const pillHalf = pillW / 2;
     const labelIconX = -pillHalf + 9;
     const labelTextX = hasLabelIcon ? -pillHalf + 34 : 0;
 
-    const pxPoints = pxPts.map(p => `${p.x},${p.y}`).join(' ');
+    const pxPoints = pxPts.map((p) => `${p.x},${p.y}`).join(" ");
 
     return (
       <g key={shape.id}>
         {/* Sombra base solo cuando hay etiqueta visible */}
         {shape.showShadow && !hideLabel && (
-          <polygon
-            points={pxPoints}
-            fill="rgba(0,0,0,0.22)"
-            stroke="none"
-          />
+          <polygon points={pxPoints} fill="rgba(0,0,0,0.22)" stroke="none" />
         )}
-        {depth > 0 && pts.map((p, i) => {
-          const next = pts[(i + 1) % n];
-          const bx = p.x + dx; const by = p.y + dy;
-          const bnx = next.x + dx; const bny = next.y + dy;
-          return (
-            <g key={`back-${i}`}>
-              {drawSegment(bx, by, bnx, bny, sw - 1, shadowW - 1, undefined, `bl-${i}`, scenarioColor)}
-              {drawSegment(p.x, p.y, bx, by, Math.max(1, sw - 2), shadowW - 2, "5 3", `ed-${i}`, scenarioColor)}
-            </g>
-          );
-        })}
+        {depth > 0 &&
+          pts.map((p, i) => {
+            const next = pts[(i + 1) % n];
+            const bx = p.x + dx;
+            const by = p.y + dy;
+            const bnx = next.x + dx;
+            const bny = next.y + dy;
+            return (
+              <g key={`back-${i}`}>
+                {drawSegment(
+                  bx,
+                  by,
+                  bnx,
+                  bny,
+                  sw - 1,
+                  shadowW - 1,
+                  undefined,
+                  `bl-${i}`,
+                  scenarioColor,
+                )}
+                {drawSegment(
+                  p.x,
+                  p.y,
+                  bx,
+                  by,
+                  Math.max(1, sw - 2),
+                  shadowW - 2,
+                  "5 3",
+                  `ed-${i}`,
+                  scenarioColor,
+                )}
+              </g>
+            );
+          })}
         {/* Halo exterior solo cuando hay etiqueta — evita "sombra" en trazos sin nombre */}
         {!hideLabel && (
           <polygon
@@ -3546,16 +3904,22 @@ const Viewer360Modal = ({
           <g transform={`translate(${lx}, ${labelY})`}>
             {/* Sombra suave detrás de la pastilla */}
             <rect
-              x={-pillHalf + 2} y={-pillH / 2 + 3}
-              width={pillW} height={pillH}
-              rx={pillH / 2} ry={pillH / 2}
+              x={-pillHalf + 2}
+              y={-pillH / 2 + 3}
+              width={pillW}
+              height={pillH}
+              rx={pillH / 2}
+              ry={pillH / 2}
               fill="rgba(0,0,0,0.30)"
             />
             {/* Pastilla principal */}
             <rect
-              x={-pillHalf} y={-pillH / 2}
-              width={pillW} height={pillH}
-              rx={pillH / 2} ry={pillH / 2}
+              x={-pillHalf}
+              y={-pillH / 2}
+              width={pillW}
+              height={pillH}
+              rx={pillH / 2}
+              ry={pillH / 2}
               fill="rgba(10,14,26,0.78)"
               stroke={scenarioColor}
               strokeWidth="1.5"
@@ -3563,8 +3927,10 @@ const Viewer360Modal = ({
             />
             {hasLabelIcon && (
               <ScenarioIcon
-                x={labelIconX} y={-10}
-                width={20} height={20}
+                x={labelIconX}
+                y={-10}
+                width={20}
+                height={20}
                 color={scenarioColor}
                 strokeWidth={2.2}
               />
@@ -3590,22 +3956,70 @@ const Viewer360Modal = ({
   const renderInProgressPolygon = (pts, cursorPos) => {
     if (!pts.length) return null;
     const isNearFirst =
-      cursorPos && pts.length >= 3 &&
+      cursorPos &&
+      pts.length >= 3 &&
       Math.hypot(cursorPos.x - pts[0].x, cursorPos.y - pts[0].y) < 0.035;
     const last = pts[pts.length - 1];
     return (
       <g>
-        {pts.slice(0, -1).map((p, i) =>
-          drawSegment(p.x, p.y, pts[i + 1].x, pts[i + 1].y, 2.5, 5, "8 5", `seg-${i}`)
-        )}
-        {cursorPos && drawSegment(last.x, last.y, cursorPos.x, cursorPos.y, 1.5, 3.5, "5 4", "preview")}
-        {isNearFirst && drawSegment(cursorPos.x, cursorPos.y, pts[0].x, pts[0].y, 2, 3.5, "4 3", "close-preview")}
+        {pts
+          .slice(0, -1)
+          .map((p, i) =>
+            drawSegment(
+              p.x,
+              p.y,
+              pts[i + 1].x,
+              pts[i + 1].y,
+              2.5,
+              5,
+              "8 5",
+              `seg-${i}`,
+            ),
+          )}
+        {cursorPos &&
+          drawSegment(
+            last.x,
+            last.y,
+            cursorPos.x,
+            cursorPos.y,
+            1.5,
+            3.5,
+            "5 4",
+            "preview",
+          )}
+        {isNearFirst &&
+          drawSegment(
+            cursorPos.x,
+            cursorPos.y,
+            pts[0].x,
+            pts[0].y,
+            2,
+            3.5,
+            "4 3",
+            "close-preview",
+          )}
         {pts.map((p, i) => (
-          <circle key={i} cx={toP(p.x)} cy={toP(p.y)}
+          <circle
+            key={i}
+            cx={toP(p.x)}
+            cy={toP(p.y)}
             r={i === 0 && isNearFirst ? 10 : 7}
-            fill={i === 0 ? (isNearFirst ? "rgba(80,230,120,0.95)" : "white") : "white"}
-            stroke={i === 0 ? (isNearFirst ? "rgba(0,130,60,0.9)" : "rgba(0,0,0,0.65)") : "rgba(0,0,0,0.65)"}
-            strokeWidth="2.5" />
+            fill={
+              i === 0
+                ? isNearFirst
+                  ? "rgba(80,230,120,0.95)"
+                  : "white"
+                : "white"
+            }
+            stroke={
+              i === 0
+                ? isNearFirst
+                  ? "rgba(0,130,60,0.9)"
+                  : "rgba(0,0,0,0.65)"
+                : "rgba(0,0,0,0.65)"
+            }
+            strokeWidth="2.5"
+          />
         ))}
       </g>
     );
@@ -3615,9 +4029,11 @@ const Viewer360Modal = ({
     const key = String(currentImageId ?? "");
     const imgDrawings = (key && userDrawings[key]) || [];
     // Shapes with sphericalPoints are rendered as stable PSV polygon markers; skip them here
-    const allShapes = [...savedDrawings, ...imgDrawings]
-      .filter((s) => !s.sphericalPoints || s.sphericalPoints.length < 3);
-    if (!drawMode && !allShapes.length && !currentPolygonPoints.length) return null;
+    const allShapes = [...savedDrawings, ...imgDrawings].filter(
+      (s) => !s.sphericalPoints || s.sphericalPoints.length < 3,
+    );
+    if (!drawMode && !allShapes.length && !currentPolygonPoints.length)
+      return null;
     const isActive = drawMode === "polygon";
     return (
       <div
@@ -3631,9 +4047,15 @@ const Viewer360Modal = ({
         onMouseMove={isActive ? handleDrawMouseMove : undefined}
         onMouseLeave={isActive ? () => setPolygonCursorPos(null) : undefined}
       >
-        <svg data-tick={viewerPanTick} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
+        <svg
+          data-tick={viewerPanTick}
+          width="100%"
+          height="100%"
+          style={{ position: "absolute", inset: 0, overflow: "visible" }}
+        >
           {allShapes.map((shape) => renderCompletedShape(shape))}
-          {isActive && renderInProgressPolygon(currentPolygonPoints, polygonCursorPos)}
+          {isActive &&
+            renderInProgressPolygon(currentPolygonPoints, polygonCursorPos)}
         </svg>
       </div>
     );
@@ -3645,34 +4067,18 @@ const Viewer360Modal = ({
         Number(
           selectedLoteInfo && loteSheetTop !== null
             ? loteSheetTop
-            : gallerySheetTop ?? 0,
+            : (gallerySheetTop ?? 0),
         ) - 42,
       )
     : 0;
 
-  const shareProjectId = useMemo(() => {
-    for (const img of normalizedImages) {
-      const id = getProjectId(img);
-      if (id) return String(id);
-    }
-    return null;
-  }, [normalizedImages]);
-
-  const handleShare = useCallback(() => {
-    if (!shareProjectId) return;
-    const url = `${window.location.origin}/visor360/${shareProjectId}`;
-    if (navigator.share) {
-      navigator.share({ title: projectName || "Vista 360°", url }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url).then(() => {
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
-      }).catch(() => {});
-    }
-  }, [shareProjectId, projectName]);
 
   return (
-    <div className={`${styles.overlay360} ${isSidebarCollapsed ? styles.overlay360Collapsed : ""}`} ref={overlayRef} data-theme="dark">
+    <div
+      className={`${styles.overlay360} ${isSidebarCollapsed ? styles.overlay360Collapsed : ""}`}
+      ref={overlayRef}
+      data-theme="dark"
+    >
       {isMobileView && (
         <div
           className={styles.mobileFloatingWatermark}
@@ -3685,10 +4091,12 @@ const Viewer360Modal = ({
       <div className={styles.mainContent}>
         <div className={`${styles.header360} viewer-hud-enter`}>
           <div className={styles.titleGroup}>
-            <div className={styles.badge360}>
-              <CheckCircle2 size={13} />
-              <span>GeoHabita 360°</span>
-            </div>
+            {!isMobileView && (
+              <div className={styles.badge360}>
+                <CheckCircle2 size={13} />
+                <span>GeoHabita 360°</span>
+              </div>
+            )}
             <h3 className={styles.imageTitle}>{projectName}</h3>
             {lotesSummary.total > 0 && (
               <div className={styles.headerStats}>
@@ -3697,24 +4105,39 @@ const Viewer360Modal = ({
                   <span className={styles.statLabel}>Total</span>
                 </div>
                 <div className={styles.brandStat}>
-                  <span className={styles.statValue} style={{ color: "#22c55e" }}>{lotesSummary.available}</span>
+                  <span
+                    className={styles.statValue}
+                    style={{ color: "#22c55e" }}
+                  >
+                    {lotesSummary.available}
+                  </span>
                   <span className={styles.statLabel}>Disponibles</span>
                 </div>
                 {lotesSummary.reserved > 0 && (
                   <div className={styles.brandStat}>
-                    <span className={styles.statValue} style={{ color: "#f59e0b" }}>{lotesSummary.reserved}</span>
+                    <span
+                      className={styles.statValue}
+                      style={{ color: "#f59e0b" }}
+                    >
+                      {lotesSummary.reserved}
+                    </span>
                     <span className={styles.statLabel}>Reservados</span>
                   </div>
                 )}
                 {lotesSummary.sold > 0 && (
                   <div className={styles.brandStat}>
-                    <span className={styles.statValue} style={{ color: "#ef4444" }}>{lotesSummary.sold}</span>
+                    <span
+                      className={styles.statValue}
+                      style={{ color: "#ef4444" }}
+                    >
+                      {lotesSummary.sold}
+                    </span>
                     <span className={styles.statLabel}>Vendidos</span>
                   </div>
                 )}
               </div>
             )}
-            {normalizedImages.length > 1 && (
+            {!isMobileView && normalizedImages.length > 1 && (
               <div className={styles.headerMeta}>
                 <span className={styles.headerMetaPill}>
                   {normalizedImages.length} escenas 360°
@@ -3728,16 +4151,26 @@ const Viewer360Modal = ({
                 type="button"
                 onClick={handleShare}
                 className={styles.iconBtn}
-                title={shareCopied ? "¡Enlace copiado!" : "Compartir vista 360°"}
+                title={
+                  shareCopied ? "¡Enlace copiado!" : "Compartir vista 360°"
+                }
               >
-                {shareCopied ? <CheckCircle2 size={18} /> : <Share2 size={18} />}
+                {shareCopied ? (
+                  <CheckCircle2 size={18} />
+                ) : (
+                  <Share2 size={18} />
+                )}
               </button>
             )}
             <button
               type="button"
               onClick={toggleFullscreen}
               className={styles.iconBtn}
-              title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+              title={
+                isFullscreen
+                  ? "Salir de pantalla completa"
+                  : "Pantalla completa"
+              }
             >
               {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
             </button>
@@ -3772,7 +4205,11 @@ const Viewer360Modal = ({
                     }}
                     opacity="0"
                     display="none"
-                    className={label.isSelected ? styles.lotLabelSelected : styles.lotLabel}
+                    className={
+                      label.isSelected
+                        ? styles.lotLabelSelected
+                        : styles.lotLabel
+                    }
                   >
                     <text
                       ref={(node) => {
@@ -3841,17 +4278,41 @@ const Viewer360Modal = ({
               {/* Aerial subdivision map background — inspired by GeoHabitaLoader */}
               <div className={styles.panoLoaderMap}>
                 {PANO_ZONES.map(([t, l, w, h], i) => (
-                  <div key={`z-${i}`} className={styles.panoLoaderZone}
-                    style={{ top: `${t}%`, left: `${l}%`, width: `${w}%`, height: `${h}%` }} />
+                  <div
+                    key={`z-${i}`}
+                    className={styles.panoLoaderZone}
+                    style={{
+                      top: `${t}%`,
+                      left: `${l}%`,
+                      width: `${w}%`,
+                      height: `${h}%`,
+                    }}
+                  />
                 ))}
                 {PANO_ROADS.map((road, i) => (
-                  <div key={`road-${i}`} className={styles.panoLoaderRoad}
-                    style={{ left: `${road.x}%`, top: `${road.y}%`, width: `${road.w}%`, height: `${road.h}%` }} />
+                  <div
+                    key={`road-${i}`}
+                    className={styles.panoLoaderRoad}
+                    style={{
+                      left: `${road.x}%`,
+                      top: `${road.y}%`,
+                      width: `${road.w}%`,
+                      height: `${road.h}%`,
+                    }}
+                  />
                 ))}
                 {PANO_LOTS.map(([t, l, w, h, d], i) => (
-                  <div key={`lot-${i}`} className={styles.panoLoaderLotCell}
-                    style={{ top: `${t}%`, left: `${l}%`, width: `${w}%`, height: `${h}%`,
-                             animationDelay: `${d}s, ${d + 1.4}s` }} />
+                  <div
+                    key={`lot-${i}`}
+                    className={styles.panoLoaderLotCell}
+                    style={{
+                      top: `${t}%`,
+                      left: `${l}%`,
+                      width: `${w}%`,
+                      height: `${h}%`,
+                      animationDelay: `${d}s, ${d + 1.4}s`,
+                    }}
+                  />
                 ))}
                 <div className={styles.panoLoaderBeam} />
               </div>
@@ -3869,7 +4330,9 @@ const Viewer360Modal = ({
                   <span className={styles.panoLoaderBrand360}>360°</span>
                 </div>
                 <p className={styles.panoLoaderText}>
-                  {travelingTo ? `Navegando a ${travelingTo}` : "Cargando vista"}
+                  {travelingTo
+                    ? `Navegando a ${travelingTo}`
+                    : "Cargando vista"}
                 </p>
               </div>
             </div>
@@ -3881,21 +4344,34 @@ const Viewer360Modal = ({
                 type="button"
                 className={`${styles.navBtn} ${styles.prev}`}
                 onClick={prevImage}
-                title={normalizedImages[(currentIndex - 1 + normalizedImages.length) % normalizedImages.length]?.nombre || "Anterior"}
+                title={
+                  normalizedImages[
+                    (currentIndex - 1 + normalizedImages.length) %
+                      normalizedImages.length
+                  ]?.nombre || "Anterior"
+                }
               >
                 <ChevronLeft size={22} />
                 <span className={styles.navBtnLabel}>
-                  {normalizedImages[(currentIndex - 1 + normalizedImages.length) % normalizedImages.length]?.nombre || "Anterior"}
+                  {normalizedImages[
+                    (currentIndex - 1 + normalizedImages.length) %
+                      normalizedImages.length
+                  ]?.nombre || "Anterior"}
                 </span>
               </button>
               <button
                 type="button"
                 className={`${styles.navBtn} ${styles.next}`}
                 onClick={nextImage}
-                title={normalizedImages[(currentIndex + 1) % normalizedImages.length]?.nombre || "Siguiente"}
+                title={
+                  normalizedImages[(currentIndex + 1) % normalizedImages.length]
+                    ?.nombre || "Siguiente"
+                }
               >
                 <span className={styles.navBtnLabel}>
-                  {normalizedImages[(currentIndex + 1) % normalizedImages.length]?.nombre || "Siguiente"}
+                  {normalizedImages[
+                    (currentIndex + 1) % normalizedImages.length
+                  ]?.nombre || "Siguiente"}
                 </span>
                 <ChevronRight size={22} />
               </button>
@@ -3967,10 +4443,10 @@ const Viewer360Modal = ({
                   setLoteInfoError("");
                 }}
                 aria-label="Cerrar lote"
-                >
-                  <X size={16} />
-                </button>
-              )}
+              >
+                <X size={16} />
+              </button>
+            )}
             <div
               className={`${styles.loteDrawerContent} ${isMobileView && loteSheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
               ref={loteDrawerBodyRef}
@@ -3978,17 +4454,19 @@ const Viewer360Modal = ({
               onTouchMove={onLoteNestedTouchMove}
               onTouchEnd={onLoteNestedTouchEnd}
             >
-            {/* <div className={styles.loteDrawerHeader} /> */}
+              {/* <div className={styles.loteDrawerHeader} /> */}
 
-            {loteInfoLoading && !selectedLoteInfo?.lote ? (
-              <div className={styles.loteInfoState}>Cargando lote...</div>
-            ) : (
-              <>
-                {loteInfoError && (
-                  <div className={styles.loteEnrichError}>{loteInfoError}</div>
-                )}
-                <div className={styles.loteDrawerHero} data-lote-hero>
-                  <div className={styles.loteDrawerStatusWrap}>
+              {loteInfoLoading && !selectedLoteInfo?.lote ? (
+                <div className={styles.loteInfoState}>Cargando lote...</div>
+              ) : (
+                <>
+                  {loteInfoError && (
+                    <div className={styles.loteEnrichError}>
+                      {loteInfoError}
+                    </div>
+                  )}
+                  {/* ── Hero: status + nombre + precio centrado ── */}
+                  <div className={styles.loteHeroNew} data-lote-hero>
                     <span
                       className={styles.loteStatusChip}
                       style={{
@@ -3998,240 +4476,247 @@ const Viewer360Modal = ({
                     >
                       {selectedLoteStatus?.label || "Disponible"}
                     </span>
-                    <span className={styles.loteInfoAssist}>
-                      Seleccionado desde overlay 360
-                    </span>
-                  </div>
-                  <h5>{selectedLote?.nombre || "Lote seleccionado"}</h5>
-                  <p>{projectName}</p>
-                  <div className={styles.loteDrawerPriceBlock}>
-                    <small>Precio actual</small>
-                    <strong>{formatMoney(selectedLote)}</strong>
-                  </div>
-                </div>
-
-                <div className={styles.loteActionButtons}>
-                  <button
-                    type="button"
-                    className={styles.actionBtnWhatsApp}
-                    data-lote-action
-                    onClick={() => {
-                      if (cleanContactPhone) {
-                        window.open(
-                          `https://wa.me/${cleanContactPhone}?text=Hola, estoy interesado en el lote ${selectedLote?.nombre}`,
-                          "_blank",
-                        );
-                      }
-                    }}
-                  >
-                    <MessageCircle size={18} />
-                    <span>
-                      <strong>WhatsApp</strong>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.actionBtnCall}
-                    data-lote-action
-                    onClick={() => {
-                      if (contactPhone) {
-                        window.location.href = `tel:${contactPhone}`;
-                      }
-                    }}
-                  >
-                    <Phone size={18} />
-                    <span>
-                      <strong>Llamar</strong>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.actionBtnShare}
-                    data-lote-action
-                    onClick={() => {
-                      const shareData = {
-                        title: `Lote ${selectedLote?.nombre} - GeoHabita`,
-                        text: shareText,
-                        url: window.location.href,
-                      };
-                      if (navigator.share) {
-                        navigator.share(shareData);
-                      } else {
-                        navigator.clipboard.writeText(
-                          `${shareData.text} ${window.location.href}`,
-                        );
-                        alert("Enlace copiado al portapapeles");
-                      }
-                    }}
-                  >
-                    <Share2 size={18} />
-                    <span>
-                      <strong>Compartir</strong>
-                    </span>
-                  </button>
-                </div>
-
-                <div className={styles.loteDrawerMeta} data-lote-card>
-                  <div className={styles.loteMetaCard}>
-                    <Building2 size={16} />
-                    <div className={styles.loteMetaCardBody}>
-                      <span>Proyecto</span>
-                      <strong>
-                        {selectedLoteInfo?.proyecto?.nombreproyecto ||
-                          projectName ||
-                          "GeoHabita 360"}
-                      </strong>
+                    <h5 className={styles.loteHeroName}>
+                      {selectedLote?.nombre || "Lote seleccionado"}
+                    </h5>
+                    <div className={styles.loteHeroPrice}>
+                      {formatMoney(selectedLote)}
                     </div>
                   </div>
-                  <div className={styles.loteMetaCard}>
-                    <Building2 size={16} />
-                    <div className={styles.loteMetaCardBody}>
-                      <span>Inmobiliaria</span>
-                      <strong>
-                        {selectedLoteInfo?.inmobiliaria?.nombreinmobiliaria ||
-                          "Consultar"}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
 
-                <div className={styles.loteInfoGrid} data-lote-card>
-                  <div>
-                    <Ruler size={15} />
-                    <strong>
-                      {hasDisplayValue(selectedLote?.area_total_m2)
-                        ? `${selectedLote.area_total_m2} m2`
-                        : "Consultar"}
-                    </strong>
-                    <span>Area total</span>
+                  {/* ── Botones de acción ── */}
+                  <div className={styles.loteActionRowNew}>
+                    <button
+                      type="button"
+                      className={styles.actionBtnWa}
+                      data-lote-action
+                      onClick={() => {
+                        if (cleanContactPhone) {
+                          window.open(
+                            `https://wa.me/${cleanContactPhone}?text=Hola, estoy interesado en el lote ${selectedLote?.nombre}`,
+                            "_blank",
+                          );
+                        }
+                      }}
+                    >
+                      <MessageCircle size={17} />
+                      <span>WhatsApp</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.actionBtnPhone}
+                      data-lote-action
+                      onClick={() => {
+                        if (contactPhone) {
+                          window.location.href = `tel:${contactPhone}`;
+                        }
+                      }}
+                    >
+                      <Phone size={17} />
+                      <span>Llamar</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.actionBtnShareNew}
+                      data-lote-action
+                      onClick={() => {
+                        const shareData = {
+                          title: `Lote ${selectedLote?.nombre} - GeoHabita`,
+                          text: shareText,
+                          url: window.location.href,
+                        };
+                        if (navigator.share) {
+                          navigator.share(shareData);
+                        } else {
+                          navigator.clipboard
+                            .writeText(
+                              `${shareData.text} ${window.location.href}`,
+                            )
+                            .catch(() => {});
+                        }
+                      }}
+                    >
+                      <Share2 size={17} />
+                      <span>Compartir</span>
+                    </button>
                   </div>
-                  <div>
-                    <Ruler size={15} />
-                    <strong>
-                      {hasDisplayValue(selectedLote?.ancho)
-                        ? `${selectedLote.ancho} m`
-                        : "Consultar"}
-                    </strong>
-                    <span>Ancho</span>
-                  </div>
-                  <div>
-                    <Ruler size={15} />
-                    <strong>
-                      {hasDisplayValue(selectedLote?.largo)
-                        ? `${selectedLote.largo} m`
-                        : "Consultar"}
-                    </strong>
-                    <span>Largo</span>
-                  </div>
-                  <div>
-                    <Tag size={15} />
-                    <strong>{formatPricePerSquareMeter(selectedLote) || "Consultar"}</strong>
-                    <span>Precio por m2</span>
-                  </div>
-                </div>
 
-                {viewerFinancingScenario && (
-                  <div className={styles.viewerFinancingCard} data-lote-card>
-                    <div className={styles.viewerFinancingHead}>
-                      <div>
-                        <span className={styles.viewerFinancingKicker}>
-                          Simulador financiero
-                        </span>
-                        <strong>
-                          {formatCurrencyMoney(
-                            viewerFinancingScenario.monthlyEstimate,
-                            viewerFinancingCurrency,
-                          )}
-                        </strong>
-                        <p>Cuota estimada mensual</p>
+                  {/* ── Métricas de área ── */}
+                  <div className={styles.loteMetricsGrid} data-lote-card>
+                    <div className={styles.loteMetricCell}>
+                      <div className={styles.loteMetricIcon} style={{ "--mc": "#22d3ee" }}>
+                        <Ruler size={14} />
                       </div>
-                      <a
-                        href={viewerFinancingWhatsappHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={`${styles.viewerFinancingCta} ${!viewerFinancingWhatsappHref ? styles.viewerFinancingCtaDisabled : ""}`}
-                        aria-disabled={!viewerFinancingWhatsappHref}
-                        onClick={(e) => {
-                          if (!viewerFinancingWhatsappHref) e.preventDefault();
-                        }}
-                      >
-                        <MessageCircle size={16} />
-                        <span>Lo quiero</span>
-                      </a>
+                      <span className={styles.loteMetricVal}>
+                        {hasDisplayValue(selectedLote?.area_total_m2)
+                          ? `${selectedLote.area_total_m2} m²`
+                          : "—"}
+                      </span>
+                      <span className={styles.loteMetricLbl}>Área total</span>
                     </div>
-
-                    <div className={styles.viewerFinancingGrid}>
-                      <div>
-                        <span>Inicial</span>
-                        <strong>
-                          {formatCurrencyMoney(
-                            viewerFinancingScenario.initial,
-                            viewerFinancingCurrency,
-                          )}
-                        </strong>
+                    <div className={styles.loteMetricCell}>
+                      <div className={styles.loteMetricIcon} style={{ "--mc": "#a78bfa" }}>
+                        <Ruler size={14} />
                       </div>
-                      <div>
-                        <span>Meses</span>
-                        <strong>{viewerFinancingScenario.months}</strong>
-                      </div>
-                      <div>
-                        <span>Total estimado</span>
-                        <strong>
-                          {formatCurrencyMoney(
-                            viewerFinancingScenario.totalPaid,
-                            viewerFinancingCurrency,
-                          )}
-                        </strong>
-                      </div>
+                      <span className={styles.loteMetricVal}>
+                        {hasDisplayValue(selectedLote?.ancho)
+                          ? `${selectedLote.ancho} m`
+                          : "—"}
+                      </span>
+                      <span className={styles.loteMetricLbl}>Ancho</span>
                     </div>
-
-                    <div className={styles.viewerFinancingFields}>
-                      <label>
-                        <span>Inicial</span>
-                        <input
-                          type="number"
-                          min={viewerFinancingMinInitial}
-                          max={viewerFinancingMaxInitial}
-                          step="100"
-                          value={viewerFinancingInitial}
-                          onChange={(e) =>
-                            setViewerFinancingInitial(Number(e.target.value) || 0)
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>Meses</span>
-                        <input
-                          type="number"
-                          min={viewerFinancingMinMonths}
-                          max={viewerFinancingMaxMonths}
-                          step="1"
-                          value={viewerFinancingMonths}
-                          onChange={(e) =>
-                            setViewerFinancingMonths(Number(e.target.value) || 0)
-                          }
-                        />
-                      </label>
+                    <div className={styles.loteMetricCell}>
+                      <div className={styles.loteMetricIcon} style={{ "--mc": "#fb923c" }}>
+                        <Ruler size={14} />
+                      </div>
+                      <span className={styles.loteMetricVal}>
+                        {hasDisplayValue(selectedLote?.largo)
+                          ? `${selectedLote.largo} m`
+                          : "—"}
+                      </span>
+                      <span className={styles.loteMetricLbl}>Largo</span>
+                    </div>
+                    <div className={styles.loteMetricCell}>
+                      <div className={styles.loteMetricIcon} style={{ "--mc": "#4ade80" }}>
+                        <Tag size={14} />
+                      </div>
+                      <span className={styles.loteMetricVal}>
+                        {formatPricePerSquareMeter(selectedLote) || "—"}
+                      </span>
+                      <span className={styles.loteMetricLbl}>Por m²</span>
                     </div>
                   </div>
-                )}
 
-                <div className={styles.loteInsightStrip} data-lote-card>
-                  <div className={styles.loteInsightCopy}>
-                    <small>Lectura rápida</small>
-                    <strong>
-                      {selectedLoteStatus?.label || "Disponible"} para contacto inmediato
-                    </strong>
-                    <p>
-                      {selectedLoteInfo?.inmobiliaria?.nombreinmobiliaria ||
-                        "La inmobiliaria"}{" "}
-                      puede atender este lote directamente desde la experiencia 360.
-                    </p>
-                  </div>
-                </div>
+                  {viewerFinancingScenario && (
+                    <div className={styles.viewerFinancingCard} data-lote-card>
+                      <div className={styles.viewerFinancingHead}>
+                        <div>
+                          <span className={styles.viewerFinancingKicker}>
+                            Simulador financiero
+                          </span>
+                          <strong>
+                            {formatCurrencyMoney(
+                              viewerFinancingScenario.monthlyEstimate,
+                              viewerFinancingCurrency,
+                            )}
+                          </strong>
+                          <p>Cuota estimada mensual</p>
+                        </div>
+                        <a
+                          href={viewerFinancingWhatsappHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`${styles.viewerFinancingCta} ${!viewerFinancingWhatsappHref ? styles.viewerFinancingCtaDisabled : ""}`}
+                          aria-disabled={!viewerFinancingWhatsappHref}
+                          onClick={(e) => {
+                            if (!viewerFinancingWhatsappHref)
+                              e.preventDefault();
+                          }}
+                        >
+                          <MessageCircle size={16} />
+                          <span>Lo quiero</span>
+                        </a>
+                      </div>
 
-              </>
-            )}
+                      {/* Resumen de cuotas */}
+                      <div className={styles.finSummaryRow}>
+                        <div className={styles.finSummaryCell}>
+                          <span>Inicial</span>
+                          <strong>
+                            {formatCurrencyMoney(
+                              viewerFinancingScenario.initial,
+                              viewerFinancingCurrency,
+                            )}
+                          </strong>
+                        </div>
+                        <div className={styles.finSummaryCell}>
+                          <span>Plazo</span>
+                          <strong>{viewerFinancingScenario.months} m.</strong>
+                        </div>
+                        <div className={styles.finSummaryCell}>
+                          <span>Total est.</span>
+                          <strong>
+                            {formatCurrencyMoney(
+                              viewerFinancingScenario.totalPaid,
+                              viewerFinancingCurrency,
+                            )}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {/* Sliders interactivos */}
+                      <div className={styles.finSliders}>
+                        <label className={styles.finSliderLabel}>
+                          <div className={styles.finSliderRow}>
+                            <span>Inicial</span>
+                            <strong>
+                              {formatCurrencyMoney(
+                                viewerFinancingInitial,
+                                viewerFinancingCurrency,
+                              )}
+                            </strong>
+                          </div>
+                          <input
+                            type="range"
+                            className={styles.finSliderInput}
+                            min={viewerFinancingMinInitial}
+                            max={viewerFinancingMaxInitial}
+                            step={Math.max(
+                              100,
+                              Math.round(
+                                (viewerFinancingMaxInitial -
+                                  viewerFinancingMinInitial) /
+                                  100,
+                              ),
+                            )}
+                            value={clamp(
+                              viewerFinancingInitial,
+                              viewerFinancingMinInitial,
+                              viewerFinancingMaxInitial,
+                            )}
+                            onChange={(e) =>
+                              setViewerFinancingInitial(
+                                Number(e.target.value),
+                              )
+                            }
+                          />
+                        </label>
+                        <label className={styles.finSliderLabel}>
+                          <div className={styles.finSliderRow}>
+                            <span>Plazo</span>
+                            <strong>{viewerFinancingMonths} meses</strong>
+                          </div>
+                          <input
+                            type="range"
+                            className={styles.finSliderInput}
+                            min={viewerFinancingMinMonths}
+                            max={viewerFinancingMaxMonths}
+                            step="1"
+                            value={clamp(
+                              viewerFinancingMonths,
+                              viewerFinancingMinMonths,
+                              viewerFinancingMaxMonths,
+                            )}
+                            onChange={(e) =>
+                              setViewerFinancingMonths(
+                                Number(e.target.value),
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Inmobiliaria (al final) ── */}
+                  {selectedLoteInfo?.inmobiliaria?.nombreinmobiliaria && (
+                    <div className={styles.loteInmoRow} data-lote-card>
+                      <Building2 size={14} />
+                      <span>{selectedLoteInfo.inmobiliaria.nombreinmobiliaria}</span>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </aside>
         )}
@@ -4259,9 +4744,7 @@ const Viewer360Modal = ({
             onTouchMove={onGallerySheetTouchMove}
             onTouchEnd={onGallerySheetTouchEnd}
           >
-            <h3 className={styles.mobileHeaderTitle}>
-              {projectName}
-            </h3>
+            <h3 className={styles.mobileHeaderTitle}>{projectName}</h3>
             <button
               type="button"
               className={styles.mobileHeaderClose}
@@ -4273,7 +4756,9 @@ const Viewer360Modal = ({
             <div className={styles.mobileDragHandle} />
           </div>
         )}
-        <div className={`${styles.galleryHeader} ${isSidebarCollapsed ? styles.galleryHeaderCollapsed : ""}`}>
+        <div
+          className={`${styles.galleryHeader} ${isSidebarCollapsed ? styles.galleryHeaderCollapsed : ""}`}
+        >
           {!isSidebarCollapsed && (
             <>
               <ImageIcon size={18} className={styles.greenText} />
@@ -4288,10 +4773,18 @@ const Viewer360Modal = ({
               type="button"
               className={styles.sideCollapseBtn}
               onClick={() => setIsSidebarCollapsed((v) => !v)}
-              aria-label={isSidebarCollapsed ? "Expandir galería" : "Contraer galería"}
-              title={isSidebarCollapsed ? "Expandir galería" : "Contraer galería"}
+              aria-label={
+                isSidebarCollapsed ? "Expandir galería" : "Contraer galería"
+              }
+              title={
+                isSidebarCollapsed ? "Expandir galería" : "Contraer galería"
+              }
             >
-              {isSidebarCollapsed ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}
+              {isSidebarCollapsed ? (
+                <ChevronLeft size={15} />
+              ) : (
+                <ChevronRight size={15} />
+              )}
             </button>
           )}
         </div>
@@ -4305,159 +4798,190 @@ const Viewer360Modal = ({
             <span className={styles.sideGalleryCollapsedLabel}>Galería</span>
           </div>
         ) : (
-        <div
-          className={`${styles.sideGalleryBody} ${isMobileView && gallerySheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
-          ref={sideGalleryBodyRef}
-          onTouchStart={onGalleryNestedTouchStart}
-          onTouchMove={onGalleryNestedTouchMove}
-          onTouchEnd={onGalleryNestedTouchEnd}
-        >
-        <div className={styles.projectSidebarPanel}>
-          <div className={styles.sidebarBrandRow}>
-            <img src="/habitasinfondo.png" alt="GeoHabita" className={styles.sidebarBrandLogo} />
-            <span className={styles.sidebarBrandTag}>Proyecto</span>
-          </div>
-          <div className={styles.projectSidebarIntro}>
-            <h4>{projectName}</h4>
-            {lotesSummary.total > 0 && (
-              <div className={styles.sidebarLotStats}>
-                <div className={styles.sidebarLotStat}>
-                  <span className={styles.sidebarStatVal} style={{ color: "#22c55e" }}>
-                    {lotesSummary.available}
-                  </span>
-                  <span className={styles.sidebarStatLbl}>Disponibles</span>
-                </div>
-                {lotesSummary.reserved > 0 && (
-                  <div className={styles.sidebarLotStat}>
-                    <span className={styles.sidebarStatVal} style={{ color: "#f59e0b" }}>
-                      {lotesSummary.reserved}
-                    </span>
-                    <span className={styles.sidebarStatLbl}>Reservados</span>
+          <div
+            className={`${styles.sideGalleryBody} ${isMobileView && gallerySheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
+            ref={sideGalleryBodyRef}
+            onTouchStart={onGalleryNestedTouchStart}
+            onTouchMove={onGalleryNestedTouchMove}
+            onTouchEnd={onGalleryNestedTouchEnd}
+          >
+            <div className={styles.projectSidebarPanel}>
+              <div className={styles.sidebarBrandRow}>
+                <img
+                  src="/habitasinfondo.png"
+                  alt="GeoHabita"
+                  className={styles.sidebarBrandLogo}
+                />
+                <span className={styles.sidebarBrandTag}>Proyecto</span>
+              </div>
+              <div className={styles.projectSidebarIntro}>
+                <h4>{projectName}</h4>
+                {lotesSummary.total > 0 && (
+                  <div className={styles.sidebarLotStats}>
+                    <div className={styles.sidebarLotStat}>
+                      <span
+                        className={styles.sidebarStatVal}
+                        style={{ color: "#22c55e" }}
+                      >
+                        {lotesSummary.available}
+                      </span>
+                      <span className={styles.sidebarStatLbl}>Disponibles</span>
+                    </div>
+                    {lotesSummary.reserved > 0 && (
+                      <div className={styles.sidebarLotStat}>
+                        <span
+                          className={styles.sidebarStatVal}
+                          style={{ color: "#f59e0b" }}
+                        >
+                          {lotesSummary.reserved}
+                        </span>
+                        <span className={styles.sidebarStatLbl}>
+                          Reservados
+                        </span>
+                      </div>
+                    )}
+                    {lotesSummary.sold > 0 && (
+                      <div className={styles.sidebarLotStat}>
+                        <span
+                          className={styles.sidebarStatVal}
+                          style={{ color: "#ef4444" }}
+                        >
+                          {lotesSummary.sold}
+                        </span>
+                        <span className={styles.sidebarStatLbl}>Vendidos</span>
+                      </div>
+                    )}
                   </div>
                 )}
-                {lotesSummary.sold > 0 && (
-                  <div className={styles.sidebarLotStat}>
-                    <span className={styles.sidebarStatVal} style={{ color: "#ef4444" }}>
-                      {lotesSummary.sold}
-                    </span>
-                    <span className={styles.sidebarStatLbl}>Vendidos</span>
+                {projectSidebarInfo.description && (
+                  <p>{projectSidebarInfo.description}</p>
+                )}
+              </div>
+              <div className={styles.projectSidebarGrid}>
+                {projectSidebarInfo.price && (
+                  <div className={styles.projectSidebarCard}>
+                    <span>Desde</span>
+                    <strong>{projectSidebarInfo.price}</strong>
+                  </div>
+                )}
+                {projectSidebarInfo.area && (
+                  <div className={styles.projectSidebarCard}>
+                    <span>Área</span>
+                    <strong>{projectSidebarInfo.area}</strong>
+                  </div>
+                )}
+                {projectSidebarInfo.dimensions && (
+                  <div className={styles.projectSidebarCard}>
+                    <span>Dimensión</span>
+                    <strong>{projectSidebarInfo.dimensions}</strong>
+                  </div>
+                )}
+                {projectSidebarInfo.developer && (
+                  <div className={styles.projectSidebarCard}>
+                    <span>Inmobiliaria</span>
+                    <strong>{projectSidebarInfo.developer}</strong>
                   </div>
                 )}
               </div>
-            )}
-            {projectSidebarInfo.description && (
-              <p>{projectSidebarInfo.description}</p>
-            )}
-          </div>
-          <div className={styles.projectSidebarGrid}>
-            {projectSidebarInfo.price && (
-              <div className={styles.projectSidebarCard}>
-                <span>Desde</span>
-                <strong>{projectSidebarInfo.price}</strong>
-              </div>
-            )}
-            {projectSidebarInfo.area && (
-              <div className={styles.projectSidebarCard}>
-                <span>Área</span>
-                <strong>{projectSidebarInfo.area}</strong>
-              </div>
-            )}
-            {projectSidebarInfo.dimensions && (
-              <div className={styles.projectSidebarCard}>
-                <span>Dimensión</span>
-                <strong>{projectSidebarInfo.dimensions}</strong>
-              </div>
-            )}
-            {projectSidebarInfo.developer && (
-              <div className={styles.projectSidebarCard}>
-                <span>Inmobiliaria</span>
-                <strong>{projectSidebarInfo.developer}</strong>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className={styles.sidebarDivider} />
-        <div className={styles.sidebarSectionLabel}>
-          <ImageIcon size={14} />
-          <span>Ambientes 360°</span>
-          <span className={styles.sidebarSectionCount}>{normalizedImages.length}</span>
-        </div>
-        <div className={styles.galleryList}>
-          {normalizedImages.map((img, idx) => (
-            <button
-              key={getImageId(img) || idx}
-              type="button"
-              className={`${styles.galleryItem} ${idx === currentIndex ? styles.activeItem : ""}`}
-              onClick={() => setCurrentIndex(idx)}
-            >
-              <div className={styles.thumbWrapper}>
-                {(viewerReady || idx === currentIndex) && (
-                  <img
-                    src={img.imagen}
-                    alt={img.nombre}
-                    loading={getLoadingMode(idx, currentIndex)}
-                    decoding="async"
-                    fetchPriority={getFetchPriority(idx, currentIndex)}
-                  />
-                )}
-                {idx === currentIndex && (
-                  <div className={styles.activeBadge}>Viendo</div>
-                )}
-              </div>
-              <span className={styles.thumbName}>{img.nombre}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className={styles.sidebarDivider} />
-        <div className={styles.hotspotsPanel}>
-          <div className={styles.hotspotsHeader}>
-            <Navigation size={15} />
-            <span>Recorrido 360°</span>
-            {hotspots.length > 0 && (
-              <span className={styles.hotspotsCount}>{hotspots.length}</span>
-            )}
-          </div>
-
-          {hotspotsLoading ? (
-            <div className={styles.emptyHotspots}>Cargando conexiones...</div>
-          ) : hotspots.length === 0 ? (
-            <div className={styles.emptyHotspots}>
-              Sin conexiones en esta vista.
             </div>
-          ) : (
-            <div className={styles.hotspotsList}>
-              {hotspots.map((hotspot, idx) => (
+            <div className={styles.sidebarDivider} />
+            <div className={styles.sidebarSectionLabel}>
+              <ImageIcon size={14} />
+              <span>Ambientes 360°</span>
+              <span className={styles.sidebarSectionCount}>
+                {normalizedImages.length}
+              </span>
+            </div>
+            <div className={styles.galleryList}>
+              {normalizedImages.map((img, idx) => (
                 <button
-                  key={hotspot.id}
+                  key={getImageId(img) || idx}
                   type="button"
-                  className={styles.hotspotItem}
-                  onClick={() =>
-                    travelToImageById(
-                      hotspot.destino?.id_imagen,
-                      hotspot.destino?.nombre,
-                    )
-                  }
+                  className={`${styles.galleryItem} ${idx === currentIndex ? styles.activeItem : ""}`}
+                  onClick={() => setCurrentIndex(idx)}
                 >
-                  <div className={styles.hotspotIconWrap}>
-                    <span className={styles.hotspotIdx}>{idx + 1}</span>
+                  <div className={styles.thumbWrapper}>
+                    {(viewerReady || idx === currentIndex) && (
+                      <img
+                        src={img.imagen}
+                        alt={img.nombre}
+                        loading={getLoadingMode(idx, currentIndex)}
+                        decoding="async"
+                        fetchPriority={getFetchPriority(idx, currentIndex)}
+                      />
+                    )}
+                    {idx === currentIndex && (
+                      <div className={styles.activeBadge}>Viendo</div>
+                    )}
                   </div>
-                  <div className={styles.hotspotItemBody}>
-                    <strong>
-                      {hotspot.destino?.nombre || "Vista conectada"}
-                    </strong>
-                    <span>
-                      <Navigation size={10} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
-                      Navegar a esta vista
-                    </span>
-                  </div>
-                  <ChevronRight size={14} className={styles.hotspotChevron} />
+                  <span className={styles.thumbName}>{img.nombre}</span>
                 </button>
               ))}
             </div>
-          )}
-        </div>
-        </div>
+
+            <div className={styles.sidebarDivider} />
+            <div className={styles.hotspotsPanel}>
+              <div className={styles.hotspotsHeader}>
+                <Navigation size={15} />
+                <span>Recorrido 360°</span>
+                {hotspots.length > 0 && (
+                  <span className={styles.hotspotsCount}>
+                    {hotspots.length}
+                  </span>
+                )}
+              </div>
+
+              {hotspotsLoading ? (
+                <div className={styles.emptyHotspots}>
+                  Cargando conexiones...
+                </div>
+              ) : hotspots.length === 0 ? (
+                <div className={styles.emptyHotspots}>
+                  Sin conexiones en esta vista.
+                </div>
+              ) : (
+                <div className={styles.hotspotsList}>
+                  {hotspots.map((hotspot, idx) => (
+                    <button
+                      key={hotspot.id}
+                      type="button"
+                      className={styles.hotspotItem}
+                      onClick={() =>
+                        travelToImageById(
+                          hotspot.destino?.id_imagen,
+                          hotspot.destino?.nombre,
+                        )
+                      }
+                    >
+                      <div className={styles.hotspotIconWrap}>
+                        <span className={styles.hotspotIdx}>{idx + 1}</span>
+                      </div>
+                      <div className={styles.hotspotItemBody}>
+                        <strong>
+                          {hotspot.destino?.nombre || "Vista conectada"}
+                        </strong>
+                        <span>
+                          <Navigation
+                            size={10}
+                            style={{
+                              display: "inline",
+                              verticalAlign: "middle",
+                              marginRight: 3,
+                            }}
+                          />
+                          Navegar a esta vista
+                        </span>
+                      </div>
+                      <ChevronRight
+                        size={14}
+                        className={styles.hotspotChevron}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </aside>
     </div>

@@ -1062,8 +1062,10 @@ function MyMap() {
   };
 
   const loadProyectoDetalle = async (idproyecto, signal) => {
-    const cached = getCached("projectDetail", idproyecto, "project_detail");
-    if (cached) return cached;
+    // Only check in-memory cache (not sessionStorage) so lot statuses are always
+    // fresh after a page refresh.
+    const mem = cacheRef.current.projectDetail.get(idproyecto);
+    if (mem) return mem;
 
     const inflight = inflightRef.current.projectDetail.get(idproyecto);
     if (inflight) return inflight;
@@ -1071,13 +1073,14 @@ function MyMap() {
     const url = withApiBase(
       `https://api.geohabita.com/api/mapa/proyecto_detalle/${idproyecto}/`,
     );
-    const request = fetch(url, { signal })
+    const request = fetch(url, { signal, cache: "no-store" })
       .then((res) => {
         if (!res.ok) throw new Error("No se pudo cargar detalle de proyecto");
         return res.json();
       })
       .then((data) => {
-        setCached("projectDetail", idproyecto, "project_detail", data);
+        // Store only in-memory; skipping sessionStorage so a refresh always fetches fresh lot statuses.
+        cacheRef.current.projectDetail.set(idproyecto, data);
         return data;
       })
       .finally(() => {
