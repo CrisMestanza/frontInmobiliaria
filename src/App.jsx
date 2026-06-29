@@ -5,6 +5,7 @@ import PrivateRoute from "./components/PrivateRoute.jsx";
 import GlobalAlertOverlay from "./components/ui/GlobalAlertOverlay.jsx";
 import OfflineBanner from "./components/OfflineBanner.jsx";
 import { AdminProvider } from "./pages/admin/AdminContext.jsx";
+import AdminLayout from "./pages/admin/AdminLayout.jsx";
 
 const LoginLayout = React.lazy(() => import("./pages/login/LoginLayout.jsx"));
 const Register = React.lazy(() => import("./pages/registro/Registro.jsx"));
@@ -13,7 +14,6 @@ const GeoHabitaRecovery = React.lazy(() => import("./pages/recovery/Recovery.jsx
 const ActivateAccount = React.lazy(() => import("./pages/activation/ActivateAccount.jsx"));
 const NotFound = React.lazy(() => import("./pages/NotFound/NotFound.jsx"));
 const Visor360Page = React.lazy(() => import("./pages/visor360/Visor360Page.jsx"));
-const AdminLayout = React.lazy(() => import("./pages/admin/AdminLayout.jsx"));
 const Overview = React.lazy(() => import("./pages/admin/modules/overview/Overview.jsx"));
 const Projects = React.lazy(() => import("./pages/admin/modules/projects/Projects.jsx"));
 const ProjectCreate = React.lazy(() => import("./pages/admin/modules/projects/ProjectCreate.jsx"));

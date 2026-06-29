@@ -75,7 +75,11 @@ export const fetchDashboardOverview = async (idInmo) => {
     ),
   ]);
 
-  const overview = resOverview.ok ? await resOverview.json() : {};
+  if (!resOverview.ok) {
+    const body = await resOverview.text().catch(() => '');
+    throw new Error(`Dashboard error ${resOverview.status}: ${body.slice(0, 200)}`);
+  }
+  const overview = await resOverview.json();
   const rawProjects = resProjects.ok ? await resProjects.json() : [];
 
   const projectById = new Map(

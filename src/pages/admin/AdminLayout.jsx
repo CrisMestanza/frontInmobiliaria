@@ -1,5 +1,5 @@
 // AdminLayout — sidebar + header + Outlet for nested /dashboard routes
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -315,7 +315,9 @@ export default function AdminLayout({ setAppLoading }) {
         {/* Content */}
         <main className="admin-content">
           <div className="admin-route-stage">
-            <Outlet />
+            <Suspense fallback={null}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>

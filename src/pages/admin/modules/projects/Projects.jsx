@@ -232,9 +232,11 @@ export default function Projects() {
   const {
     proyectos,
     loading,
+    error,
     lotesStatsPorProyecto,
     handleTogglePublic,
     handleDeleteProject,
+    refreshOverview,
   } = useAdmin();
 
   const [projectToDelete, setProjectToDelete] = useState(null);
@@ -253,6 +255,20 @@ export default function Projects() {
       <div className="projects-empty">
         <Home size={48} opacity={0.3} />
         <p>Cargando proyectos...</p>
+      </div>
+    );
+  }
+
+  if (error && proyectos.length === 0) {
+    return (
+      <div className="projects-empty">
+        <Home size={48} opacity={0.3} />
+        <p style={{ color: 'var(--color-danger, #e53e3e)', fontSize: '0.85rem', maxWidth: 360, textAlign: 'center' }}>
+          Error al cargar proyectos: {error.message || String(error)}
+        </p>
+        <button className="btn-copy" style={{ marginTop: 12 }} onClick={refreshOverview}>
+          Reintentar
+        </button>
       </div>
     );
   }

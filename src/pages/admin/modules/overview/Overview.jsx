@@ -28,9 +28,9 @@ const tutoriales = (publicBase) => [
 export default function Overview() {
   const navigate = useNavigate();
   const {
-    resumen, clicks, proyectos, loading,
+    resumen, clicks, proyectos, loading, error,
     totalLotes, totalContactos, totalInteres, engagementRate,
-    lotesStatsPorProyecto,
+    lotesStatsPorProyecto, refreshOverview,
   } = useAdmin();
 
   const idInmo = localStorage.getItem('idinmobiliaria');
@@ -95,6 +95,19 @@ export default function Overview() {
     return (
       <div className="projects-empty">
         <p>Cargando resumen del dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="projects-empty">
+        <p style={{ color: 'var(--color-danger, #e53e3e)', fontSize: '0.85rem', maxWidth: 400, textAlign: 'center' }}>
+          Error al cargar el dashboard: {error.message || String(error)}
+        </p>
+        <button className="btn-copy" style={{ marginTop: 12 }} onClick={refreshOverview}>
+          Reintentar
+        </button>
       </div>
     );
   }
