@@ -1403,6 +1403,7 @@ const Viewer360Modal = ({
   const travelTimerRef = useRef(null);
   const hotspotsCacheRef = useRef(new Map());
   const hotspotsAbortRef = useRef(null);
+  const grafoAbortRef = useRef(null);
   const loteInfoCacheRef = useRef(new Map());
   const loteInfoAbortRef = useRef(null);
   const projectLotesCacheRef = useRef(new Map());
@@ -1468,6 +1469,10 @@ const Viewer360Modal = ({
   const normalizedImages = useMemo(
     () => (Array.isArray(images360) ? images360.map(normalizeImage) : []),
     [images360],
+  );
+  const viewerProjectId = useMemo(
+    () => (normalizedImages.length > 0 ? getProjectId(normalizedImages[0]) : null),
+    [normalizedImages],
   );
   const overlayBundles = useMemo(
     () => collectOverlayBundles(normalizedImages),
@@ -2179,9 +2184,53 @@ const Viewer360Modal = ({
     () => () => {
       hotspotsAbortRef.current?.abort();
       loteInfoAbortRef.current?.abort();
+      grafoAbortRef.current?.abort();
     },
     [],
   );
+
+  // Pre-populate the hotspot cache for ALL images in one request instead of N.
+  // This eliminates sequential HTTP calls when navigating between panoramas.
+  useEffect(() => {
+    if (!viewerProjectId) return undefined;
+    grafoAbortRef.current?.abort();
+    const controller = new AbortController();
+    grafoAbortRef.current = controller;
+
+    fetch(buildApiUrl(`/api/get_tour_grafo_completo/${viewerProjectId}/`), {
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+        data.forEach((img) => {
+          const key = String(img.id_imagen);
+          if (hotspotsCacheRef.current.has(key)) return;
+          const normalized = Array.isArray(img.hotspots)
+            ? img.hotspots.map((item) => ({
+                ...item,
+                destino: item.destino
+                  ? { ...item.destino, imagen: normalizeUrl(item.destino.imagen) }
+                  : null,
+              }))
+            : [];
+          hotspotsCacheRef.current.set(key, normalized);
+        });
+        // If the current image's hotspots just became available, apply them now.
+        if (currentImageId != null) {
+          const cached = hotspotsCacheRef.current.get(String(currentImageId));
+          if (cached) {
+            setHotspots(cached);
+            setHotspotsLoading(false);
+          }
+        }
+      })
+      .catch(() => null);
+
+    return () => {
+      controller.abort();
+    };
+  }, [viewerProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!currentImageId) {

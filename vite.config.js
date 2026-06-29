@@ -37,6 +37,14 @@ export default defineConfig({
           }
 
           if (
+            id.includes("@photo-sphere-viewer") ||
+            id.includes("three") ||
+            id.includes("uevent")
+          ) {
+            return "viewer360";
+          }
+
+          if (
             id.includes("react") ||
             id.includes("react-dom") ||
             id.includes("react-router-dom")

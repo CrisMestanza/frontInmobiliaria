@@ -6,9 +6,9 @@ import React, {
   useRef,
   useMemo,
   useCallback,
+  useTransition,
 } from "react";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
+import AnuncioCarousel from "./AnuncioCarousel";
 
 import {
   GoogleMap,
@@ -31,8 +31,6 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import ThemeSwitch from "../../components/ThemeSwitch";
 import { useTheme } from "../../context/ThemeContext";
 
-gsap.registerPlugin(useGSAP);
-
 const defaultCenter = { lat: -6.487753, lng: -76.359871 };
 const LIBRARIES = ["places"];
 const GEOLOCATION_ONBOARDING_DONE_KEY = "geoHabitaGeolocationOnboardingDone";
@@ -47,6 +45,104 @@ const RANGOS_PRECIO = [
   { label: "$. 250,001 - más", value: "250001-999999999" },
 ];
 
+// Module-level pure helpers — defined once, not re-created on each render.
+const _darkenColor = (hex, amount = 0.2) => {
+  let c = hex.replace("#", "");
+  if (c.length === 8) c = c.substring(0, 6);
+  const num = parseInt(c, 16);
+  const r = Math.max(0, Math.floor(((num >> 16) & 0xff) * (1 - amount)));
+  const g = Math.max(0, Math.floor(((num >> 8) & 0xff) * (1 - amount)));
+  const b = Math.max(0, Math.floor((num & 0xff) * (1 - amount)));
+  return `rgb(${r},${g},${b})`;
+};
+
+const _getStatusMeta = (estado) => {
+  switch (estado) {
+    case 0: return { label: "Disponible", color: "#00c95f", accent: "#6ee7b7" };
+    case 1: return { label: "Vendido",    color: "#ef4444", accent: "#fca5a5" };
+    case 2: return { label: "Reservado",  color: "#f59e0b", accent: "#fde68a" };
+    default: return { label: "No definido", color: "#64748b", accent: "#cbd5e1" };
+  }
+};
+
+const _getColorLote = (estado, hovered) => {
+  const base =
+    estado === 0 ? "#00c95f" :
+    estado === 1 ? "#ef4444" :
+    estado === 2 ? "#f59e0b" : "#64748b";
+  return (estado === 1 || estado === 2 || !hovered) ? base : _darkenColor(base, 0.3);
+};
+
+// Per-lot memoized polygon — only re-renders when its own visual state changes.
+// On hover, only the 2 affected lots (old + new) call setOptions() in Google Maps.
+const LotItem = React.memo(
+  function LotItem({
+    lote,
+    isSelected,
+    isHovered,
+    isDimmed,
+    mapZoom,
+    isMobile,
+    enableHalos,
+    onLoteClick,
+    onLoteMouseOver,
+    onLoteMouseOut,
+  }) {
+    const isLibre = lote.vendido === 0;
+    const status = _getStatusMeta(lote.vendido);
+    const strokeBaseColor = _getColorLote(lote.vendido, isHovered);
+    const haloScale = isMobile ? 0.45 : 1;
+    const baseHaloOpacity = isMobile ? 0.18 : 0.24;
+    const selectedHaloOpacity = isMobile ? 0.32 : 0.5;
+    const hoveredHaloOpacity = isMobile ? 0.26 : 0.4;
+
+    return (
+      <PolygonOverlay
+        puntos={lote.puntos}
+        path={lote.polygonPath}
+        labelPosition={lote.polygonCenter}
+        color={strokeBaseColor}
+        onClick={isLibre ? () => onLoteClick(lote) : undefined}
+        onMouseOver={isLibre ? () => onLoteMouseOver(lote.idlote) : undefined}
+        onMouseOut={isLibre ? onLoteMouseOut : undefined}
+        label={isSelected ? { text: lote.nombre } : null}
+        options={{
+          zIndex: isSelected ? 14 : isHovered ? 13 : 10,
+          clickable: isLibre,
+          draggable: false,
+          editable: false,
+          fillOpacity: isSelected ? 0.4 : isHovered ? 0.26 : isDimmed ? 0.05 : 0.2,
+          strokeOpacity: isSelected ? 1 : isHovered ? 0.92 : isDimmed ? 0.22 : 0.82,
+          strokeWeight: isSelected
+            ? mapZoom >= 16 ? 4 : 3.4
+            : isHovered
+              ? mapZoom >= 16 ? 3.5 : 3
+              : mapZoom >= 16 ? 2.7 : 2.2,
+          strokeColor: strokeBaseColor,
+          haloColor: enableHalos ? status.color : undefined,
+          haloOpacity: isSelected
+            ? selectedHaloOpacity
+            : isHovered
+              ? hoveredHaloOpacity
+              : isDimmed
+                ? baseHaloOpacity * 0.5
+                : baseHaloOpacity,
+          haloWeight: (isSelected ? 8 : isHovered ? 6 : isDimmed ? 3 : 5) * haloScale,
+        }}
+        mapZoom={mapZoom}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.lote === next.lote &&
+    prev.isSelected === next.isSelected &&
+    prev.isHovered === next.isHovered &&
+    prev.isDimmed === next.isDimmed &&
+    prev.mapZoom === next.mapZoom &&
+    prev.isMobile === next.isMobile &&
+    prev.enableHalos === next.enableHalos,
+);
+
 const LotesOverlay = ({
   lotes,
   selectedLote,
@@ -58,150 +154,25 @@ const LotesOverlay = ({
   onLoteMouseOver,
   onLoteMouseOut,
 }) => {
-  const darkenColor = (hex, amount = 0.2) => {
-    let c = hex.replace("#", "");
-    if (c.length === 8) c = c.substring(0, 6);
-    let num = parseInt(c, 16);
-    let r = (num >> 16) & 0xff;
-    let g = (num >> 8) & 0xff;
-    let b = num & 0xff;
-    r = Math.max(0, Math.floor(r * (1 - amount)));
-    g = Math.max(0, Math.floor(g * (1 - amount)));
-    b = Math.max(0, Math.floor(b * (1 - amount)));
-    return `rgb(${r},${g},${b})`;
-  };
-
-  const getStatusMeta = (estado) => {
-    switch (estado) {
-      case 0:
-        return {
-          label: "Disponible",
-          color: "#00c95f",
-          accent: "#6ee7b7",
-        };
-      case 1:
-        return {
-          label: "Vendido",
-          color: "#ef4444",
-          accent: "#fca5a5",
-        };
-      case 2:
-        return {
-          label: "Reservado",
-          color: "#f59e0b",
-          accent: "#fde68a",
-        };
-      default:
-        return {
-          label: "No definido",
-          color: "#64748b",
-          accent: "#cbd5e1",
-        };
-    }
-  };
-
-  const getColorLote = (estado, hovered) => {
-    let baseColor;
-    switch (estado) {
-      case 0:
-        baseColor = "#00c95f";
-        break;
-      case 1:
-        baseColor = "#ef4444";
-        break;
-      case 2:
-        baseColor = "#f59e0b";
-        break;
-      default:
-        baseColor = "#64748b";
-    }
-    if (estado === 1 || estado === 2 || !hovered) {
-      return baseColor;
-    }
-    return darkenColor(baseColor, 0.3);
-  };
+  const hasSelected = !!selectedLote?.lote?.idlote;
 
   return (
     <>
-      {lotes.map((lote) => {
-        const isLibre = lote.vendido === 0;
-        const hasSelected = !!selectedLote?.lote?.idlote;
-        const isSelected = selectedLote?.lote?.idlote === lote.idlote;
-        const isHovered = hoveredLote === lote.idlote;
-        const isDimmed = hasSelected && !isSelected;
-        const status = getStatusMeta(lote.vendido);
-        const showQuickLabel = isSelected;
-        const strokeBaseColor = getColorLote(lote.vendido, isHovered);
-        const haloScale = isMobile ? 0.45 : 1;
-        const baseHaloOpacity = isMobile ? 0.18 : 0.24;
-        const selectedHaloOpacity = isMobile ? 0.32 : 0.5;
-        const hoveredHaloOpacity = isMobile ? 0.26 : 0.4;
-
-        return (
-          <PolygonOverlay
-            key={lote.idlote}
-            puntos={lote.puntos}
-            path={lote.polygonPath}
-            labelPosition={lote.polygonCenter}
-            color={strokeBaseColor}
-            onClick={isLibre ? () => onLoteClick(lote) : undefined}
-            onMouseOver={
-              isLibre ? () => onLoteMouseOver(lote.idlote) : undefined
-            }
-            onMouseOut={isLibre ? onLoteMouseOut : undefined}
-            label={
-              showQuickLabel
-                ? {
-                    text: lote.nombre,
-                  }
-                : null
-            }
-            options={{
-              zIndex: isSelected ? 14 : isHovered ? 13 : 10,
-              clickable: isLibre,
-              draggable: false,
-              editable: false,
-              fillOpacity: isSelected
-                ? 0.4
-                : isHovered
-                  ? 0.26
-                  : isDimmed
-                    ? 0.05
-                    : 0.2,
-              strokeOpacity: isSelected
-                ? 1
-                : isHovered
-                  ? 0.92
-                  : isDimmed
-                    ? 0.22
-                    : 0.82,
-              strokeWeight: isSelected
-                ? mapZoom >= 16
-                  ? 4
-                  : 3.4
-                : isHovered
-                  ? mapZoom >= 16
-                    ? 3.5
-                    : 3
-                  : mapZoom >= 16
-                    ? 2.7
-                    : 2.2,
-              strokeColor: strokeBaseColor,
-              haloColor: enableHalos ? status.color : undefined,
-              haloOpacity: isSelected
-                ? selectedHaloOpacity
-                : isHovered
-                  ? hoveredHaloOpacity
-                  : isDimmed
-                    ? baseHaloOpacity * 0.5
-                    : baseHaloOpacity,
-              haloWeight:
-                (isSelected ? 8 : isHovered ? 6 : isDimmed ? 3 : 5) * haloScale,
-            }}
-            mapZoom={mapZoom}
-          />
-        );
-      })}
+      {lotes.map((lote) => (
+        <LotItem
+          key={lote.idlote}
+          lote={lote}
+          isSelected={selectedLote?.lote?.idlote === lote.idlote}
+          isHovered={hoveredLote === lote.idlote}
+          isDimmed={hasSelected && selectedLote?.lote?.idlote !== lote.idlote}
+          mapZoom={mapZoom}
+          isMobile={isMobile}
+          enableHalos={enableHalos}
+          onLoteClick={onLoteClick}
+          onLoteMouseOver={onLoteMouseOver}
+          onLoteMouseOut={onLoteMouseOut}
+        />
+      ))}
     </>
   );
 };
@@ -244,10 +215,9 @@ function MyMap() {
   const [hoveredSpace, setHoveredSpace] = useState(null);
   const [walkingInfo, setWalkingInfo] = useState(null);
   const [drivingInfo, setDrivingInfo] = useState(null);
+  const [hasRealPosition, setHasRealPosition] = useState(false);
+  const [mapMounted, setMapMounted] = useState(false);
   const [mapBounds, setMapBounds] = useState(null);
-  const [activeAnuncioIndex, setActiveAnuncioIndex] = useState(0);
-  const [prevAnuncioIndex, setPrevAnuncioIndex] = useState(null);
-  const [isAnuncioAnimating, setIsAnuncioAnimating] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth <= 950 : false,
   );
@@ -258,21 +228,18 @@ function MyMap() {
   const [labelsEnabled, setLabelsEnabled] = useState(true);
   const [reliefEnabled, setReliefEnabled] = useState(false);
   const [mapTypeMenuFor, setMapTypeMenuFor] = useState(null);
-  const [mapZoom, setMapZoom] = useState(13);
-  const [overlayZoom, setOverlayZoom] = useState(13);
-  const [isMapZooming, setIsMapZooming] = useState(false);
+  // Fix 4: batch zoom updates into one object → single re-render per zoom event
+  const [zoomState, setZoomState] = useState({ zoom: 13, overlayZoom: 13, isZooming: false });
+  const { zoom: mapZoom, overlayZoom, isZooming: isMapZooming } = zoomState;
   const [mapIntroHintVisible, setMapIntroHintVisible] = useState(false);
 
   const mapRef = useRef(null);
   const mapTypeListenerRef = useRef(null);
   const mapTypeControlRef = useRef(null);
   const headerRef = useRef(null);
-  const anuncioDesktopRef = useRef(null);
-  const anuncioMobileRef = useRef(null);
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const boundsDebounceRef = useRef(null);
-  const anuncioTimeoutRef = useRef(null);
   const mapIntroHintTimeoutRef = useRef(null);
   const previousMapZoomRef = useRef(mapZoom);
   const isMapZoomingRef = useRef(false);
@@ -283,12 +250,14 @@ function MyMap() {
   const cacheRef = useRef({
     mapProjects: new Map(),
     projectDetail: new Map(),
+    projectForma: new Map(),
     projectImages: new Map(),
     loteImages: new Map(),
   });
   const inflightRef = useRef({
     mapProjects: new Map(),
     projectDetail: new Map(),
+    projectForma: new Map(),
     projectImages: new Map(),
     loteImages: new Map(),
   });
@@ -297,6 +266,7 @@ function MyMap() {
   const loteImagesAbortRef = useRef(null);
   const prefetchAbortRef = useRef(null);
   const prefetchIdleRef = useRef(null);
+  const hoverTimerRef = useRef(null);
   const pendingShareFocusRef = useRef(null);
   const pendingProjectsRef = useRef(null);
   const pendingGeolocationRef = useRef(null);
@@ -310,496 +280,9 @@ function MyMap() {
   const [hasSearchedLocation, setHasSearchedLocation] = useState(false);
   const PREFETCH_DETAIL_LIMIT = 8;
   const PREFETCH_IDLE_TIMEOUT = 700;
-  const anuncioSlides = useMemo(
-    () => [
-      {
-        text: "Anuncia tu propiedad",
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M4.5 10.25 12 4.75l7.5 5.5v8.75a.75.75 0 0 1-.75.75H5.25a.75.75 0 0 1-.75-.75v-8.75Z"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M9 14.25h6"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            />
-          </svg>
-        ),
-      },
-      {
-        text: "Publica tus proyectos",
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M5 18.25V7.75A1.75 1.75 0 0 1 6.75 6h10.5A1.75 1.75 0 0 1 19 7.75v10.5"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            />
-            <path
-              d="M8.5 12h7M8.5 15.5h5"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            />
-            <path
-              d="M9.25 3.75v4.5M14.75 3.75v4.5"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            />
-          </svg>
-        ),
-      },
-      {
-        text: "Gestiona tus lotes",
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M4.75 6.25h14.5v11.5H4.75z"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M9.5 6.25v11.5M14.5 6.25v11.5M4.75 12h14.5"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
-          </svg>
-        ),
-      },
-      {
-        text: "Administra tus proyectos",
-        icon: (
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M6.25 5.75h11.5A1.75 1.75 0 0 1 19.5 7.5v9a1.75 1.75 0 0 1-1.75 1.75H6.25A1.75 1.75 0 0 1 4.5 16.5v-9a1.75 1.75 0 0 1 1.75-1.75Z"
-              stroke="currentColor"
-              strokeWidth="1.75"
-            />
-            <path
-              d="M8.25 9.25h7.5M8.25 12.25h7.5M8.25 15.25h4.25"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            />
-          </svg>
-        ),
-      },
-    ],
-    [],
-  );
   const CACHE_TTL_MS = 10 * 60 * 1000;
-  const anuncioTextWidthPx = useMemo(() => {
-    const activeText = anuncioSlides[activeAnuncioIndex]?.text || "";
-    // En móvil usamos el texto activo para evitar espacio lateral sobrante.
-    return Math.max(128, Math.ceil(activeText.length * 8.2) + 6);
-  }, [anuncioSlides, activeAnuncioIndex]);
-  const anuncioButtonWidthPx = useMemo(
-    () => Math.max(184, anuncioTextWidthPx + 42),
-    [anuncioTextWidthPx],
-  );
 
-  const renderAnuncioCtaInner = () => (
-    <>
-      <span className={styles.anuncioFxOrbPrimary} aria-hidden="true" />
-      <span className={styles.anuncioFxOrbSecondary} aria-hidden="true" />
-      <span className={styles.anuncioFxBeam} aria-hidden="true" />
-      <span className={styles.anuncioFxOutline} aria-hidden="true" />
-      <span className={styles.anuncioFxSkyline} aria-hidden="true" />
-      <span className={styles.anuncioFxParcels} aria-hidden="true" />
-      <span className={styles.anuncioSweep} aria-hidden="true" />
-      <span className={styles.anuncioContent}>
-        <span className={styles.anuncioIconViewport}>
-          {prevAnuncioIndex !== null && isAnuncioAnimating && (
-            <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
-              {anuncioSlides[prevAnuncioIndex].icon}
-            </span>
-          )}
-          <span
-            className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-          >
-            {anuncioSlides[activeAnuncioIndex].icon}
-          </span>
-        </span>
-        <span
-          className={styles.anuncioTextViewport}
-          style={{ width: `${anuncioTextWidthPx}px` }}
-        >
-          {prevAnuncioIndex !== null && isAnuncioAnimating && (
-            <span className={`${styles.anuncioItem} ${styles.anuncioLeave}`}>
-              {anuncioSlides[prevAnuncioIndex].text}
-            </span>
-          )}
-          <span
-            className={`${styles.anuncioItem} ${isAnuncioAnimating ? styles.anuncioEnter : styles.anuncioStatic}`}
-          >
-            {anuncioSlides[activeAnuncioIndex].text}
-          </span>
-        </span>
-      </span>
-    </>
-  );
 
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia();
-
-      mm.add(
-        {
-          reduceMotion: "(prefers-reduced-motion: reduce)",
-        },
-        (context) => {
-          const { reduceMotion } = context.conditions;
-          if (reduceMotion) return undefined;
-
-          const targets = [anuncioDesktopRef.current, anuncioMobileRef.current].filter(
-            Boolean,
-          );
-          if (!targets.length) return undefined;
-          const cleanups = [];
-
-          targets.forEach((cta) => {
-            const orbPrimary = cta.querySelector(`.${styles.anuncioFxOrbPrimary}`);
-            const orbSecondary = cta.querySelector(`.${styles.anuncioFxOrbSecondary}`);
-            const beam = cta.querySelector(`.${styles.anuncioFxBeam}`);
-            const outline = cta.querySelector(`.${styles.anuncioFxOutline}`);
-            const skyline = cta.querySelector(`.${styles.anuncioFxSkyline}`);
-            const parcels = cta.querySelector(`.${styles.anuncioFxParcels}`);
-            const content = cta.querySelector(`.${styles.anuncioContent}`);
-            const icon = cta.querySelector(`.${styles.anuncioIconViewport}`);
-            const text = cta.querySelector(`.${styles.anuncioTextViewport}`);
-            gsap.set(cta, {
-              transformPerspective: 900,
-              transformOrigin: "50% 50%",
-            });
-            gsap.set([orbPrimary, orbSecondary, beam, outline, skyline, parcels], {
-              transformOrigin: "50% 50%",
-              willChange: "transform, opacity, filter",
-            });
-
-            const idleTl = gsap.timeline({ repeat: -1, defaults: { ease: "sine.inOut" } });
-
-            idleTl
-              .to(
-                cta,
-                {
-                  y: -5.5,
-                  scale: 1.032,
-                  rotateX: -4.5,
-                  rotateY: 6,
-                  boxShadow:
-                    "0 28px 46px rgba(15, 145, 98, 0.34), 0 12px 26px rgba(15, 23, 42, 0.16), 0 0 30px rgba(53, 227, 160, 0.26)",
-                  duration: 1.6,
-                },
-                0,
-              )
-              .to(
-                content,
-                {
-                  y: -2.5,
-                  duration: 1.45,
-                },
-                0,
-              )
-              .to(
-                orbPrimary,
-                {
-                  xPercent: 20,
-                  yPercent: -24,
-                  scale: 1.24,
-                  opacity: 0.98,
-                  duration: 1.75,
-                },
-                0,
-              )
-              .to(
-                orbSecondary,
-                {
-                  xPercent: -18,
-                  yPercent: 16,
-                  scale: 1.22,
-                  opacity: 0.76,
-                  duration: 1.8,
-                },
-                0.1,
-              )
-              .to(
-                beam,
-                {
-                  xPercent: 184,
-                  rotation: 11,
-                  opacity: 0.96,
-                  duration: 1.55,
-                  ease: "power3.out",
-                },
-                0,
-              )
-              .to(
-                outline,
-                {
-                  scale: 1.024,
-                  opacity: 0.9,
-                  duration: 1.9,
-                },
-                0,
-              )
-              .to(
-                skyline,
-                {
-                  x: 12,
-                  y: -2,
-                  opacity: 0.86,
-                  duration: 1.65,
-                },
-                0,
-              )
-              .to(
-                parcels,
-                {
-                  x: -12,
-                  y: 2,
-                  opacity: 0.72,
-                  duration: 1.65,
-                },
-                0.05,
-              )
-              .to(
-                icon,
-                {
-                  y: -2,
-                  rotate: -7,
-                  scale: 1.14,
-                  duration: 1.2,
-                },
-                0.1,
-              )
-              .to(
-                text,
-                {
-                  x: 3,
-                  letterSpacing: "0.03em",
-                  textShadow: "0 3px 18px rgba(8, 113, 74, 0.28)",
-                  duration: 1.3,
-                },
-                0.1,
-              )
-              .to(
-                cta,
-                {
-                  y: 0,
-                  scale: 1,
-                  rotateX: 0.8,
-                  rotateY: -1.2,
-                  boxShadow:
-                    "0 16px 28px rgba(15, 145, 98, 0.2), 0 6px 14px rgba(15, 23, 42, 0.1), 0 0 16px rgba(53, 227, 160, 0.12)",
-                  duration: 1.45,
-                },
-                ">",
-              )
-              .to(
-                content,
-                {
-                  y: 0,
-                  duration: 1.45,
-                },
-                "<",
-              )
-              .to(
-                orbPrimary,
-                {
-                  xPercent: -18,
-                  yPercent: 16,
-                  scale: 0.92,
-                  opacity: 0.44,
-                  duration: 1.6,
-                },
-                "<",
-              )
-              .to(
-                orbSecondary,
-                {
-                  xPercent: 18,
-                  yPercent: -16,
-                  scale: 0.94,
-                  opacity: 0.3,
-                  duration: 1.6,
-                },
-                "<",
-              )
-              .to(
-                beam,
-                {
-                  xPercent: -154,
-                  rotation: -11,
-                  opacity: 0.12,
-                  duration: 1.55,
-                  ease: "power1.inOut",
-                },
-                "<",
-              )
-              .to(
-                outline,
-                {
-                  scale: 0.978,
-                  opacity: 0.4,
-                  duration: 1.9,
-                },
-                "<",
-              )
-              .to(
-                skyline,
-                {
-                  x: -12,
-                  y: 1.5,
-                  opacity: 0.52,
-                  duration: 1.6,
-                },
-                "<",
-              )
-              .to(
-                parcels,
-                {
-                  x: 14,
-                  y: 0,
-                  opacity: 0.28,
-                  duration: 1.6,
-                },
-                "<",
-              )
-              .to(
-                icon,
-                {
-                  y: 0,
-                  rotate: 5,
-                  scale: 1,
-                  duration: 1.2,
-                },
-                "<",
-              )
-              .to(
-                text,
-                {
-                  x: 0,
-                  letterSpacing: "0em",
-                  textShadow: "0 0 0 rgba(6, 78, 59, 0)",
-                  duration: 1.2,
-                },
-                "<",
-              );
-
-            const burst = gsap.timeline({ paused: true });
-            burst
-              .to(
-                cta,
-                {
-                  scale: 1.075,
-                  rotateX: -12,
-                  rotateY: 16,
-                  y: -5,
-                  duration: 0.34,
-                  ease: "power4.out",
-                },
-                0,
-              )
-              .to(
-                [orbPrimary, orbSecondary],
-                {
-                  scale: 1.62,
-                  opacity: 1,
-                  duration: 0.34,
-                  stagger: 0.03,
-                  ease: "power4.out",
-                },
-                0,
-              )
-              .to(
-                beam,
-                {
-                  xPercent: 220,
-                  opacity: 1,
-                  duration: 0.44,
-                  ease: "power3.out",
-                },
-                0,
-              )
-              .to(
-                outline,
-                {
-                  scale: 1.08,
-                  opacity: 1,
-                  duration: 0.38,
-                  ease: "power3.out",
-                },
-                0,
-              )
-              .to(
-                skyline,
-                {
-                  y: -5,
-                  scaleX: 1.06,
-                  opacity: 1,
-                  duration: 0.34,
-                  ease: "power3.out",
-                },
-                0,
-              )
-              .to(
-                parcels,
-                {
-                  y: 4,
-                  opacity: 0.92,
-                  duration: 0.34,
-                  ease: "power3.out",
-                },
-                0,
-              );
-
-            const resetBurst = () => {
-              gsap.to(cta, {
-                scale: 1,
-                rotateX: 0,
-                rotateY: 0,
-                y: 0,
-                duration: 0.42,
-                ease: "power3.out",
-                overwrite: "auto",
-              });
-            };
-
-            const onEnter = () => burst.restart();
-            const onLeave = () => {
-              burst.pause(0);
-              resetBurst();
-            };
-
-            cta.addEventListener("pointerenter", onEnter);
-            cta.addEventListener("pointerleave", onLeave);
-            cleanups.push(() => {
-              cta.removeEventListener("pointerenter", onEnter);
-              cta.removeEventListener("pointerleave", onLeave);
-              idleTl.kill();
-              burst.kill();
-            });
-          });
-
-          return () => {
-            cleanups.forEach((cleanup) => cleanup());
-          };
-        },
-      );
-
-      return () => mm.revert();
-    },
-    { scope: headerRef },
-  );
   const getCacheKey = (prefix, id) => `${prefix}_${id}`;
   const parsePositiveInt = (value) => {
     const n = Number(value);
@@ -1062,10 +545,10 @@ function MyMap() {
   };
 
   const loadProyectoDetalle = async (idproyecto, signal) => {
-    // Only check in-memory cache (not sessionStorage) so lot statuses are always
-    // fresh after a page refresh.
-    const mem = cacheRef.current.projectDetail.get(idproyecto);
-    if (mem) return mem;
+    // Only in-memory (not sessionStorage) so statuses are always fresh after refresh.
+    // TTL: re-fetch after CACHE_TTL_MS so lot status changes propagate within the session.
+    const entry = cacheRef.current.projectDetail.get(idproyecto);
+    if (entry && Date.now() - entry._ts < CACHE_TTL_MS) return entry.data;
 
     const inflight = inflightRef.current.projectDetail.get(idproyecto);
     if (inflight) return inflight;
@@ -1079,8 +562,7 @@ function MyMap() {
         return res.json();
       })
       .then((data) => {
-        // Store only in-memory; skipping sessionStorage so a refresh always fetches fresh lot statuses.
-        cacheRef.current.projectDetail.set(idproyecto, data);
+        cacheRef.current.projectDetail.set(idproyecto, { data, _ts: Date.now() });
         return data;
       })
       .finally(() => {
@@ -1088,6 +570,62 @@ function MyMap() {
       });
 
     inflightRef.current.projectDetail.set(idproyecto, request);
+    return request;
+  };
+
+  // Endpoint consolidado: devuelve proyecto + puntos + lotes + iconos + espacios + imágenes.
+  // Reemplaza la secuencia forma+detalle. Sin Subquery en el backend → más rápido.
+  const loadProyectoTodo = async (idproyecto, signal) => {
+    const entry = cacheRef.current.projectDetail.get(idproyecto);
+    if (entry && Date.now() - entry._ts < CACHE_TTL_MS) return entry.data;
+
+    const inflight = inflightRef.current.projectDetail.get(idproyecto);
+    if (inflight) return inflight;
+
+    const url = withApiBase(
+      `https://api.geohabita.com/api/mapa/proyecto_todo/${idproyecto}/`,
+    );
+    const request = fetch(url, { signal, cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error("No se pudo cargar datos del proyecto");
+        return res.json();
+      })
+      .then((data) => {
+        cacheRef.current.projectDetail.set(idproyecto, { data, _ts: Date.now() });
+        return data;
+      })
+      .finally(() => {
+        inflightRef.current.projectDetail.delete(idproyecto);
+      });
+
+    inflightRef.current.projectDetail.set(idproyecto, request);
+    return request;
+  };
+
+  const loadProyectoForma = async (idproyecto, signal) => {
+    const mem = cacheRef.current.projectForma.get(idproyecto);
+    if (mem) return mem;
+
+    const inflight = inflightRef.current.projectForma.get(idproyecto);
+    if (inflight) return inflight;
+
+    const url = withApiBase(
+      `https://api.geohabita.com/api/mapa/proyecto_forma/${idproyecto}/`,
+    );
+    const request = fetch(url, { signal, cache: "no-store" })
+      .then((res) => {
+        if (!res.ok) throw new Error("No se pudo cargar forma de proyecto");
+        return res.json();
+      })
+      .then((data) => {
+        cacheRef.current.projectForma.set(idproyecto, data);
+        return data;
+      })
+      .finally(() => {
+        inflightRef.current.projectForma.delete(idproyecto);
+      });
+
+    inflightRef.current.projectForma.set(idproyecto, request);
     return request;
   };
 
@@ -1241,26 +779,6 @@ function MyMap() {
     return () => clearTimeout(t);
   }, [shouldShrinkMapForSidebar]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveAnuncioIndex((current) => {
-        const next = (current + 1) % anuncioSlides.length;
-        setPrevAnuncioIndex(current);
-        setIsAnuncioAnimating(true);
-        if (anuncioTimeoutRef.current) clearTimeout(anuncioTimeoutRef.current);
-        anuncioTimeoutRef.current = setTimeout(() => {
-          setIsAnuncioAnimating(false);
-          setPrevAnuncioIndex(null);
-        }, 560);
-        return next;
-      });
-    }, 2800);
-
-    return () => {
-      clearInterval(interval);
-      if (anuncioTimeoutRef.current) clearTimeout(anuncioTimeoutRef.current);
-    };
-  }, [anuncioSlides.length]);
 
   const getProjectIconUrl = (p) => {
     const tipoInmo = Number(p.idtipoinmobiliaria);
@@ -1406,8 +924,7 @@ function MyMap() {
 
     map.panTo(location);
     map.setZoom(17);
-    setMapZoom(17);
-    setOverlayZoom(17);
+    setZoomState((prev) => ({ ...prev, zoom: 17, overlayZoom: 17 }));
   }, []);
 
   const geocodeSearchQuery = useCallback(async () => {
@@ -1448,8 +965,7 @@ function MyMap() {
         tipo.slug ||
         tipo.idtipoespacio ||
         tipo.nombre ||
-        espacio?.idespacio ||
-        Math.random();
+        `espacio_${espacio?.idespacio}`;
       if (!typeMap.has(key)) {
         typeMap.set(key, {
           key,
@@ -1530,8 +1046,8 @@ function MyMap() {
       candidates.forEach((p) => {
         const id = p?.idproyecto;
         if (!id) return;
-        const cached = getCached("projectDetail", id, "project_detail");
-        if (cached) return;
+        const entry = cacheRef.current.projectDetail.get(id);
+        if (entry && Date.now() - entry._ts < CACHE_TTL_MS) return;
         loadProyectoDetalle(id, controller.signal).catch(() => null);
       });
     });
@@ -1596,6 +1112,18 @@ function MyMap() {
     loadGoogleMaps();
   }, []);
 
+  // Montar el mapa automáticamente si viene de un enlace compartido
+  useEffect(() => {
+    if (inmoId) setMapMounted(true);
+  }, [inmoId]);
+
+  // Si el usuario no interactúa en 2.5s, montar el mapa de todas formas
+  useEffect(() => {
+    if (!isLoaded || mapMounted) return;
+    const timer = setTimeout(() => setMapMounted(true), 2500);
+    return () => clearTimeout(timer);
+  }, [isLoaded, mapMounted]);
+
   useEffect(() => {
     preloadImage("/proyectoicono.png");
     preloadImage("https://cdn-icons-png.freepik.com/512/11130/11130373.png");
@@ -1637,6 +1165,7 @@ function MyMap() {
           return;
         }
         setCurrentPosition(nextPosition);
+        setHasRealPosition(true);
       },
       () => {
         console.warn("Permiso de ubicación denegado.");
@@ -1739,8 +1268,11 @@ function MyMap() {
       }
     };
 
-    run();
-    return () => controller.abort();
+    // Debounce: evita disparar el fetch en cada keystroke/click rápido de filtros.
+    // Sin delay en la carga inicial (isLoaded) para no retrasar el primer render.
+    const delay = selectedTipo || selectedRango ? 250 : 0;
+    const t = setTimeout(run, delay);
+    return () => { clearTimeout(t); controller.abort(); };
   }, [
     selectedTipo,
     selectedRango,
@@ -1857,7 +1389,7 @@ function MyMap() {
         }
       });
 
-    return () => controller.abort();
+    return () => { controller.abort(); };
   }, [selectedLote]);
 
   useEffect(() => {
@@ -1867,12 +1399,18 @@ function MyMap() {
       return undefined;
     }
 
+    // Si las imágenes ya llegaron bundleadas en el click handler, no borrar ni re-fetch
+    const already = getCached("projectImages", idproyecto, "project_images");
+    if (already) {
+      setImagenesProyecto(already);
+      return undefined;
+    }
+
     if (projectImagesAbortRef.current) {
       projectImagesAbortRef.current.abort();
     }
     const controller = new AbortController();
     projectImagesAbortRef.current = controller;
-    setImagenesProyecto(null);
 
     loadProyectoImagenes(idproyecto, controller.signal)
       .then((data) => {
@@ -1970,37 +1508,51 @@ function MyMap() {
     );
   };
 
-  const handleLoteClick = (lote) => {
-    if (isMobile()) {
-      setShowFilters(false);
-    }
+  const handleLoteClick = useCallback(
+    (lote) => {
+      if (isMobile()) {
+        setShowFilters(false);
+      }
 
-    if (mapRef.current && window.google?.maps) {
-      const lat = normalizeNumber(lote.latitud);
-      const lng = normalizeNumber(lote.longitud);
+      if (mapRef.current && window.google?.maps) {
+        const lat = normalizeNumber(lote.latitud);
+        const lng = normalizeNumber(lote.longitud);
 
-      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-        const map = mapRef.current;
-        const target = { lat, lng };
-        const currentBounds = map.getBounds();
-        const targetLatLng = new window.google.maps.LatLng(lat, lng);
+        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+          const map = mapRef.current;
+          const target = { lat, lng };
+          const currentBounds = map.getBounds();
+          const targetLatLng = new window.google.maps.LatLng(lat, lng);
 
-        if (!currentBounds || !currentBounds.contains(targetLatLng)) {
-          map.panTo(target);
-        }
+          if (!currentBounds || !currentBounds.contains(targetLatLng)) {
+            map.panTo(target);
+          }
 
-        const currentZoom = map.getZoom() ?? 0;
-        if (currentZoom < 13) {
-          map.setZoom(14);
+          const currentZoom = map.getZoom() ?? 0;
+          if (currentZoom < 13) {
+            map.setZoom(14);
+          }
         }
       }
-    }
 
-    setSelectedLote({
-      lote: lote, // ✅ YA incluye puntos
-      inmo: selectedProyecto?.inmo ?? null,
-    });
-  };
+      setSelectedLote({
+        lote: lote, // ✅ YA incluye puntos
+        inmo: selectedProyecto?.inmo ?? null,
+      });
+    },
+    [selectedProyecto], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const [, startHoverTransition] = useTransition();
+  // Hover es baja prioridad (React 18): clicks y scroll toman precedencia.
+  const handleLoteMouseOver = useCallback(
+    (idlote) => startHoverTransition(() => setHoveredLote(idlote)),
+    [startHoverTransition],
+  );
+  const handleLoteMouseOut = useCallback(
+    () => startHoverTransition(() => setHoveredLote(null)),
+    [startHoverTransition],
+  );
 
   const isMobile = () => window.innerWidth <= 768;
 
@@ -2236,6 +1788,17 @@ function MyMap() {
     } catch (error) {
       const url = withApiBase(
         `https://api.geohabita.com/api/mapa/proyecto_detalle/${idproyecto}/`,
+      );
+      return await fetchJsonWithRetry(url, { signal });
+    }
+  };
+
+  const loadProyectoTodoWithRetry = async (idproyecto, signal) => {
+    try {
+      return await loadProyectoTodo(idproyecto, signal);
+    } catch {
+      const url = withApiBase(
+        `https://api.geohabita.com/api/mapa/proyecto_todo/${idproyecto}/`,
       );
       return await fetchJsonWithRetry(url, { signal });
     }
@@ -2485,6 +2048,12 @@ function MyMap() {
       setSelectedTipo("");
       setSelectedRango("");
 
+      // Arrancar imágenes en paralelo con el detail para no esperarlo
+      const imagenesPromise = loadProyectoImagenes(proyectoId, controller.signal).catch(() => null);
+      const loteImagesPromise = loteId
+        ? loadLoteImagenes(loteId, controller.signal).catch(() => null)
+        : Promise.resolve(null);
+
       const detail = await loadProyectoDetalleWithRetry(
         proyectoId,
         controller.signal,
@@ -2533,20 +2102,20 @@ function MyMap() {
           "project_images",
           bundledProjectImages,
         );
-      } else {
-        const projectImages = await loadProyectoImagenes(
-          proyectoId,
-          controller.signal,
-        ).catch(() => null);
-        if (projectImages) setImagenesProyecto(projectImages);
-      }
-      if (loteId) {
-        const loteImages = await loadLoteImagenes(loteId, controller.signal).catch(
-          () => null,
-        );
-        if (loteImages) {
-          setImagenesLote(loteImages);
+        if (loteId) {
+          const loteImages = await loteImagesPromise;
+          if (loteImages && !controller.signal.aborted) setImagenesLote(loteImages);
         }
+      } else if (loteId) {
+        // Ambas promesas ya arrancaron en paralelo arriba
+        const [projectImages, loteImages] = await Promise.all([imagenesPromise, loteImagesPromise]);
+        if (!controller.signal.aborted) {
+          if (projectImages) setImagenesProyecto(projectImages);
+          if (loteImages) setImagenesLote(loteImages);
+        }
+      } else {
+        const projectImages = await imagenesPromise;
+        if (projectImages && !controller.signal.aborted) setImagenesProyecto(projectImages);
       }
 
       setPuntos(dataPuntos);
@@ -2686,8 +2255,10 @@ function MyMap() {
         }).catch(() => null);
       }
 
-      calculateInfo("WALKING", proyecto);
-      calculateInfo("DRIVING", proyecto);
+      if (hasRealPosition) {
+        calculateInfo("WALKING", proyecto);
+        calculateInfo("DRIVING", proyecto);
+      }
 
       if (projectDetailAbortRef.current) {
         projectDetailAbortRef.current.abort();
@@ -2695,35 +2266,53 @@ function MyMap() {
       const controller = new AbortController();
       projectDetailAbortRef.current = controller;
 
-      const detail = await loadProyectoDetalleWithRetry(
-        proyecto.idproyecto,
-        controller.signal,
-      );
+      // Endpoint consolidado: una sola petición devuelve todo (proyecto + puntos +
+      // lotes + iconos + espacios + imágenes). Sin Subquery en DB → más rápido.
+      // El nombre del proyecto ya está visible en la sidebar (setselectedProyecto arriba).
+      setIsProyectoLoading(true);
+      const todoPromise = loadProyectoTodoWithRetry(proyecto.idproyecto, controller.signal);
+
+      // También arrancamos imágenes del proyecto en paralelo como fallback por si
+      // el nuevo endpoint aún no está desplegado.
+      const imagenesPromise = loadProyectoImagenes(proyecto.idproyecto, controller.signal).catch(() => null);
+
+      const todo = await todoPromise;
       if (controller.signal.aborted) return;
 
-      const projectShape = normalizeProyectoShape(
-        detail?.proyecto ?? proyecto,
-        detail?.puntos || [],
+      const todoShape = normalizeProyectoShape(
+        todo?.proyecto ?? proyecto,
+        todo?.puntos || [],
       );
-      const dataPuntos = projectShape.puntos;
-      const lotesConPuntos = (detail?.lotes || [])
+      const dataPuntos = todoShape.puntos;
+      const lotesConPuntos = (todo?.lotes || [])
         .map((lote) => normalizeLoteDetalle(lote))
         .filter(Boolean);
-      const dataIconos = normalizeIconos(detail?.iconos || []);
-      const dataEspacios = (detail?.espacios || [])
-        .map((espacio) => normalizeEspacioDetalle(espacio))
-        .filter(Boolean);
-      const bundledProjectImages = normalizeProyectoImagenes(
-        detail?.imagenes_proyecto || [],
-      );
-      let inmoData = detail?.inmobiliaria ?? null;
-      const proyectoDetalle = detail?.proyecto ?? proyecto;
+      let inmoData = todo?.inmobiliaria ?? null;
+      const proyectoDetalle = todo?.proyecto ?? proyecto;
 
       if (!inmoData && inmoId) {
         inmoData = await loadInmobiliariaWithRetry(inmoId, controller.signal);
         if (controller.signal.aborted) return;
       }
 
+      const dataIconos = normalizeIconos(todo?.iconos || []);
+      const dataEspacios = (todo?.espacios || [])
+        .map((espacio) => normalizeEspacioDetalle(espacio))
+        .filter(Boolean);
+      const bundledProjectImages = normalizeProyectoImagenes(
+        todo?.imagenes_proyecto || [],
+      );
+
+      // Fit de mapa al polígono del proyecto
+      if (dataPuntos.length > 0 && mapRef.current) {
+        const bounds = new window.google.maps.LatLngBounds();
+        dataPuntos.forEach((p) =>
+          bounds.extend({ lat: Number(p.latitud), lng: Number(p.longitud) }),
+        );
+        fitBoundsForProjectFocus(mapRef.current, bounds);
+      }
+
+      // Actualizar imágenes (bundleadas o fallback)
       if (bundledProjectImages.length) {
         setImagenesProyecto(bundledProjectImages);
         setCached(
@@ -2733,39 +2322,21 @@ function MyMap() {
           bundledProjectImages,
         );
       } else {
-        const projectImages = await loadProyectoImagenes(
-          proyecto.idproyecto,
-          controller.signal,
-        ).catch(() => null);
-        if (projectImages) {
-          setImagenesProyecto(projectImages);
-        }
+        const projectImages = await imagenesPromise;
+        if (projectImages) setImagenesProyecto(projectImages);
       }
 
-      setPuntos(dataPuntos);
-      if (dataPuntos.length > 0 && mapRef.current) {
-        const bounds = new window.google.maps.LatLngBounds();
-        dataPuntos.forEach((p) =>
-          bounds.extend({
-            lat: Number(p.latitud),
-            lng: Number(p.longitud),
-          }),
-        );
-        fitBoundsForProjectFocus(mapRef.current, bounds);
-      }
-
+      // Render completo de una vez: polígono + lotes + iconos + espacios
       const lotesFiltered = filterLotesByRango(lotesConPuntos, selectedRango);
+      setPuntos(dataPuntos);
       setLotesProyectoBase(lotesConPuntos);
       setLotesProyecto(lotesFiltered);
+      setselectedProyecto({ ...proyectoDetalle, inmo: inmoData });
       setIconosProyecto(dataIconos);
       setEspaciosProyecto(dataEspacios);
       setSelectedSpace(null);
       setHoveredSpace(null);
-
-      setselectedProyecto({
-        ...proyectoDetalle,
-        inmo: inmoData,
-      });
+      setIsProyectoLoading(false);
 
       // Ajuste final: primero se abre sidebar (viewport reducido) y luego
       // reenfocamos con la misma lógica base que ya funcionaba.
@@ -2794,6 +2365,7 @@ function MyMap() {
         }
       }, 260);
     } catch (err) {
+      setIsProyectoLoading(false);
       if (err?.name !== "AbortError") {
         console.error("Error cargando inmobiliaria:", err);
       }
@@ -2914,7 +2486,7 @@ function MyMap() {
               onFocus={() => setIsSearchFocused(true)}
               placeholder="Buscar Lugar"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setMapMounted(true); }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -2978,13 +2550,7 @@ function MyMap() {
         <div className={styles.rightActions}>
           <ThemeSwitch checked={isDark} onChange={toggleTheme} />
           {!isMobileViewport && (
-            <Link
-              ref={anuncioDesktopRef}
-              to="/inicio"
-              className={styles.anunciaPropiedad}
-            >
-              {renderAnuncioCtaInner()}
-            </Link>
+            <AnuncioCarousel to="/inicio" className={styles.anunciaPropiedad} />
           )}
         </div>
         {isMobileViewport && (
@@ -3027,7 +2593,21 @@ function MyMap() {
             </span>
           </button>
         )}
-        <GoogleMap
+        {!mapMounted && (
+          <div className={styles.mapPlaceholder}>
+            <div className={styles.mapPlaceholderInner}>
+              <p className={styles.mapPlaceholderText}>Explora proyectos inmobiliarios cerca de ti</p>
+              <button
+                type="button"
+                className={styles.mapPlaceholderBtn}
+                onClick={() => setMapMounted(true)}
+              >
+                Ver proyectos en el mapa
+              </button>
+            </div>
+          </div>
+        )}
+        {mapMounted && <GoogleMap
           mapContainerClassName={styles.map}
           center={currentPosition}
           zoom={mapZoom}
@@ -3035,8 +2615,13 @@ function MyMap() {
             mapRef.current = map;
             const initialZoom = map.getZoom() ?? 13;
             previousMapZoomRef.current = initialZoom;
-            setMapZoom(initialZoom);
-            setOverlayZoom(initialZoom);
+            setZoomState((prev) => ({ ...prev, zoom: initialZoom, overlayZoom: initialZoom }));
+            // Precarga el runtime del visor 360 en tiempo idle para que el primer
+            // click en "Ver 360" sea instantáneo (sin esperar el dynamic import).
+            const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 500));
+            idle(() => {
+              import("@photo-sphere-viewer/core").catch(() => null);
+            });
             map.setMapTypeId(
               resolveMapTypeId(baseMapStyle, labelsEnabled, reliefEnabled),
             );
@@ -3069,7 +2654,6 @@ function MyMap() {
               },
             );
             updateBoundsFromMap();
-            setOverlayZoom(initialZoom);
             setMapIntroHintVisible(true);
             if (mapIntroHintTimeoutRef.current) {
               clearTimeout(mapIntroHintTimeoutRef.current);
@@ -3100,19 +2684,17 @@ function MyMap() {
               previousMapZoomRef.current = nextZoom;
               if (!isMapZoomingRef.current) {
                 isMapZoomingRef.current = true;
-                setIsMapZooming(true);
+                setZoomState((prev) => ({ ...prev, isZooming: true }));
               }
             }
           }}
           onIdle={() => {
             const nextZoom = mapRef.current?.getZoom();
+            isMapZoomingRef.current = false;
             if (Number.isFinite(nextZoom)) {
-              setMapZoom(nextZoom);
-              setOverlayZoom(nextZoom);
-            }
-            if (isMapZoomingRef.current) {
-              isMapZoomingRef.current = false;
-              setIsMapZooming(false);
+              setZoomState({ zoom: nextZoom, overlayZoom: nextZoom, isZooming: false });
+            } else {
+              setZoomState((prev) => ({ ...prev, isZooming: false }));
             }
             scheduleBoundsUpdate();
           }}
@@ -3146,6 +2728,14 @@ function MyMap() {
                       }}
                       title={p.nombreproyecto}
                       onClick={() => handleMarkerClick(p)}
+                      onMouseOver={() => {
+                        clearTimeout(hoverTimerRef.current);
+                        hoverTimerRef.current = setTimeout(() => {
+                          if (!cacheRef.current.projectDetail.has(p.idproyecto)) {
+                            loadProyectoDetalle(p.idproyecto, new AbortController().signal).catch(() => null);
+                          }
+                        }, 150);
+                      }}
                     />
                   ))}
                 </>
@@ -3168,6 +2758,14 @@ function MyMap() {
                   }}
                   title={p.nombreproyecto}
                   onClick={() => handleMarkerClick(p)}
+                  onMouseOver={() => {
+                    clearTimeout(hoverTimerRef.current);
+                    hoverTimerRef.current = setTimeout(() => {
+                      if (!cacheRef.current.projectDetail.has(p.idproyecto)) {
+                        loadProyectoDetalle(p.idproyecto, new AbortController().signal).catch(() => null);
+                      }
+                    }, 150);
+                  }}
                 />
               ))}
             </>
@@ -3288,13 +2886,13 @@ function MyMap() {
               isMobile={isMobileViewport}
               enableHalos={!isMapZooming}
               onLoteClick={handleLoteClick}
-              onLoteMouseOver={setHoveredLote}
-              onLoteMouseOut={() => setHoveredLote(null)}
+              onLoteMouseOver={handleLoteMouseOver}
+              onLoteMouseOut={handleLoteMouseOut}
             />
           )}
 
           {directions && <DirectionsRenderer directions={directions} />}
-        </GoogleMap>
+        </GoogleMap>}
 
         {selectedProyecto && espaciosProyecto.length > 0 && (
           <div className={styles.spaceLayerControl}>
@@ -3456,14 +3054,7 @@ function MyMap() {
       </div>
 
       {!selectedProyecto && !selectedLote && (
-        <Link
-          ref={anuncioMobileRef}
-          to="/inicio"
-          className={styles.mobileAnunciaPropiedad}
-          style={{ width: `${anuncioButtonWidthPx}px` }}
-        >
-          {renderAnuncioCtaInner()}
-        </Link>
+        <AnuncioCarousel to="/inicio" className={styles.mobileAnunciaPropiedad} />
       )}
 
       {selectedProyecto && canRenderSharedSidebar && (

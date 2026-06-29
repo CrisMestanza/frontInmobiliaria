@@ -1179,6 +1179,9 @@ const ProyectoSidebar = ({
                       alt="Propiedad"
                       className={styles.mobileSingleImage}
                       onClick={() => setFullscreenImgIndex(currentImg)}
+                      loading="eager"
+                      decoding="async"
+                      fetchpriority="high"
                     />
                   </div>
                 )}
@@ -1196,6 +1199,9 @@ const ProyectoSidebar = ({
                         )}
                         alt="Imagen 1"
                         className={styles.mobileDualImage}
+                        loading="eager"
+                        decoding="async"
+                        fetchpriority="high"
                       />
                     </button>
                     <button
@@ -1209,6 +1215,8 @@ const ProyectoSidebar = ({
                         )}
                         alt="Imagen 2"
                         className={styles.mobileDualImage}
+                        loading="eager"
+                        decoding="async"
                       />
                     </button>
                   </div>
@@ -1227,6 +1235,8 @@ const ProyectoSidebar = ({
                         )}
                         alt="Anterior"
                         className={styles.mobileSideImage}
+                        loading="lazy"
+                        decoding="async"
                       />
                     </button>
                     <img
@@ -1237,6 +1247,9 @@ const ProyectoSidebar = ({
                       alt="Propiedad"
                       className={styles.mobileMainImage}
                       onClick={() => setFullscreenImgIndex(currentImg)}
+                      loading="eager"
+                      decoding="async"
+                      fetchpriority="high"
                     />
                     <button
                       className={`${styles.mobileSideSlide} ${styles.mobileSideRight}`}
@@ -1249,6 +1262,8 @@ const ProyectoSidebar = ({
                         )}
                         alt="Siguiente"
                         className={styles.mobileSideImage}
+                        loading="lazy"
+                        decoding="async"
                       />
                     </button>
                   </div>
@@ -1277,6 +1292,9 @@ const ProyectoSidebar = ({
                   alt="Propiedad"
                   className={styles.mainImage}
                   onClick={() => setFullscreenImgIndex(currentImg)}
+                  loading="eager"
+                  decoding="async"
+                  fetchpriority="high"
                 />
                 {validImages.length > 1 && (
                   <div className={styles.sliderControls}>
@@ -1476,6 +1494,8 @@ const ProyectoSidebar = ({
                           src={proyecto.bandera}
                           className={styles.flagIcon}
                           alt="Bandera"
+                          loading="lazy"
+                          decoding="async"
                         />
 
                         <span className={styles.labelSmall}>
@@ -2347,6 +2367,9 @@ const ProyectoSidebar = ({
               )}
               className={styles.fullscreenImg}
               alt="Zoom"
+              loading="eager"
+              decoding="async"
+              fetchpriority="high"
               draggable={false}
               onDragStart={(e) => e.preventDefault()}
               onClick={(e) => e.stopPropagation()}

@@ -3,7 +3,6 @@ import { authFetch } from "../../../config/authFetch.js";
 import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 // components/editLote.jsx
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
 import style from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 

@@ -2,14 +2,13 @@ import { withApiBase } from "../../../../config/api.js";
 import { authFetch } from "../../../../config/authFetch.js";
 import { getResponseErrorMessage } from "../../../../utils/apiErrors.js";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GoogleMap, Marker, Polygon, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker, Polygon } from "@react-google-maps/api";
+import loader from "../../../../components/loader";
 import { X, MapPinned, Save, Trash2, Undo2, Plus, Shapes } from "lucide-react";
 import { usePdfOverlay } from "../../../../components/hooks/usePdfOverlay.js";
 import styles from "./EspaciosModal.module.css";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
-const GOOGLE_MAPS_LIBRARIES = ["drawing", "places", "geometry"];
-const GOOGLE_MAPS_API_KEY = "AIzaSyBABmst_tbRBz8hpzDhN039KeY1OtVWTQw";
 
 const normalizePolygonCoords = (coords = []) => {
   const normalized = coords
@@ -94,14 +93,15 @@ export default function EspaciosModal({ onClose, idproyecto, embedded = false })
   const mapRef = useRef(null);
   const polygonRef = useRef(null);
   const polygonListenersRef = useRef([]);
-  const {
-    isLoaded: apiLoaded,
-    loadError,
-  } = useJsApiLoader({
-    id: "espacios-modal-map",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
+  const [apiLoaded, setApiLoaded] = useState(
+    () => typeof window !== "undefined" && typeof window.google?.maps?.Map === "function",
+  );
+  const [loadError, setLoadError] = useState(null);
+
+  useEffect(() => {
+    if (apiLoaded) return;
+    loader.load().then(() => setApiLoaded(true)).catch((err) => setLoadError(err));
+  }, [apiLoaded]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);

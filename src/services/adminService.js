@@ -96,7 +96,9 @@ export const fetchDashboardOverview = async (idInmo) => {
           ...project,
           gallery_images: [],
         })[0] || null;
-      const galleryImages = await fetchProjectImages(project.idproyecto);
+      // Si ya tenemos una imagen directa (hero_image del overview), no hacemos
+      // la llamada extra a list_imagen_proyecto — elimina N requests en el happy path.
+      const galleryImages = directImage ? [] : await fetchProjectImages(project.idproyecto);
       return {
         ...fullProject,
         ...project,
