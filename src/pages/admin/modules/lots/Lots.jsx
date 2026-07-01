@@ -1,9 +1,17 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Blocks, Building2, FolderOpen, PlusCircle, Search } from 'lucide-react';
+import { Blocks, FolderOpen, PlusCircle, Search } from 'lucide-react';
 import { useAdmin } from '../../AdminContext';
 import { getProjectImageCandidates } from '../../../../services/adminService.js';
+import { useTheme } from '../../../../context/ThemeContext';
 import './Lots.css';
+
+function GeohabitaFallbackLogo() {
+  const { isDark } = useTheme();
+  const publicBase = import.meta.env.BASE_URL === './' ? '/' : import.meta.env.BASE_URL;
+  const logoSrc = `${publicBase}${isDark ? 'geohabitalight.png' : 'geohabita.png'}`;
+  return <img src={logoSrc} alt="GeoHabita" className="lots-project-fallbackLogo" />;
+}
 
 function LotProjectCard({ proyecto, onOpenProject }) {
   const imageCandidates = useMemo(() => getProjectImageCandidates(proyecto), [proyecto]);
@@ -31,7 +39,7 @@ function LotProjectCard({ proyecto, onOpenProject }) {
           />
         ) : (
           <div className="lots-project-fallback">
-            <Building2 size={28} />
+            <GeohabitaFallbackLogo />
           </div>
         )}
       </div>

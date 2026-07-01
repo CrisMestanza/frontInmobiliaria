@@ -1,4 +1,4 @@
-.publicmap-page { max-width: 900px; margin: 0 auto; }
+.publicmap-page { max-width: 1400px; margin: 0 auto; }
 .publicmap-header { margin-bottom: 1.2rem; }
 .publicmap-header h2 { font-size: 1.25rem; font-weight: 800; margin: 0; }
 .publicmap-header p { color: var(--theme-text-muted); font-size: 0.82rem; margin: 0.25rem 0 0; }

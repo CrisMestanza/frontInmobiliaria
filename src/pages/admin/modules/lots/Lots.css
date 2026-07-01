@@ -103,7 +103,8 @@
 
 .lots-project-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 360px));
+  justify-content: center;
   gap: 16px;
   align-items: stretch;
 }
@@ -149,6 +150,14 @@
 
 .dark .lots-project-fallback {
   color: rgba(94, 234, 212, 0.74);
+}
+
+.lots-project-fallbackLogo {
+  width: 42%;
+  max-width: 120px;
+  height: auto;
+  object-fit: contain;
+  opacity: 0.55;
 }
 
 .lots-project-body {

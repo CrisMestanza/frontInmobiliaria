@@ -121,6 +121,34 @@ export const fetchDashboardOverview = async (idInmo) => {
   };
 };
 
+export const fetchInmobiliaria = async (idInmo) => {
+  const token = localStorage.getItem('access');
+  const res = await authFetch(
+    withApiBase(`https://api.geohabita.com/api/getInmobiliaria/${idInmo}`),
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) await throwResponseError(res, 'No se pudo obtener los datos de la inmobiliaria.');
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] || null : data;
+};
+
+export const updateInmobiliaria = async (idInmo, payload) => {
+  const token = localStorage.getItem('access');
+  const res = await authFetch(
+    withApiBase(`https://api.geohabita.com/api/updateInmobiliaria/${idInmo}/`),
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!res.ok) await throwResponseError(res, 'No se pudo actualizar la inmobiliaria.');
+  return res.json();
+};
+
 export const toggleProjectPublic = async (idproyecto, nextValue) => {
   const token = localStorage.getItem('access');
   const res = await authFetch(

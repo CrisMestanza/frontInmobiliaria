@@ -728,7 +728,7 @@
   flex: 1 1 55%;
   width: 55%;
   min-width: 0;
-  padding: 25px;
+  padding: 12px 25px 25px;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
@@ -2514,7 +2514,7 @@
 }
 /* ===== CARD CONTENEDOR ===== */
 .inmoCard {
-  margin-top: 16px;
+  margin-top: 0;
   padding: 16px 18px;
   border-radius: 22px;
   background:
@@ -3014,7 +3014,7 @@
   }
 
   .primeInfo {
-    margin-top: 20%;
+    margin-top: 0;
   }
 
   .expanded {

@@ -331,6 +331,7 @@ function MyMap() {
     projectForma: new Map(),
     projectImages: new Map(),
     loteImages: new Map(),
+    loteDescripcion: new Map(),
   });
   const inflightRef = useRef({
     mapProjects: new Map(),
@@ -338,6 +339,7 @@ function MyMap() {
     projectForma: new Map(),
     projectImages: new Map(),
     loteImages: new Map(),
+    loteDescripcion: new Map(),
   });
   const projectDetailAbortRef = useRef(null);
   const projectImagesAbortRef = useRef(null);
@@ -754,6 +756,37 @@ function MyMap() {
       });
 
     inflightRef.current.loteImages.set(idlote, request);
+    return request;
+  };
+
+  // La descripción se excluyó del listado masivo de lotes (mapa_proyecto_todo/
+  // mapa_proyecto_detalle) porque puede pesar hasta 2000 caracteres por lote y
+  // solo hace falta cuando el usuario abre un lote puntual. Se trae aquí bajo
+  // demanda reutilizando el endpoint de detalle de lote (share), que sí la
+  // incluye completa.
+  const loadLoteDescripcion = async (idlote, signal) => {
+    if (cacheRef.current.loteDescripcion.has(idlote)) {
+      return cacheRef.current.loteDescripcion.get(idlote);
+    }
+
+    const inflight = inflightRef.current.loteDescripcion.get(idlote);
+    if (inflight) return inflight;
+
+    const url = withApiBase(
+      `https://api.geohabita.com/api/mapa/lote_detalle/${idlote}/`,
+    );
+    const request = fetch(url, { signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const descripcion = data?.lote?.descripcion ?? "";
+        cacheRef.current.loteDescripcion.set(idlote, descripcion);
+        return descripcion;
+      })
+      .finally(() => {
+        inflightRef.current.loteDescripcion.delete(idlote);
+      });
+
+    inflightRef.current.loteDescripcion.set(idlote, request);
     return request;
   };
 
@@ -1509,6 +1542,32 @@ function MyMap() {
       .catch((err) => {
         if (err?.name !== "AbortError") {
           console.error("Error cargando imágenes:", err);
+        }
+      });
+
+    return () => { controller.abort(); };
+  }, [selectedLote]);
+
+  // Backfill de descripción: el listado masivo de lotes ya no la incluye
+  // (ver loadLoteDescripcion). Si el lote seleccionado no la trae (llegó por
+  // click normal en el mapa, no por link compartido), se completa aquí.
+  useEffect(() => {
+    const idlote = selectedLote?.lote?.idlote;
+    if (!idlote || selectedLote.lote.descripcion !== undefined) return undefined;
+
+    const controller = new AbortController();
+    loadLoteDescripcion(idlote, controller.signal)
+      .then((descripcion) => {
+        if (controller.signal.aborted) return;
+        setSelectedLote((prev) =>
+          prev && prev.lote?.idlote === idlote
+            ? { ...prev, lote: { ...prev.lote, descripcion } }
+            : prev,
+        );
+      })
+      .catch((err) => {
+        if (err?.name !== "AbortError") {
+          console.error("Error cargando descripción del lote:", err);
         }
       });
 

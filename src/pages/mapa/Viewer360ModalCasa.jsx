@@ -582,6 +582,47 @@ const warmUpImage = (src, timeout = 8000) =>
       });
   });
 
+// Cuando el panorama inicial (o uno al cambiar de foto) falla en cargar —404,
+// CORS, timeout, blip de red— la librería solo muestra su overlay en inglés
+// "The panorama cannot be loaded" sin ningún reintento. Esto arma una cola de
+// candidatos (la misma URL que falló, luego la otra resolución disponible) y
+// los intenta uno por uno, primero como blob (fetch con timeout/abort) para
+// evitar que un segundo intento tropiece con el mismo problema de red.
+const buildPanoramaCandidates = (image, failedSrc) => {
+  const fullKey = image?.imagen_original;
+  const thumbKey = image?.imagen;
+  const seen = new Set();
+  return [failedSrc, fullKey, thumbKey].filter((src) => {
+    if (!src || seen.has(src)) return false;
+    seen.add(src);
+    return true;
+  });
+};
+
+const recoverFromPanoramaError = async (
+  viewer,
+  { image, failedSrc, caption, preloadBlobs },
+) => {
+  const candidates = buildPanoramaCandidates(image, failedSrc);
+  for (const candidate of candidates) {
+    const cachedBlob = preloadBlobs.get(candidate);
+    const blobUrl = cachedBlob || (await warmUpImage(candidate, 15000));
+    const srcToTry = blobUrl || candidate;
+    try {
+      await viewer.setPanorama(srcToTry, {
+        caption,
+        transition: false,
+        showLoader: false,
+      });
+      if (blobUrl && !cachedBlob) addToBlobCache(preloadBlobs, candidate, blobUrl);
+      return srcToTry;
+    } catch {
+      // Intentar el siguiente candidato de la cola.
+    }
+  }
+  return null;
+};
+
 const buildApiUrl = (path) => withApiBase(`${API_BASE}${path}`);
 const getImageId = (img) => img?.id_imagen ?? img?.id;
 const normalizeUrl = (url) => {
@@ -1366,6 +1407,7 @@ const Viewer360Modal = ({
   const [viewerLoadMessage, setViewerLoadMessage] = useState(
     "Preparando recorrido 360...",
   );
+  const [panoramaError, setPanoramaError] = useState(false);
   const [travelingTo, setTravelingTo] = useState("");
   const [computedOverlay, setComputedOverlay] = useState(null);
   const [selectedLoteInfo, setSelectedLoteInfo] = useState(null);
@@ -1573,9 +1615,9 @@ const Viewer360Modal = ({
     [selectedLoteInfo?.proyecto?.financing_config],
   );
   const viewerFinancingCurrency =
-    viewerFinancingConfig?.currency ||
     selectedLote?.moneda ||
     selectedLoteInfo?.proyecto?.moneda ||
+    viewerFinancingConfig?.currency ||
     "S/";
   const viewerFinancingPrice = Number(selectedLote?.precio || 0);
   const viewerFinancingMinInitial = Math.max(
@@ -2390,6 +2432,7 @@ const Viewer360Modal = ({
           antialias: true,
           powerPreference: "high-performance",
         },
+        lang: { loadError: "No se pudo cargar la imagen 360." },
       };
 
       if (Number.isFinite(initialYaw)) viewerOptions.defaultYaw = initialYaw;
@@ -2397,6 +2440,41 @@ const Viewer360Modal = ({
       viewerInstance = new runtime.Viewer(viewerOptions);
       viewerRef.current = viewerInstance;
       lastShownSrcRef.current = firstSrc;
+      setPanoramaError(false);
+
+      let recovering = false;
+      viewerInstance.addEventListener("panorama-error", async (event) => {
+        if (!active || recovering) return;
+        recovering = true;
+        // El canvas WebGL existe desde la construcción del Viewer aunque la
+        // textura falle, así que el fallback de "hay canvas -> ya está listo"
+        // podría marcar el visor como listo mientras seguimos reintentando.
+        if (readyFallbackTimer) {
+          window.clearTimeout(readyFallbackTimer);
+          readyFallbackTimer = null;
+        }
+        viewerInstance.hideError();
+        setViewerLoadMessage("Reintentando cargar la imagen 360...");
+        const failedSrc = event?.panorama || lastShownSrcRef.current || firstSrc;
+        const recovered = await recoverFromPanoramaError(viewerInstance, {
+          image: firstImage,
+          failedSrc,
+          caption: firstImage?.nombre,
+          preloadBlobs: preloadBlobsRef.current,
+        });
+        if (!active) return;
+        recovering = false;
+        if (recovered) {
+          lastShownSrcRef.current = recovered;
+          markViewerAsReady();
+        } else {
+          viewerInstance.hideError();
+          setPanoramaError(true);
+          setViewerLoadMessage(
+            "No se pudo cargar esta imagen 360. Revisa tu conexión e inténtalo de nuevo.",
+          );
+        }
+      });
 
       // Carga full-res en segundo plano y actualiza silenciosamente
       if (!cachedFull && fullKey && fullKey !== firstSrc) {
@@ -2469,6 +2547,7 @@ const Viewer360Modal = ({
     lastShownSrcRef.current = src;
 
     setIsPanoramaLoading(true);
+    setPanoramaError(false);
 
     Promise.resolve(
       viewer.setPanorama(src, {
@@ -2496,12 +2575,54 @@ const Viewer360Modal = ({
           });
         }
       })
-      .catch((error) => {
+      .catch(async (error) => {
+        console.warn("No se pudo cambiar la vista 360, reintentando:", error);
+        viewer.hideError();
+        setViewerLoadMessage("Reintentando cargar la imagen 360...");
+        const recovered = await recoverFromPanoramaError(viewer, {
+          image: currentImage,
+          failedSrc: src,
+          caption: currentImage.nombre,
+          preloadBlobs: preloadBlobsRef.current,
+        });
+        if (!viewerRef.current) return;
         setIsPanoramaLoading(false);
-        console.warn("No se pudo cambiar la vista 360:", error);
-        setViewerLoadMessage("No se pudo cargar la imagen 360.");
+        if (recovered) {
+          lastShownSrcRef.current = recovered;
+          setViewerReady(true);
+        } else {
+          viewer.hideError();
+          setPanoramaError(true);
+          setViewerLoadMessage(
+            "No se pudo cargar esta imagen 360. Revisa tu conexión e inténtalo de nuevo.",
+          );
+        }
       });
   }, [currentImage?.imagen_original, viewerReady]);
+
+  const handleRetryPanorama = async () => {
+    const viewer = viewerRef.current;
+    if (!viewer || !currentImage) return;
+    setPanoramaError(false);
+    setViewerLoadMessage("Reintentando cargar la imagen 360...");
+    const recovered = await recoverFromPanoramaError(viewer, {
+      image: currentImage,
+      failedSrc: lastShownSrcRef.current,
+      caption: currentImage?.nombre,
+      preloadBlobs: preloadBlobsRef.current,
+    });
+    if (!viewerRef.current) return;
+    if (recovered) {
+      lastShownSrcRef.current = recovered;
+      setViewerReady(true);
+    } else {
+      viewer.hideError();
+      setPanoramaError(true);
+      setViewerLoadMessage(
+        "No se pudo cargar esta imagen 360. Revisa tu conexión e inténtalo de nuevo.",
+      );
+    }
+  };
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -4235,8 +4356,19 @@ const Viewer360Modal = ({
         </div>
 
         <div className={styles.viewerWrapper}>
-          {!viewerReady && (
-            <div className={styles.loading360}>{viewerLoadMessage}</div>
+          {(!viewerReady || panoramaError) && (
+            <div className={styles.loading360}>
+              <span>{viewerLoadMessage}</span>
+              {panoramaError && (
+                <button
+                  type="button"
+                  className={styles.panoramaRetryBtn}
+                  onClick={handleRetryPanorama}
+                >
+                  Reintentar
+                </button>
+              )}
+            </div>
           )}
           <div className={styles.viewerContainer} ref={containerRef} />
           {LOT_LABELS_ENABLED && (

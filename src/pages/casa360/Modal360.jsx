@@ -106,6 +106,33 @@ const normalizeImageUrl = (url) => {
   return url.startsWith("http") ? url : buildApiUrl(url);
 };
 
+// La carga inicial del panorama la maneja la librería internamente y no
+// expone ningún catch hacia afuera: si falla (red, CORS, 404), solo se ve el
+// overlay default "The panorama cannot be loaded" sin ningún reintento. Esto
+// intenta un único refetch como blob antes de rendirse.
+const fetchPanoramaAsBlobUrl = (src, timeout = 12000) =>
+  new Promise((resolve) => {
+    if (!src) {
+      resolve(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      controller.abort();
+      resolve(null);
+    }, timeout);
+    fetch(src, { signal: controller.signal })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((blob) => {
+        window.clearTimeout(timer);
+        resolve(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        window.clearTimeout(timer);
+        resolve(null);
+      });
+  });
+
 const getImageId = (img) => img?.id_imagen ?? img?.id;
 
 const normalizeStoredImage = (img) => ({
@@ -3988,6 +4015,7 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
         navbar: ["zoom", "move", "caption", "fullscreen"],
         caption: `${selectedImg.nombre} · borrador local`,
         loadingImg: "https://geohabita.com/loading.gif",
+        lang: { loadError: "No se pudo cargar la imagen 360." },
       });
     } catch (err) {
       // El contenedor puede tener ancho/alto 0 durante una resolución muy
@@ -3999,6 +4027,28 @@ const Modal360 = ({ idproyecto, onClose, embedded = false }) => {
       );
       return undefined;
     }
+
+    let panoramaRetried = false;
+    viewer.addEventListener("panorama-error", async (event) => {
+      if (panoramaRetried) return;
+      panoramaRetried = true;
+      viewer.hideError();
+      const failedSrc = event?.panorama || selectedImg.imagen;
+      const blobUrl = await fetchPanoramaAsBlobUrl(failedSrc);
+      if (!viewerInstance.current) return;
+      if (blobUrl) {
+        try {
+          await viewer.setPanorama(blobUrl, { showLoader: false, transition: false });
+          return;
+        } catch {
+          // sigue al mensaje de error de abajo
+        }
+      }
+      viewer.hideError();
+      window.alertError?.(
+        "No se pudo cargar esta imagen 360. Revisa tu conexión e inténtalo de nuevo.",
+      );
+    });
     const restoreViewerAutoSize = installDeferredViewerAutoSize(viewer);
 
     viewerInstance.current = viewer;

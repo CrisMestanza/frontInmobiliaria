@@ -15,6 +15,12 @@ const FIELD_LABELS = {
   message: "Mensaje",
   error: "Error",
   financing_config: "Financiamiento",
+  nombreinmobiliaria: "Nombre de la inmobiliaria",
+  telefono: "Telefono",
+  whatsapp: "WhatsApp",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  pagina: "Pagina web",
 };
 
 const STATUS_MESSAGES = {

@@ -2,9 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Building2, CircleDot, ExternalLink, Globe2, Image as ImageIcon, Layers3, MapPinned } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getProjectImageCandidates, hasFinancingConfigValue } from '../../../services/adminService.js';
+import { useTheme } from '../../../context/ThemeContext';
 import './ProjectModuleShell.css';
 
-function ProjectPickerCard({ proyecto, onOpen, accentClass, renderProjectActions }) {
+function GeohabitaFallbackLogo() {
+  const { isDark } = useTheme();
+  const publicBase = import.meta.env.BASE_URL === './' ? '/' : import.meta.env.BASE_URL;
+  const logoSrc = `${publicBase}${isDark ? 'geohabitalight.png' : 'geohabita.png'}`;
+  return <img src={logoSrc} alt="GeoHabita" className="project-module-fallbackLogo" />;
+}
+
+function ProjectPickerCard({ proyecto, onOpen, accentClass, renderProjectActions, moduleDescription }) {
   const navigate = useNavigate();
   const imageCandidates = useMemo(() => getProjectImageCandidates(proyecto), [proyecto]);
   const [imageIndex, setImageIndex] = useState(0);
@@ -34,7 +42,7 @@ function ProjectPickerCard({ proyecto, onOpen, accentClass, renderProjectActions
           />
         ) : (
           <div className="project-module-pickerFallback">
-            <Building2 size={28} />
+            <GeohabitaFallbackLogo />
           </div>
         )}
       </div>
@@ -48,6 +56,10 @@ function ProjectPickerCard({ proyecto, onOpen, accentClass, renderProjectActions
             {proyecto.publico_mapa !== 0 ? 'Público' : 'Privado'}
           </span>
         </div>
+
+        {moduleDescription && (
+          <p className="project-module-pickerDescription">{moduleDescription}</p>
+        )}
 
         <div className="project-module-pickerMetrics">
           <div>
@@ -144,12 +156,6 @@ export default function ProjectModuleShell({
           </section>
         ) : (
           <section className="project-module-pickerSection">
-            <div className="project-module-sectionHead">
-              <div>
-                <h2>Elige un proyecto activo</h2>
-                <p>Entras directo al módulo correcto sin volver a la pantalla de proyectos.</p>
-              </div>
-            </div>
             <div className="project-module-pickerGrid">
               {projects.map((proyecto) => (
                 <ProjectPickerCard
@@ -158,6 +164,7 @@ export default function ProjectModuleShell({
                   onOpen={onSelectProject}
                   accentClass={`project-module-pickerCard--${moduleAccent}`}
                   renderProjectActions={renderProjectActions}
+                  moduleDescription={moduleDescription}
                 />
               ))}
             </div>
@@ -207,7 +214,7 @@ export default function ProjectModuleShell({
               />
             ) : (
               <div className="project-module-heroFallback">
-                <Building2 size={32} />
+                <GeohabitaFallbackLogo />
               </div>
             )}
           </div>

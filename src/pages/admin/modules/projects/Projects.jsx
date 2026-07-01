@@ -8,7 +8,6 @@ import {
   Trash2,
   MapPin,
   Layers,
-  Globe,
   CheckCircle2,
   ClockFading,
   TagIcon,
@@ -22,7 +21,15 @@ import {
   hasFinancingConfigValue,
   getProjectImageCandidates,
 } from "../../../../services/adminService.js";
+import { useTheme } from "../../../../context/ThemeContext";
 import "./Projects.css";
+
+function GeohabitaFallbackLogo() {
+  const { isDark } = useTheme();
+  const publicBase = import.meta.env.BASE_URL === "./" ? "/" : import.meta.env.BASE_URL;
+  const logoSrc = `${publicBase}${isDark ? "geohabitalight.png" : "geohabita.png"}`;
+  return <img src={logoSrc} alt="GeoHabita" className="no-image-placeholder-logo" />;
+}
 
 // ProjectCard component (extracted from PanelInmo CardProyecto)
 function ProjectCard({
@@ -75,7 +82,7 @@ function ProjectCard({
           />
         ) : (
           <div className="no-image-placeholder">
-            <Globe size={48} opacity={0.2} />
+            <GeohabitaFallbackLogo />
             <span className="card-loading-text">Sin imagen de portada</span>
           </div>
         )}

@@ -5,6 +5,7 @@ import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import style from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
+import COUNTRIES from "../../../data/countries.js";
 
 export default function EditLote({
   onClose,
@@ -43,6 +44,8 @@ export default function EditLote({
   });
 
   const [tipos, setTipos] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState(null);
   const [mapReady, setMapReady] = useState(false);
   const [otherLotesCoords, setOtherLotesCoords] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
@@ -127,6 +130,17 @@ export default function EditLote({
           moneda: lote.moneda ?? "",
           bandera: lote.bandera ?? "",
         });
+        const loteCountry =
+          COUNTRIES.find(
+            (c) =>
+              (c.name || "").trim().toLowerCase() ===
+              (lote.pais || "").trim().toLowerCase(),
+          ) ||
+          COUNTRIES.find(
+            (c) => lote.moneda && c.currencySymbol === lote.moneda,
+          ) ||
+          null;
+        setSelectedCountry(loteCountry);
         setExistingImages(Array.isArray(imagenes) ? imagenes : []);
         setRemovedImageIds([]);
       } catch (err) {
@@ -294,10 +308,28 @@ export default function EditLote({
     fetchTipos();
   }, []);
 
+  useEffect(() => {
+    setCountries(COUNTRIES);
+  }, []);
+
   const handleTipoChange = (e) =>
     setForm({ ...form, idtipoinmobiliaria: parseInt(e.target.value, 10) });
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
+
+  // País, moneda y bandera deben moverse juntos: elegir un país en el
+  // desplegable actualiza los tres a la vez para que nunca queden
+  // desincronizados (p.ej. bandera de EE.UU. con precio mostrado en soles).
+  const handleCountryChange = (e) => {
+    const country = countries.find((c) => c.name === e.target.value);
+    setSelectedCountry(country || null);
+    setForm((prev) => ({
+      ...prev,
+      pais: country?.name || "",
+      moneda: country?.currencySymbol || "",
+      bandera: country?.flag || "",
+    }));
+  };
 
   const handleImagenesChange = (e) => {
     const files = Array.from(e.target.files || []).map((file) => ({
@@ -541,31 +573,34 @@ export default function EditLote({
 
                 <div className={style.compactGrid}>
                   <div className={style.compactField}>
-                    <label>País</label>
-                    <input
-                      name="pais"
-                      value={form.pais}
-                      onChange={handleChange}
-                      className={style.input}
-                    />
+                    <label>País y moneda</label>
+                    <select
+                      value={selectedCountry?.name || ""}
+                      onChange={handleCountryChange}
+                      className={style.select}
+                    >
+                      <option value="">Seleccionar país</option>
+                      {countries.map((c, i) => (
+                        <option key={i} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className={style.compactField}>
-                    <label>Moneda</label>
-                    <input
-                      name="moneda"
-                      value={form.moneda}
-                      onChange={handleChange}
-                      className={style.input}
-                    />
-                  </div>
-                  <div className={style.compactField}>
-                    <label>Bandera (URL)</label>
-                    <input
-                      name="bandera"
-                      value={form.bandera}
-                      onChange={handleChange}
-                      className={style.input}
-                    />
+                    <label>Moneda del lote</label>
+                    <div className={style.priceRow}>
+                      {form.bandera && (
+                        <img
+                          src={form.bandera}
+                          alt="bandera"
+                          className={style.flagIcon}
+                        />
+                      )}
+                      <span className={style.currencyLabel}>
+                        {form.moneda || "—"}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
