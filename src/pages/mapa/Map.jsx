@@ -179,6 +179,82 @@ const LotesOverlay = ({
 
 const MemoizedLotesOverlay = React.memo(LotesOverlay);
 
+// Per-espacio memoizado — igual que LotItem: solo re-renderiza (y solo
+// reposiciona su label) cuando cambia su propio estado, no el de otro espacio
+// ni el de cualquier otro estado del mapa.
+const EspacioItem = React.memo(
+  function EspacioItem({
+    espacio,
+    isSelected,
+    isHovered,
+    color,
+    labelPosition,
+    showLabel,
+    showPattern,
+    mapZoom,
+    getSpaceVisualStyle,
+    getSpaceIconUrl,
+    onSelect,
+    onHoverStart,
+    onHoverEnd,
+  }) {
+    return (
+      <>
+        <PolygonOverlay
+          puntos={espacio.puntos}
+          path={espacio.polygonPath}
+          labelPosition={labelPosition}
+          color={color}
+          label={showLabel ? espacio.nombre : null}
+          onClick={() => onSelect(espacio)}
+          onMouseOver={() => onHoverStart(espacio)}
+          onMouseOut={onHoverEnd}
+          options={{
+            clickable: true,
+            strokeOpacity: 0.9,
+            ...getSpaceVisualStyle(espacio, isSelected),
+          }}
+          mapZoom={mapZoom}
+        />
+        <SpacePatternOverlay
+          path={espacio.polygonPath || []}
+          espacio={espacio}
+          color={color}
+          visible={showPattern}
+          emphasized={isSelected || isHovered}
+        />
+        {(espacio.polygonCenter ||
+          (Number.isFinite(espacio.centerLat) &&
+            Number.isFinite(espacio.centerLng))) && (
+          <Marker
+            position={
+              espacio.polygonCenter ||
+              { lat: espacio.centerLat, lng: espacio.centerLng }
+            }
+            icon={{
+              url: getSpaceIconUrl(espacio),
+              scaledSize: new window.google.maps.Size(32, 32),
+            }}
+            title={`${espacio.tipoespacio?.nombre || "Espacio"} · ${espacio.nombre}`}
+            zIndex={12}
+            clickable
+            onClick={() => onSelect(espacio)}
+          />
+        )}
+      </>
+    );
+  },
+  (prev, next) =>
+    prev.espacio === next.espacio &&
+    prev.isSelected === next.isSelected &&
+    prev.isHovered === next.isHovered &&
+    prev.color === next.color &&
+    prev.labelPosition === next.labelPosition &&
+    prev.showLabel === next.showLabel &&
+    prev.showPattern === next.showPattern &&
+    prev.mapZoom === next.mapZoom,
+);
+
 function MyMap() {
   const { isDark, toggleTheme } = useTheme();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -235,6 +311,7 @@ function MyMap() {
   const [mapIntroHintVisible, setMapIntroHintVisible] = useState(false);
 
   const mapRef = useRef(null);
+  const preProjectViewRef = useRef(null);
   const mapTypeListenerRef = useRef(null);
   const mapTypeControlRef = useRef(null);
   const headerRef = useRef(null);
@@ -767,6 +844,20 @@ function MyMap() {
 
   const isSidebarOpen = !!(selectedProyecto || selectedLote);
   const shouldShrinkMapForSidebar = isDesktopSidebarViewport && isSidebarOpen;
+  const proyectoHasNoMedia = useMemo(() => {
+    if (!selectedProyecto || selectedLote) return false;
+    if (isProyectoLoading || imagenesProyecto === null) return false;
+    const validImages = (Array.isArray(imagenesProyecto) ? imagenesProyecto : []).filter(
+      (img) => {
+        const src = img?.imagenproyecto;
+        if (typeof src !== "string") return false;
+        const trimmed = src.trim();
+        if (!trimmed) return false;
+        return !trimmed.toLowerCase().includes("no hay imagenes referenciales");
+      },
+    );
+    return validImages.length === 0;
+  }, [selectedProyecto, selectedLote, isProyectoLoading, imagenesProyecto]);
 
   useEffect(() => {
     if (isSidebarOpen) {
@@ -856,8 +947,10 @@ function MyMap() {
     return typeof raw === "string" && raw.trim() ? raw : "#22c55e";
   }, []);
 
+  // Puro en base a isSelected explícito (no cierra sobre selectedSpace) para
+  // que EspacioItem pueda memoizarse por-espacio sin invalidarse en cada hover.
   const getSpaceVisualStyle = useCallback(
-    (espacio) => {
+    (espacio, isSelected) => {
       const color = getSpaceColor(espacio);
       const kind = String(
         espacio?.tipoespacio?.slug || espacio?.tipoespacio?.nombre || "",
@@ -872,28 +965,28 @@ function MyMap() {
       ) {
         return {
           fillColor: color,
-          fillOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.34 : 0.26,
+          fillOpacity: isSelected ? 0.34 : 0.26,
           strokeColor: "#166534",
-          strokeWeight: selectedSpace?.idespacio === espacio.idespacio ? 3.4 : 2.6,
+          strokeWeight: isSelected ? 3.4 : 2.6,
           haloColor: "#86efac",
-          haloOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.36 : 0.24,
-          haloWeight: selectedSpace?.idespacio === espacio.idespacio ? 8 : 6,
-          zIndex: selectedSpace?.idespacio === espacio.idespacio ? 7 : 5,
+          haloOpacity: isSelected ? 0.36 : 0.24,
+          haloWeight: isSelected ? 8 : 6,
+          zIndex: isSelected ? 7 : 5,
         };
       }
 
       return {
         fillColor: color,
-        fillOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.34 : 0.22,
+        fillOpacity: isSelected ? 0.34 : 0.22,
         strokeColor: color,
-        strokeWeight: selectedSpace?.idespacio === espacio.idespacio ? 3 : 2,
+        strokeWeight: isSelected ? 3 : 2,
         haloColor: color,
-        haloOpacity: selectedSpace?.idespacio === espacio.idespacio ? 0.34 : 0.22,
-        haloWeight: selectedSpace?.idespacio === espacio.idespacio ? 7 : 5,
-        zIndex: selectedSpace?.idespacio === espacio.idespacio ? 7 : 5,
+        haloOpacity: isSelected ? 0.34 : 0.22,
+        haloWeight: isSelected ? 7 : 5,
+        zIndex: isSelected ? 7 : 5,
       };
     },
-    [getSpaceColor, selectedSpace],
+    [getSpaceColor],
   );
 
   const getSpaceIconUrl = useCallback((espacio) => {
@@ -970,6 +1063,21 @@ function MyMap() {
     const estado = Number(selectedProyecto.estado);
     return !(estado === 1 && tipoInmo === 1);
   }, [selectedProyecto, filtroBotActivo]);
+
+  const espacioLabelPositions = useMemo(() => {
+    const map = new Map();
+    espaciosProyecto.forEach((espacio) => {
+      map.set(
+        espacio.idespacio,
+        espacio.polygonCenter ||
+          (Number.isFinite(espacio.centerLat) &&
+          Number.isFinite(espacio.centerLng)
+            ? { lat: espacio.centerLat, lng: espacio.centerLng }
+            : null),
+      );
+    });
+    return map;
+  }, [espaciosProyecto]);
 
   const visibleSpaceLegend = useMemo(() => {
     const typeMap = new Map();
@@ -1605,6 +1713,15 @@ function MyMap() {
     () => startHoverTransition(() => setHoveredLote(null)),
     [startHoverTransition],
   );
+  const handleSpaceMouseOver = useCallback(
+    (espacio) => startHoverTransition(() => setHoveredSpace(espacio)),
+    [startHoverTransition],
+  );
+  const handleSpaceMouseOut = useCallback(
+    () => startHoverTransition(() => setHoveredSpace(null)),
+    [startHoverTransition],
+  );
+  const handleSpaceSelect = useCallback((espacio) => setSelectedSpace(espacio), []);
 
   const isMobile = () => window.innerWidth <= 768;
 
@@ -2261,6 +2378,16 @@ function MyMap() {
       setSelectedSpace(null);
       setHoveredSpace(null);
 
+      if (mapRef.current) {
+        const centerBeforeFocus = mapRef.current.getCenter?.();
+        preProjectViewRef.current = {
+          center: centerBeforeFocus
+            ? { lat: centerBeforeFocus.lat(), lng: centerBeforeFocus.lng() }
+            : null,
+          zoom: mapRef.current.getZoom?.(),
+        };
+      }
+
       const quickLat = normalizeNumber(proyecto.latitud);
       const quickLng = normalizeNumber(proyecto.longitud);
       if (
@@ -2613,7 +2740,7 @@ function MyMap() {
       </header>
 
       <div
-        className={`${styles.mapViewport} ${shouldShrinkMapForSidebar ? styles.mapViewportWithSidebar : ""}`}
+        className={`${styles.mapViewport} ${shouldShrinkMapForSidebar ? (proyectoHasNoMedia ? styles.mapViewportWithSidebarNoMedia : styles.mapViewportWithSidebar) : ""}`}
         style={{ "--map-header-offset": `${mapHeaderOffsetPx}px` }}
       >
         {shouldShowShareLoader && <GeoHabitaLoader autoHide={false} />}
@@ -2743,11 +2870,17 @@ function MyMap() {
           onIdle={() => {
             const nextZoom = mapRef.current?.getZoom();
             isMapZoomingRef.current = false;
-            if (Number.isFinite(nextZoom)) {
-              setZoomState({ zoom: nextZoom, overlayZoom: nextZoom, isZooming: false });
-            } else {
-              setZoomState((prev) => ({ ...prev, isZooming: false }));
-            }
+            setZoomState((prev) => {
+              const resolvedZoom = Number.isFinite(nextZoom) ? nextZoom : prev.zoom;
+              if (
+                resolvedZoom === prev.zoom &&
+                resolvedZoom === prev.overlayZoom &&
+                !prev.isZooming
+              ) {
+                return prev;
+              }
+              return { zoom: resolvedZoom, overlayZoom: resolvedZoom, isZooming: false };
+            });
             scheduleBoundsUpdate();
           }}
           options={{
@@ -2871,62 +3004,25 @@ function MyMap() {
           {selectedProyecto &&
             showSpacesLayer &&
             espaciosProyecto.map((espacio) => (
-              <React.Fragment key={espacio.idespacio}>
-                <PolygonOverlay
-                  puntos={espacio.puntos}
-                  path={espacio.polygonPath}
-                  labelPosition={
-                    espacio.polygonCenter ||
-                    (Number.isFinite(espacio.centerLat) &&
-                    Number.isFinite(espacio.centerLng)
-                      ? { lat: espacio.centerLat, lng: espacio.centerLng }
-                      : null)
-                  }
-                  color={getSpaceColor(espacio)}
-                  label={
-                    overlayZoom >= 15 || espacio.destacado
-                      ? { text: espacio.nombre }
-                      : null
-                  }
-                  onClick={() => setSelectedSpace(espacio)}
-                  onMouseOver={() => setHoveredSpace(espacio)}
-                  onMouseOut={() => setHoveredSpace(null)}
-                  options={{
-                    clickable: true,
-                    strokeOpacity: 0.9,
-                    ...getSpaceVisualStyle(espacio),
-                  }}
-                  mapZoom={overlayZoom}
-                />
-                <SpacePatternOverlay
-                  path={espacio.polygonPath || []}
-                  espacio={espacio}
-                  color={getSpaceColor(espacio)}
-                  visible={overlayZoom >= 14 || selectedSpace?.idespacio === espacio.idespacio}
-                  emphasized={
-                    selectedSpace?.idespacio === espacio.idespacio ||
-                    hoveredSpace?.idespacio === espacio.idespacio
-                  }
-                />
-                {(espacio.polygonCenter ||
-                  (Number.isFinite(espacio.centerLat) &&
-                    Number.isFinite(espacio.centerLng))) && (
-                  <Marker
-                    position={
-                      espacio.polygonCenter ||
-                      { lat: espacio.centerLat, lng: espacio.centerLng }
-                    }
-                    icon={{
-                      url: getSpaceIconUrl(espacio),
-                      scaledSize: new window.google.maps.Size(32, 32),
-                    }}
-                    title={`${espacio.tipoespacio?.nombre || "Espacio"} · ${espacio.nombre}`}
-                    zIndex={12}
-                    clickable
-                    onClick={() => setSelectedSpace(espacio)}
-                  />
-                )}
-              </React.Fragment>
+              <EspacioItem
+                key={espacio.idespacio}
+                espacio={espacio}
+                isSelected={selectedSpace?.idespacio === espacio.idespacio}
+                isHovered={hoveredSpace?.idespacio === espacio.idespacio}
+                color={getSpaceColor(espacio)}
+                labelPosition={espacioLabelPositions.get(espacio.idespacio)}
+                showLabel={overlayZoom >= 15 || espacio.destacado}
+                showPattern={
+                  overlayZoom >= 14 ||
+                  selectedSpace?.idespacio === espacio.idespacio
+                }
+                mapZoom={overlayZoom}
+                getSpaceVisualStyle={getSpaceVisualStyle}
+                getSpaceIconUrl={getSpaceIconUrl}
+                onSelect={handleSpaceSelect}
+                onHoverStart={handleSpaceMouseOver}
+                onHoverEnd={handleSpaceMouseOut}
+              />
             ))}
 
           {selectedProyecto && lotesProyecto.length > 0 && (
@@ -3129,13 +3225,19 @@ function MyMap() {
           onClose={async () => {
             if (mapRef.current && window.google?.maps) {
               const map = mapRef.current;
+              const savedView = preProjectViewRef.current;
 
-              // 🔹 Si tienes posición actual
-              map.panTo(currentPosition);
-
-              // 🔹 Zoom 17
-              map.setZoom(13);
+              if (savedView?.center) {
+                map.panTo(savedView.center);
+                if (typeof savedView.zoom === "number") {
+                  map.setZoom(savedView.zoom);
+                }
+              } else {
+                map.panTo(currentPosition);
+                map.setZoom(13);
+              }
             }
+            preProjectViewRef.current = null;
             setselectedProyecto(null);
             setDirections(null);
             setWalkingInfo(null);

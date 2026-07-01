@@ -1280,6 +1280,10 @@
   width: 55%;
 }
 
+.mapViewportWithSidebarNoMedia {
+  width: calc(100% - min(523px, 50.6vw));
+}
+
 .sidebar {
   position: relative;
   top: 10px;
@@ -2313,7 +2317,8 @@
 }
 
 @media screen and (max-width: 1023px) {
-  .mapViewportWithSidebar {
+  .mapViewportWithSidebar,
+  .mapViewportWithSidebarNoMedia {
     width: 100%;
   }
 }
@@ -2337,9 +2342,7 @@
   }
 
   .spaceLayerControl {
-    left: 8px;
-    bottom: 10px;
-    max-width: min(270px, calc(100vw - 16px));
+    display: none;
   }
 
   .spaceInfoCard {

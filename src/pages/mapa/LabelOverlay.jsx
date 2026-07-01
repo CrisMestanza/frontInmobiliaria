@@ -1,5 +1,5 @@
 import React from "react";
-import { OverlayView } from "@react-google-maps/api";
+import { OverlayViewF, OVERLAY_MOUSE_TARGET } from "@react-google-maps/api";
 
 const LabelOverlay = ({
   position,
@@ -9,9 +9,9 @@ const LabelOverlay = ({
   color = "#ffffff",
 }) => {
   return (
-    <OverlayView
+    <OverlayViewF
       position={position}
-      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+      mapPaneName={OVERLAY_MOUSE_TARGET}
     >
       <div
         style={{
@@ -33,8 +33,8 @@ const LabelOverlay = ({
       >
         {text}
       </div>
-    </OverlayView>
+    </OverlayViewF>
   );
 };
 
-export default LabelOverlay;
+export default React.memo(LabelOverlay);

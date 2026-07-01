@@ -251,8 +251,13 @@
   max-width: min(523px, 50.6vw) !important;
 }
 
+.sidebarNoMedia .imageSection {
+  display: none;
+}
+
 .sidebarNoMedia .infoSection {
   flex: 1 1 auto;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -2853,7 +2858,7 @@
   }
 
   .inmoCard {
-    margin-right: 0;
+    display: none;
   }
 
   .primeInfo,

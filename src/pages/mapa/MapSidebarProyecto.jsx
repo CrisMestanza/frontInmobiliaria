@@ -198,6 +198,7 @@ const ProyectoSidebar = ({
   const sidebarRef = useRef(null);
   const inmoFooterRef = useRef(null);
   const contentRef = useRef(null);
+  const mobileTopHeaderRef = useRef(null);
   const carouselTouchStartX = useRef(0);
   const carouselTouchEndX = useRef(0);
   const sheetTouchStartY = useRef(0);
@@ -1096,6 +1097,30 @@ const ProyectoSidebar = ({
     return;
   };
 
+  useEffect(() => {
+    if (!isMobileView) return;
+    const headerEl = mobileTopHeaderRef.current;
+    const contentEl = contentRef.current;
+    if (headerEl) {
+      headerEl.addEventListener("touchmove", onSheetTouchMove, {
+        passive: false,
+      });
+    }
+    if (contentEl) {
+      contentEl.addEventListener("touchmove", onNestedTouchMove, {
+        passive: false,
+      });
+    }
+    return () => {
+      if (headerEl) {
+        headerEl.removeEventListener("touchmove", onSheetTouchMove);
+      }
+      if (contentEl) {
+        contentEl.removeEventListener("touchmove", onNestedTouchMove);
+      }
+    };
+  });
+
   if (!proyecto) return null;
 
   const overlayActive = false;
@@ -1118,7 +1143,7 @@ const ProyectoSidebar = ({
 
       <div
         ref={sidebarRef}
-        className={`${styles.sidebar} ${expanded ? styles.expanded : ""} ${isMobileView ? styles.mobileSidebar : ""} ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""} ${sheetMode === "expanded" ? styles.mobileExpanded : ""} ${!isLoading && !imagesPending && validImages.length === 0 ? styles.sidebarNoMedia : ""}`}
+        className={`${styles.sidebar} ${expanded ? styles.expanded : ""} ${isMobileView ? styles.mobileSidebar : ""} ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""} ${sheetMode === "expanded" ? styles.mobileExpanded : ""} ${!isMobileView && !isLoading && !imagesPending && validImages.length === 0 ? styles.sidebarNoMedia : ""}`}
         style={
           isMobileView && mobileSheetTop !== null
             ? {
@@ -1133,9 +1158,9 @@ const ProyectoSidebar = ({
       >
         {isMobileView && (
           <div
+            ref={mobileTopHeaderRef}
             className={styles.mobileTopHeader}
             onTouchStart={onSheetTouchStart}
-            onTouchMove={onSheetTouchMove}
             onTouchEnd={onSheetTouchEnd}
           >
             <h3 className={styles.mobileHeaderTitle}>
@@ -1164,11 +1189,10 @@ const ProyectoSidebar = ({
           className={`${styles.splitLayout} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
           {/* SECCIÓN IMAGEN / SLIDER */}
-          {(isLoading || imagesPending || validImages.length > 0) && (
           <div className={styles.imageSection} data-gsap="media">
             {isLoading || imagesPending ? (
               <div className={styles.skeletonImage} />
-            ) : isMobileView ? (
+            ) : validImages.length === 0 ? null : isMobileView ? (
               <div
                 className={styles.mobileCarouselWrap}
                 onTouchStart={onCarouselTouchStart}
@@ -1318,7 +1342,6 @@ const ProyectoSidebar = ({
               </>
             )}
           </div>
-          )}
 
           {/* SECCIÓN INFORMACIÓN */}
           <div
@@ -1326,7 +1349,6 @@ const ProyectoSidebar = ({
             ref={contentRef}
             onScroll={handleScroll}
             onTouchStart={onNestedTouchStart}
-            onTouchMove={onNestedTouchMove}
             onTouchEnd={onNestedTouchEnd}
           >
             {isLoading ? (
