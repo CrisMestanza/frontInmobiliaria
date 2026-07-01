@@ -157,8 +157,10 @@ export const usePdfOverlay = (idproyecto, googleRef, mapRef, isLoaded) => {
         // Guardar imagen original
         originalPdfImageRef.current = imageData;
 
-        // Cargar configuración guardada
-        const savedSettings = localStorage.getItem(`pdfSettings_${idproyecto}`);
+        // Cargar configuración guardada (misma clave que usan
+        // agregarLote.jsx / agregarLoteBlock.jsx / agregarLotePDF.jsx
+        // al posicionar el PDF sobre el mapa).
+        const savedSettings = localStorage.getItem(`pdf_meta_${idproyecto}`);
         if (savedSettings) {
           const settings = JSON.parse(savedSettings);
 

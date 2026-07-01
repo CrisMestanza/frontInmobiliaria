@@ -36,8 +36,9 @@ function ProjectCard({
   }, [proyecto]);
 
   const [imageIndex, setImageIndex] = useState(0);
+  const [imageFailed, setImageFailed] = useState(false);
   const spaceStats = proyecto.space_stats || {};
-  const imageSrc = imageCandidates[imageIndex] || null;
+  const imageSrc = imageFailed ? null : imageCandidates[imageIndex] || null;
 
   const isPublic = proyecto.publico_mapa !== 0;
   const totalLotes = loteStats?.total ?? 0;
@@ -53,6 +54,7 @@ function ProjectCard({
 
   React.useEffect(() => {
     setImageIndex(0);
+    setImageFailed(false);
   }, [proyecto.idproyecto, imageCandidates.length]);
 
   return (
@@ -64,9 +66,11 @@ function ProjectCard({
             alt={proyecto.nombreproyecto}
             className="img-carousel"
             onError={() =>
-              setImageIndex((prev) =>
-                prev + 1 < imageCandidates.length ? prev + 1 : prev,
-              )
+              setImageIndex((prev) => {
+                if (prev + 1 < imageCandidates.length) return prev + 1;
+                setImageFailed(true);
+                return prev;
+              })
             }
           />
         ) : (

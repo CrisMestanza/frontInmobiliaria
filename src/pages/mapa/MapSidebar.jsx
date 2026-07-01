@@ -96,6 +96,8 @@ const LoteSidebarOverlay = ({
   onClose,
   walkingInfo,
   drivingInfo,
+  hasRealPosition = false,
+  onRequestLocation,
   mapHeaderOffsetPx = 0,
   isLoading = false,
 }) => {
@@ -416,18 +418,21 @@ const LoteSidebarOverlay = ({
     [proyecto?.financing_config],
   );
   const financingCurrency =
-    financingConfig?.currency || lote?.moneda || proyecto?.moneda || "S/";
+    lote?.moneda || proyecto?.moneda || financingConfig?.currency || "S/";
   const financingPrice = Number(lote?.precio || 0);
+  const configuredMinInitialLote = Number(
+    financingConfig?.min_initial_amount ??
+      financingConfig?.default_initial_amount ??
+      0,
+  ) || 0;
   const financingMinInitial = Math.max(
     0,
-    Number(
-      financingConfig?.min_initial_amount ??
-        financingConfig?.default_initial_amount ??
-        0,
-    ) || Math.round(financingPrice * 0.1),
+    financingPrice > 0 && configuredMinInitialLote > financingPrice
+      ? Math.round(financingPrice * 0.1)
+      : configuredMinInitialLote || Math.round(financingPrice * 0.1),
   );
   const financingMaxInitial = Math.max(
-    financingMinInitial,
+    financingMinInitial + 100,
     Math.min(
       Number(financingConfig?.max_initial_amount || financingPrice || 0) ||
         financingPrice,
@@ -1111,6 +1116,7 @@ const LoteSidebarOverlay = ({
                     )}
                   </div>
 
+                  {financingConfig && financingConfig.enabled !== false && (
                   <div className={styles.financingCard} data-gsap="card">
                     <div className={styles.financingHeader}>
                       <div>
@@ -1522,6 +1528,7 @@ const LoteSidebarOverlay = ({
                       </p>
                     )}
                   </div>
+                  )}
                 </div>
 
                 <div className={styles.extraContent}>
@@ -1576,33 +1583,45 @@ const LoteSidebarOverlay = ({
                   )}
 
                   <h3 className={styles.sectionTitle}>Cercanía</h3>
-                  <div className={styles.distanciaBox} data-gsap="metric">
-                    <div className={styles.metricGroup}>
-                      <div className={styles.metricItem}>
-                        <span className={styles.metricValue}>{carMinutes}</span>
-                        <span className={styles.metricUnit}>MIN</span>
-                        <FaCar className={styles.metricIcon} />
+                  {hasRealPosition ? (
+                    <div className={styles.distanciaBox} data-gsap="metric">
+                      <div className={styles.metricGroup}>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricValue}>{carMinutes}</span>
+                          <span className={styles.metricUnit}>MIN</span>
+                          <FaCar className={styles.metricIcon} />
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricValue}>{carKm}</span>
+                          <span className={styles.metricUnit}>KM</span>
+                        </div>
                       </div>
-                      <div className={styles.metricItem}>
-                        <span className={styles.metricValue}>{carKm}</span>
-                        <span className={styles.metricUnit}>KM</span>
+                      <div className={styles.metricDivider} />
+                      <div className={styles.metricGroup}>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricValue}>
+                            {walkMinutes}
+                          </span>
+                          <span className={styles.metricUnit}>MIN</span>
+                          <FaWalking className={styles.metricIcon} />
+                        </div>
+                        <div className={styles.metricItem}>
+                          <span className={styles.metricValue}>{walkKm}</span>
+                          <span className={styles.metricUnit}>KM</span>
+                        </div>
                       </div>
                     </div>
-                    <div className={styles.metricDivider} />
-                    <div className={styles.metricGroup}>
-                      <div className={styles.metricItem}>
-                        <span className={styles.metricValue}>
-                          {walkMinutes}
-                        </span>
-                        <span className={styles.metricUnit}>MIN</span>
-                        <FaWalking className={styles.metricIcon} />
-                      </div>
-                      <div className={styles.metricItem}>
-                        <span className={styles.metricValue}>{walkKm}</span>
-                        <span className={styles.metricUnit}>KM</span>
-                      </div>
-                    </div>
-                  </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.locationCtaBtn}
+                      onClick={onRequestLocation}
+                    >
+                      <FaMapMarkerAlt className={styles.locationCtaIcon} />
+                      Para ver el tiempo y distancia a este proyecto, debes
+                      activar tu ubicación
+                    </button>
+                  )}
 
                   <div className={styles.socialFooter}>
                     <a

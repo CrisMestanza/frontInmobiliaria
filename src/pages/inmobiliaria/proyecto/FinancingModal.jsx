@@ -23,6 +23,7 @@ export default function FinancingModal({ onClose, proyecto, embedded = false }) 
     [proyecto?.financing_config, proyecto?.precio, proyecto?.moneda],
   );
   const [financingState, setFinancingState] = useState(financingBaseState);
+  const isConfigured = Boolean(proyecto?.financing_config);
 
   const currency = proyecto?.moneda || "S/";
   const projectPrice = Number(
@@ -158,7 +159,11 @@ export default function FinancingModal({ onClose, proyecto, embedded = false }) 
                 <div className={styles.financingIntroPill}>
                   <span>Estado</span>
                   <strong>
-                    {financingState?.enabled === false ? "Desactivado" : "Activo"}
+                    {!isConfigured
+                      ? "Sin configurar"
+                      : financingState?.enabled === false
+                        ? "Desactivado"
+                        : "Activo"}
                   </strong>
                 </div>
               </div>

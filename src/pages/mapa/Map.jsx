@@ -216,6 +216,7 @@ function MyMap() {
   const [walkingInfo, setWalkingInfo] = useState(null);
   const [drivingInfo, setDrivingInfo] = useState(null);
   const [hasRealPosition, setHasRealPosition] = useState(false);
+  const realPositionRef = useRef(null);
   const [mapMounted, setMapMounted] = useState(false);
   const [mapBounds, setMapBounds] = useState(null);
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
@@ -766,6 +767,19 @@ function MyMap() {
 
   const isSidebarOpen = !!(selectedProyecto || selectedLote);
   const shouldShrinkMapForSidebar = isDesktopSidebarViewport && isSidebarOpen;
+
+  useEffect(() => {
+    if (isSidebarOpen) {
+      setMapHeaderOffsetPx(0);
+    } else {
+      const el = headerRef.current;
+      if (el) {
+        setMapHeaderOffsetPx(Math.round(el.getBoundingClientRect().height) || (window.innerWidth <= 550 ? 66 : 80));
+      } else {
+        setMapHeaderOffsetPx(typeof window !== "undefined" ? (window.innerWidth <= 550 ? 66 : 80) : 80);
+      }
+    }
+  }, [isSidebarOpen]);
   const canRenderSharedSidebar = !hasShareParams || shareResolveStatus === "resolved";
 
   useEffect(() => {
@@ -1160,12 +1174,13 @@ function MyMap() {
         } catch {
           // ignore storage errors
         }
+        realPositionRef.current = nextPosition;
+        setHasRealPosition(true);
         if (selectedProyecto || selectedLote || shareFocusActive) {
           pendingGeolocationRef.current = nextPosition;
           return;
         }
         setCurrentPosition(nextPosition);
-        setHasRealPosition(true);
       },
       () => {
         console.warn("Permiso de ubicación denegado.");
@@ -1487,7 +1502,7 @@ function MyMap() {
     const service = new window.google.maps.DirectionsService();
     service.route(
       {
-        origin: currentPosition,
+        origin: realPositionRef.current || currentPosition,
         destination: {
           lat,
           lng,
@@ -1504,6 +1519,43 @@ function MyMap() {
           if (mode === "WALKING") setWalkingInfo(info);
           if (mode === "DRIVING") setDrivingInfo(info);
         }
+      },
+    );
+  };
+
+  const handleRequestLocation = () => {
+    if (!navigator.geolocation) {
+      console.warn("Geolocalización no soportada por el navegador.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const nextPosition = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        try {
+          localStorage.setItem(GEOLOCATION_ONBOARDING_DONE_KEY, "1");
+        } catch {
+          // ignore storage errors
+        }
+        realPositionRef.current = nextPosition;
+        setHasRealPosition(true);
+        if (selectedProyecto || selectedLote) {
+          // No recentramos el mapa mientras se está viendo un proyecto/lote;
+          // solo aplicamos la posición real al cerrar la ficha (ver efecto de
+          // pendingGeolocationRef más abajo).
+          pendingGeolocationRef.current = nextPosition;
+        } else {
+          setCurrentPosition(nextPosition);
+        }
+        if (selectedProyecto) {
+          calculateInfo("WALKING", selectedProyecto);
+          calculateInfo("DRIVING", selectedProyecto);
+        }
+      },
+      () => {
+        console.warn("Permiso de ubicación denegado.");
       },
     );
   };
@@ -2460,7 +2512,7 @@ function MyMap() {
 
   return (
     <div className={styles.container}>
-      <header ref={headerRef} className={`${styles.cabecera} `}>
+      <header ref={headerRef} className={`${styles.cabecera} ${isSidebarOpen ? styles.cabeceraHiddenOnProject : ""}`}>
         {/* Logo a la izquierda fuera de la barra central */}
         <Link to="/" className={styles.logoContainer} aria-label="Ir a inicio">
           <img
@@ -3067,6 +3119,8 @@ function MyMap() {
           espacios={espaciosProyecto}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
+          hasRealPosition={hasRealPosition}
+          onRequestLocation={handleRequestLocation}
           mapHeaderOffsetPx={mapHeaderOffsetPx}
           forceCompactForLote={!!selectedLote}
           isLoading={isProyectoLoading}
@@ -3108,6 +3162,8 @@ function MyMap() {
           proyecto={selectedProyecto}
           walkingInfo={walkingInfo}
           drivingInfo={drivingInfo}
+          hasRealPosition={hasRealPosition}
+          onRequestLocation={handleRequestLocation}
           mapHeaderOffsetPx={mapHeaderOffsetPx}
           isLoading={isLoteLoading}
           mapRef={mapRef}

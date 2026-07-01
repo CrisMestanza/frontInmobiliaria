@@ -3,7 +3,9 @@ import { authFetch } from "../../../config/authFetch.js";
 import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 // components/LoteModal.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { GoogleMap, Polygon, DrawingManager, Marker } from "@react-google-maps/api";
+import { GoogleMap, Polygon, Marker } from "@react-google-maps/api";
+import COUNTRIES from "../../../data/countries.js";
+import { attachManualPolygonDrawTool } from "../../../utils/manualPolygonDrawTool.js";
 import {
   area as turfArea,
   difference as turfDifference,
@@ -299,7 +301,7 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
   const [reviewModeEnabled, setReviewModeEnabled] = useState(false);
   const [reviewSummary, setReviewSummary] = useState("");
   const overlayRef = useRef(null);
-  const drawingManagerRef = useRef(null);
+  const polygonDrawCleanupRef = useRef(null);
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
   const esCasa = formValues[selectedLote]?.tipo_inmueble === 2;
   const polygonRefs = useRef({});
@@ -555,35 +557,7 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
   }, []);
 
   useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const res = await fetch(
-          "https://restcountries.com/v3.1/all?fields=name,flags,currencies"
-        );
-        const data = await res.json();
-
-        const parsed = data
-          .map((c) => {
-            const currencyKey = c.currencies ? Object.keys(c.currencies)[0] : null;
-            const currency = currencyKey ? c.currencies[currencyKey] : null;
-
-            return {
-              name: c.name?.common,
-              flag: c.flags?.png,
-              currencySymbol: currency?.symbol || "",
-              currencyName: currency?.name || "",
-            };
-          })
-          .filter((c) => c.name)
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-        setCountries(parsed);
-      } catch (err) {
-        console.error("Error cargando países", err);
-      }
-    };
-
-    fetchCountries();
+    setCountries(COUNTRIES);
   }, []);
 
 
@@ -1436,27 +1410,23 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
     setBasePolygonCoords(coords);
   };
 
-  const pruneDuplicateDrawingControls = useCallback(() => {
-    const mapDiv = mapRef.current?.getDiv?.();
-    if (!mapDiv) return;
-
-    const buttons = Array.from(mapDiv.querySelectorAll("button"));
-    const rectButtons = buttons.filter((btn) => {
-      const label = `${btn.getAttribute("title") || ""} ${btn.getAttribute("aria-label") || ""}`
-        .toLowerCase()
-        .replace(/\s+/g, " ");
-      return label.includes("rect") || label.includes("rectáng");
-    });
-
-    rectButtons.forEach((btn) => {
-      const control = btn.closest(".gmnoprint");
-      if (control) control.remove();
-    });
-  }, []);
-
   const onMapLoad = (map) => {
     mapRef.current = map;
-    pruneDuplicateDrawingControls();
+    polygonDrawCleanupRef.current?.();
+    polygonDrawCleanupRef.current = attachManualPolygonDrawTool(
+      map,
+      window.google?.maps,
+      {
+        onPolygonComplete,
+        polygonOptions: {
+          fillColor: "#FF00FF",
+          fillOpacity: 0.3,
+          strokeColor: "#FF00FF",
+          strokeWeight: 2,
+        },
+        position: window.google?.maps?.ControlPosition?.TOP_CENTER,
+      },
+    );
   };
 
   const getPolygonCenter = (coords) => {
@@ -3018,6 +2988,10 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
                   zoom={mapZoom}
                   center={mapCenter}
                   options={{ gestureHandling: "greedy", mapTypeControl: false }}
+                  onUnmount={() => {
+                    polygonDrawCleanupRef.current?.();
+                    polygonDrawCleanupRef.current = null;
+                  }}
                 >
                   {proyectoCoords.length > 0 && (
                     <Polygon
@@ -3151,47 +3125,6 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
                     />
                   ))}
 
-                  <DrawingManager
-                    onLoad={(dm) => {
-                      if (
-                        drawingManagerRef.current &&
-                        drawingManagerRef.current !== dm
-                      ) {
-                        drawingManagerRef.current.setMap(null);
-                      }
-                      drawingManagerRef.current = dm;
-                      setTimeout(pruneDuplicateDrawingControls, 0);
-                    }}
-                    onUnmount={(dm) => {
-                      dm?.setMap(null);
-                      drawingManagerRef.current = null;
-                    }}
-                    onPolygonComplete={onPolygonComplete}
-                    options={{
-                      drawingControl: true,
-                      drawingControlOptions: {
-                        position:
-                          googleRef.current?.maps.ControlPosition.TOP_CENTER || 7,
-                      drawingModes: ["polygon"],
-                      },
-                      polygonOptions: {
-                        editable: true,
-                        draggable: true,
-                        fillColor: "#FF00FF",
-                        fillOpacity: 0.3,
-                        strokeColor: "#FF00FF",
-                        strokeWeight: 2,
-                      },
-                      rectangleOptions: {
-                        editable: true,
-                        draggable: true,
-                        fillColor: "#FF00FF",
-                        fillOpacity: 0.3,
-                        strokeColor: "#FF00FF",
-                        strokeWeight: 2,
-                      },
-                    }}
-                  />
                 </GoogleMap>
                 <div className={styles.mapTypeControlWrap}>
                   <div className={styles.mapTypeTabs} aria-label="Tipo de mapa">

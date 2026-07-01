@@ -247,6 +247,15 @@
   display: block;
 }
 
+.sidebarNoMedia {
+  max-width: min(523px, 50.6vw) !important;
+}
+
+.sidebarNoMedia .infoSection {
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+
 .noImageLayout .infoSection {
   width: 100%;
 }
@@ -611,6 +620,44 @@
   width: 1px;
   height: 42px;
   background: #d1d5db;
+}
+
+.locationCtaBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px dashed #0f766e;
+  border-radius: 10px;
+  background: rgba(15, 118, 110, 0.06);
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.35;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.locationCtaBtn:hover {
+  background: rgba(15, 118, 110, 0.12);
+}
+
+.locationCtaBtn:active {
+  transform: scale(0.98);
+}
+
+.locationCtaIcon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .locationCtaBtn {
+  background: rgba(45, 212, 191, 0.1);
+  border-color: #2dd4bf;
+  color: #2dd4bf;
 }
 
 .mobileSocialRow {

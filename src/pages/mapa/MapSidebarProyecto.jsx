@@ -175,6 +175,8 @@ const ProyectoSidebar = ({
   onSelectLote,
   walkingInfo,
   drivingInfo,
+  hasRealPosition = false,
+  onRequestLocation,
   mapHeaderOffsetPx = 0,
   forceCompactForLote = false,
   isLoading = false,
@@ -372,23 +374,26 @@ const ProyectoSidebar = ({
     shouldUseLoteDrivenFinancing,
   ]);
   const financingCurrency =
-    financingConfig?.currency || proyecto?.moneda || "S/";
+    selectedLote?.moneda || proyecto?.moneda || financingConfig?.currency || "S/";
   const financingPrice = Number(
     financingTarget?.price ||
       financingConfig?.price_reference ||
       proyecto?.precio ||
       0,
   );
+  const configuredMinInitial = Number(
+    financingConfig?.min_initial_amount ??
+      financingConfig?.default_initial_amount ??
+      0,
+  ) || 0;
   const financingMinInitial = Math.max(
     0,
-    Number(
-      financingConfig?.min_initial_amount ??
-        financingConfig?.default_initial_amount ??
-        0,
-    ) || Math.round(financingPrice * 0.1),
+    financingPrice > 0 && configuredMinInitial > financingPrice
+      ? Math.round(financingPrice * 0.1)
+      : configuredMinInitial || Math.round(financingPrice * 0.1),
   );
   const financingMaxInitial = Math.max(
-    financingMinInitial,
+    financingMinInitial + 100,
     Math.min(
       Number(financingConfig?.max_initial_amount || financingPrice || 0) ||
         financingPrice,
@@ -539,7 +544,7 @@ const ProyectoSidebar = ({
           lote: lot,
           kind: "cash",
           label: "Contado",
-          amountLabel: formatMoney(lot.precio, financingCurrency),
+          amountLabel: formatMoney(lot.precio, lot.moneda || financingCurrency),
           helper: "Precio total del lote",
         }));
     }
@@ -568,9 +573,9 @@ const ProyectoSidebar = ({
           label: "Credito",
           amountLabel: formatMoney(
             options[0].monthlyEstimate,
-            financingCurrency,
+            lot.moneda || financingCurrency,
           ),
-          helper: `Inicial ${formatMoney(options[0].initial, financingCurrency)} · ${options[0].months} meses`,
+          helper: `Inicial ${formatMoney(options[0].initial, lot.moneda || financingCurrency)} · ${options[0].months} meses`,
         };
       })
       .filter(Boolean)
@@ -1113,7 +1118,7 @@ const ProyectoSidebar = ({
 
       <div
         ref={sidebarRef}
-        className={`${styles.sidebar} ${expanded ? styles.expanded : ""} ${isMobileView ? styles.mobileSidebar : ""} ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""} ${sheetMode === "expanded" ? styles.mobileExpanded : ""}`}
+        className={`${styles.sidebar} ${expanded ? styles.expanded : ""} ${isMobileView ? styles.mobileSidebar : ""} ${sheetMode === "collapsed" ? styles.mobileCollapsed : ""} ${sheetMode === "expanded" ? styles.mobileExpanded : ""} ${!isLoading && !imagesPending && validImages.length === 0 ? styles.sidebarNoMedia : ""}`}
         style={
           isMobileView && mobileSheetTop !== null
             ? {
@@ -1159,10 +1164,11 @@ const ProyectoSidebar = ({
           className={`${styles.splitLayout} ${sheetMode === "collapsed" ? styles.mobileHiddenContent : ""}`}
         >
           {/* SECCIÓN IMAGEN / SLIDER */}
+          {(isLoading || imagesPending || validImages.length > 0) && (
           <div className={styles.imageSection} data-gsap="media">
             {isLoading || imagesPending ? (
               <div className={styles.skeletonImage} />
-            ) : validImages.length === 0 ? null : isMobileView ? (
+            ) : isMobileView ? (
               <div
                 className={styles.mobileCarouselWrap}
                 onTouchStart={onCarouselTouchStart}
@@ -1312,6 +1318,7 @@ const ProyectoSidebar = ({
               </>
             )}
           </div>
+          )}
 
           {/* SECCIÓN INFORMACIÓN */}
           <div
@@ -1409,83 +1416,107 @@ const ProyectoSidebar = ({
                   {/* <p className={styles.ubicacion}>📍 {proyecto.descripcion?.split('.')[0]}</p> */}
                   {isMobileView ? (
                     <div className={styles.mobileMetricsBox} data-gsap="metric">
-                      <div className={styles.mobileMetricsRow}>
-                        <div className={styles.mobileMetricGroup}>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {carMinutes}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>MIN</span>
-                            <FaCar className={styles.mobileMetricIcon} />
+                      {hasRealPosition ? (
+                        <div className={styles.mobileMetricsRow}>
+                          <div className={styles.mobileMetricGroup}>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {carMinutes}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>MIN</span>
+                              <FaCar className={styles.mobileMetricIcon} />
+                            </div>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {carKm}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>KM</span>
+                            </div>
                           </div>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {carKm}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>KM</span>
+                          <div className={styles.mobileMetricDivider}></div>
+                          <div className={styles.mobileMetricGroup}>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {walkMinutes}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>MIN</span>
+                              <FaWalking className={styles.mobileMetricIcon} />
+                            </div>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {walkKm}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>KM</span>
+                            </div>
                           </div>
                         </div>
-                        <div className={styles.mobileMetricDivider}></div>
-                        <div className={styles.mobileMetricGroup}>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {walkMinutes}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>MIN</span>
-                            <FaWalking className={styles.mobileMetricIcon} />
-                          </div>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {walkKm}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>KM</span>
-                          </div>
-                        </div>
-                      </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.locationCtaBtn}
+                          onClick={onRequestLocation}
+                        >
+                          <FaMapMarkedAlt className={styles.locationCtaIcon} />
+                          Para ver el tiempo y distancia a este proyecto, debes
+                          activar tu ubicación
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div
                       className={styles.desktopMetricsBox}
                       data-gsap="metric"
                     >
-                      <div className={styles.mobileMetricsRow}>
-                        <div className={styles.mobileMetricGroup}>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {carMinutes}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>MIN</span>
-                            <FaCar className={styles.mobileMetricIcon} />
+                      {hasRealPosition ? (
+                        <div className={styles.mobileMetricsRow}>
+                          <div className={styles.mobileMetricGroup}>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {carMinutes}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>MIN</span>
+                              <FaCar className={styles.mobileMetricIcon} />
+                            </div>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {carKm}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>KM</span>
+                            </div>
                           </div>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {carKm}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>KM</span>
+                          <div className={styles.mobileMetricDivider}></div>
+                          <div className={styles.mobileMetricGroup}>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {walkMinutes}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>MIN</span>
+                              <FaWalking className={styles.mobileMetricIcon} />
+                            </div>
+                            <div className={styles.mobileMetricItem}>
+                              <span className={styles.mobileMetricValue}>
+                                {walkKm}
+                              </span>
+                              <span className={styles.mobileMetricUnit}>KM</span>
+                            </div>
                           </div>
                         </div>
-                        <div className={styles.mobileMetricDivider}></div>
-                        <div className={styles.mobileMetricGroup}>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {walkMinutes}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>MIN</span>
-                            <FaWalking className={styles.mobileMetricIcon} />
-                          </div>
-                          <div className={styles.mobileMetricItem}>
-                            <span className={styles.mobileMetricValue}>
-                              {walkKm}
-                            </span>
-                            <span className={styles.mobileMetricUnit}>KM</span>
-                          </div>
-                        </div>
-                      </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.locationCtaBtn}
+                          onClick={onRequestLocation}
+                        >
+                          <FaMapMarkedAlt className={styles.locationCtaIcon} />
+                          Para ver el tiempo y distancia a este proyecto, debes
+                          activar tu ubicación
+                        </button>
+                      )}
                     </div>
                   )}
 
                   <div
-                    className={`${styles.priceContainer} ${isCasaProject ? styles.housePriceContainer : ""}`}
+                    className={`${styles.priceContainer} ${isCasaProject || proyecto.precio > 0 ? styles.housePriceContainer : ""}`}
                     data-gsap="card"
                   >
                     {proyecto.precio > 0 && (
@@ -1834,6 +1865,7 @@ const ProyectoSidebar = ({
                     </div>
                   )}
 
+                  {financingConfig && financingConfig.enabled !== false && (
                   <div className={styles.financingCard} data-gsap="card">
                     <div className={styles.financingHeader}>
                       <div>
@@ -2170,6 +2202,7 @@ const ProyectoSidebar = ({
                       </p>
                     )}
                   </div>
+                  )}
 
                   {proyecto.area_total_m2 > 0 && (
                     <div className={styles.quickGrid}>

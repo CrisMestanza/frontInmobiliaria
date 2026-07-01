@@ -828,6 +828,44 @@
   background: #d1d5db;
 }
 
+.locationCtaBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px dashed #0f766e;
+  border-radius: 14px;
+  background: rgba(15, 118, 110, 0.06);
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.35;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.locationCtaBtn:hover {
+  background: rgba(15, 118, 110, 0.12);
+}
+
+.locationCtaBtn:active {
+  transform: scale(0.98);
+}
+
+.locationCtaIcon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .locationCtaBtn {
+  background: rgba(45, 212, 191, 0.1);
+  border-color: #2dd4bf;
+  color: #2dd4bf;
+}
+
 .socialFooter {
   margin-top: 30px;
   display: flex;

@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import loader from "../../../components/loader";
 import styles from "./addproyect.module.css";
+import COUNTRIES from "../../../data/countries.js";
 
 const defaultCenter = { lat: -6.4882, lng: -76.365629 };
 const PROJECT_TYPE_BY_REGISTRATION = {
@@ -200,25 +201,14 @@ export default function ProyectoModal({
   const isLoteUnico = form.tipo_registro === "lote_unico";
 
   useEffect(() => {
-    fetch("https://restcountries.com/v3.1/all?fields=name,flags,currencies")
-      .then((res) => res.json())
-      .then((data) => {
-        const formatted = data.map((c) => {
-          const currencyKey = c.currencies
-            ? Object.keys(c.currencies)[0]
-            : null;
-
-          return {
-            pais: c.name.common,
-            bandera: c.flags?.png,
-            moneda: currencyKey ? c.currencies[currencyKey].symbol : "",
-            codigo: currencyKey,
-          };
-        });
-
-        setCountries(formatted.sort((a, b) => a.pais.localeCompare(b.pais)));
-      })
-      .catch((err) => console.error(err));
+    setCountries(
+      COUNTRIES.map((c) => ({
+        pais: c.name,
+        bandera: c.flag,
+        moneda: c.currencySymbol,
+        codigo: c.currencyCode,
+      })),
+    );
   }, []);
 
   useEffect(() => {

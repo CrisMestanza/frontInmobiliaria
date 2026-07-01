@@ -34,9 +34,23 @@ export default function Overview() {
   } = useAdmin();
 
   const idInmo = localStorage.getItem('idinmobiliaria');
+  const nombreInmo = localStorage.getItem('nombreinmobiliaria');
   const mapUrl = `${window.location.origin}/mapa/${idInmo}`;
   const publicBase = import.meta.env.BASE_URL === './' ? '/' : import.meta.env.BASE_URL;
   const [showRedes, setShowRedes] = useState(false);
+
+  const loteBreakdown = useMemo(() => {
+    const disponible = Number(resumen?.lotesDisponibles || 0);
+    const reservado = Number(resumen?.lotesReservados || 0);
+    const vendido = Number(resumen?.lotesVendidos || 0);
+    const total = Math.max(disponible + reservado + vendido, 1);
+    return {
+      disponible, reservado, vendido,
+      pctDisponible: (disponible / total) * 100,
+      pctReservado: (reservado / total) * 100,
+      pctVendido: (vendido / total) * 100,
+    };
+  }, [resumen]);
 
   const tutorialScrollRef = useRef(null);
   const [tutorialScroll, setTutorialScroll] = useState({ left: false, right: false });
@@ -114,15 +128,54 @@ export default function Overview() {
 
   return (
     <div className="overview">
-      {/* Stats Grid */}
-      <div className="stats-grid">
+      {/* Hero */}
+      <section className="overview-hero">
+        <div className="overview-hero-text">
+          <span className="overview-hero-eyebrow">Resumen comercial</span>
+          <h2>Hola{nombreInmo ? `, ${nombreInmo}` : ''} 👋</h2>
+          <p>Así está tu portafolio en GeoHabita hoy.</p>
+        </div>
+        <div className="overview-hero-link">
+          <div className="link-icon-box"><Link size={20} /></div>
+          <div className="input-group">
+            <label className="link-label">Enlace exclusivo de tus proyectos</label>
+            <div className="link-input-wrapper">
+              <input className="input-styled" readOnly value={mapUrl} />
+              <button onClick={() => { navigator.clipboard.writeText(mapUrl); window.alertSuccess?.('Copiado'); }} className="btn-copy share-action-btn"><Copy size={18} /><span className="share-btn-text">Copiar</span></button>
+              <button onClick={() => { navigator.share ? navigator.share({ title: 'GeoHabita', text: 'Accede a mis proyectos en GeoHabita', url: mapUrl }).then(() => window.alertSuccess?.('Enlace compartido')).catch(() => {}) : navigator.clipboard.writeText(mapUrl); }} className="btn-share share-action-btn"><Share2Icon size={18} /><span className="share-btn-text">Compartir</span></button>
+              <button onClick={() => window.open(mapUrl, '_blank')} className="btn-map share-action-btn"><MapPin size={18} /><span className="share-btn-text">Ver Mapa</span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Bento stats */}
+      <div className="bento-grid">
+        <div className="bento-feature">
+          <div className="bento-feature-top">
+            <span className="stat-label">Lotes Disponibles</span>
+            <CheckCircle2 size={22} />
+          </div>
+          <div className="bento-feature-value">{loteBreakdown.disponible}</div>
+          <div className="bento-proportion-bar">
+            <span style={{ width: `${loteBreakdown.pctDisponible}%`, background: '#22c55e' }} />
+            <span style={{ width: `${loteBreakdown.pctReservado}%`, background: '#eab308' }} />
+            <span style={{ width: `${loteBreakdown.pctVendido}%`, background: '#ef4444' }} />
+          </div>
+          <div className="bento-feature-legend">
+            <span><i className="bento-dot" style={{ background: '#22c55e' }} />Disponible {loteBreakdown.disponible}</span>
+            <span><i className="bento-dot" style={{ background: '#eab308' }} />Reservado {loteBreakdown.reservado}</span>
+            <span><i className="bento-dot" style={{ background: '#ef4444' }} />Vendido {loteBreakdown.vendido}</span>
+          </div>
+        </div>
+
         <div className="stat-box">
           <div className="stat-label">Proyectos</div>
           <div className="stat-value">{proyectos.length} <FoldersIcon size={24} color="#cbd5e1" /></div>
         </div>
-        <div className="stat-box accent-green">
-          <div className="stat-label">Lotes Disponibles</div>
-          <div className="stat-value stat-value-green">{resumen?.lotesDisponibles || 0} <CheckCircle2 size={24} /></div>
+        <div className="stat-box accent-blue">
+          <div className="stat-label">Interés en Proyectos</div>
+          <div className="stat-value stat-value-blue">{totalInteres} <ChartSpline size={24} /></div>
         </div>
         <div className="stat-box accent-yellow">
           <div className="stat-label">Lotes Reservados</div>
@@ -132,11 +185,8 @@ export default function Overview() {
           <div className="stat-label">Lotes Vendidos</div>
           <div className="stat-value stat-value-red">{resumen?.lotesVendidos || 0} <TagIcon size={24} /></div>
         </div>
-        <div className="stat-box accent-blue">
-          <div className="stat-label">Interés en Proyectos</div>
-          <div className="stat-value stat-value-blue">{totalInteres} <ChartSpline size={24} /></div>
-        </div>
-        <div className="stat-box accent-black contact-card">
+
+        <div className="stat-box accent-black contact-card bento-wide">
           <div className="stat-label">Contactos</div>
           <div className="stat-value stat-value-black">{totalContactos} <MessageCircleHeart size={24} /></div>
           <button onClick={() => setShowRedes(!showRedes)} className="contact-toggle-btn">
@@ -157,52 +207,45 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Share link */}
-      <section className="link-share-card">
-        <div className="link-icon-box"><Link size={32} /></div>
-        <div className="input-group">
-          <label className="link-label">Enlace Exclusivo de tus Proyectos</label>
-          <div className="link-input-wrapper">
-            <input className="input-styled" readOnly value={mapUrl} />
-            <button onClick={() => { navigator.clipboard.writeText(mapUrl); window.alertSuccess?.('Copiado'); }} className="btn-copy share-action-btn"><Copy size={18} /><span className="share-btn-text">Copiar</span></button>
-            <button onClick={() => { navigator.share ? navigator.share({ title: 'GeoHabita', text: 'Accede a mis proyectos en GeoHabita', url: mapUrl }).then(() => window.alertSuccess?.('Enlace compartido')).catch(() => {}) : navigator.clipboard.writeText(mapUrl); }} className="btn-share share-action-btn"><Share2Icon size={18} /><span className="share-btn-text">Compartir</span></button>
-            <button onClick={() => window.open(mapUrl, '_blank')} className="btn-map share-action-btn"><MapPin size={18} /><span className="share-btn-text">Ver Mapa</span></button>
-          </div>
-        </div>
-      </section>
-
       {/* Quick actions */}
       <section className="overview-actions">
         <h3 className="overview-section-title">Accesos rápidos</h3>
         <div className="quick-actions-grid">
           <button onClick={() => navigate('/dashboard/proyectos')} className="quick-action-card quick-action-card--projects">
-            <FoldersIcon size={22} />
+            <span className="quick-action-icon"><FoldersIcon size={20} /></span>
             <div>
               <strong>Gestionar Proyectos</strong>
               <span>Portafolio, edición y publicación</span>
             </div>
           </button>
           <button onClick={() => navigate('/dashboard/lotes')} className="quick-action-card quick-action-card--lots">
-            <Layers size={22} />
+            <span className="quick-action-icon"><Layers size={20} /></span>
             <div>
               <strong>Ver todos los lotes</strong>
               <span>Inventario, precio y estado</span>
             </div>
           </button>
           <button onClick={() => navigate('/dashboard/mapa-publico')} className="quick-action-card quick-action-card--map">
-            <MapPin size={22} />
+            <span className="quick-action-icon"><MapPin size={20} /></span>
             <div>
               <strong>Mapa Público</strong>
               <span>Visibilidad, enlace y difusión</span>
             </div>
           </button>
           <button onClick={() => navigate('/dashboard/leads')} className="quick-action-card quick-action-card--leads">
-            <MessageCircleHeart size={22} />
+            <span className="quick-action-icon"><MessageCircleHeart size={20} /></span>
             <div>
               <strong>Leads y Contactos</strong>
               <span>Interés comercial y seguimiento</span>
             </div>
           </button>
+          <a href="https://wa.me/51925545624" target="_blank" rel="noopener noreferrer" className="quick-action-card quick-action-card--support">
+            <span className="quick-action-icon"><FaWhatsapp size={20} /></span>
+            <div>
+              <strong>Soporte GeoHabita</strong>
+              <span>Escríbenos, estamos para ayudarte</span>
+            </div>
+          </a>
         </div>
       </section>
 
@@ -213,6 +256,7 @@ export default function Overview() {
           <div className="alerts-grid">
             {alertas.map((a) => (
               <div key={a.id} className={`alert-chip alert-chip--${a.type}`}>
+                <AlertTriangle size={13} />
                 {a.text}
               </div>
             ))}

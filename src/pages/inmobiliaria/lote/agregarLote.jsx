@@ -3,12 +3,13 @@ import { authFetch } from "../../../config/authFetch.js";
 import { getResponseErrorMessage } from "../../../utils/apiErrors.js";
 // components/LoteModal.jsx
 import { useState, useEffect, useCallback, useRef } from "react";
-import { GoogleMap, Polygon, DrawingManager } from "@react-google-maps/api";
+import { GoogleMap, Polygon } from "@react-google-maps/api";
 import style from "../proyecto/addproyect.module.css";
 import loader from "../../../components/loader";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 import { loadPdfFromIndexedDB } from "../../../components/utils/indexedDB";
+import { attachManualPolygonDrawTool } from "../../../utils/manualPolygonDrawTool.js";
 
 const DEFAULT_MAP_CENTER = { lat: -6.4882, lng: -76.365629 };
 
@@ -74,7 +75,7 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const mapRef = useRef(null);
   const googleRef = useRef(null);
-  const drawingManagerRef = useRef(null);
+  const polygonDrawCleanupRef = useRef(null);
   const token = localStorage.getItem("access");
   const isCasa = form.idtipoinmobiliaria === 2;
   const originalPdfImageRef = useRef(null);
@@ -85,24 +86,6 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
   const overlayRef = useRef(null);
   const proyectoCoordsRef = useRef([]);
   const fileInputRef = useRef(null);
-
-  const pruneDuplicateDrawingControls = useCallback(() => {
-    const mapDiv = mapRef.current?.getDiv?.();
-    if (!mapDiv) return;
-
-    const buttons = Array.from(mapDiv.querySelectorAll("button"));
-    const rectButtons = buttons.filter((btn) => {
-      const label = `${btn.getAttribute("title") || ""} ${btn.getAttribute("aria-label") || ""}`
-        .toLowerCase()
-        .replace(/\s+/g, " ");
-      return label.includes("rect") || label.includes("rectáng");
-    });
-
-    rectButtons.forEach((btn) => {
-      const control = btn.closest(".gmnoprint");
-      if (control) control.remove();
-    });
-  }, []);
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
@@ -972,7 +955,19 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
                       onLoad={(map) => {
                         mapRef.current = map;
                         applyMapType(map);
-                        pruneDuplicateDrawingControls();
+                        polygonDrawCleanupRef.current?.();
+                        polygonDrawCleanupRef.current = attachManualPolygonDrawTool(
+                          map,
+                          window.google?.maps,
+                          {
+                            onPolygonComplete,
+                            polygonOptions: { editable: true, draggable: true },
+                          },
+                        );
+                      }}
+                      onUnmount={() => {
+                        polygonDrawCleanupRef.current?.();
+                        polygonDrawCleanupRef.current = null;
                       }}
                     >
                       {proyectoCoords.length > 0 && (
@@ -1000,30 +995,6 @@ export default function LoteModal({ onClose, idproyecto, embedded = false }) {
                         />
                       ))}
 
-                      <DrawingManager
-                        onLoad={(dm) => {
-                          if (drawingManagerRef.current && drawingManagerRef.current !== dm) {
-                            drawingManagerRef.current.setMap(null);
-                          }
-                          drawingManagerRef.current = dm;
-                          setTimeout(pruneDuplicateDrawingControls, 0);
-                        }}
-                        onUnmount={(dm) => {
-                          dm?.setMap(null);
-                          drawingManagerRef.current = null;
-                        }}
-                        onPolygonComplete={onPolygonComplete}
-                        options={{
-                          drawingControl: true,
-                          drawingControlOptions: {
-                            drawingModes: ["polygon"],
-                          },
-                          polygonOptions: {
-                            editable: true,
-                            draggable: true,
-                          },
-                        }}
-                      />
                     </GoogleMap>
                   ) : (
                     <div className={style.mapLoadingState}>Cargando mapa...</div>

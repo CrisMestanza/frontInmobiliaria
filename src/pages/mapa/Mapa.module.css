@@ -17,21 +17,21 @@
   align-items: center;
   justify-content: space-between;
   height: 80px;
-  /* Altura fija para consistencia */
   padding: 0 40px;
   position: fixed;
-  /* Para que siempre esté arriba */
   top: 0;
   width: 100%;
   z-index: 1000;
   box-sizing: border-box;
   background-color: var(--theme-bg-surface);
   border-bottom: 1px solid var(--theme-border-color);
-  /* Fondo blanco para visibilidad */
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
 }
 
 .cabeceraHiddenOnProject {
-  /* hidden only on mobile via media query */
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .mapWrapper {

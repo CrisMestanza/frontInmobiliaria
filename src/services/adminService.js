@@ -100,9 +100,10 @@ export const fetchDashboardOverview = async (idInmo) => {
           ...project,
           gallery_images: [],
         })[0] || null;
-      // Si ya tenemos una imagen directa (hero_image del overview), no hacemos
-      // la llamada extra a list_imagen_proyecto — elimina N requests en el happy path.
-      const galleryImages = directImage ? [] : await fetchProjectImages(project.idproyecto);
+      // Siempre se consulta la galería real: los campos "directos" del proyecto
+      // (hero_image, imagenproyecto, etc.) a veces quedan vacíos o desactualizados,
+      // y sin la galería como respaldo la card se queda sin ninguna imagen válida.
+      const galleryImages = await fetchProjectImages(project.idproyecto);
       return {
         ...fullProject,
         ...project,
